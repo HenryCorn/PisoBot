@@ -78,4 +78,11 @@ def refine(listing):
         listing.share_pct = float(pct.group(1))
     if full:
         listing.full_value = money(full.group(1))
+    lease = re.search(r"(\d{2,3})\s*years?\s*(?:remaining|left|unexpired|lease)|lease[^.]{0,30}?(\d{2,3})\s*years",
+                      blob, re.I)
+    if lease:
+        listing.lease_years = int(lease.group(1) or lease.group(2))
+    band = re.search(r"council tax band:?\s*([A-H])\b", blob, re.I)
+    if band:
+        listing.council_tax = band.group(1).upper()
     return True

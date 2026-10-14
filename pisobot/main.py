@@ -6,8 +6,9 @@ import math
 import os
 import sys
 import traceback
+from zoneinfo import ZoneInfo
 
-from . import cache, collage, config, costs, enrich, ranking, telegram
+from . import cache, collage, config, costs, enrich, mapgen, prefs, ranking, telegram
 from .sources import lq, nhg, onthemarket, sharetobuy
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket}
@@ -54,19 +55,20 @@ def passes_basic(l):
 
 
 def passes_area(l):
-    l.travel_minutes = enrich.travel_minutes(l.lat, l.lng)
-    if l.travel_minutes is None or l.travel_minutes > config.MAX_TRAVEL_MINUTES:
+    j = enrich.journey(l.lat, l.lng)
+    if not j or j["minutes"] > config.MAX_TRAVEL_MINUTES:
         return "travel"
+    l.travel_minutes, l.route, l.station, l.walk_minutes = j["minutes"], j["route"], j["station"], j["walk"]
     l.crime_score = enrich.crime_score(l.lat, l.lng)
     if l.crime_score > config.MAX_CRIME_SCORE:
         return "crime"
     return None
 
 
-def is_duplicate(l, alerted):
+def is_duplicate(l, records):
     """Same flat on another portal: same beds, price within 2%, within ~300 m."""
     price = l.share_price or l.rent or 0
-    for a in alerted:
+    for a in records:
         if a.get("beds") != l.bedrooms or not a.get("lat") or not price:
             continue
         if abs(a.get("price", 0) - price) <= 0.02 * price and _km(a["lat"], a["lng"], l.lat, l.lng) <= 0.3:
@@ -78,38 +80,42 @@ def _km(lat1, lng1, lat2, lng2):
     return math.hypot((lat1 - lat2) * 111.2, (lng1 - lng2) * 111.2 * math.cos(math.radians(lat1)))
 
 
+def _now():
+    return dt.datetime.now(ZoneInfo("Europe/London")).strftime("%Y-%m-%dT%H:%M")
+
+
 def _record(l, today, alerted, prev=None):
     prev = prev or {}
-    return {"alerted": alerted, "cost": round(l.monthly_cost), "first": prev.get("first", today),
+    return {"alerted": alerted, "cost": round(l.monthly_cost), "first": prev.get("first", _now()),
             "last": today, "url": l.url, "beds": l.bedrooms, "price": l.share_price or l.rent,
-            "lat": l.lat, "lng": l.lng}
+            "lat": l.lat, "lng": l.lng, "address": l.address}
 
 
-def send_report(matches, title, preview_dir=None):
-    top = ranking.best(matches)
-    rest = sorted((m for m in matches if m not in top), key=lambda l: l.monthly_cost)
+def send_report(top, saved, rest, title, flags_of, preview_dir=None):
     jpeg = collage.build(top)
-    caption = f"🏆 Top {len(top)} of {len(matches)} matches"
-    texts = telegram.report_messages(top, rest, title)
+    caption = f"🏆 Top {len(top)} of {len(top) + len(saved) + len(rest)} matches"
+    messages = telegram.report_messages(top, rest, saved, title, flags_of)
     if preview_dir:
         os.makedirs(preview_dir, exist_ok=True)
         if jpeg:
             with open(os.path.join(preview_dir, "top.jpg"), "wb") as f:
                 f.write(jpeg)
         with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
-            f.write("\n<hr>\n".join(t.replace("\n", "<br>\n") for t in texts))
+            f.write("\n<hr>\n".join(t.replace("\n", "<br>\n") for t, _ in messages))
         print(f"report preview written to {preview_dir}")
         return
     if jpeg:
         telegram.send_photo_bytes(jpeg, caption)
         telegram.throttle()
-    for t in texts:
-        telegram.send_text(t)
+    for text, kb in messages:
+        telegram.send_text(text, kb)
         telegram.throttle()
 
 
 def run(selected, dry_run, verbose, report=False, preview_dir=None):
     seen = load_seen()
+    p = prefs.load()
+    live = not dry_run and not preview_dir
     alerted = [v for v in seen.values() if v.get("alerted")]
     listings, failures = [], []
     for name in selected:
@@ -148,56 +154,119 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None):
         kept.append(rec)
         matches.append(l)
     print(f"rejected: {rejected}")
-    print(f"current matches: {len(matches)}")
 
-    # 2. what's new or cheaper since last time
+    # 2. Telegram buttons / commands since the last run
     today = dt.date.today().isoformat()
+    known = {k: {"lat": v.get("lat"), "lng": v.get("lng"), "url": v.get("url"),
+                 "address": v.get("address", ""), "cost": v.get("cost")} for k, v in seen.items()}
+    known.update({l.key: {"lat": l.lat, "lng": l.lng, "url": l.url, "address": l.address,
+                          "cost": round(l.monthly_cost)} for l in matches})
+    if live:
+        prefs.process_updates(p, known)
+    hidden = [l for l in matches if prefs.is_hidden(p, l)]
+    matches = [l for l in matches if not prefs.is_hidden(p, l)]
+    print(f"current matches: {len(matches)} (+{len(hidden)} hidden)")
+
+    # 3. saved homes: price changes and disappearances
+    by_key = {l.key: l for l in matches}
+    fetched_keys = {l.key for l in listings}
+    saved_changes, gone = [], []
+    for key, info in list(p["saved"].items()):
+        l = by_key.get(key)
+        if l:
+            info["missing"] = 0
+            if abs((info.get("cost") or 0) - l.monthly_cost) >= config.PRICE_DROP_ALERT:
+                saved_changes.append(l)
+                info["cost"] = round(l.monthly_cost)
+        elif key in fetched_keys:
+            info["missing"] = 0   # still advertised, just outside the filters now
+        elif key.split(":")[0] not in failures:
+            info["missing"] = info.get("missing", 0) + 1
+            if info["missing"] >= 2:
+                gone.append(info)
+                del p["saved"][key]
+
+    # 4. what's new or cheaper since last time
     to_send = []
     for l in matches:
         prev = seen.get(l.key)
-        if prev is None:
+        if l.key in p["saved"]:
+            pass
+        elif prev is None:
             if not is_duplicate(l, alerted):
                 to_send.append((l, "new"))
         elif prev.get("alerted") and prev.get("cost", 0) - l.monthly_cost >= config.PRICE_DROP_ALERT:
             to_send.append((l, "drop"))
-        elif prev:
+        if prev and live:
             prev["last"] = today
     to_send.sort(key=lambda x: ranking.score(x[0]))
 
+    # 🆕 = first seen since the last report (older records only have a date: treat as reported)
+    if not p.get("last_report") and seen:
+        p["last_report"] = max(v.get("first", "") for v in seen.values())[:10] + "T23:59"
+    new_keys = {l.key for l in matches
+                if l.key not in seen or seen[l.key].get("first", "") > p.get("last_report", "")}
+    saved_keys = set(p["saved"])
+
+    def flags_of(l):
+        return " ".join(f for f, on in (("🆕", l.key in new_keys), ("❤️", l.key in saved_keys)) if on)
+
+    top = ranking.best(matches)
+    try:
+        mapgen.write(matches, top, saved_keys, new_keys)
+    except Exception:
+        print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
+
+    # 5. report (first run, daily schedule, /report, or --report) ...
     first_run = not seen
-    if first_run or report or preview_dir:
-        # A report covers everything, so no separate per-listing alerts this run.
-        title = ("👋 <b>PisoBot is live.</b> From now on you'll get one alert per new listing."
-                 if first_run else f"📋 <b>PisoBot report</b> · {today}")
+    if first_run or report or p["report_requested"] or preview_dir:
+        saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
+        rest = [l for l in matches if l not in top and l.key not in saved_keys]
+        n_new = len([l for l in matches if l.key in new_keys])
+        title = (f"{'👋 <b>PisoBot is live.</b>' if first_run else '📋 <b>PisoBot daily report</b>'} "
+                 f"{len(matches)} homes · {n_new} 🆕 · "
+                 f'<a href="{config.MAP_URL}">🗺 open the map</a>')
         print(f"report: {len(matches)} matches")
         if not dry_run or preview_dir:
-            send_report(matches, title, preview_dir)
-        to_send = []
-        if not dry_run and not preview_dir:
+            send_report(top, saved, rest, title, flags_of, preview_dir)
+        if live:
+            p["report_requested"] = False
+            p["last_report"] = _now()
             for l in matches:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+        to_send = []
 
+    # 6. ... otherwise individual alerts
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     for l, reason in to_send[: config.MAX_ALERTS_PER_RUN]:
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
               f"{l.bedrooms}b {l.address[:60]} {l.url}")
-        if dry_run:
+        if not live:
             continue
         telegram.send_listing(l, reason)
         telegram.throttle()
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+    if live:
+        for l in saved_changes:
+            telegram.send_listing(l, "saved")
+            telegram.throttle()
+        for info in gone:
+            telegram.send_text(f'❤️ <b>Saved home no longer listed</b>\n<a href="{info.get("url")}">'
+                               f'{telegram.e(info.get("address") or "listing")}</a>')
+            telegram.throttle()
+        if failures and len(failures) == len(selected):
+            telegram.send_text("⚠️ PisoBot: every source failed this run: " + ", ".join(failures))
 
-    if failures and not dry_run and len(failures) == len(selected):
-        telegram.send_text("⚠️ PisoBot: every source failed this run: " + ", ".join(failures))
     cache.save()
-    if not dry_run and not preview_dir:
+    if live:
         save_seen(seen)
+        prefs.save(p)
 
 
 def main():
     ap = argparse.ArgumentParser(description="London shared-ownership alert bot")
     ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
-    ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update seen.json")
+    ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")

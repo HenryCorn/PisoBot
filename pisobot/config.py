@@ -43,8 +43,18 @@ RANK_EXTRA_BED_BONUS = 0.05     # per bedroom above MIN_BEDROOMS
 REPORT_TOP_N = _env("REPORT_TOP_N", 10, int)
 REPORT_MAX_PER_DEVELOPMENT = 2  # keep the top 10 varied (no 10 plots of one building)
 
-MAX_ALERTS_PER_RUN =_env("MAX_ALERTS_PER_RUN", 40, int)
+MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much
+
+# Warnings shown on listings
+HIGH_SERVICE_CHARGE = 300       # £/month
+SHORT_LEASE_YEARS = 99          # mortgage lenders get wary below ~80-90 years
+
+# Notifications between these UK hours are delivered silently
+QUIET_HOURS = (22, 7)
+
+# Interactive map published with GitHub Pages from /docs
+MAP_URL = os.environ.get("MAP_URL", "https://henrycorn.github.io/PisoBot/")
 
 EXCLUDE_KEYWORDS = [
     "studio", "over 55", "over-55", "over 55s", "older person", "retirement",

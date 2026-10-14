@@ -13,7 +13,7 @@ LABEL_FONT, BADGE_FONT = 17, 21
 BG, FG, BADGE = (245, 245, 242), (25, 25, 25), (214, 51, 108)
 
 
-def _small_url(url):
+def small_url(url):
     """ShareToBuy serves images through a resizer whose options are base64 JSON in the path."""
     m = re.match(r"(https://sih\.cdn\.sharetobuy\.com/)([A-Za-z0-9+/=]+)$", url or "")
     if not m:
@@ -30,7 +30,7 @@ def _thumb(url):
     if not url:
         return None
     try:
-        img = Image.open(io.BytesIO(net.get(_small_url(url), retries=1).content)).convert("RGB")
+        img = Image.open(io.BytesIO(net.get(small_url(url), retries=1).content)).convert("RGB")
     except Exception:
         return None
     # centre-crop to the tile's aspect ratio

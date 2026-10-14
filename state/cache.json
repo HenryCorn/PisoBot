@@ -192,6 +192,2003 @@
 "51.588,-0.058:2026-08:500": 74,
 "51.589,-0.062:2026-08:500": 92
 },
+"journey": {
+"51.417,-0.101": {
+"changes": 1,
+"minutes": 60,
+"route": "bus 249 \u2192 Overground (Windrush)",
+"station": "Convent Hill",
+"walk": 3
+},
+"51.423,-0.098": {
+"changes": 1,
+"minutes": 53,
+"route": "bus 432 \u2192 Overground (Windrush)",
+"station": "Norwood Park",
+"walk": 0
+},
+"51.428,-0.091": {
+"changes": 1,
+"minutes": 58,
+"route": "National Rail \u2192 Overground (Windrush)",
+"station": "Gipsy Hill",
+"walk": 15
+},
+"51.430,-0.037": {
+"changes": 1,
+"minutes": 46,
+"route": "bus 194 \u2192 Overground (Windrush)",
+"station": "Bell Green / Southend Lane",
+"walk": 1
+},
+"51.445,-0.126": {
+"changes": 4,
+"minutes": 57,
+"route": "bus 250 \u2192 Victoria line \u2192 Northern line \u2192 Central line \u2192 bus 8",
+"station": "Christchurch Road",
+"walk": 2
+},
+"51.446,-0.025": {
+"changes": 2,
+"minutes": 46,
+"route": "National Rail \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Catford Bridge",
+"walk": 5
+},
+"51.448,-0.003": {
+"changes": 1,
+"minutes": 48,
+"route": "National Rail \u2192 bus 388",
+"station": "Hither Green",
+"walk": 13
+},
+"51.448,-0.125": {
+"changes": 4,
+"minutes": 55,
+"route": "bus 59 \u2192 Victoria line \u2192 Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "New Park Road",
+"walk": 2
+},
+"51.449,-0.125": {
+"changes": 4,
+"minutes": 55,
+"route": "bus 59 \u2192 Victoria line \u2192 Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "New Park Road",
+"walk": 2
+},
+"51.449,-0.131": {
+"changes": 3,
+"minutes": 58,
+"route": "bus 137 \u2192 Northern line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Kings Avenue / Atkins Road",
+"walk": 3
+},
+"51.450,-0.017": {
+"changes": 1,
+"minutes": 52,
+"route": "bus 136 \u2192 Overground (Windrush)",
+"station": "Mount Pleasant Road",
+"walk": 3
+},
+"51.451,-0.131": {
+"changes": 3,
+"minutes": 55,
+"route": "bus 137 \u2192 Northern line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Thorncliffe Road",
+"walk": 2
+},
+"51.455,-0.005": {
+"changes": 1,
+"minutes": 44,
+"route": "National Rail \u2192 bus 388",
+"station": "Hither Green",
+"walk": 9
+},
+"51.456,-0.016": {
+"changes": 1,
+"minutes": 40,
+"route": "bus 484 \u2192 Overground (Windrush)",
+"station": "Wearside Road",
+"walk": 2
+},
+"51.456,-0.043": {
+"changes": 0,
+"minutes": 42,
+"route": "Overground (Windrush)",
+"station": "Brockley",
+"walk": 20
+},
+"51.457,-0.195": {
+"changes": 1,
+"minutes": 63,
+"route": "bus 87 \u2192 Overground (Windrush)",
+"station": "Wandsworth Plain",
+"walk": 5
+},
+"51.458,0.030": {
+"changes": 1,
+"minutes": 55,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 12
+},
+"51.459,-0.106": {
+"changes": 3,
+"minutes": 44,
+"route": "bus P5 \u2192 National Rail \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Loughborough Park / Elveden House",
+"walk": 1
+},
+"51.459,-0.212": {
+"changes": 1,
+"minutes": 54,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "East Putney",
+"walk": 6
+},
+"51.459,0.030": {
+"changes": 1,
+"minutes": 53,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 10
+},
+"51.460,0.022": {
+"changes": 1,
+"minutes": 59,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 14
+},
+"51.461,-0.015": {
+"changes": 1,
+"minutes": 43,
+"route": "National Rail \u2192 Overground (Windrush)",
+"station": "Lewisham",
+"walk": 12
+},
+"51.461,0.022": {
+"changes": 1,
+"minutes": 57,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 12
+},
+"51.461,0.027": {
+"changes": 1,
+"minutes": 49,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 6
+},
+"51.462,0.027": {
+"changes": 1,
+"minutes": 51,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 8
+},
+"51.462,0.028": {
+"changes": 1,
+"minutes": 48,
+"route": "National Rail \u2192 bus 388",
+"station": "Kidbrooke",
+"walk": 5
+},
+"51.464,-0.016": {
+"changes": 1,
+"minutes": 40,
+"route": "bus 321 \u2192 Overground (Windrush)",
+"station": "Loampit Vale / Jerrard Street",
+"walk": 2
+},
+"51.464,-0.184": {
+"changes": 1,
+"minutes": 58,
+"route": "bus 295 \u2192 Overground (Windrush)",
+"station": "Petergate",
+"walk": 2
+},
+"51.464,-0.185": {
+"changes": 1,
+"minutes": 59,
+"route": "bus 295 \u2192 Overground (Windrush)",
+"station": "Petergate",
+"walk": 3
+},
+"51.465,-0.010": {
+"changes": 1,
+"minutes": 39,
+"route": "National Rail \u2192 Overground (Windrush)",
+"station": "Lewisham",
+"walk": 8
+},
+"51.465,-0.011": {
+"changes": 1,
+"minutes": 39,
+"route": "National Rail \u2192 Overground (Windrush)",
+"station": "Lewisham",
+"walk": 8
+},
+"51.466,-0.017": {
+"changes": 1,
+"minutes": 36,
+"route": "bus 225 \u2192 Overground (Windrush)",
+"station": "Thurston Road / Jerrard Street",
+"walk": 1
+},
+"51.467,-0.018": {
+"changes": 1,
+"minutes": 38,
+"route": "bus 225 \u2192 Overground (Windrush)",
+"station": "Thurston Road / Jerrard Street",
+"walk": 3
+},
+"51.467,-0.066": {
+"changes": 1,
+"minutes": 35,
+"route": "bus 363 \u2192 Overground (Windrush)",
+"station": "Heaton Road",
+"walk": 3
+},
+"51.469,-0.096": {
+"changes": 0,
+"minutes": 41,
+"route": "Overground (Windrush)",
+"station": "Denmark Hill",
+"walk": 14
+},
+"51.469,-0.142": {
+"changes": 1,
+"minutes": 45,
+"route": "bus 87 \u2192 Overground (Windrush)",
+"station": "St Rule Street",
+"walk": 0
+},
+"51.470,-0.115": {
+"changes": 2,
+"minutes": 47,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Stockwell",
+"walk": 16
+},
+"51.470,-0.176": {
+"changes": 1,
+"minutes": 55,
+"route": "bus 170 \u2192 Overground (Windrush)",
+"station": "Lombard Road",
+"walk": 2
+},
+"51.471,-0.178": {
+"changes": 1,
+"minutes": 59,
+"route": "bus 345 \u2192 Overground (Windrush)",
+"station": "Battersea High Street",
+"walk": 10
+},
+"51.472,-0.014": {
+"changes": 1,
+"minutes": 38,
+"route": "bus 53 \u2192 Overground (Windrush)",
+"station": "Lewisham Road",
+"walk": 1
+},
+"51.472,-0.029": {
+"changes": 0,
+"minutes": 34,
+"route": "Overground (Windrush)",
+"station": "New Cross ELL",
+"walk": 14
+},
+"51.472,-0.030": {
+"changes": 0,
+"minutes": 33,
+"route": "Overground (Windrush)",
+"station": "New Cross ELL",
+"walk": 13
+},
+"51.474,-0.024": {
+"changes": 1,
+"minutes": 32,
+"route": "bus 177 \u2192 Overground (Windrush)",
+"station": "Deptford Bridge",
+"walk": 3
+},
+"51.474,-0.052": {
+"changes": 1,
+"minutes": 31,
+"route": "bus 436 \u2192 Overground (Windrush)",
+"station": "New Cross Fire",
+"walk": 5
+},
+"51.474,-0.061": {
+"changes": 0,
+"minutes": 29,
+"route": "Overground (Windrush)",
+"station": "Queens Road Peckham",
+"walk": 6
+},
+"51.474,-0.062": {
+"changes": 0,
+"minutes": 30,
+"route": "Overground (Windrush)",
+"station": "Queens Road Peckham",
+"walk": 7
+},
+"51.474,-0.077": {
+"changes": 1,
+"minutes": 41,
+"route": "bus 36 \u2192 Overground (Windrush)",
+"station": "Peckham Road / Southampton Way",
+"walk": 2
+},
+"51.474,-0.183": {
+"changes": 3,
+"minutes": 50,
+"route": "Overground (Mildmay) \u2192 District line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Imperial Wharf",
+"walk": 3
+},
+"51.475,-0.010": {
+"changes": 1,
+"minutes": 43,
+"route": "bus 177 \u2192 Overground (Windrush)",
+"station": "Greenwich High Road / Royal Hill",
+"walk": 7
+},
+"51.476,-0.022": {
+"changes": 0,
+"minutes": 35,
+"route": "Overground (Windrush)",
+"station": "New Cross ELL",
+"walk": 15
+},
+"51.476,0.032": {
+"changes": 2,
+"minutes": 53,
+"route": "bus 53 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Charlton Road / Victoria Way",
+"walk": 10
+},
+"51.477,-0.046": {
+"changes": 0,
+"minutes": 32,
+"route": "Overground (Windrush)",
+"station": "New Cross Gate",
+"walk": 13
+},
+"51.477,-0.047": {
+"changes": 1,
+"minutes": 32,
+"route": "bus 21 \u2192 Overground (Windrush)",
+"station": "Briant Street",
+"walk": 4
+},
+"51.478,-0.013": {
+"changes": 2,
+"minutes": 36,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Greenwich",
+"walk": 3
+},
+"51.478,-0.026": {
+"changes": 0,
+"minutes": 31,
+"route": "Overground (Windrush)",
+"station": "New Cross ELL",
+"walk": 11
+},
+"51.478,-0.048": {
+"changes": 1,
+"minutes": 32,
+"route": "bus 21 \u2192 Overground (Windrush)",
+"station": "Briant Street",
+"walk": 4
+},
+"51.478,-0.049": {
+"changes": 1,
+"minutes": 31,
+"route": "bus 21 \u2192 Overground (Windrush)",
+"station": "Briant Street",
+"walk": 3
+},
+"51.478,-0.050": {
+"changes": 1,
+"minutes": 31,
+"route": "bus 21 \u2192 Overground (Windrush)",
+"station": "Briant Street",
+"walk": 3
+},
+"51.478,-0.074": {
+"changes": 1,
+"minutes": 43,
+"route": "bus 436 \u2192 Overground (Windrush)",
+"station": "Peckham Library",
+"walk": 9
+},
+"51.478,-0.093": {
+"changes": 1,
+"minutes": 42,
+"route": "bus 40 \u2192 Overground (Windrush)",
+"station": "Medlar Street",
+"walk": 2
+},
+"51.479,-0.016": {
+"changes": 2,
+"minutes": 38,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Greenwich",
+"walk": 5
+},
+"51.479,-0.055": {
+"changes": 1,
+"minutes": 31,
+"route": "bus 21 \u2192 Overground (Windrush)",
+"station": "Old Kent Road / Ilderton Road",
+"walk": 1
+},
+"51.479,-0.198": {
+"changes": 1,
+"minutes": 50,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Fulham Broadway",
+"walk": 9
+},
+"51.480,-0.017": {
+"changes": 2,
+"minutes": 39,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Greenwich",
+"walk": 6
+},
+"51.480,-0.077": {
+"changes": 2,
+"minutes": 48,
+"route": "bus 63 \u2192 bus 21 \u2192 bus 388",
+"station": "St George's Way",
+"walk": 6
+},
+"51.481,-0.024": {
+"changes": 1,
+"minutes": 38,
+"route": "bus 188 \u2192 Overground (Windrush)",
+"station": "Deptford High Street",
+"walk": 7
+},
+"51.481,-0.035": {
+"changes": 0,
+"minutes": 31,
+"route": "Overground (Windrush)",
+"station": "New Cross ELL",
+"walk": 11
+},
+"51.481,-0.183": {
+"changes": 2,
+"minutes": 48,
+"route": "bus 328 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Gunter Grove",
+"walk": 2
+},
+"51.482,-0.015": {
+"changes": 2,
+"minutes": 42,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Cutty Sark (for Maritime Greenwich)",
+"walk": 11
+},
+"51.482,-0.016": {
+"changes": 2,
+"minutes": 41,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Cutty Sark (for Maritime Greenwich)",
+"walk": 10
+},
+"51.482,-0.072": {
+"changes": 1,
+"minutes": 42,
+"route": "bus 21 \u2192 bus 388",
+"station": "Trafalgar Avenue",
+"walk": 7
+},
+"51.482,-0.102": {
+"changes": 2,
+"minutes": 44,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Kennington",
+"walk": 18
+},
+"51.482,-0.139": {
+"changes": 2,
+"minutes": 48,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Battersea Power",
+"walk": 13
+},
+"51.482,0.005": {
+"changes": 1,
+"minutes": 42,
+"route": "National Rail \u2192 bus 388",
+"station": "Maze Hill",
+"walk": 5
+},
+"51.483,-0.072": {
+"changes": 1,
+"minutes": 42,
+"route": "bus 21 \u2192 bus 388",
+"station": "Trafalgar Avenue",
+"walk": 7
+},
+"51.483,-0.090": {
+"changes": 1,
+"minutes": 46,
+"route": "bus 35 \u2192 bus 388",
+"station": "Westmoreland Road",
+"walk": 6
+},
+"51.483,-0.092": {
+"changes": 1,
+"minutes": 47,
+"route": "bus 42 \u2192 bus 8",
+"station": "Albany Road / Camberwell Road",
+"walk": 1
+},
+"51.484,-0.089": {
+"changes": 1,
+"minutes": 48,
+"route": "bus 42 \u2192 bus 8",
+"station": "Albany Road / Wells Way",
+"walk": 6
+},
+"51.484,0.071": {
+"changes": 2,
+"minutes": 39,
+"route": "bus 53 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Frederick Place",
+"walk": 5
+},
+"51.485,-0.057": {
+"changes": 1,
+"minutes": 35,
+"route": "bus 381 \u2192 Overground (Windrush)",
+"station": "Galleywall Road / South Bermondsey Stn",
+"walk": 8
+},
+"51.485,-0.113": {
+"changes": 2,
+"minutes": 42,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Oval",
+"walk": 13
+},
+"51.485,0.024": {
+"changes": 2,
+"minutes": 43,
+"route": "bus 161 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Rainton Road",
+"walk": 4
+},
+"51.486,-0.072": {
+"changes": 1,
+"minutes": 37,
+"route": "bus 21 \u2192 bus 388",
+"station": "Trafalgar Avenue",
+"walk": 2
+},
+"51.486,-0.115": {
+"changes": 2,
+"minutes": 42,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Oval",
+"walk": 13
+},
+"51.486,-0.117": {
+"changes": 3,
+"minutes": 42,
+"route": "bus 185 \u2192 Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Durham Street / Harleyford Road",
+"walk": 4
+},
+"51.486,0.007": {
+"changes": 2,
+"minutes": 35,
+"route": "bus 188 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Pelton Road",
+"walk": 0
+},
+"51.487,-0.148": {
+"changes": 2,
+"minutes": 47,
+"route": "bus 452 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Lister Hospital",
+"walk": 7
+},
+"51.487,-0.202": {
+"changes": 2,
+"minutes": 50,
+"route": "bus 28 \u2192 District line \u2192 Overground (Windrush)",
+"station": "West Kensington Estate",
+"walk": 3
+},
+"51.487,0.009": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 422 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Vanbrugh Hill",
+"walk": 3
+},
+"51.487,0.066": {
+"changes": 1,
+"minutes": 37,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Woolwich",
+"walk": 16
+},
+"51.488,-0.034": {
+"changes": 1,
+"minutes": 32,
+"route": "bus 199 \u2192 Overground (Windrush)",
+"station": "Riverside Youth Club",
+"walk": 2
+},
+"51.488,-0.048": {
+"changes": 0,
+"minutes": 30,
+"route": "Overground (Windrush)",
+"station": "Surrey Quays",
+"walk": 14
+},
+"51.488,-0.064": {
+"changes": 1,
+"minutes": 34,
+"route": "bus 381 \u2192 Overground (Windrush)",
+"station": "Lynton Road",
+"walk": 8
+},
+"51.488,-0.097": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 468 \u2192 bus 133 \u2192 bus 388",
+"station": "Larcom Street",
+"walk": 4
+},
+"51.488,0.029": {
+"changes": 2,
+"minutes": 42,
+"route": "bus SL11 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Charlton / Woolwich Road",
+"walk": 4
+},
+"51.489,-0.051": {
+"changes": 0,
+"minutes": 29,
+"route": "Overground (Windrush)",
+"station": "Surrey Quays",
+"walk": 13
+},
+"51.489,0.003": {
+"changes": 2,
+"minutes": 45,
+"route": "bus 188 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Tunnel Avenue",
+"walk": 9
+},
+"51.490,-0.040": {
+"changes": 1,
+"minutes": 27,
+"route": "bus 188 \u2192 Overground (Windrush)",
+"station": "Bestwood Street",
+"walk": 3
+},
+"51.491,-0.037": {
+"changes": 1,
+"minutes": 30,
+"route": "bus 199 \u2192 Overground (Windrush)",
+"station": "Dunnage Crescent",
+"walk": 3
+},
+"51.491,-0.119": {
+"changes": 2,
+"minutes": 47,
+"route": "bus 77 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Lambeth Bridge",
+"walk": 7
+},
+"51.491,0.079": {
+"changes": 1,
+"minutes": 32,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Woolwich",
+"walk": 11
+},
+"51.492,-0.033": {
+"changes": 1,
+"minutes": 30,
+"route": "bus 199 \u2192 Overground (Windrush)",
+"station": "Grove Street / Plough Way",
+"walk": 4
+},
+"51.492,-0.084": {
+"changes": 1,
+"minutes": 32,
+"route": "bus 21 \u2192 bus 388",
+"station": "Bricklayer's Arms",
+"walk": 2
+},
+"51.492,-0.104": {
+"changes": 1,
+"minutes": 37,
+"route": "bus 133 \u2192 bus 388",
+"station": "Newington Butts",
+"walk": 6
+},
+"51.492,-0.121": {
+"changes": 2,
+"minutes": 46,
+"route": "bus 77 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Lambeth Bridge",
+"walk": 6
+},
+"51.492,0.015": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village South",
+"walk": 5
+},
+"51.492,0.017": {
+"changes": 2,
+"minutes": 36,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 5
+},
+"51.492,0.047": {
+"changes": 2,
+"minutes": 42,
+"route": "bus 380 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Samuel Street",
+"walk": 5
+},
+"51.492,0.058": {
+"changes": 1,
+"minutes": 38,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Woolwich",
+"walk": 17
+},
+"51.493,-0.039": {
+"changes": 1,
+"minutes": 29,
+"route": "bus 199 \u2192 Overground (Windrush)",
+"station": "Yeoman Street",
+"walk": 3
+},
+"51.493,0.019": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 9
+},
+"51.493,0.073": {
+"changes": 1,
+"minutes": 29,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Woolwich",
+"walk": 8
+},
+"51.494,-0.095": {
+"changes": 1,
+"minutes": 33,
+"route": "bus 133 \u2192 bus 388",
+"station": "Elephant & Castle / Newington Causeway",
+"walk": 7
+},
+"51.494,0.009": {
+"changes": 2,
+"minutes": 35,
+"route": "bus 188 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Boord Street",
+"walk": 3
+},
+"51.494,0.012": {
+"changes": 2,
+"minutes": 33,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 2
+},
+"51.495,0.014": {
+"changes": 2,
+"minutes": 36,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 5
+},
+"51.496,0.009": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 188 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Boord Street",
+"walk": 5
+},
+"51.496,0.013": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 6
+},
+"51.496,0.014": {
+"changes": 2,
+"minutes": 38,
+"route": "bus 129 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Millennium Village / Oval Square",
+"walk": 7
+},
+"51.497,-0.015": {
+"changes": 2,
+"minutes": 33,
+"route": "bus D8 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Crossharbour",
+"walk": 2
+},
+"51.497,-0.085": {
+"changes": 3,
+"minutes": 35,
+"route": "bus 21 \u2192 Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Bartholomew Street",
+"walk": 5
+},
+"51.498,-0.041": {
+"changes": 0,
+"minutes": 29,
+"route": "Overground (Windrush)",
+"station": "Canada Water",
+"walk": 15
+},
+"51.498,0.012": {
+"changes": 1,
+"minutes": 38,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "North Greenwich",
+"walk": 16
+},
+"51.499,-0.112": {
+"changes": 2,
+"minutes": 35,
+"route": "bus 53 \u2192 bus 133 \u2192 bus 388",
+"station": "Lambeth North",
+"walk": 1
+},
+"51.500,-0.100": {
+"changes": 1,
+"minutes": 30,
+"route": "bus 344 \u2192 bus 388",
+"station": "Great Suffolk Street",
+"walk": 2
+},
+"51.500,0.063": {
+"changes": 2,
+"minutes": 44,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "King George V",
+"walk": 9
+},
+"51.501,0.025": {
+"changes": 1,
+"minutes": 38,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "West Silvertown",
+"walk": 7
+},
+"51.501,0.026": {
+"changes": 1,
+"minutes": 39,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "West Silvertown",
+"walk": 8
+},
+"51.501,0.028": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 129 \u2192 DLR \u2192 Overground (Windrush)",
+"station": "Mill Road",
+"walk": 3
+},
+"51.501,0.037": {
+"changes": 3,
+"minutes": 40,
+"route": "bus 330 \u2192 DLR \u2192 District line \u2192 Overground (Windrush)",
+"station": "Pontoon Dock",
+"walk": 4
+},
+"51.501,0.085": {
+"changes": 2,
+"minutes": 43,
+"route": "bus 244 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Ridge Close",
+"walk": 5
+},
+"51.501,0.087": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 244 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Bluebird Way",
+"walk": 1
+},
+"51.502,0.024": {
+"changes": 1,
+"minutes": 35,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "West Silvertown",
+"walk": 4
+},
+"51.502,0.027": {
+"changes": 1,
+"minutes": 38,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "West Silvertown",
+"walk": 7
+},
+"51.502,0.029": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 129 \u2192 DLR \u2192 Overground (Windrush)",
+"station": "Mill Road",
+"walk": 3
+},
+"51.502,0.051": {
+"changes": 1,
+"minutes": 40,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "London City Airport",
+"walk": 5
+},
+"51.503,-0.025": {
+"changes": 1,
+"minutes": 23,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Canary Wharf",
+"walk": 10
+},
+"51.503,0.029": {
+"changes": 2,
+"minutes": 39,
+"route": "DLR \u2192 District line \u2192 Overground (Windrush)",
+"station": "Pontoon Dock",
+"walk": 6
+},
+"51.503,0.041": {
+"changes": 3,
+"minutes": 41,
+"route": "bus 330 \u2192 DLR \u2192 District line \u2192 Overground (Windrush)",
+"station": "Pontoon Dock",
+"walk": 5
+},
+"51.506,0.075": {
+"changes": 2,
+"minutes": 41,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Gallions Reach",
+"walk": 12
+},
+"51.508,0.023": {
+"changes": 1,
+"minutes": 28,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Custom House",
+"walk": 11
+},
+"51.508,0.027": {
+"changes": 1,
+"minutes": 27,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Custom House",
+"walk": 10
+},
+"51.508,0.079": {
+"changes": 2,
+"minutes": 41,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Gallions Reach",
+"walk": 12
+},
+"51.509,0.019": {
+"changes": 2,
+"minutes": 27,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Royal Victoria",
+"walk": 3
+},
+"51.510,-0.027": {
+"changes": 1,
+"minutes": 22,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "Westferry",
+"walk": 3
+},
+"51.511,-0.038": {
+"changes": 1,
+"minutes": 28,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "Limehouse",
+"walk": 11
+},
+"51.511,-0.046": {
+"changes": 0,
+"minutes": 25,
+"route": "Overground (Windrush)",
+"station": "Shadwell",
+"walk": 16
+},
+"51.511,0.011": {
+"changes": 1,
+"minutes": 34,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "Canning Town",
+"walk": 10
+},
+"51.511,0.012": {
+"changes": 1,
+"minutes": 34,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "Canning Town",
+"walk": 10
+},
+"51.511,0.033": {
+"changes": 1,
+"minutes": 30,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Custom House",
+"walk": 13
+},
+"51.512,0.001": {
+"changes": 1,
+"minutes": 36,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "East India",
+"walk": 11
+},
+"51.512,0.010": {
+"changes": 1,
+"minutes": 31,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "Canning Town",
+"walk": 7
+},
+"51.512,0.020": {
+"changes": 1,
+"minutes": 31,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Custom House",
+"walk": 14
+},
+"51.513,-0.043": {
+"changes": 1,
+"minutes": 24,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "Limehouse",
+"walk": 7
+},
+"51.513,0.020": {
+"changes": 1,
+"minutes": 31,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Custom House",
+"walk": 14
+},
+"51.514,-0.013": {
+"changes": 3,
+"minutes": 32,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Langdon Park",
+"walk": 7
+},
+"51.514,-0.024": {
+"changes": 1,
+"minutes": 32,
+"route": "DLR \u2192 Overground (Windrush)",
+"station": "Westferry",
+"walk": 14
+},
+"51.515,-0.015": {
+"changes": 3,
+"minutes": 28,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Langdon Park",
+"walk": 3
+},
+"51.515,-0.056": {
+"changes": 0,
+"minutes": 19,
+"route": "Overground (Windrush)",
+"station": "Whitechapel",
+"walk": 14
+},
+"51.516,-0.002": {
+"changes": 2,
+"minutes": 40,
+"route": "bus D8 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Andrew Street",
+"walk": 8
+},
+"51.516,-0.003": {
+"changes": 2,
+"minutes": 39,
+"route": "bus D8 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Andrew Street",
+"walk": 7
+},
+"51.516,-0.004": {
+"changes": 2,
+"minutes": 40,
+"route": "bus 309 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Leven Road",
+"walk": 3
+},
+"51.516,-0.005": {
+"changes": 2,
+"minutes": 36,
+"route": "bus D8 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Andrew Street",
+"walk": 5
+},
+"51.516,-0.015": {
+"changes": 3,
+"minutes": 30,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Langdon Park",
+"walk": 5
+},
+"51.516,0.019": {
+"changes": 1,
+"minutes": 36,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "Canning Town",
+"walk": 12
+},
+"51.517,-0.007": {
+"changes": 2,
+"minutes": 35,
+"route": "bus D8 \u2192 District line \u2192 Overground (Windrush)",
+"station": "St Leonard's Wharf",
+"walk": 7
+},
+"51.517,-0.016": {
+"changes": 3,
+"minutes": 31,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Langdon Park",
+"walk": 6
+},
+"51.517,-0.021": {
+"changes": 2,
+"minutes": 31,
+"route": "bus 309 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Devons Road",
+"walk": 4
+},
+"51.517,0.011": {
+"changes": 2,
+"minutes": 32,
+"route": "bus 5 \u2192 Jubilee line \u2192 Overground (Windrush)",
+"station": "Rathbone Market",
+"walk": 2
+},
+"51.517,0.019": {
+"changes": 1,
+"minutes": 38,
+"route": "Jubilee line \u2192 Overground (Windrush)",
+"station": "Canning Town",
+"walk": 14
+},
+"51.518,-0.016": {
+"changes": 3,
+"minutes": 33,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Langdon Park",
+"walk": 8
+},
+"51.518,-0.039": {
+"changes": 2,
+"minutes": 22,
+"route": "bus 309 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Harford Street",
+"walk": 2
+},
+"51.518,-0.056": {
+"changes": 0,
+"minutes": 14,
+"route": "Overground (Windrush)",
+"station": "Whitechapel",
+"walk": 9
+},
+"51.518,-0.057": {
+"changes": 0,
+"minutes": 13,
+"route": "Overground (Windrush)",
+"station": "Whitechapel",
+"walk": 8
+},
+"51.519,-0.023": {
+"changes": 2,
+"minutes": 29,
+"route": "bus 309 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Devons Road",
+"walk": 2
+},
+"51.519,-0.037": {
+"changes": 2,
+"minutes": 23,
+"route": "bus 309 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Harford Street",
+"walk": 3
+},
+"51.520,-0.017": {
+"changes": 3,
+"minutes": 32,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Devons Road",
+"walk": 9
+},
+"51.520,-0.041": {
+"changes": 1,
+"minutes": 22,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Stepney Green",
+"walk": 12
+},
+"51.521,-0.017": {
+"changes": 3,
+"minutes": 30,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Devons Road",
+"walk": 7
+},
+"51.521,-0.018": {
+"changes": 3,
+"minutes": 29,
+"route": "DLR \u2192 bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Devons Road",
+"walk": 6
+},
+"51.521,-0.025": {
+"changes": 1,
+"minutes": 29,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Mile End",
+"walk": 17
+},
+"51.521,0.045": {
+"changes": 2,
+"minutes": 44,
+"route": "bus 104 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Lonsdale Close",
+"walk": 5
+},
+"51.522,-0.009": {
+"changes": 1,
+"minutes": 27,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 11
+},
+"51.524,-0.057": {
+"changes": 0,
+"minutes": 18,
+"route": "bus 388",
+"station": "Wilmot Street",
+"walk": 7
+},
+"51.525,-0.010": {
+"changes": 1,
+"minutes": 21,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 5
+},
+"51.525,-0.011": {
+"changes": 1,
+"minutes": 21,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 5
+},
+"51.525,-0.016": {
+"changes": 1,
+"minutes": 26,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 10
+},
+"51.525,-0.056": {
+"changes": 0,
+"minutes": 18,
+"route": "bus 388",
+"station": "Bethnal Green",
+"walk": 6
+},
+"51.525,-0.214": {
+"changes": 2,
+"minutes": 56,
+"route": "bus 23 \u2192 Hammersmith & City line \u2192 Overground (Windrush)",
+"station": "Kensal House",
+"walk": 2
+},
+"51.526,-0.010": {
+"changes": 1,
+"minutes": 22,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 6
+},
+"51.526,-0.011": {
+"changes": 1,
+"minutes": 21,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 5
+},
+"51.526,0.004": {
+"changes": 1,
+"minutes": 27,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "West Ham",
+"walk": 9
+},
+"51.526,0.005": {
+"changes": 1,
+"minutes": 25,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "West Ham",
+"walk": 7
+},
+"51.527,-0.011": {
+"changes": 1,
+"minutes": 24,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 8
+},
+"51.527,-0.017": {
+"changes": 1,
+"minutes": 26,
+"route": "Express bus A9 \u2192 Overground (Windrush)",
+"station": "Bow Church",
+"walk": 7
+},
+"51.529,-0.012": {
+"changes": 1,
+"minutes": 27,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bromley-by-Bow",
+"walk": 11
+},
+"51.529,-0.017": {
+"changes": 1,
+"minutes": 25,
+"route": "Express bus A9 \u2192 Overground (Windrush)",
+"station": "Bow Church",
+"walk": 6
+},
+"51.530,-0.016": {
+"changes": 1,
+"minutes": 26,
+"route": "Express bus A9 \u2192 Overground (Windrush)",
+"station": "Bow Church",
+"walk": 7
+},
+"51.530,-0.021": {
+"changes": 1,
+"minutes": 29,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bow Road",
+"walk": 15
+},
+"51.530,-0.097": {
+"changes": 0,
+"minutes": 18,
+"route": "bus 205",
+"station": "Windsor Terrace",
+"walk": 5
+},
+"51.530,0.024": {
+"changes": 2,
+"minutes": 28,
+"route": "bus 241 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Balaam Street",
+"walk": 2
+},
+"51.530,0.033": {
+"changes": 1,
+"minutes": 36,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Upton Park",
+"walk": 14
+},
+"51.531,-0.012": {
+"changes": 2,
+"minutes": 29,
+"route": "bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Bow Flyover",
+"walk": 6
+},
+"51.531,-0.020": {
+"changes": 1,
+"minutes": 29,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Bow Road",
+"walk": 15
+},
+"51.531,-0.231": {
+"changes": 2,
+"minutes": 52,
+"route": "Bakerloo line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Kensal Green",
+"walk": 10
+},
+"51.532,-0.013": {
+"changes": 2,
+"minutes": 31,
+"route": "bus 25 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Bow Flyover",
+"walk": 8
+},
+"51.532,0.039": {
+"changes": 1,
+"minutes": 33,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Upton Park",
+"walk": 11
+},
+"51.532,0.040": {
+"changes": 1,
+"minutes": 34,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Upton Park",
+"walk": 12
+},
+"51.533,-0.011": {
+"changes": 2,
+"minutes": 30,
+"route": "DLR \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Pudding Mill Lane",
+"walk": 7
+},
+"51.533,-0.097": {
+"changes": 0,
+"minutes": 21,
+"route": "bus 205",
+"station": "Windsor Terrace",
+"walk": 8
+},
+"51.533,-0.199": {
+"changes": 2,
+"minutes": 46,
+"route": "Bakerloo line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Kilburn Park",
+"walk": 10
+},
+"51.533,0.075": {
+"changes": 2,
+"minutes": 42,
+"route": "bus 62 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Broadway Theatre",
+"walk": 6
+},
+"51.534,0.052": {
+"changes": 2,
+"minutes": 36,
+"route": "bus 376 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Caledon Road",
+"walk": 4
+},
+"51.536,-0.005": {
+"changes": 1,
+"minutes": 31,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Stratford (London)",
+"walk": 17
+},
+"51.537,-0.008": {
+"changes": 1,
+"minutes": 29,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Stratford (London)",
+"walk": 16
+},
+"51.537,-0.024": {
+"changes": 0,
+"minutes": 36,
+"route": "bus 8",
+"station": "Parnell Road",
+"walk": 7
+},
+"51.537,0.072": {
+"changes": 1,
+"minutes": 42,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Barking",
+"walk": 15
+},
+"51.537,0.073": {
+"changes": 2,
+"minutes": 42,
+"route": "bus 366 \u2192 District line \u2192 Overground (Windrush)",
+"station": "North Street",
+"walk": 5
+},
+"51.538,-0.024": {
+"changes": 0,
+"minutes": 38,
+"route": "bus 8",
+"station": "Parnell Road",
+"walk": 9
+},
+"51.538,0.075": {
+"changes": 2,
+"minutes": 39,
+"route": "bus 238 \u2192 District line \u2192 Overground (Windrush)",
+"station": "North Street",
+"walk": 2
+},
+"51.539,0.078": {
+"changes": 1,
+"minutes": 35,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Barking",
+"walk": 8
+},
+"51.540,0.080": {
+"changes": 1,
+"minutes": 33,
+"route": "District line \u2192 Overground (Windrush)",
+"station": "Barking",
+"walk": 6
+},
+"51.541,0.084": {
+"changes": 2,
+"minutes": 36,
+"route": "bus 169 \u2192 District line \u2192 Overground (Windrush)",
+"station": "Longbridge Road",
+"walk": 2
+},
+"51.542,-0.023": {
+"changes": 1,
+"minutes": 34,
+"route": "Overground (Mildmay) \u2192 Overground (Windrush)",
+"station": "Hackney Wick",
+"walk": 9
+},
+"51.542,-0.025": {
+"changes": 1,
+"minutes": 32,
+"route": "Overground (Mildmay) \u2192 Overground (Windrush)",
+"station": "Hackney Wick",
+"walk": 7
+},
+"51.543,-0.022": {
+"changes": 1,
+"minutes": 35,
+"route": "Overground (Mildmay) \u2192 Overground (Windrush)",
+"station": "Hackney Wick",
+"walk": 8
+},
+"51.543,-0.056": {
+"changes": 1,
+"minutes": 25,
+"route": "bus 277 \u2192 Overground (Windrush)",
+"station": "St Thomas's Square",
+"walk": 1
+},
+"51.543,-0.090": {
+"changes": 1,
+"minutes": 26,
+"route": "bus 76 \u2192 Overground (Windrush)",
+"station": "Northchurch Road",
+"walk": 6
+},
+"51.544,-0.028": {
+"changes": 1,
+"minutes": 35,
+"route": "Overground (Mildmay) \u2192 Overground (Windrush)",
+"station": "Hackney Wick",
+"walk": 10
+},
+"51.546,0.006": {
+"changes": 1,
+"minutes": 25,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Maryland",
+"walk": 9
+},
+"51.548,0.024": {
+"changes": 1,
+"minutes": 23,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Forest Gate",
+"walk": 5
+},
+"51.548,0.025": {
+"changes": 1,
+"minutes": 23,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Forest Gate",
+"walk": 5
+},
+"51.552,0.063": {
+"changes": 2,
+"minutes": 41,
+"route": "bus 425 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Dersingham Avenue",
+"walk": 6
+},
+"51.554,-0.110": {
+"changes": 0,
+"minutes": 33,
+"route": "Overground (Windrush)",
+"station": "Highbury & Islington",
+"walk": 18
+},
+"51.557,-0.108": {
+"changes": 1,
+"minutes": 36,
+"route": "National Rail \u2192 Overground (Windrush)",
+"station": "Drayton Park",
+"walk": 10
+},
+"51.557,0.066": {
+"changes": 1,
+"minutes": 31,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Ilford",
+"walk": 8
+},
+"51.558,-0.011": {
+"changes": 2,
+"minutes": 33,
+"route": "Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Leyton",
+"walk": 12
+},
+"51.558,-0.012": {
+"changes": 2,
+"minutes": 34,
+"route": "Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Leyton",
+"walk": 13
+},
+"51.558,-0.062": {
+"changes": 1,
+"minutes": 27,
+"route": "bus 488 \u2192 Overground (Windrush)",
+"station": "Muir Road",
+"walk": 1
+},
+"51.558,0.068": {
+"changes": 1,
+"minutes": 30,
+"route": "Elizabeth line \u2192 Overground (Windrush)",
+"station": "Ilford",
+"walk": 7
+},
+"51.559,-0.012": {
+"changes": 2,
+"minutes": 34,
+"route": "Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Leyton",
+"walk": 13
+},
+"51.559,-0.013": {
+"changes": 3,
+"minutes": 34,
+"route": "bus 97 \u2192 Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Buckingham Road",
+"walk": 6
+},
+"51.560,0.078": {
+"changes": 2,
+"minutes": 36,
+"route": "bus 462 \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Hainault Street",
+"walk": 2
+},
+"51.564,-0.026": {
+"changes": 3,
+"minutes": 43,
+"route": "bus 58 \u2192 Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Park Road",
+"walk": 8
+},
+"51.565,-0.051": {
+"changes": 0,
+"minutes": 42,
+"route": "Overground (Weaver)",
+"station": "Clapton",
+"walk": 14
+},
+"51.565,-0.097": {
+"changes": 3,
+"minutes": 38,
+"route": "bus 141 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Myddleton Avenue",
+"walk": 5
+},
+"51.569,-0.008": {
+"changes": 3,
+"minutes": 34,
+"route": "bus 97 \u2192 Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Leyton Midland Road",
+"walk": 1
+},
+"51.569,-0.024": {
+"changes": 3,
+"minutes": 39,
+"route": "bus 58 \u2192 Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Gloucester Road",
+"walk": 2
+},
+"51.569,0.010": {
+"changes": 2,
+"minutes": 29,
+"route": "Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Leytonstone",
+"walk": 6
+},
+"51.570,-0.088": {
+"changes": 2,
+"minutes": 39,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Manor House",
+"walk": 13
+},
+"51.571,-0.089": {
+"changes": 2,
+"minutes": 37,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Manor House",
+"walk": 11
+},
+"51.572,-0.089": {
+"changes": 2,
+"minutes": 38,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Manor House",
+"walk": 12
+},
+"51.572,-0.221": {
+"changes": 2,
+"minutes": 56,
+"route": "National Rail \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Brent Cross West",
+"walk": 15
+},
+"51.575,-0.073": {
+"changes": 0,
+"minutes": 35,
+"route": "Express bus A8",
+"station": "Stamford Hill Broadway",
+"walk": 8
+},
+"51.575,-0.097": {
+"changes": 2,
+"minutes": 36,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Manor House",
+"walk": 10
+},
+"51.576,-0.085": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 259 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Vartry Road",
+"walk": 1
+},
+"51.581,-0.002": {
+"changes": 3,
+"minutes": 43,
+"route": "bus 257 \u2192 Central line \u2192 District line \u2192 Overground (Windrush)",
+"station": "Whipps Cross / Wood Street",
+"walk": 2
+},
+"51.581,-0.030": {
+"changes": 0,
+"minutes": 39,
+"route": "Overground (Weaver)",
+"station": "St James Street (London)",
+"walk": 7
+},
+"51.586,-0.064": {
+"changes": 1,
+"minutes": 41,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Tottenham Hale",
+"walk": 12
+},
+"51.586,-0.071": {
+"changes": 2,
+"minutes": 37,
+"route": "bus 279 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "College of North East London",
+"walk": 2
+},
+"51.587,-0.069": {
+"changes": 1,
+"minutes": 40,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Seven Sisters",
+"walk": 13
+},
+"51.587,-0.070": {
+"changes": 2,
+"minutes": 39,
+"route": "bus 279 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "College of North East London",
+"walk": 4
+},
+"51.587,-0.079": {
+"changes": 1,
+"minutes": 41,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Seven Sisters",
+"walk": 14
+},
+"51.588,-0.057": {
+"changes": 1,
+"minutes": 37,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Tottenham Hale",
+"walk": 8
+},
+"51.588,-0.058": {
+"changes": 1,
+"minutes": 37,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Tottenham Hale",
+"walk": 8
+},
+"51.589,-0.062": {
+"changes": 1,
+"minutes": 38,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Tottenham Hale",
+"walk": 9
+},
+"51.589,-0.119": {
+"changes": 3,
+"minutes": 47,
+"route": "bus 144 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Myddelton Road",
+"walk": 3
+},
+"51.590,-0.118": {
+"changes": 3,
+"minutes": 46,
+"route": "bus 232 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Western Road",
+"walk": 8
+},
+"51.591,-0.072": {
+"changes": 1,
+"minutes": 42,
+"route": "Victoria line \u2192 Overground (Windrush)",
+"station": "Seven Sisters",
+"walk": 15
+},
+"51.591,-0.112": {
+"changes": 3,
+"minutes": 43,
+"route": "bus 91 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Mary Neuner Road",
+"walk": 1
+},
+"51.591,-0.113": {
+"changes": 3,
+"minutes": 43,
+"route": "bus 91 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Mary Neuner Road",
+"walk": 1
+},
+"51.592,-0.113": {
+"changes": 3,
+"minutes": 43,
+"route": "bus 91 \u2192 Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Mary Neuner Road",
+"walk": 1
+},
+"51.593,-0.037": {
+"changes": 2,
+"minutes": 46,
+"route": "bus 158 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Priestley Way",
+"walk": 5
+},
+"51.594,-0.005": {
+"changes": 3,
+"minutes": 50,
+"route": "bus SL2 \u2192 Central line \u2192 Hammersmith & City line \u2192 Overground (Windrush)",
+"station": "Wood Street",
+"walk": 5
+},
+"51.595,-0.027": {
+"changes": 2,
+"minutes": 55,
+"route": "bus W11 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Higham Hill Road, Walthamstow",
+"walk": 11
+},
+"51.599,-0.104": {
+"changes": 2,
+"minutes": 42,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Wood Green",
+"walk": 11
+},
+"51.600,-0.026": {
+"changes": 2,
+"minutes": 52,
+"route": "bus 158 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "North Countess Road",
+"walk": 2
+},
+"51.601,-0.069": {
+"changes": 2,
+"minutes": 48,
+"route": "bus 279 \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Tottenham Sports Centre",
+"walk": 2
+},
+"51.602,-0.193": {
+"changes": 2,
+"minutes": 50,
+"route": "Northern line \u2192 Elizabeth line \u2192 Overground (Windrush)",
+"station": "Finchley Central",
+"walk": 6
+},
+"51.607,-0.074": {
+"changes": 1,
+"minutes": 46,
+"route": "Overground (Weaver) \u2192 bus 388",
+"station": "White Hart Lane",
+"walk": 9
+},
+"51.608,-0.069": {
+"changes": 1,
+"minutes": 49,
+"route": "Overground (Weaver) \u2192 bus 388",
+"station": "White Hart Lane",
+"walk": 12
+},
+"51.608,-0.070": {
+"changes": 1,
+"minutes": 50,
+"route": "Overground (Weaver) \u2192 bus 388",
+"station": "White Hart Lane",
+"walk": 13
+},
+"51.611,-0.065": {
+"changes": 1,
+"minutes": 51,
+"route": "Overground (Weaver) \u2192 bus 388",
+"station": "Silver Street",
+"walk": 12
+},
+"51.612,-0.051": {
+"changes": 2,
+"minutes": 47,
+"route": "National Rail \u2192 National Rail \u2192 bus 388",
+"station": "Meridian Water",
+"walk": 8
+},
+"51.612,-0.137": {
+"changes": 2,
+"minutes": 49,
+"route": "Piccadilly line \u2192 Victoria line \u2192 Overground (Windrush)",
+"station": "Arnos Grove",
+"walk": 12
+}
+},
 "otm_detail": {
 "13901785": "Property reference number: 1638944 This newly available property is in a fantastic location in Greenwich close to Charlton station. Residents of this area enjoy a wealth of nearby amenities, including shops, restaurants, and cultural attractions from Greenwich Market and the Royal Observatory, to the Cutty Sark and The O2. On your doorstep is Charlton station offering National Rail links into London and beyond. Slightly further afield you'll find North Greenwich station served by the Jubilee line as well as the IFS Cloud Cable car linking Greenwich to the Royal Docks. Nearest stations: Charlton (0.2 miles), North Greenwich (1.6 miles) Bus routes nearby: 472, 486, 180, 161, 177 The property comprises: Entrance: Hallway with video entry system and two storage cupboards. Grey laminate flooring. Living room: Spacious living area with lots of natural light through floor-to-ceiling windows. Grey laminate flooring. Kitchen: Open plan kitchen with greige units, glass splashback and integrated Zanussi appliances. Grey laminate flooring. Bedroom: Double bedroom with floor-to-ceiling window and fitted wardrobe. Light grey carpet flooring. Bathroom: White suite with shower over bath, hand washbasin with large mirror. Full-height tiling around the bath. Towel rail. Greige tiled flooring. Outside: Private balcony, secure cycle storage and communal playground. What happens after I register my interest? You will receive an email confirmation that will confirm next steps including how to book a viewing, completing a financial assessment with a mortgage advisor and completing a Shared Ownership Application Form. If you don\u2019t receive this email within an hour of your registration, please check your spam or junk folders and set your spam filter to allow incoming emails from Peabody. If you still haven\u2019t received the email, please contact [use Contact Agent Button] and our team will be able to help you. What is Resale Shared Ownership? Through Shared Ownership you can buy up to 75% of the property, paying a low-cost rent on the remaining unpurchased 'share' of the home. What's more, your mortgage deposit is based on the value of the share you buy, not the full market value, making these homes even more affordable than buying through private sale. With resale properties, you must purchase your first share at the percentage the existing leaseholder owns or more. Financial information Tenure: Leasehold Remaining lease term: 249 years Annual ground rent amount: \u00a3300 Ground rent review period: Every 15 years Annual service charge amount: \u00a32,232.72 Service charge review period: Annually Council tax band: B *Financial information correct as of 18/10/2023",
 "13901801": "Liberty House is a one-bedroom property located on the third floor of a six storey apartment block built around 2018, the block has lift access. The lease remaining on the property is 120 years. Liberty House is located within an award-winning riverside location with skyline views, landscaped courtyards, and a superb range of luxurious modern homes \u2013 all within the beautiful and unique locality of Battersea. Just a few yards from the River Thames, Liberty House is a peaceful haven from the bustle of urban life \u2013 yet with its elegant choice of restaurants, bars, shopping and leisure, it also opens up new possibilities for living in one of the capital\u2019s most desirable areas. Spanning a stretch of the Thames from Nine Elms to Wandsworth Bridge, Battersea is well-known for stunning riverside promenades and its two-hundred-acre park with lake, fountains, sculptures, art exhibitions and wildlife. Battersea\u2019s unique style \u2013 a wonderful juxtaposition of historic buildings and fresh new architecture \u2013 also means it is unlike anywhere else in London. From Liberty House, picturesque river walks are only a few steps away, with access to the Thames footpath stretching west all the way to Kew Gardens. However you like to unwind, you\u2019ll never run out of beautiful surroundings in this part of London. Nearest station: Wandsworth Town & Clapham Junction Bus routes nearby: C3, 44, 295 The property located on the fourth floor comprises: Entrance: Hallway with large utility room and video entry phone system. Living Room: Spacious living area with lots of natural light. Wooden laminate flooring. Kitchen: White and grey modern wall units with laminate granite effect worktop. Integrated appliances in very good condition. Wooden laminate flooring. Bedroom one: Double bedroom with woolmix carpeted flooring. Bathroom: White suite comprising bath with shower head, WC and hand washbasin with built-in storage and mirror over. Tiled flooring. Outside: Secure cycle storage and communal garden. What happens after I register my interest? After registering your interest for a Peabody home, you will receive an email confirmation from us. The email will confirm what you need to do next to secure a property viewing which includes completing a financial assessment with a mortgage advisor and completing the Shared Ownership Application Form. If you don\u2019t receive this email within an hour of your registration, please check your spam or junk folders and set your spam filter to allow incoming emails from Peabody. If you still haven\u2019t received the email after checking here, please contact [use Contact Agent Button] and our team will be able to help you. What is Shared Ownership? Available to purchase through Shared Ownership, purchasers are able to buy as much of the property as they can afford, from 25 - 75%, paying a low cost rent on the remaining unpurchased 'share' of the home. What's more, your mortgage deposit is based on the value of the share you buy, not the full market value, making these high-spec homes even more affordable in such a sought after location. Financial information Tenure: Leasehold Remaining Lease Term: 120 Years Annual ground rent amount: N/A Ground rent review period: N/A Annual service charge amount: \u00a33,092.76 Service charge review period: 1st April annually Council tax band: Band E",
@@ -495,9 +2492,12 @@
 -0.176007
 ]
 },
-"stb_detail": {
+"stb_detail2": {
 "144685:1280.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 330000.0,
+"lease_years": 85,
 "min_deposit": 11550.0,
 "rent": 389.0,
 "service_charge": 275.0,
@@ -505,7 +2505,10 @@
 "share_price": 115500.0
 },
 "225820:1574.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 310000.0,
+"lease_years": 119,
 "min_deposit": 5425.0,
 "rent": 728.0,
 "service_charge": 230.0,
@@ -513,7 +2516,10 @@
 "share_price": 108500.0
 },
 "230048:1685.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 465000.0,
+"lease_years": null,
 "min_deposit": 13950.0,
 "rent": 746.0,
 "service_charge": 196.0,
@@ -521,7 +2527,10 @@
 "share_price": 139500.0
 },
 "230049:1683.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 465000.0,
+"lease_years": null,
 "min_deposit": 13950.0,
 "rent": 746.0,
 "service_charge": 194.0,
@@ -529,7 +2538,10 @@
 "share_price": 139500.0
 },
 "255284:1437.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 355000.0,
+"lease_years": 116,
 "min_deposit": 5680.0,
 "rent": 554.0,
 "service_charge": 238.0,
@@ -537,7 +2549,10 @@
 "share_price": 113600.0
 },
 "259975:1789.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 620000.0,
+"lease_years": 999,
 "min_deposit": 7750.0,
 "rent": 581.0,
 "service_charge": 327.0,
@@ -545,7 +2560,10 @@
 "share_price": 155000.0
 },
 "263493:1892.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 525000.0,
+"lease_years": 250,
 "min_deposit": 6563.0,
 "rent": 902.0,
 "service_charge": 244.0,
@@ -553,7 +2571,10 @@
 "share_price": 131250.0
 },
 "277016:1733.0": {
+"council_tax": "E",
+"floor": "1st",
 "full_value": 475000.0,
+"lease_years": 118,
 "min_deposit": 5938.0,
 "rent": 491.0,
 "service_charge": 567.0,
@@ -561,7 +2582,10 @@
 "share_price": 118750.0
 },
 "277613:1681.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 425000.0,
+"lease_years": 100,
 "min_deposit": 8500.0,
 "rent": 394.0,
 "service_charge": 321.0,
@@ -569,7 +2593,10 @@
 "share_price": 170000.0
 },
 "289416:1754.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 400000.0,
+"lease_years": null,
 "min_deposit": 20000.0,
 "rent": 350.0,
 "service_charge": 338.0,
@@ -577,7 +2604,10 @@
 "share_price": 200000.0
 },
 "292470:1497.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 320000.0,
+"lease_years": 117,
 "min_deposit": 12800.0,
 "rent": 618.0,
 "service_charge": 197.0,
@@ -585,7 +2615,10 @@
 "share_price": 128000.0
 },
 "292571:1449.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 350000.0,
+"lease_years": 108,
 "min_deposit": 8750.0,
 "rent": 254.0,
 "service_charge": 201.0,
@@ -593,7 +2626,10 @@
 "share_price": 175000.0
 },
 "303950:1488.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 400000.0,
+"lease_years": 109,
 "min_deposit": 16000.0,
 "rent": 453.0,
 "service_charge": 182.0,
@@ -601,7 +2637,10 @@
 "share_price": 160000.0
 },
 "310579:1632.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 390000.0,
+"lease_years": 125,
 "min_deposit": 9750.0,
 "rent": 861.0,
 "service_charge": 251.0,
@@ -609,7 +2648,10 @@
 "share_price": 97500.0
 },
 "311516:1656.0": {
+"council_tax": null,
+"floor": "12th",
 "full_value": 462500.0,
+"lease_years": null,
 "min_deposit": 5781.0,
 "rent": 795.0,
 "service_charge": 204.0,
@@ -617,7 +2659,10 @@
 "share_price": 115625.0
 },
 "311543:1663.0": {
+"council_tax": null,
+"floor": "13th",
 "full_value": 465000.0,
+"lease_years": 150,
 "min_deposit": 5813.0,
 "rent": 799.0,
 "service_charge": 204.0,
@@ -625,7 +2670,10 @@
 "share_price": 116250.0
 },
 "320811:1546.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 430000.0,
+"lease_years": null,
 "min_deposit": 5375.0,
 "rent": 739.0,
 "service_charge": 196.0,
@@ -633,7 +2681,10 @@
 "share_price": 107500.0
 },
 "337269:1483.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 412000.0,
+"lease_years": 250,
 "min_deposit": 5150.0,
 "rent": 708.0,
 "service_charge": 190.0,
@@ -641,7 +2692,10 @@
 "share_price": 103000.0
 },
 "337272:1848.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 510000.0,
+"lease_years": 250,
 "min_deposit": 6375.0,
 "rent": 877.0,
 "service_charge": 247.0,
@@ -649,7 +2703,10 @@
 "share_price": 127500.0
 },
 "340386:1188.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 320000.0,
+"lease_years": null,
 "min_deposit": 11200.0,
 "rent": 470.0,
 "service_charge": 121.0,
@@ -657,7 +2714,10 @@
 "share_price": 112000.0
 },
 "341788:1254.0": {
+"council_tax": "B",
+"floor": null,
 "full_value": 300000.0,
+"lease_years": null,
 "min_deposit": 15000.0,
 "rent": 305.0,
 "service_charge": 150.0,
@@ -665,7 +2725,10 @@
 "share_price": 150000.0
 },
 "343632:1494.0": {
+"council_tax": "E",
+"floor": "3rd",
 "full_value": 355000.0,
+"lease_years": 974,
 "min_deposit": 8875.0,
 "rent": 815.0,
 "service_charge": 206.0,
@@ -673,7 +2736,10 @@
 "share_price": 88750.0
 },
 "368100:1394.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 400000.0,
+"lease_years": 109,
 "min_deposit": 10000.0,
 "rent": 690.0,
 "service_charge": 171.0,
@@ -681,7 +2747,10 @@
 "share_price": 100000.0
 },
 "370768:1499.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 390000.0,
+"lease_years": 990,
 "min_deposit": 4875.0,
 "rent": 670.0,
 "service_charge": 275.0,
@@ -689,7 +2758,10 @@
 "share_price": 97500.0
 },
 "375390:1849.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 410000.0,
+"lease_years": 120,
 "min_deposit": 14350.0,
 "rent": 821.0,
 "service_charge": 263.0,
@@ -697,7 +2769,10 @@
 "share_price": 143500.0
 },
 "384846:1818.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 455000.0,
+"lease_years": 122,
 "min_deposit": 11375.0,
 "rent": 932.0,
 "service_charge": 280.0,
@@ -705,7 +2780,10 @@
 "share_price": 113750.0
 },
 "385846:1531.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 390000.0,
+"lease_years": 990,
 "min_deposit": 4875.0,
 "rent": 670.0,
 "service_charge": 307.0,
@@ -713,7 +2791,10 @@
 "share_price": 97500.0
 },
 "391796:1711.0": {
+"council_tax": "E",
+"floor": "5th",
 "full_value": 450000.0,
+"lease_years": 116,
 "min_deposit": 11250.0,
 "rent": 766.0,
 "service_charge": 345.0,
@@ -721,7 +2802,10 @@
 "share_price": 112500.0
 },
 "395645:1397.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 305000.0,
+"lease_years": 243,
 "min_deposit": 5338.0,
 "rent": 602.0,
 "service_charge": 188.0,
@@ -729,7 +2813,10 @@
 "share_price": 106750.0
 },
 "395763:1789.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 450000.0,
+"lease_years": 124,
 "min_deposit": 11250.0,
 "rent": 856.0,
 "service_charge": 333.0,
@@ -737,7 +2824,10 @@
 "share_price": 112500.0
 },
 "396196:1883.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 600000.0,
+"lease_years": null,
 "min_deposit": 7500.0,
 "rent": 1031.0,
 "service_charge": null,
@@ -745,7 +2835,10 @@
 "share_price": 150000.0
 },
 "396719:1805.0": {
+"council_tax": "E",
+"floor": null,
 "full_value": 740000.0,
+"lease_years": null,
 "min_deposit": 18500.0,
 "rent": 486.0,
 "service_charge": 333.0,
@@ -753,7 +2846,10 @@
 "share_price": 185000.0
 },
 "398447:1565.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 450000.0,
+"lease_years": 114,
 "min_deposit": 11250.0,
 "rent": 553.0,
 "service_charge": 412.0,
@@ -761,7 +2857,10 @@
 "share_price": 112500.0
 },
 "401672:1656.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 430000.0,
+"lease_years": 109,
 "min_deposit": 10750.0,
 "rent": 868.0,
 "service_charge": 215.0,
@@ -769,7 +2868,10 @@
 "share_price": 107500.0
 },
 "403580:1708.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 380000.0,
+"lease_years": 113,
 "min_deposit": 9500.0,
 "rent": 355.0,
 "service_charge": 273.0,
@@ -777,7 +2879,10 @@
 "share_price": 190000.0
 },
 "405761:1851.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 370000.0,
+"lease_years": 170,
 "min_deposit": 9250.0,
 "rent": 454.0,
 "service_charge": 346.0,
@@ -785,7 +2890,10 @@
 "share_price": 185000.0
 },
 "406920:1500.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 395000.0,
+"lease_years": 990,
 "min_deposit": 4938.0,
 "rent": 679.0,
 "service_charge": 260.0,
@@ -793,7 +2901,10 @@
 "share_price": 98750.0
 },
 "407896:1401.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 480000.0,
+"lease_years": 125,
 "min_deposit": 19200.0,
 "rent": 0.0,
 "service_charge": 378.0,
@@ -801,7 +2912,10 @@
 "share_price": 192000.0
 },
 "408484:1659.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 375000.0,
+"lease_years": 119,
 "min_deposit": 4688.0,
 "rent": 917.0,
 "service_charge": 209.0,
@@ -809,7 +2923,10 @@
 "share_price": 93750.0
 },
 "410645:1469.0": {
+"council_tax": null,
+"floor": "9th",
 "full_value": 422500.0,
+"lease_years": 990,
 "min_deposit": 5281.0,
 "rent": 726.0,
 "service_charge": 143.0,
@@ -817,7 +2934,10 @@
 "share_price": 105625.0
 },
 "413939:1532.0": {
+"council_tax": "B",
+"floor": "5th",
 "full_value": 360000.0,
+"lease_years": null,
 "min_deposit": 6300.0,
 "rent": 611.0,
 "service_charge": 205.0,
@@ -825,7 +2945,10 @@
 "share_price": 126000.0
 },
 "414216:1827.0": {
+"council_tax": null,
+"floor": "9th",
 "full_value": 422500.0,
+"lease_years": 989,
 "min_deposit": 10563.0,
 "rent": 484.0,
 "service_charge": 143.0,
@@ -833,7 +2956,10 @@
 "share_price": 211250.0
 },
 "416613:1411.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 392500.0,
+"lease_years": 250,
 "min_deposit": 9813.0,
 "rent": 675.0,
 "service_charge": 213.0,
@@ -841,7 +2967,10 @@
 "share_price": 98125.0
 },
 "416617:1777.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 485000.0,
+"lease_years": 250,
 "min_deposit": 12125.0,
 "rent": 833.0,
 "service_charge": 298.0,
@@ -849,7 +2978,10 @@
 "share_price": 121250.0
 },
 "425256:1554.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 420000.0,
+"lease_years": null,
 "min_deposit": 12600.0,
 "rent": 713.0,
 "service_charge": 169.0,
@@ -857,7 +2989,10 @@
 "share_price": 126000.0
 },
 "427925:1798.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 475000.0,
+"lease_years": 105,
 "min_deposit": 11875.0,
 "rent": 992.0,
 "service_charge": 173.0,
@@ -865,7 +3000,10 @@
 "share_price": 118750.0
 },
 "427936:1884.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 500000.0,
+"lease_years": 117,
 "min_deposit": 12500.0,
 "rent": 831.0,
 "service_charge": 387.0,
@@ -873,7 +3011,10 @@
 "share_price": 125000.0
 },
 "428164:1355.0": {
+"council_tax": "B",
+"floor": "7th",
 "full_value": 330000.0,
+"lease_years": 105,
 "min_deposit": 14850.0,
 "rent": 354.0,
 "service_charge": 210.0,
@@ -881,7 +3022,10 @@
 "share_price": 148500.0
 },
 "429602:1541.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 280000.0,
+"lease_years": 103,
 "min_deposit": 14000.0,
 "rent": 579.0,
 "service_charge": 216.0,
@@ -889,7 +3033,10 @@
 "share_price": 140000.0
 },
 "429638:1848.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 440000.0,
+"lease_years": 116,
 "min_deposit": 15400.0,
 "rent": 876.0,
 "service_charge": 151.0,
@@ -897,7 +3044,10 @@
 "share_price": 154000.0
 },
 "431438:1478.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 370000.0,
+"lease_years": 106,
 "min_deposit": 6475.0,
 "rent": 595.0,
 "service_charge": 147.0,
@@ -905,7 +3055,10 @@
 "share_price": 129500.0
 },
 "434406:1586.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 375000.0,
+"lease_years": null,
 "min_deposit": 15000.0,
 "rent": 700.0,
 "service_charge": 87.0,
@@ -913,7 +3066,10 @@
 "share_price": 150000.0
 },
 "435511:1291.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 320000.0,
+"lease_years": 114,
 "min_deposit": 4800.0,
 "rent": 406.0,
 "service_charge": 340.0,
@@ -921,7 +3077,10 @@
 "share_price": 96000.0
 },
 "436741:1271.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 315000.0,
+"lease_years": 106,
 "min_deposit": 14175.0,
 "rent": 302.0,
 "service_charge": 214.0,
@@ -929,7 +3088,10 @@
 "share_price": 141750.0
 },
 "437408:1617.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 340000.0,
+"lease_years": 115,
 "min_deposit": 11900.0,
 "rent": 784.0,
 "service_charge": 199.0,
@@ -937,7 +3099,10 @@
 "share_price": 119000.0
 },
 "437858:1444.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 390000.0,
+"lease_years": 990,
 "min_deposit": 9750.0,
 "rent": 670.0,
 "service_charge": 254.0,
@@ -945,7 +3110,10 @@
 "share_price": 97500.0
 },
 "439759:1641.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 390000.0,
+"lease_years": null,
 "min_deposit": 19500.0,
 "rent": 422.0,
 "service_charge": 180.0,
@@ -953,7 +3121,10 @@
 "share_price": 195000.0
 },
 "440430:1262.0": {
+"council_tax": "B",
+"floor": "5th",
 "full_value": 340000.0,
+"lease_years": 114,
 "min_deposit": 10200.0,
 "rent": 545.0,
 "service_charge": 173.0,
@@ -961,7 +3132,10 @@
 "share_price": 102000.0
 },
 "452631:1545.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 419000.0,
+"lease_years": 999,
 "min_deposit": 10475.0,
 "rent": 720.0,
 "service_charge": 267.0,
@@ -969,7 +3143,10 @@
 "share_price": 104750.0
 },
 "453706:1752.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 340000.0,
+"lease_years": 968,
 "min_deposit": 4250.0,
 "rent": 1081.0,
 "service_charge": 188.0,
@@ -977,7 +3154,10 @@
 "share_price": 85000.0
 },
 "453738:1224.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 300000.0,
+"lease_years": 84,
 "min_deposit": 10500.0,
 "rent": 389.0,
 "service_charge": 275.0,
@@ -985,7 +3165,10 @@
 "share_price": 105000.0
 },
 "457946:1890.0": {
+"council_tax": "E",
+"floor": "3rd",
 "full_value": 485000.0,
+"lease_years": 109,
 "min_deposit": 14550.0,
 "rent": 804.0,
 "service_charge": 311.0,
@@ -993,7 +3176,10 @@
 "share_price": 145500.0
 },
 "458013:1367.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 250000.0,
+"lease_years": 115,
 "min_deposit": 12500.0,
 "rent": 456.0,
 "service_charge": 245.0,
@@ -1001,7 +3187,10 @@
 "share_price": 125000.0
 },
 "458269:1842.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 450000.0,
+"lease_years": 115,
 "min_deposit": 11250.0,
 "rent": 934.0,
 "service_charge": 308.0,
@@ -1009,7 +3198,10 @@
 "share_price": 112500.0
 },
 "471533:1747.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 475000.0,
+"lease_years": 124,
 "min_deposit": 5938.0,
 "rent": 844.0,
 "service_charge": 228.0,
@@ -1017,7 +3209,10 @@
 "share_price": 118750.0
 },
 "472862:1523.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 310000.0,
+"lease_years": 108,
 "min_deposit": 15500.0,
 "rent": 475.0,
 "service_charge": 222.0,
@@ -1025,7 +3220,10 @@
 "share_price": 155000.0
 },
 "473968:1826.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 390000.0,
+"lease_years": 106,
 "min_deposit": 10725.0,
 "rent": 464.0,
 "service_charge": 143.0,
@@ -1033,7 +3231,10 @@
 "share_price": 214500.0
 },
 "475892:1516.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 395000.0,
+"lease_years": 990,
 "min_deposit": 4938.0,
 "rent": 679.0,
 "service_charge": 276.0,
@@ -1041,7 +3242,10 @@
 "share_price": 98750.0
 },
 "476460:1495.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 390000.0,
+"lease_years": 990,
 "min_deposit": 4875.0,
 "rent": 670.0,
 "service_charge": 271.0,
@@ -1049,7 +3253,10 @@
 "share_price": 97500.0
 },
 "486206:1440.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 395000.0,
+"lease_years": null,
 "min_deposit": 9875.0,
 "rent": 679.0,
 "service_charge": 235.0,
@@ -1057,7 +3264,10 @@
 "share_price": 98750.0
 },
 "486254:1644.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 350000.0,
+"lease_years": 115,
 "min_deposit": 17500.0,
 "rent": 480.0,
 "service_charge": 231.0,
@@ -1065,7 +3275,10 @@
 "share_price": 175000.0
 },
 "488269:1405.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 320000.0,
+"lease_years": 117,
 "min_deposit": 8000.0,
 "rent": 746.0,
 "service_charge": 233.0,
@@ -1073,7 +3286,10 @@
 "share_price": 80000.0
 },
 "505815:1693.0": {
+"council_tax": "E",
+"floor": "4th",
 "full_value": 450000.0,
+"lease_years": 983,
 "min_deposit": 11250.0,
 "rent": 712.0,
 "service_charge": 381.0,
@@ -1081,7 +3297,10 @@
 "share_price": 112500.0
 },
 "522841:1502.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 510000.0,
+"lease_years": 990,
 "min_deposit": 12750.0,
 "rent": 561.0,
 "service_charge": 261.0,
@@ -1089,7 +3308,10 @@
 "share_price": 127500.0
 },
 "531241:1492.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 400000.0,
+"lease_years": 104,
 "min_deposit": 6000.0,
 "rent": 698.0,
 "service_charge": 112.0,
@@ -1097,7 +3319,10 @@
 "share_price": 120000.0
 },
 "531685:1086.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 285000.0,
+"lease_years": 111,
 "min_deposit": 3563.0,
 "rent": 491.0,
 "service_charge": 190.0,
@@ -1105,7 +3330,10 @@
 "share_price": 71250.0
 },
 "532608:1672.0": {
+"council_tax": "C",
+"floor": "6th",
 "full_value": 380000.0,
+"lease_years": 116,
 "min_deposit": 6650.0,
 "rent": 752.0,
 "service_charge": 164.0,
@@ -1113,7 +3341,10 @@
 "share_price": 133000.0
 },
 "537706:1405.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 290000.0,
+"lease_years": 116,
 "min_deposit": 5075.0,
 "rent": 685.0,
 "service_charge": 143.0,
@@ -1121,7 +3352,10 @@
 "share_price": 101500.0
 },
 "544120:1839.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 398000.0,
+"lease_years": 114,
 "min_deposit": 13930.0,
 "rent": 795.0,
 "service_charge": 302.0,
@@ -1129,7 +3363,10 @@
 "share_price": 139300.0
 },
 "547656:1553.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 370000.0,
+"lease_years": 80,
 "min_deposit": 9250.0,
 "rent": 322.0,
 "service_charge": 180.0,
@@ -1137,7 +3374,10 @@
 "share_price": 185000.0
 },
 "552335:1860.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 450000.0,
+"lease_years": 109,
 "min_deposit": 18000.0,
 "rent": 656.0,
 "service_charge": 245.0,
@@ -1145,7 +3385,10 @@
 "share_price": 180000.0
 },
 "554335:1557.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 425000.0,
+"lease_years": 990,
 "min_deposit": 5313.0,
 "rent": 730.0,
 "service_charge": 223.0,
@@ -1153,7 +3396,10 @@
 "share_price": 106250.0
 },
 "558134:1508.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 392500.0,
+"lease_years": 990,
 "min_deposit": 4906.0,
 "rent": 675.0,
 "service_charge": 275.0,
@@ -1161,7 +3407,10 @@
 "share_price": 98125.0
 },
 "558218:1696.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 475000.0,
+"lease_years": 109,
 "min_deposit": 19000.0,
 "rent": 468.0,
 "service_charge": 215.0,
@@ -1169,7 +3418,10 @@
 "share_price": 190000.0
 },
 "558454:1375.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 390000.0,
+"lease_years": 998,
 "min_deposit": 4875.0,
 "rent": 585.0,
 "service_charge": 236.0,
@@ -1177,7 +3429,10 @@
 "share_price": 97500.0
 },
 "558456:1792.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 405000.0,
+"lease_years": 998,
 "min_deposit": 10125.0,
 "rent": 405.0,
 "service_charge": 236.0,
@@ -1185,7 +3440,10 @@
 "share_price": 202500.0
 },
 "562115:1680.0": {
+"council_tax": "E",
+"floor": "14th",
 "full_value": 450000.0,
+"lease_years": 110,
 "min_deposit": 5625.0,
 "rent": 674.0,
 "service_charge": 367.0,
@@ -1193,7 +3451,10 @@
 "share_price": 112500.0
 },
 "562117:1096.0": {
+"council_tax": "B",
+"floor": "5th",
 "full_value": 270000.0,
+"lease_years": 990,
 "min_deposit": 3375.0,
 "rent": 464.0,
 "service_charge": 248.0,
@@ -1201,7 +3462,10 @@
 "share_price": 67500.0
 },
 "563468:1875.0": {
+"council_tax": "E",
+"floor": "Ground",
 "full_value": 420000.0,
+"lease_years": 106,
 "min_deposit": 10500.0,
 "rent": 1172.0,
 "service_charge": 143.0,
@@ -1209,7 +3473,10 @@
 "share_price": 105000.0
 },
 "566730:1336.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 295000.0,
+"lease_years": 114,
 "min_deposit": 14750.0,
 "rent": 372.0,
 "service_charge": 178.0,
@@ -1217,7 +3484,10 @@
 "share_price": 147500.0
 },
 "567640:1891.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 490000.0,
+"lease_years": 999,
 "min_deposit": 6125.0,
 "rent": 842.0,
 "service_charge": 353.0,
@@ -1225,7 +3495,10 @@
 "share_price": 122500.0
 },
 "572362:1439.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 400000.0,
+"lease_years": null,
 "min_deposit": 5000.0,
 "rent": 688.0,
 "service_charge": 183.0,
@@ -1233,7 +3506,10 @@
 "share_price": 100000.0
 },
 "572364:1789.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 480000.0,
+"lease_years": null,
 "min_deposit": 6000.0,
 "rent": 825.0,
 "service_charge": 282.0,
@@ -1241,7 +3517,10 @@
 "share_price": 120000.0
 },
 "572440:1445.0": {
+"council_tax": "C",
+"floor": "8th",
 "full_value": 400000.0,
+"lease_years": 119,
 "min_deposit": 10000.0,
 "rent": 688.0,
 "service_charge": 224.0,
@@ -1249,7 +3528,10 @@
 "share_price": 100000.0
 },
 "572504:1648.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 445000.0,
+"lease_years": null,
 "min_deposit": 5563.0,
 "rent": 765.0,
 "service_charge": 251.0,
@@ -1257,7 +3539,10 @@
 "share_price": 111250.0
 },
 "573605:1366.0": {
+"council_tax": "B",
+"floor": "7th",
 "full_value": 375000.0,
+"lease_years": 243,
 "min_deposit": 4688.0,
 "rent": 691.0,
 "service_charge": 142.0,
@@ -1265,7 +3550,10 @@
 "share_price": 93750.0
 },
 "574138:1403.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 390000.0,
+"lease_years": 250,
 "min_deposit": 9750.0,
 "rent": 670.0,
 "service_charge": 213.0,
@@ -1273,7 +3561,10 @@
 "share_price": 97500.0
 },
 "574736:1849.0": {
+"council_tax": "E",
+"floor": "4th",
 "full_value": 490000.0,
+"lease_years": 990,
 "min_deposit": 6125.0,
 "rent": 842.0,
 "service_charge": 311.0,
@@ -1281,7 +3572,10 @@
 "share_price": 122500.0
 },
 "575157:1664.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 350000.0,
+"lease_years": null,
 "min_deposit": 17500.0,
 "rent": 518.0,
 "service_charge": 213.0,
@@ -1289,7 +3583,10 @@
 "share_price": 175000.0
 },
 "581075:1351.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 479500.0,
+"lease_years": 999,
 "min_deposit": 5994.0,
 "rent": 450.0,
 "service_charge": 220.0,
@@ -1297,7 +3594,10 @@
 "share_price": 119875.0
 },
 "581289:1661.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 510000.0,
+"lease_years": 107,
 "min_deposit": 12750.0,
 "rent": 760.0,
 "service_charge": 221.0,
@@ -1305,7 +3605,10 @@
 "share_price": 127500.0
 },
 "583311:1370.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 320000.0,
+"lease_years": 115,
 "min_deposit": 9600.0,
 "rent": 635.0,
 "service_charge": 223.0,
@@ -1313,7 +3616,10 @@
 "share_price": 96000.0
 },
 "585535:1757.0": {
+"council_tax": "C",
+"floor": "8th",
 "full_value": 360000.0,
+"lease_years": 115,
 "min_deposit": 14400.0,
 "rent": 825.0,
 "service_charge": 165.0,
@@ -1321,7 +3627,10 @@
 "share_price": 144000.0
 },
 "591845:1800.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 652000.0,
+"lease_years": 125,
 "min_deposit": 8150.0,
 "rent": 672.0,
 "service_charge": 202.0,
@@ -1329,7 +3638,10 @@
 "share_price": 163000.0
 },
 "591853:1625.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 495000.0,
+"lease_years": 125,
 "min_deposit": 6188.0,
 "rent": 773.0,
 "service_charge": 149.0,
@@ -1337,7 +3649,10 @@
 "share_price": 123750.0
 },
 "592107:1590.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 482000.0,
+"lease_years": 125,
 "min_deposit": 6025.0,
 "rent": 753.0,
 "service_charge": 152.0,
@@ -1345,7 +3660,10 @@
 "share_price": 120500.0
 },
 "592154:1609.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 485000.0,
+"lease_years": 125,
 "min_deposit": 6063.0,
 "rent": 758.0,
 "service_charge": 162.0,
@@ -1353,7 +3671,10 @@
 "share_price": 121250.0
 },
 "592873:1749.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 626000.0,
+"lease_years": 999,
 "min_deposit": 7825.0,
 "rent": 587.0,
 "service_charge": 273.0,
@@ -1361,7 +3682,10 @@
 "share_price": 156500.0
 },
 "593556:1481.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 290000.0,
+"lease_years": 990,
 "min_deposit": 9135.0,
 "rent": 288.0,
 "service_charge": 155.0,
@@ -1369,7 +3693,10 @@
 "share_price": 182700.0
 },
 "597180:1438.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 335000.0,
+"lease_years": null,
 "min_deposit": 10050.0,
 "rent": 684.0,
 "service_charge": 218.0,
@@ -1377,7 +3704,10 @@
 "share_price": 100500.0
 },
 "597386:1296.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 351000.0,
+"lease_years": 998,
 "min_deposit": 4388.0,
 "rent": 604.0,
 "service_charge": 193.0,
@@ -1385,7 +3715,10 @@
 "share_price": 87750.0
 },
 "598978:1719.0": {
+"council_tax": "B",
+"floor": "6th",
 "full_value": 399000.0,
+"lease_years": 113,
 "min_deposit": 17955.0,
 "rent": 459.0,
 "service_charge": 303.0,
@@ -1393,7 +3726,10 @@
 "share_price": 179550.0
 },
 "602633:1533.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 375000.0,
+"lease_years": 244,
 "min_deposit": 9375.0,
 "rent": 591.0,
 "service_charge": 442.0,
@@ -1401,7 +3737,10 @@
 "share_price": 93750.0
 },
 "602775:1430.0": {
+"council_tax": "E",
+"floor": "4th",
 "full_value": 400000.0,
+"lease_years": 983,
 "min_deposit": 10000.0,
 "rent": 527.0,
 "service_charge": 370.0,
@@ -1409,7 +3748,10 @@
 "share_price": 100000.0
 },
 "606049:1548.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 385000.0,
+"lease_years": 109,
 "min_deposit": 15400.0,
 "rent": 578.0,
 "service_charge": 149.0,
@@ -1417,7 +3759,10 @@
 "share_price": 154000.0
 },
 "606400:1865.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 590000.0,
+"lease_years": 990,
 "min_deposit": 7375.0,
 "rent": 830.0,
 "service_charge": 197.0,
@@ -1425,7 +3770,10 @@
 "share_price": 147500.0
 },
 "607411:1344.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 375000.0,
+"lease_years": 250,
 "min_deposit": 9375.0,
 "rent": 645.0,
 "service_charge": 199.0,
@@ -1433,7 +3781,10 @@
 "share_price": 93750.0
 },
 "607513:1667.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 370000.0,
+"lease_years": 88,
 "min_deposit": 12950.0,
 "rent": 831.0,
 "service_charge": 146.0,
@@ -1441,7 +3792,10 @@
 "share_price": 129500.0
 },
 "608280:1498.0": {
+"council_tax": "B",
+"floor": "4th",
 "full_value": 410000.0,
+"lease_years": 112,
 "min_deposit": 12300.0,
 "rent": 539.0,
 "service_charge": 303.0,
@@ -1449,7 +3803,10 @@
 "share_price": 123000.0
 },
 "608311:1398.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 280000.0,
+"lease_years": 106,
 "min_deposit": 8400.0,
 "rent": 681.0,
 "service_charge": 269.0,
@@ -1457,7 +3814,10 @@
 "share_price": 84000.0
 },
 "609070:1623.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 325000.0,
+"lease_years": 114,
 "min_deposit": 4875.0,
 "rent": 795.0,
 "service_charge": 274.0,
@@ -1465,7 +3825,10 @@
 "share_price": 97500.0
 },
 "609483:1898.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 375000.0,
+"lease_years": 108,
 "min_deposit": 18750.0,
 "rent": 672.0,
 "service_charge": 227.0,
@@ -1473,7 +3836,10 @@
 "share_price": 187500.0
 },
 "609824:1708.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 449500.0,
+"lease_years": null,
 "min_deposit": 5619.0,
 "rent": 772.0,
 "service_charge": 298.0,
@@ -1481,7 +3847,10 @@
 "share_price": 112375.0
 },
 "610441:1393.0": {
+"council_tax": "B",
+"floor": "5th",
 "full_value": 330000.0,
+"lease_years": 117,
 "min_deposit": 8250.0,
 "rent": 835.0,
 "service_charge": 118.0,
@@ -1489,7 +3858,10 @@
 "share_price": 82500.0
 },
 "610632:1395.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 385000.0,
+"lease_years": 244,
 "min_deposit": 9625.0,
 "rent": 513.0,
 "service_charge": 369.0,
@@ -1497,7 +3869,10 @@
 "share_price": 96250.0
 },
 "612887:1817.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 500000.0,
+"lease_years": 108,
 "min_deposit": 12500.0,
 "rent": 849.0,
 "service_charge": 302.0,
@@ -1505,7 +3880,10 @@
 "share_price": 125000.0
 },
 "612902:1385.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 350000.0,
+"lease_years": 109,
 "min_deposit": 14000.0,
 "rent": 504.0,
 "service_charge": 135.0,
@@ -1513,7 +3891,10 @@
 "share_price": 140000.0
 },
 "614403:1347.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 300000.0,
+"lease_years": 86,
 "min_deposit": 9000.0,
 "rent": 645.0,
 "service_charge": 222.0,
@@ -1521,7 +3902,10 @@
 "share_price": 90000.0
 },
 "616705:1475.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 300000.0,
+"lease_years": 111,
 "min_deposit": 9000.0,
 "rent": 262.0,
 "service_charge": 190.0,
@@ -1529,7 +3913,10 @@
 "share_price": 180000.0
 },
 "617545:1492.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 507500.0,
+"lease_years": 999,
 "min_deposit": 6344.0,
 "rent": 410.0,
 "service_charge": 361.0,
@@ -1537,7 +3924,10 @@
 "share_price": 126875.0
 },
 "618199:1210.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 290000.0,
+"lease_years": 109,
 "min_deposit": 13050.0,
 "rent": 317.0,
 "service_charge": 197.0,
@@ -1545,7 +3935,10 @@
 "share_price": 130500.0
 },
 "618551:1503.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 450000.0,
+"lease_years": 113,
 "min_deposit": 11250.0,
 "rent": 582.0,
 "service_charge": 321.0,
@@ -1553,7 +3946,10 @@
 "share_price": 112500.0
 },
 "618780:1158.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 280000.0,
+"lease_years": 155,
 "min_deposit": 14000.0,
 "rent": 223.0,
 "service_charge": 189.0,
@@ -1561,7 +3957,10 @@
 "share_price": 140000.0
 },
 "621167:1282.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 295000.0,
+"lease_years": 112,
 "min_deposit": 7375.0,
 "rent": 569.0,
 "service_charge": 320.0,
@@ -1569,7 +3968,10 @@
 "share_price": 73750.0
 },
 "622537:1203.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 430000.0,
+"lease_years": 990,
 "min_deposit": 5375.0,
 "rent": 403.0,
 "service_charge": 189.0,
@@ -1577,7 +3979,10 @@
 "share_price": 107500.0
 },
 "623107:1776.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 375000.0,
+"lease_years": 111,
 "min_deposit": 18750.0,
 "rent": 569.0,
 "service_charge": 208.0,
@@ -1585,7 +3990,10 @@
 "share_price": 187500.0
 },
 "624102:1664.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 360000.0,
+"lease_years": 114,
 "min_deposit": 18000.0,
 "rent": 526.0,
 "service_charge": 179.0,
@@ -1593,7 +4001,10 @@
 "share_price": 180000.0
 },
 "624733:1570.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 325000.0,
+"lease_years": 114,
 "min_deposit": 16250.0,
 "rent": 500.0,
 "service_charge": 204.0,
@@ -1601,7 +4012,10 @@
 "share_price": 162500.0
 },
 "625480:1880.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 475000.0,
+"lease_years": 104,
 "min_deposit": 11875.0,
 "rent": 311.0,
 "service_charge": 220.0,
@@ -1609,7 +4023,10 @@
 "share_price": 237500.0
 },
 "628581:1877.0": {
+"council_tax": "E",
+"floor": "3rd",
 "full_value": 492500.0,
+"lease_years": 990,
 "min_deposit": 6156.0,
 "rent": 846.0,
 "service_charge": 331.0,
@@ -1617,7 +4034,10 @@
 "share_price": 123125.0
 },
 "629546:1824.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 435000.0,
+"lease_years": 108,
 "min_deposit": 10875.0,
 "rent": 933.0,
 "service_charge": 311.0,
@@ -1625,7 +4045,10 @@
 "share_price": 108750.0
 },
 "629553:1724.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 550000.0,
+"lease_years": null,
 "min_deposit": 6875.0,
 "rent": 837.0,
 "service_charge": 106.0,
@@ -1633,7 +4056,10 @@
 "share_price": 137500.0
 },
 "629680:1765.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 440000.0,
+"lease_years": 119,
 "min_deposit": 11000.0,
 "rent": 807.0,
 "service_charge": 372.0,
@@ -1641,7 +4067,10 @@
 "share_price": 110000.0
 },
 "630225:1882.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 460000.0,
+"lease_years": 108,
 "min_deposit": 11500.0,
 "rent": 958.0,
 "service_charge": 311.0,
@@ -1649,7 +4078,10 @@
 "share_price": 115000.0
 },
 "632904:1776.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 425000.0,
+"lease_years": 106,
 "min_deposit": 14875.0,
 "rent": 828.0,
 "service_charge": 155.0,
@@ -1657,7 +4089,10 @@
 "share_price": 148750.0
 },
 "634524:1469.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 385000.0,
+"lease_years": 985,
 "min_deposit": 9625.0,
 "rent": 673.0,
 "service_charge": 283.0,
@@ -1665,7 +4100,10 @@
 "share_price": 96250.0
 },
 "634960:1199.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 325000.0,
+"lease_years": 113,
 "min_deposit": 13000.0,
 "rent": 325.0,
 "service_charge": 181.0,
@@ -1673,7 +4111,10 @@
 "share_price": 130000.0
 },
 "635135:1804.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 450000.0,
+"lease_years": 116,
 "min_deposit": 13500.0,
 "rent": 662.0,
 "service_charge": 422.0,
@@ -1681,7 +4122,10 @@
 "share_price": 135000.0
 },
 "637811:1434.0": {
+"council_tax": "B",
+"floor": "4th",
 "full_value": 300000.0,
+"lease_years": 121,
 "min_deposit": 7500.0,
 "rent": 703.0,
 "service_charge": 331.0,
@@ -1689,7 +4133,10 @@
 "share_price": 75000.0
 },
 "638383:1601.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 562500.0,
+"lease_years": null,
 "min_deposit": 14063.0,
 "rent": 404.0,
 "service_charge": 448.0,
@@ -1697,7 +4144,10 @@
 "share_price": 140625.0
 },
 "639599:1606.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 462500.0,
+"lease_years": 999,
 "min_deposit": 11563.0,
 "rent": 665.0,
 "service_charge": 325.0,
@@ -1705,7 +4155,10 @@
 "share_price": 115625.0
 },
 "641177:1290.0": {
+"council_tax": "B",
+"floor": "6th",
 "full_value": 350000.0,
+"lease_years": 112,
 "min_deposit": 8750.0,
 "rent": 548.0,
 "service_charge": 276.0,
@@ -1713,7 +4166,10 @@
 "share_price": 87500.0
 },
 "641236:1415.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 310000.0,
+"lease_years": 106,
 "min_deposit": 13950.0,
 "rent": 486.0,
 "service_charge": 186.0,
@@ -1721,7 +4177,10 @@
 "share_price": 139500.0
 },
 "642130:1726.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 535000.0,
+"lease_years": 999,
 "min_deposit": 6688.0,
 "rent": 702.0,
 "service_charge": 264.0,
@@ -1729,7 +4188,10 @@
 "share_price": 133750.0
 },
 "642142:1713.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 530000.0,
+"lease_years": 999,
 "min_deposit": 6625.0,
 "rent": 696.0,
 "service_charge": 264.0,
@@ -1737,7 +4199,10 @@
 "share_price": 132500.0
 },
 "644836:1318.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 487500.0,
+"lease_years": 990,
 "min_deposit": 6094.0,
 "rent": 454.0,
 "service_charge": 172.0,
@@ -1745,7 +4210,10 @@
 "share_price": 121875.0
 },
 "645937:1516.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 400000.0,
+"lease_years": 162,
 "min_deposit": 8000.0,
 "rent": 433.0,
 "service_charge": 174.0,
@@ -1753,7 +4221,10 @@
 "share_price": 160000.0
 },
 "646588:1810.0": {
+"council_tax": "F",
+"floor": "28th",
 "full_value": 475000.0,
+"lease_years": 994,
 "min_deposit": 11875.0,
 "rent": 889.0,
 "service_charge": 288.0,
@@ -1761,7 +4232,10 @@
 "share_price": 118750.0
 },
 "646590:1341.0": {
+"council_tax": "B",
+"floor": "8th",
 "full_value": 340000.0,
+"lease_years": 114,
 "min_deposit": 10200.0,
 "rent": 536.0,
 "service_charge": 261.0,
@@ -1769,7 +4243,10 @@
 "share_price": 102000.0
 },
 "649998:1608.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 350000.0,
+"lease_years": 954,
 "min_deposit": 8750.0,
 "rent": 388.0,
 "service_charge": 226.0,
@@ -1777,7 +4254,10 @@
 "share_price": 175000.0
 },
 "650184:1648.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 440000.0,
+"lease_years": null,
 "min_deposit": 5500.0,
 "rent": 756.0,
 "service_charge": 267.0,
@@ -1785,7 +4265,10 @@
 "share_price": 110000.0
 },
 "650190:1664.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 445000.0,
+"lease_years": null,
 "min_deposit": 5563.0,
 "rent": 765.0,
 "service_charge": 267.0,
@@ -1793,7 +4276,10 @@
 "share_price": 111250.0
 },
 "650400:1368.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 300000.0,
+"lease_years": 81,
 "min_deposit": 10500.0,
 "rent": 527.0,
 "service_charge": 281.0,
@@ -1801,7 +4287,10 @@
 "share_price": 105000.0
 },
 "651545:1809.0": {
+"council_tax": "E",
+"floor": "5th",
 "full_value": 550000.0,
+"lease_years": 986,
 "min_deposit": 13750.0,
 "rent": 849.0,
 "service_charge": 227.0,
@@ -1809,7 +4298,10 @@
 "share_price": 137500.0
 },
 "652289:1645.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 560000.0,
+"lease_years": 990,
 "min_deposit": 4200.0,
 "rent": 893.0,
 "service_charge": 275.0,
@@ -1817,7 +4309,10 @@
 "share_price": 84000.0
 },
 "652602:1722.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 400000.0,
+"lease_years": 997,
 "min_deposit": 5000.0,
 "rent": 862.0,
 "service_charge": 292.0,
@@ -1825,7 +4320,10 @@
 "share_price": 100000.0
 },
 "653411:1137.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 280000.0,
+"lease_years": null,
 "min_deposit": 9800.0,
 "rent": 431.0,
 "service_charge": 184.0,
@@ -1833,7 +4331,10 @@
 "share_price": 98000.0
 },
 "653504:1409.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 350000.0,
+"lease_years": null,
 "min_deposit": 8750.0,
 "rent": 837.0,
 "service_charge": 106.0,
@@ -1841,7 +4342,10 @@
 "share_price": 87500.0
 },
 "654025:1646.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 450000.0,
+"lease_years": 119,
 "min_deposit": 11250.0,
 "rent": 851.0,
 "service_charge": 195.0,
@@ -1849,7 +4353,10 @@
 "share_price": 112500.0
 },
 "657034:1578.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 460000.0,
+"lease_years": null,
 "min_deposit": 11500.0,
 "rent": 791.0,
 "service_charge": 174.0,
@@ -1857,7 +4364,10 @@
 "share_price": 115000.0
 },
 "657040:1721.0": {
+"council_tax": null,
+"floor": "9th",
 "full_value": 490000.0,
+"lease_years": null,
 "min_deposit": 12250.0,
 "rent": 842.0,
 "service_charge": 226.0,
@@ -1865,7 +4375,10 @@
 "share_price": 122500.0
 },
 "657079:1650.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 460000.0,
+"lease_years": null,
 "min_deposit": 11500.0,
 "rent": 791.0,
 "service_charge": 246.0,
@@ -1873,7 +4386,10 @@
 "share_price": 115000.0
 },
 "657080:1589.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 480000.0,
+"lease_years": null,
 "min_deposit": 12000.0,
 "rent": 720.0,
 "service_charge": 229.0,
@@ -1881,7 +4397,10 @@
 "share_price": 120000.0
 },
 "658885:1314.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 415000.0,
+"lease_years": 999,
 "min_deposit": 5188.0,
 "rent": 545.0,
 "service_charge": 180.0,
@@ -1889,7 +4408,10 @@
 "share_price": 103750.0
 },
 "658951:1856.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 585000.0,
+"lease_years": 999,
 "min_deposit": 7313.0,
 "rent": 731.0,
 "service_charge": 294.0,
@@ -1897,7 +4419,10 @@
 "share_price": 146250.0
 },
 "659156:1511.0": {
+"council_tax": "B",
+"floor": "4th",
 "full_value": 325000.0,
+"lease_years": 994,
 "min_deposit": 5688.0,
 "rent": 646.0,
 "service_charge": 219.0,
@@ -1905,7 +4430,10 @@
 "share_price": 113750.0
 },
 "659310:1692.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 420000.0,
+"lease_years": 971,
 "min_deposit": 6300.0,
 "rent": 696.0,
 "service_charge": 280.0,
@@ -1913,7 +4441,10 @@
 "share_price": 126000.0
 },
 "660777:1593.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 335000.0,
+"lease_years": 88,
 "min_deposit": 16750.0,
 "rent": 527.0,
 "service_charge": 173.0,
@@ -1921,7 +4452,10 @@
 "share_price": 167500.0
 },
 "660949:1890.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 470000.0,
+"lease_years": 996,
 "min_deposit": 5875.0,
 "rent": 958.0,
 "service_charge": 264.0,
@@ -1929,7 +4463,10 @@
 "share_price": 117500.0
 },
 "662181:1701.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 390000.0,
+"lease_years": null,
 "min_deposit": 19500.0,
 "rent": 447.0,
 "service_charge": 215.0,
@@ -1937,7 +4474,10 @@
 "share_price": 195000.0
 },
 "663438:1710.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 440000.0,
+"lease_years": null,
 "min_deposit": 11000.0,
 "rent": 823.0,
 "service_charge": 301.0,
@@ -1945,7 +4485,10 @@
 "share_price": 110000.0
 },
 "664627:1518.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 505000.0,
+"lease_years": 999,
 "min_deposit": 6313.0,
 "rent": 410.0,
 "service_charge": 391.0,
@@ -1953,7 +4496,10 @@
 "share_price": 126250.0
 },
 "664943:1679.0": {
+"council_tax": "D",
+"floor": "7th",
 "full_value": 500000.0,
+"lease_years": 103,
 "min_deposit": 20000.0,
 "rent": 378.0,
 "service_charge": 235.0,
@@ -1961,7 +4507,10 @@
 "share_price": 200000.0
 },
 "665936:1502.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 419950.0,
+"lease_years": 250,
 "min_deposit": 10499.0,
 "rent": 722.0,
 "service_charge": 220.0,
@@ -1969,7 +4518,10 @@
 "share_price": 104988.0
 },
 "666498:1791.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 450000.0,
+"lease_years": 82,
 "min_deposit": 18000.0,
 "rent": 716.0,
 "service_charge": 116.0,
@@ -1977,7 +4529,10 @@
 "share_price": 180000.0
 },
 "668800:1375.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 395000.0,
+"lease_years": null,
 "min_deposit": 4938.0,
 "rent": 432.0,
 "service_charge": 382.0,
@@ -1985,7 +4540,10 @@
 "share_price": 98750.0
 },
 "668807:1721.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 467500.0,
+"lease_years": null,
 "min_deposit": 5844.0,
 "rent": 730.0,
 "service_charge": 327.0,
@@ -1993,7 +4551,10 @@
 "share_price": 116875.0
 },
 "669858:1475.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 400000.0,
+"lease_years": 990,
 "min_deposit": 10000.0,
 "rent": 688.0,
 "service_charge": 254.0,
@@ -2001,7 +4562,10 @@
 "share_price": 100000.0
 },
 "673033:1319.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 440000.0,
+"lease_years": 990,
 "min_deposit": 5500.0,
 "rent": 550.0,
 "service_charge": 144.0,
@@ -2009,7 +4573,10 @@
 "share_price": 110000.0
 },
 "673034:1431.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 480000.0,
+"lease_years": 990,
 "min_deposit": 6000.0,
 "rent": 600.0,
 "service_charge": 149.0,
@@ -2017,7 +4584,10 @@
 "share_price": 120000.0
 },
 "676668:1707.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 465000.0,
+"lease_years": 114,
 "min_deposit": 11625.0,
 "rent": 715.0,
 "service_charge": 372.0,
@@ -2025,7 +4595,10 @@
 "share_price": 116250.0
 },
 "676711:1574.0": {
+"council_tax": "E",
+"floor": "Ground",
 "full_value": 475000.0,
+"lease_years": 107,
 "min_deposit": 11875.0,
 "rent": 685.0,
 "service_charge": 256.0,
@@ -2033,7 +4606,10 @@
 "share_price": 118750.0
 },
 "677095:1209.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 315000.0,
+"lease_years": 108,
 "min_deposit": 7875.0,
 "rent": 483.0,
 "service_charge": 306.0,
@@ -2041,7 +4617,10 @@
 "share_price": 78750.0
 },
 "678114:1713.0": {
+"council_tax": "F",
+"floor": "3rd",
 "full_value": 430000.0,
+"lease_years": 110,
 "min_deposit": 8600.0,
 "rent": 587.0,
 "service_charge": 149.0,
@@ -2049,7 +4628,10 @@
 "share_price": 172000.0
 },
 "678249:1466.0": {
+"council_tax": "B",
+"floor": "8th",
 "full_value": 350000.0,
+"lease_years": 242,
 "min_deposit": 5250.0,
 "rent": 696.0,
 "service_charge": 173.0,
@@ -2057,7 +4639,10 @@
 "share_price": 105000.0
 },
 "679065:1881.0": {
+"council_tax": "D",
+"floor": "Ground",
 "full_value": 550000.0,
+"lease_years": 245,
 "min_deposit": 13750.0,
 "rent": 879.0,
 "service_charge": 283.0,
@@ -2065,7 +4650,10 @@
 "share_price": 137500.0
 },
 "680069:1318.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 315000.0,
+"lease_years": 990,
 "min_deposit": 4725.0,
 "rent": 505.0,
 "service_charge": 276.0,
@@ -2073,7 +4661,10 @@
 "share_price": 94500.0
 },
 "680185:1772.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 335000.0,
+"lease_years": 107,
 "min_deposit": 8375.0,
 "rent": 558.0,
 "service_charge": 262.0,
@@ -2081,7 +4672,10 @@
 "share_price": 167500.0
 },
 "681913:1334.0": {
+"council_tax": "F",
+"floor": "4th",
 "full_value": 540000.0,
+"lease_years": 87,
 "min_deposit": 13500.0,
 "rent": 279.0,
 "service_charge": 335.0,
@@ -2089,7 +4683,10 @@
 "share_price": 135000.0
 },
 "684334:1605.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 555000.0,
+"lease_years": 255,
 "min_deposit": 13875.0,
 "rent": 642.0,
 "service_charge": 223.0,
@@ -2097,7 +4694,10 @@
 "share_price": 138750.0
 },
 "685493:1492.0": {
+"council_tax": "C",
+"floor": "8th",
 "full_value": 270000.0,
+"lease_years": 115,
 "min_deposit": 8100.0,
 "rent": 772.0,
 "service_charge": 288.0,
@@ -2105,7 +4705,10 @@
 "share_price": 81000.0
 },
 "685924:1890.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 400000.0,
+"lease_years": 111,
 "min_deposit": 8000.0,
 "rent": 640.0,
 "service_charge": 341.0,
@@ -2113,7 +4716,10 @@
 "share_price": 160000.0
 },
 "687553:1483.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 495000.0,
+"lease_years": 999,
 "min_deposit": 6188.0,
 "rent": 541.0,
 "service_charge": 239.0,
@@ -2121,7 +4727,10 @@
 "share_price": 123750.0
 },
 "687837:1777.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 485000.0,
+"lease_years": 250,
 "min_deposit": 12125.0,
 "rent": 834.0,
 "service_charge": 297.0,
@@ -2129,7 +4738,10 @@
 "share_price": 121250.0
 },
 "688717:1411.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 497500.0,
+"lease_years": 999,
 "min_deposit": 6219.0,
 "rent": 466.0,
 "service_charge": 238.0,
@@ -2137,7 +4749,10 @@
 "share_price": 124375.0
 },
 "689811:1741.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 380000.0,
+"lease_years": 106,
 "min_deposit": 5700.0,
 "rent": 939.0,
 "service_charge": 154.0,
@@ -2145,7 +4760,10 @@
 "share_price": 114000.0
 },
 "694252:1702.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 390000.0,
+"lease_years": 244,
 "min_deposit": 9750.0,
 "rent": 955.0,
 "service_charge": 227.0,
@@ -2153,7 +4771,10 @@
 "share_price": 97500.0
 },
 "694480:1890.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 400000.0,
+"lease_years": 112,
 "min_deposit": 8000.0,
 "rent": 640.0,
 "service_charge": 341.0,
@@ -2161,7 +4782,10 @@
 "share_price": 160000.0
 },
 "697524:1671.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 547500.0,
+"lease_years": 990,
 "min_deposit": 13688.0,
 "rent": 941.0,
 "service_charge": null,
@@ -2169,7 +4793,10 @@
 "share_price": 136875.0
 },
 "697538:1663.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 545000.0,
+"lease_years": 990,
 "min_deposit": 13625.0,
 "rent": 937.0,
 "service_charge": null,
@@ -2177,7 +4804,10 @@
 "share_price": 136250.0
 },
 "697787:1708.0": {
+"council_tax": "D",
+"floor": "8th",
 "full_value": 550000.0,
+"lease_years": 243,
 "min_deposit": 13750.0,
 "rent": 766.0,
 "service_charge": 209.0,
@@ -2185,7 +4815,10 @@
 "share_price": 137500.0
 },
 "697791:1814.0": {
+"council_tax": "D",
+"floor": "7th",
 "full_value": 625000.0,
+"lease_years": 243,
 "min_deposit": 15625.0,
 "rent": 766.0,
 "service_charge": 215.0,
@@ -2193,7 +4826,10 @@
 "share_price": 156250.0
 },
 "699234:1243.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 300000.0,
+"lease_years": 155,
 "min_deposit": 6000.0,
 "rent": 340.0,
 "service_charge": 221.0,
@@ -2201,7 +4837,10 @@
 "share_price": 120000.0
 },
 "699236:1807.0": {
+"council_tax": "D",
+"floor": "8th",
 "full_value": 660000.0,
+"lease_years": 243,
 "min_deposit": 16500.0,
 "rent": 715.0,
 "service_charge": 213.0,
@@ -2209,7 +4848,10 @@
 "share_price": 165000.0
 },
 "699237:1854.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 500000.0,
+"lease_years": 900,
 "min_deposit": 12500.0,
 "rent": 310.0,
 "service_charge": 124.0,
@@ -2217,7 +4859,10 @@
 "share_price": 250000.0
 },
 "701345:1679.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 370000.0,
+"lease_years": 112,
 "min_deposit": 14800.0,
 "rent": 674.0,
 "service_charge": 216.0,
@@ -2225,7 +4870,10 @@
 "share_price": 148000.0
 },
 "701351:1536.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 445000.0,
+"lease_years": null,
 "min_deposit": 11125.0,
 "rent": 695.0,
 "service_charge": 248.0,
@@ -2233,7 +4881,10 @@
 "share_price": 111250.0
 },
 "701357:1857.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 535000.0,
+"lease_years": null,
 "min_deposit": 13375.0,
 "rent": 836.0,
 "service_charge": 308.0,
@@ -2241,7 +4892,10 @@
 "share_price": 133750.0
 },
 "701369:1864.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 460000.0,
+"lease_years": 125,
 "min_deposit": 16100.0,
 "rent": 847.0,
 "service_charge": 159.0,
@@ -2249,7 +4903,10 @@
 "share_price": 161000.0
 },
 "701384:1896.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 550000.0,
+"lease_years": null,
 "min_deposit": 13750.0,
 "rent": 859.0,
 "service_charge": 304.0,
@@ -2257,7 +4914,10 @@
 "share_price": 137500.0
 },
 "701388:1585.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 452500.0,
+"lease_years": null,
 "min_deposit": 11313.0,
 "rent": 707.0,
 "service_charge": 275.0,
@@ -2265,7 +4925,10 @@
 "share_price": 113125.0
 },
 "701390:1514.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 430000.0,
+"lease_years": null,
 "min_deposit": 10750.0,
 "rent": 672.0,
 "service_charge": 269.0,
@@ -2273,7 +4936,10 @@
 "share_price": 107500.0
 },
 "701481:1286.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 410000.0,
+"lease_years": 115,
 "min_deposit": 5125.0,
 "rent": 407.0,
 "service_charge": 297.0,
@@ -2281,7 +4947,10 @@
 "share_price": 102500.0
 },
 "701856:1804.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 430000.0,
+"lease_years": 109,
 "min_deposit": 15050.0,
 "rent": 614.0,
 "service_charge": 388.0,
@@ -2289,7 +4958,10 @@
 "share_price": 150500.0
 },
 "704218:1458.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 532500.0,
+"lease_years": null,
 "min_deposit": 13313.0,
 "rent": 383.0,
 "service_charge": 365.0,
@@ -2297,7 +4969,10 @@
 "share_price": 133125.0
 },
 "704347:1388.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 405000.0,
+"lease_years": 999,
 "min_deposit": 5063.0,
 "rent": 633.0,
 "service_charge": 180.0,
@@ -2305,7 +4980,10 @@
 "share_price": 101250.0
 },
 "706860:1536.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 387500.0,
+"lease_years": 240,
 "min_deposit": 4844.0,
 "rent": 666.0,
 "service_charge": 320.0,
@@ -2313,7 +4991,10 @@
 "share_price": 96875.0
 },
 "706908:1568.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 393000.0,
+"lease_years": 240,
 "min_deposit": 4913.0,
 "rent": 675.0,
 "service_charge": 335.0,
@@ -2321,7 +5002,10 @@
 "share_price": 98250.0
 },
 "709471:1886.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 510000.0,
+"lease_years": 992,
 "min_deposit": 12750.0,
 "rent": 1013.0,
 "service_charge": 193.0,
@@ -2329,7 +5013,10 @@
 "share_price": 127500.0
 },
 "710509:1623.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 325000.0,
+"lease_years": 114,
 "min_deposit": 4875.0,
 "rent": 795.0,
 "service_charge": 274.0,
@@ -2337,7 +5024,10 @@
 "share_price": 97500.0
 },
 "711983:1429.0": {
+"council_tax": "E",
+"floor": "2nd",
 "full_value": 453000.0,
+"lease_years": 78,
 "min_deposit": 15855.0,
 "rent": 422.0,
 "service_charge": 162.0,
@@ -2345,7 +5035,10 @@
 "share_price": 158550.0
 },
 "713329:1635.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 375000.0,
+"lease_years": 242,
 "min_deposit": 9375.0,
 "rent": 750.0,
 "service_charge": 385.0,
@@ -2353,7 +5046,10 @@
 "share_price": 93750.0
 },
 "715733:1694.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 460000.0,
+"lease_years": 990,
 "min_deposit": 5750.0,
 "rent": 791.0,
 "service_charge": 250.0,
@@ -2361,7 +5057,10 @@
 "share_price": 115000.0
 },
 "715739:1855.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 500000.0,
+"lease_years": 990,
 "min_deposit": 6250.0,
 "rent": 859.0,
 "service_charge": 286.0,
@@ -2369,7 +5068,10 @@
 "share_price": 125000.0
 },
 "715740:1458.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 400000.0,
+"lease_years": 990,
 "min_deposit": 5000.0,
 "rent": 688.0,
 "service_charge": 202.0,
@@ -2377,7 +5079,10 @@
 "share_price": 100000.0
 },
 "716533:1142.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 375000.0,
+"lease_years": 108,
 "min_deposit": 9375.0,
 "rent": 467.0,
 "service_charge": 175.0,
@@ -2385,7 +5090,10 @@
 "share_price": 93750.0
 },
 "719429:1655.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 370000.0,
+"lease_years": 246,
 "min_deposit": 12950.0,
 "rent": 645.0,
 "service_charge": 320.0,
@@ -2393,7 +5101,10 @@
 "share_price": 129500.0
 },
 "720362:1700.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 580000.0,
+"lease_years": 990,
 "min_deposit": 2900.0,
 "rent": 1196.0,
 "service_charge": 174.0,
@@ -2401,7 +5112,10 @@
 "share_price": 58000.0
 },
 "724078:1526.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 350000.0,
+"lease_years": null,
 "min_deposit": 14000.0,
 "rent": 573.0,
 "service_charge": 207.0,
@@ -2409,7 +5123,10 @@
 "share_price": 140000.0
 },
 "724318:1219.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 300000.0,
+"lease_years": 114,
 "min_deposit": 12000.0,
 "rent": 413.0,
 "service_charge": 166.0,
@@ -2417,7 +5134,10 @@
 "share_price": 120000.0
 },
 "724869:1236.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 310000.0,
+"lease_years": 113,
 "min_deposit": 4650.0,
 "rent": 576.0,
 "service_charge": 132.0,
@@ -2425,7 +5145,10 @@
 "share_price": 93000.0
 },
 "725035:1425.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 375000.0,
+"lease_years": 990,
 "min_deposit": 4688.0,
 "rent": 645.0,
 "service_charge": 247.0,
@@ -2433,7 +5156,10 @@
 "share_price": 93750.0
 },
 "725152:1693.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 440000.0,
+"lease_years": 990,
 "min_deposit": 5500.0,
 "rent": 756.0,
 "service_charge": 312.0,
@@ -2441,7 +5167,10 @@
 "share_price": 110000.0
 },
 "725431:1834.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 460000.0,
+"lease_years": 990,
 "min_deposit": 11500.0,
 "rent": 527.0,
 "service_charge": null,
@@ -2449,7 +5178,10 @@
 "share_price": 230000.0
 },
 "726280:1399.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 395000.0,
+"lease_years": null,
 "min_deposit": 13825.0,
 "rent": 421.0,
 "service_charge": 241.0,
@@ -2457,7 +5189,10 @@
 "share_price": 138250.0
 },
 "729625:1525.0": {
+"council_tax": "E",
+"floor": "6th",
 "full_value": 470000.0,
+"lease_years": 985,
 "min_deposit": 11750.0,
 "rent": 529.0,
 "service_charge": 370.0,
@@ -2465,7 +5200,10 @@
 "share_price": 117500.0
 },
 "732022:1899.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 410000.0,
+"lease_years": 111,
 "min_deposit": 16400.0,
 "rent": 717.0,
 "service_charge": 308.0,
@@ -2473,7 +5211,10 @@
 "share_price": 164000.0
 },
 "734421:1871.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 680000.0,
+"lease_years": 125,
 "min_deposit": 8500.0,
 "rent": 701.0,
 "service_charge": 204.0,
@@ -2481,7 +5222,10 @@
 "share_price": 170000.0
 },
 "734624:1848.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 522000.0,
+"lease_years": 250,
 "min_deposit": 13050.0,
 "rent": 897.0,
 "service_charge": 255.0,
@@ -2489,7 +5233,10 @@
 "share_price": 130500.0
 },
 "734699:1875.0": {
+"council_tax": "E",
+"floor": "Ground",
 "full_value": 420000.0,
+"lease_years": 106,
 "min_deposit": 10500.0,
 "rent": 1172.0,
 "service_charge": 143.0,
@@ -2497,7 +5244,10 @@
 "share_price": 105000.0
 },
 "734723:1863.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 527000.0,
+"lease_years": 250,
 "min_deposit": 13175.0,
 "rent": 906.0,
 "service_charge": 255.0,
@@ -2505,7 +5255,10 @@
 "share_price": 131750.0
 },
 "737115:1601.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 475000.0,
+"lease_years": 244,
 "min_deposit": 14250.0,
 "rent": 628.0,
 "service_charge": 214.0,
@@ -2513,7 +5266,10 @@
 "share_price": 142500.0
 },
 "737644:1435.0": {
+"council_tax": "D",
+"floor": "Ground",
 "full_value": 360000.0,
+"lease_years": 961,
 "min_deposit": 9000.0,
 "rent": 259.0,
 "service_charge": 153.0,
@@ -2521,7 +5277,10 @@
 "share_price": 180000.0
 },
 "739109:1343.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 460000.0,
+"lease_years": 113,
 "min_deposit": 11500.0,
 "rent": 469.0,
 "service_charge": 261.0,
@@ -2529,7 +5288,10 @@
 "share_price": 115000.0
 },
 "739447:1702.0": {
+"council_tax": "D",
+"floor": "8th",
 "full_value": 550000.0,
+"lease_years": 243,
 "min_deposit": 13750.0,
 "rent": 760.0,
 "service_charge": 209.0,
@@ -2537,7 +5299,10 @@
 "share_price": 137500.0
 },
 "740463:1791.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 507000.0,
+"lease_years": 250,
 "min_deposit": 12675.0,
 "rent": 871.0,
 "service_charge": 244.0,
@@ -2545,7 +5310,10 @@
 "share_price": 126750.0
 },
 "742928:1218.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 325000.0,
+"lease_years": 115,
 "min_deposit": 13000.0,
 "rent": 301.0,
 "service_charge": 224.0,
@@ -2553,7 +5321,10 @@
 "share_price": 130000.0
 },
 "742965:1377.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 340000.0,
+"lease_years": 110,
 "min_deposit": 11900.0,
 "rent": 562.0,
 "service_charge": 181.0,
@@ -2561,7 +5332,10 @@
 "share_price": 119000.0
 },
 "743116:1825.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 410000.0,
+"lease_years": 100,
 "min_deposit": 10250.0,
 "rent": 543.0,
 "service_charge": 117.0,
@@ -2569,7 +5343,10 @@
 "share_price": 205000.0
 },
 "744441:1429.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 387500.0,
+"lease_years": 250,
 "min_deposit": 4844.0,
 "rent": 666.0,
 "service_charge": 213.0,
@@ -2577,7 +5354,10 @@
 "share_price": 96875.0
 },
 "745000:1560.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 390000.0,
+"lease_years": 115,
 "min_deposit": 9750.0,
 "rent": 656.0,
 "service_charge": 384.0,
@@ -2585,7 +5365,10 @@
 "share_price": 97500.0
 },
 "745593:1728.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 490000.0,
+"lease_years": 250,
 "min_deposit": 12250.0,
 "rent": 842.0,
 "service_charge": 233.0,
@@ -2593,7 +5376,10 @@
 "share_price": 122500.0
 },
 "745607:1590.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 365000.0,
+"lease_years": 85,
 "min_deposit": 7300.0,
 "rent": 535.0,
 "service_charge": 225.0,
@@ -2601,7 +5387,10 @@
 "share_price": 146000.0
 },
 "745923:1474.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 422000.0,
+"lease_years": 250,
 "min_deposit": 10550.0,
 "rent": 725.0,
 "service_charge": 187.0,
@@ -2609,7 +5398,10 @@
 "share_price": 105500.0
 },
 "745932:1358.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 385000.0,
+"lease_years": 250,
 "min_deposit": 9625.0,
 "rent": 662.0,
 "service_charge": 183.0,
@@ -2617,7 +5409,10 @@
 "share_price": 96250.0
 },
 "746510:1810.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 425000.0,
+"lease_years": 116,
 "min_deposit": 12750.0,
 "rent": 695.0,
 "service_charge": 435.0,
@@ -2625,7 +5420,10 @@
 "share_price": 127500.0
 },
 "746721:1426.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 405000.0,
+"lease_years": 250,
 "min_deposit": 10125.0,
 "rent": 696.0,
 "service_charge": 190.0,
@@ -2633,7 +5431,10 @@
 "share_price": 101250.0
 },
 "746728:1768.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 500000.0,
+"lease_years": 250,
 "min_deposit": 12500.0,
 "rent": 859.0,
 "service_charge": 243.0,
@@ -2641,7 +5442,10 @@
 "share_price": 125000.0
 },
 "747915:1529.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 510000.0,
+"lease_years": 999,
 "min_deposit": 6375.0,
 "rent": 414.0,
 "service_charge": 391.0,
@@ -2649,7 +5453,10 @@
 "share_price": 127500.0
 },
 "748015:1747.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 325000.0,
+"lease_years": 115,
 "min_deposit": 5688.0,
 "rent": 833.0,
 "service_charge": 268.0,
@@ -2657,7 +5464,10 @@
 "share_price": 113750.0
 },
 "748058:1841.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 500000.0,
+"lease_years": 115,
 "min_deposit": 6250.0,
 "rent": 802.0,
 "service_charge": 329.0,
@@ -2665,7 +5475,10 @@
 "share_price": 125000.0
 },
 "748071:1610.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 350000.0,
+"lease_years": 105,
 "min_deposit": 8750.0,
 "rent": 490.0,
 "service_charge": 126.0,
@@ -2673,7 +5486,10 @@
 "share_price": 175000.0
 },
 "748073:1781.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 555000.0,
+"lease_years": 990,
 "min_deposit": 13875.0,
 "rent": 769.0,
 "service_charge": 272.0,
@@ -2681,7 +5497,10 @@
 "share_price": 138750.0
 },
 "749164:1645.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 340000.0,
+"lease_years": 992,
 "min_deposit": 10200.0,
 "rent": 773.0,
 "service_charge": 328.0,
@@ -2689,7 +5508,10 @@
 "share_price": 102000.0
 },
 "749867:1840.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 542500.0,
+"lease_years": 999,
 "min_deposit": 13563.0,
 "rent": 729.0,
 "service_charge": 388.0,
@@ -2697,7 +5519,10 @@
 "share_price": 135625.0
 },
 "749871:1755.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 500000.0,
+"lease_years": 999,
 "min_deposit": 12500.0,
 "rent": 703.0,
 "service_charge": 386.0,
@@ -2705,7 +5530,10 @@
 "share_price": 125000.0
 },
 "750499:1495.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 317500.0,
+"lease_years": 109,
 "min_deposit": 6350.0,
 "rent": 479.0,
 "service_charge": 294.0,
@@ -2713,7 +5541,10 @@
 "share_price": 127000.0
 },
 "751789:1514.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 380000.0,
+"lease_years": 986,
 "min_deposit": 9500.0,
 "rent": 815.0,
 "service_charge": 193.0,
@@ -2721,7 +5552,10 @@
 "share_price": 95000.0
 },
 "751850:1504.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 375000.0,
+"lease_years": 116,
 "min_deposit": 9375.0,
 "rent": 620.0,
 "service_charge": 384.0,
@@ -2729,7 +5563,10 @@
 "share_price": 93750.0
 },
 "752681:1794.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 395000.0,
+"lease_years": 107,
 "min_deposit": 13825.0,
 "rent": 834.0,
 "service_charge": 223.0,
@@ -2737,7 +5574,10 @@
 "share_price": 138250.0
 },
 "752836:1301.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 480000.0,
+"lease_years": 990,
 "min_deposit": 6000.0,
 "rent": 423.0,
 "service_charge": 196.0,
@@ -2745,7 +5585,10 @@
 "share_price": 120000.0
 },
 "753286:1844.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 550000.0,
+"lease_years": 994,
 "min_deposit": 13750.0,
 "rent": 920.0,
 "service_charge": 191.0,
@@ -2753,7 +5596,10 @@
 "share_price": 137500.0
 },
 "753406:1542.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 325000.0,
+"lease_years": 108,
 "min_deposit": 4875.0,
 "rent": 695.0,
 "service_charge": 293.0,
@@ -2761,7 +5607,10 @@
 "share_price": 97500.0
 },
 "753527:1881.0": {
+"council_tax": "C",
+"floor": "6th",
 "full_value": 425000.0,
+"lease_years": 114,
 "min_deposit": 19125.0,
 "rent": 609.0,
 "service_charge": 253.0,
@@ -2769,7 +5618,10 @@
 "share_price": 191250.0
 },
 "754222:1492.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 430000.0,
+"lease_years": null,
 "min_deposit": 5375.0,
 "rent": 739.0,
 "service_charge": 142.0,
@@ -2777,7 +5629,10 @@
 "share_price": 107500.0
 },
 "754286:1488.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 510000.0,
+"lease_years": 990,
 "min_deposit": 12750.0,
 "rent": 558.0,
 "service_charge": 250.0,
@@ -2785,7 +5640,10 @@
 "share_price": 127500.0
 },
 "754294:1499.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 510000.0,
+"lease_years": 990,
 "min_deposit": 12750.0,
 "rent": 558.0,
 "service_charge": 261.0,
@@ -2793,7 +5651,10 @@
 "share_price": 127500.0
 },
 "754403:1425.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 375000.0,
+"lease_years": 988,
 "min_deposit": 9375.0,
 "rent": 731.0,
 "service_charge": 194.0,
@@ -2801,7 +5662,10 @@
 "share_price": 93750.0
 },
 "754492:1593.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 390000.0,
+"lease_years": 113,
 "min_deposit": 5850.0,
 "rent": 749.0,
 "service_charge": 179.0,
@@ -2809,7 +5673,10 @@
 "share_price": 117000.0
 },
 "754795:1314.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 487500.0,
+"lease_years": 999,
 "min_deposit": 12188.0,
 "rent": 350.0,
 "service_charge": 314.0,
@@ -2817,7 +5684,10 @@
 "share_price": 121875.0
 },
 "755029:1784.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 640000.0,
+"lease_years": 999,
 "min_deposit": 16000.0,
 "rent": 400.0,
 "service_charge": 531.0,
@@ -2825,7 +5695,10 @@
 "share_price": 160000.0
 },
 "755061:1790.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 365000.0,
+"lease_years": 114,
 "min_deposit": 12775.0,
 "rent": 745.0,
 "service_charge": 364.0,
@@ -2833,7 +5706,10 @@
 "share_price": 127750.0
 },
 "755345:1655.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 582500.0,
+"lease_years": 990,
 "min_deposit": 7281.0,
 "rent": 637.0,
 "service_charge": 191.0,
@@ -2841,7 +5717,10 @@
 "share_price": 145625.0
 },
 "755646:1256.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 487500.0,
+"lease_years": 999,
 "min_deposit": 6094.0,
 "rent": 335.0,
 "service_charge": 229.0,
@@ -2849,7 +5728,10 @@
 "share_price": 121875.0
 },
 "755653:1650.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 435000.0,
+"lease_years": 115,
 "min_deposit": 10875.0,
 "rent": 707.0,
 "service_charge": 363.0,
@@ -2857,7 +5739,10 @@
 "share_price": 108750.0
 },
 "755766:1378.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 275000.0,
+"lease_years": 103,
 "min_deposit": 11000.0,
 "rent": 510.0,
 "service_charge": 282.0,
@@ -2865,7 +5750,10 @@
 "share_price": 110000.0
 },
 "756544:1572.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 325000.0,
+"lease_years": 107,
 "min_deposit": 9750.0,
 "rent": 783.0,
 "service_charge": 269.0,
@@ -2873,7 +5761,10 @@
 "share_price": 97500.0
 },
 "756648:1789.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 395000.0,
+"lease_years": 114,
 "min_deposit": 8888.0,
 "rent": 497.0,
 "service_charge": 282.0,
@@ -2881,7 +5772,10 @@
 "share_price": 177750.0
 },
 "757561:1764.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 440000.0,
+"lease_years": 72,
 "min_deposit": 11000.0,
 "rent": 872.0,
 "service_charge": 306.0,
@@ -2889,7 +5783,10 @@
 "share_price": 110000.0
 },
 "758360:1480.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 340000.0,
+"lease_years": 148,
 "min_deposit": 4250.0,
 "rent": 780.0,
 "service_charge": 217.0,
@@ -2897,7 +5794,10 @@
 "share_price": 85000.0
 },
 "758468:1401.0": {
+"council_tax": "B",
+"floor": "6th",
 "full_value": 290000.0,
+"lease_years": 128,
 "min_deposit": 4350.0,
 "rent": 602.0,
 "service_charge": 305.0,
@@ -2905,7 +5805,10 @@
 "share_price": 87000.0
 },
 "759162:1875.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 615000.0,
+"lease_years": 125,
 "min_deposit": 15375.0,
 "rent": 769.0,
 "service_charge": 287.0,
@@ -2913,7 +5816,10 @@
 "share_price": 153750.0
 },
 "759166:1875.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 615000.0,
+"lease_years": 125,
 "min_deposit": 15375.0,
 "rent": 769.0,
 "service_charge": 287.0,
@@ -2921,7 +5827,10 @@
 "share_price": 153750.0
 },
 "759190:1889.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 625000.0,
+"lease_years": 125,
 "min_deposit": 15625.0,
 "rent": 781.0,
 "service_charge": 275.0,
@@ -2929,7 +5838,10 @@
 "share_price": 156250.0
 },
 "759412:1396.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 412500.0,
+"lease_years": 999,
 "min_deposit": 10313.0,
 "rent": 593.0,
 "service_charge": 253.0,
@@ -2937,7 +5849,10 @@
 "share_price": 103125.0
 },
 "759418:1824.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 519000.0,
+"lease_years": 999,
 "min_deposit": 12975.0,
 "rent": 779.0,
 "service_charge": 353.0,
@@ -2945,7 +5860,10 @@
 "share_price": 129750.0
 },
 "759434:1886.0": {
+"council_tax": null,
+"floor": "8th",
 "full_value": 540000.0,
+"lease_years": 999,
 "min_deposit": 13500.0,
 "rent": 810.0,
 "service_charge": 356.0,
@@ -2953,7 +5871,10 @@
 "share_price": 135000.0
 },
 "759440:1873.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 532500.0,
+"lease_years": 999,
 "min_deposit": 13313.0,
 "rent": 799.0,
 "service_charge": 364.0,
@@ -2961,7 +5882,10 @@
 "share_price": 133125.0
 },
 "759848:1378.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 402500.0,
+"lease_years": 999,
 "min_deposit": 10063.0,
 "rent": 579.0,
 "service_charge": 263.0,
@@ -2969,7 +5893,10 @@
 "share_price": 100625.0
 },
 "759898:1543.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 447500.0,
+"lease_years": 999,
 "min_deposit": 11188.0,
 "rent": 643.0,
 "service_charge": 304.0,
@@ -2977,7 +5904,10 @@
 "share_price": 111875.0
 },
 "759933:1841.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 522500.0,
+"lease_years": 999,
 "min_deposit": 13063.0,
 "rent": 784.0,
 "service_charge": 361.0,
@@ -2985,7 +5915,10 @@
 "share_price": 130625.0
 },
 "759965:1879.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 532500.0,
+"lease_years": 999,
 "min_deposit": 13313.0,
 "rent": 799.0,
 "service_charge": 370.0,
@@ -2993,7 +5926,10 @@
 "share_price": 133125.0
 },
 "759985:1869.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 533000.0,
+"lease_years": 999,
 "min_deposit": 13325.0,
 "rent": 800.0,
 "service_charge": 359.0,
@@ -3001,7 +5937,10 @@
 "share_price": 133250.0
 },
 "760846:1594.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 300000.0,
+"lease_years": 101,
 "min_deposit": 4500.0,
 "rent": 709.0,
 "service_charge": 374.0,
@@ -3009,7 +5948,10 @@
 "share_price": 90000.0
 },
 "760916:1435.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 395000.0,
+"lease_years": 999,
 "min_deposit": 9875.0,
 "rent": 679.0,
 "service_charge": 230.0,
@@ -3017,7 +5959,10 @@
 "share_price": 98750.0
 },
 "760934:1481.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 325000.0,
+"lease_years": 113,
 "min_deposit": 19500.0,
 "rent": 245.0,
 "service_charge": 197.0,
@@ -3025,7 +5970,10 @@
 "share_price": 195000.0
 },
 "762161:1806.0": {
+"council_tax": "E",
+"floor": "2nd",
 "full_value": 450000.0,
+"lease_years": 85,
 "min_deposit": 11250.0,
 "rent": 876.0,
 "service_charge": 330.0,
@@ -3033,7 +5981,10 @@
 "share_price": 112500.0
 },
 "762214:1240.0": {
+"council_tax": "B",
+"floor": "3rd",
 "full_value": 225000.0,
+"lease_years": 115,
 "min_deposit": 6750.0,
 "rent": 309.0,
 "service_charge": 164.0,
@@ -3041,7 +5992,10 @@
 "share_price": 135000.0
 },
 "762865:1478.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 350000.0,
+"lease_years": 115,
 "min_deposit": 15750.0,
 "rent": 299.0,
 "service_charge": 340.0,
@@ -3049,7 +6003,10 @@
 "share_price": 157500.0
 },
 "764420:1772.0": {
+"council_tax": "C",
+"floor": "10th",
 "full_value": 340000.0,
+"lease_years": 99,
 "min_deposit": 18700.0,
 "rent": 485.0,
 "service_charge": 290.0,
@@ -3057,7 +6014,10 @@
 "share_price": 187000.0
 },
 "764504:1480.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 410000.0,
+"lease_years": 111,
 "min_deposit": 14350.0,
 "rent": 461.0,
 "service_charge": 254.0,
@@ -3065,7 +6025,10 @@
 "share_price": 143500.0
 },
 "764545:1360.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 390000.0,
+"lease_years": 118,
 "min_deposit": 5850.0,
 "rent": 459.0,
 "service_charge": 236.0,
@@ -3073,7 +6036,10 @@
 "share_price": 117000.0
 },
 "765810:1146.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 300000.0,
+"lease_years": null,
 "min_deposit": 3750.0,
 "rent": 516.0,
 "service_charge": 204.0,
@@ -3081,7 +6047,10 @@
 "share_price": 75000.0
 },
 "765980:1466.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 395000.0,
+"lease_years": 987,
 "min_deposit": 11850.0,
 "rent": 542.0,
 "service_charge": 292.0,
@@ -3089,7 +6058,10 @@
 "share_price": 118500.0
 },
 "766379:1428.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 280000.0,
+"lease_years": 955,
 "min_deposit": 8680.0,
 "rent": 277.0,
 "service_charge": 165.0,
@@ -3097,7 +6069,10 @@
 "share_price": 173600.0
 },
 "766644:1856.0": {
+"council_tax": "E",
+"floor": "8th",
 "full_value": 580000.0,
+"lease_years": 110,
 "min_deposit": 7250.0,
 "rent": 609.0,
 "service_charge": 423.0,
@@ -3105,7 +6080,10 @@
 "share_price": 145000.0
 },
 "768146:1554.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 310000.0,
+"lease_years": 104,
 "min_deposit": 12400.0,
 "rent": 708.0,
 "service_charge": 185.0,
@@ -3113,7 +6091,10 @@
 "share_price": 124000.0
 },
 "768426:1520.0": {
+"council_tax": "E",
+"floor": "1st",
 "full_value": 600000.0,
+"lease_years": 118,
 "min_deposit": 15000.0,
 "rent": 460.0,
 "service_charge": 261.0,
@@ -3121,7 +6102,10 @@
 "share_price": 150000.0
 },
 "768494:1335.0": {
+"council_tax": null,
+"floor": "11th",
 "full_value": 497500.0,
+"lease_years": 999,
 "min_deposit": 12438.0,
 "rent": 358.0,
 "service_charge": 314.0,
@@ -3129,7 +6113,10 @@
 "share_price": 124375.0
 },
 "768534:1465.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 340000.0,
+"lease_years": 125,
 "min_deposit": 5100.0,
 "rent": 733.0,
 "service_charge": 152.0,
@@ -3137,7 +6124,10 @@
 "share_price": 102000.0
 },
 "768843:1043.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 250000.0,
+"lease_years": 990,
 "min_deposit": 6250.0,
 "rent": 197.0,
 "service_charge": 136.0,
@@ -3145,7 +6135,10 @@
 "share_price": 125000.0
 },
 "769259:1407.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 360000.0,
+"lease_years": null,
 "min_deposit": 14400.0,
 "rent": 454.0,
 "service_charge": 186.0,
@@ -3153,7 +6146,10 @@
 "share_price": 144000.0
 },
 "769528:1515.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 325000.0,
+"lease_years": 169,
 "min_deposit": 13000.0,
 "rent": 526.0,
 "service_charge": 296.0,
@@ -3161,7 +6157,10 @@
 "share_price": 130000.0
 },
 "769582:1291.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 350000.0,
+"lease_years": null,
 "min_deposit": 8750.0,
 "rent": 602.0,
 "service_charge": 223.0,
@@ -3169,7 +6168,10 @@
 "share_price": 87500.0
 },
 "769587:1682.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 455000.0,
+"lease_years": null,
 "min_deposit": 11375.0,
 "rent": 782.0,
 "service_charge": 294.0,
@@ -3177,7 +6179,10 @@
 "share_price": 113750.0
 },
 "769598:1654.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 445000.0,
+"lease_years": null,
 "min_deposit": 11125.0,
 "rent": 765.0,
 "service_charge": 296.0,
@@ -3185,7 +6190,10 @@
 "share_price": 111250.0
 },
 "769647:1569.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 330000.0,
+"lease_years": 112,
 "min_deposit": 14850.0,
 "rent": 518.0,
 "service_charge": 260.0,
@@ -3193,7 +6201,10 @@
 "share_price": 148500.0
 },
 "770211:1665.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 400000.0,
+"lease_years": 245,
 "min_deposit": 12000.0,
 "rent": 864.0,
 "service_charge": 161.0,
@@ -3201,7 +6212,10 @@
 "share_price": 120000.0
 },
 "770802:1137.0": {
+"council_tax": "E",
+"floor": "13th",
 "full_value": 590000.0,
+"lease_years": null,
 "min_deposit": 14750.0,
 "rent": 0.0,
 "service_charge": 351.0,
@@ -3209,7 +6223,10 @@
 "share_price": 147500.0
 },
 "771402:1772.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 420000.0,
+"lease_years": 116,
 "min_deposit": 7350.0,
 "rent": 751.0,
 "service_charge": 186.0,
@@ -3217,7 +6234,10 @@
 "share_price": 147000.0
 },
 "771865:1889.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 520000.0,
+"lease_years": 990,
 "min_deposit": 6500.0,
 "rent": 894.0,
 "service_charge": 256.0,
@@ -3225,7 +6245,10 @@
 "share_price": 130000.0
 },
 "771882:1220.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 265000.0,
+"lease_years": 89,
 "min_deposit": 7950.0,
 "rent": 573.0,
 "service_charge": 223.0,
@@ -3233,7 +6256,10 @@
 "share_price": 79500.0
 },
 "771978:1784.0": {
+"council_tax": "E",
+"floor": "1st",
 "full_value": 450000.0,
+"lease_years": 975,
 "min_deposit": 11250.0,
 "rent": 803.0,
 "service_charge": 381.0,
@@ -3241,7 +6267,10 @@
 "share_price": 112500.0
 },
 "771991:1449.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 360000.0,
+"lease_years": null,
 "min_deposit": 9000.0,
 "rent": 792.0,
 "service_charge": 177.0,
@@ -3249,7 +6278,10 @@
 "share_price": 90000.0
 },
 "772786:1757.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 385000.0,
+"lease_years": 85,
 "min_deposit": 11550.0,
 "rent": 720.0,
 "service_charge": 421.0,
@@ -3257,7 +6289,10 @@
 "share_price": 115500.0
 },
 "772798:1447.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 432500.0,
+"lease_years": 999,
 "min_deposit": 10813.0,
 "rent": 541.0,
 "service_charge": 330.0,
@@ -3265,7 +6300,10 @@
 "share_price": 108125.0
 },
 "772799:1188.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 365000.0,
+"lease_years": null,
 "min_deposit": 4563.0,
 "rent": 399.0,
 "service_charge": 271.0,
@@ -3273,7 +6311,10 @@
 "share_price": 91250.0
 },
 "772800:1229.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 381000.0,
+"lease_years": null,
 "min_deposit": 4763.0,
 "rent": 417.0,
 "service_charge": 271.0,
@@ -3281,7 +6322,10 @@
 "share_price": 95250.0
 },
 "772807:1219.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 373000.0,
+"lease_years": null,
 "min_deposit": 4663.0,
 "rent": 408.0,
 "service_charge": 281.0,
@@ -3289,7 +6333,10 @@
 "share_price": 93250.0
 },
 "772817:1687.0": {
+"council_tax": null,
+"floor": "7th",
 "full_value": 457500.0,
+"lease_years": null,
 "min_deposit": 5719.0,
 "rent": 715.0,
 "service_charge": 322.0,
@@ -3297,7 +6344,10 @@
 "share_price": 114375.0
 },
 "772818:1762.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 462500.0,
+"lease_years": null,
 "min_deposit": 5781.0,
 "rent": 723.0,
 "service_charge": 382.0,
@@ -3305,7 +6355,10 @@
 "share_price": 115625.0
 },
 "772819:1717.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 435000.0,
+"lease_years": 995,
 "min_deposit": 5438.0,
 "rent": 835.0,
 "service_charge": 264.0,
@@ -3313,7 +6366,10 @@
 "share_price": 108750.0
 },
 "772821:1637.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 437500.0,
+"lease_years": null,
 "min_deposit": 5469.0,
 "rent": 684.0,
 "service_charge": 332.0,
@@ -3321,7 +6377,10 @@
 "share_price": 109375.0
 },
 "773721:1211.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 367500.0,
+"lease_years": 993,
 "min_deposit": 11025.0,
 "rent": 386.0,
 "service_charge": 237.0,
@@ -3329,7 +6388,10 @@
 "share_price": 110250.0
 },
 "773728:1702.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 455000.0,
+"lease_years": 999,
 "min_deposit": 5688.0,
 "rent": 782.0,
 "service_charge": 274.0,
@@ -3337,7 +6399,10 @@
 "share_price": 113750.0
 },
 "774231:1538.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 330000.0,
+"lease_years": 178,
 "min_deposit": 9900.0,
 "rent": 720.0,
 "service_charge": 290.0,
@@ -3345,7 +6410,10 @@
 "share_price": 99000.0
 },
 "774332:1696.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 452500.0,
+"lease_years": 999,
 "min_deposit": 5656.0,
 "rent": 778.0,
 "service_charge": 275.0,
@@ -3353,7 +6421,10 @@
 "share_price": 113125.0
 },
 "774445:1502.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 450000.0,
+"lease_years": 999,
 "min_deposit": 3375.0,
 "rent": 877.0,
 "service_charge": 241.0,
@@ -3361,7 +6432,10 @@
 "share_price": 67500.0
 },
 "774965:1534.0": {
+"council_tax": "D",
+"floor": "3rd",
 "full_value": 440000.0,
+"lease_years": 110,
 "min_deposit": 13200.0,
 "rent": 599.0,
 "service_charge": 231.0,
@@ -3369,7 +6443,10 @@
 "share_price": 132000.0
 },
 "775256:1798.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 495000.0,
+"lease_years": 111,
 "min_deposit": 7425.0,
 "rent": 752.0,
 "service_charge": 202.0,
@@ -3377,7 +6454,10 @@
 "share_price": 148500.0
 },
 "775467:1753.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 460000.0,
+"lease_years": 149,
 "min_deposit": 11500.0,
 "rent": 223.0,
 "service_charge": 223.0,
@@ -3385,7 +6465,10 @@
 "share_price": 230000.0
 },
 "775471:1286.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 320000.0,
+"lease_years": 107,
 "min_deposit": 12800.0,
 "rent": 478.0,
 "service_charge": 126.0,
@@ -3393,7 +6476,10 @@
 "share_price": 128000.0
 },
 "775571:1593.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 535000.0,
+"lease_years": 105,
 "min_deposit": 18725.0,
 "rent": 251.0,
 "service_charge": 344.0,
@@ -3401,7 +6487,10 @@
 "share_price": 187250.0
 },
 "775665:1178.0": {
+"council_tax": "B",
+"floor": "1st",
 "full_value": 270000.0,
+"lease_years": 114,
 "min_deposit": 10800.0,
 "rent": 409.0,
 "service_charge": 193.0,
@@ -3409,7 +6498,10 @@
 "share_price": 108000.0
 },
 "776814:1501.0": {
+"council_tax": "D",
+"floor": "8th",
 "full_value": 470000.0,
+"lease_years": 117,
 "min_deposit": 11750.0,
 "rent": 676.0,
 "service_charge": 199.0,
@@ -3417,7 +6509,10 @@
 "share_price": 117500.0
 },
 "777382:1434.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 410000.0,
+"lease_years": 250,
 "min_deposit": 10250.0,
 "rent": 705.0,
 "service_charge": 183.0,
@@ -3425,7 +6520,10 @@
 "share_price": 102500.0
 },
 "778320:1336.0": {
+"council_tax": "B",
+"floor": "5th",
 "full_value": 320000.0,
+"lease_years": 241,
 "min_deposit": 4000.0,
 "rent": 708.0,
 "service_charge": 173.0,
@@ -3433,7 +6531,10 @@
 "share_price": 80000.0
 },
 "778546:1180.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 290000.0,
+"lease_years": 129,
 "min_deposit": 14500.0,
 "rent": 164.0,
 "service_charge": 243.0,
@@ -3441,7 +6542,10 @@
 "share_price": 145000.0
 },
 "779093:1692.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 365000.0,
+"lease_years": 113,
 "min_deposit": 9125.0,
 "rent": 415.0,
 "service_charge": 240.0,
@@ -3449,7 +6553,10 @@
 "share_price": 182500.0
 },
 "779418:1213.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 325000.0,
+"lease_years": 129,
 "min_deposit": 14625.0,
 "rent": 191.0,
 "service_charge": 243.0,
@@ -3457,7 +6564,10 @@
 "share_price": 146250.0
 },
 "779427:1622.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 450000.0,
+"lease_years": 114,
 "min_deposit": 11250.0,
 "rent": 876.0,
 "service_charge": 146.0,
@@ -3465,7 +6575,10 @@
 "share_price": 112500.0
 },
 "779528:1496.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 500000.0,
+"lease_years": 999,
 "min_deposit": 6250.0,
 "rent": 547.0,
 "service_charge": 239.0,
@@ -3473,7 +6586,10 @@
 "share_price": 125000.0
 },
 "779539:1496.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 500000.0,
+"lease_years": 999,
 "min_deposit": 6250.0,
 "rent": 547.0,
 "service_charge": 239.0,
@@ -3481,7 +6597,10 @@
 "share_price": 125000.0
 },
 "779541:1268.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 492500.0,
+"lease_years": 999,
 "min_deposit": 6156.0,
 "rent": 339.0,
 "service_charge": 229.0,
@@ -3489,7 +6608,10 @@
 "share_price": 123125.0
 },
 "779654:976.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 405000.0,
+"lease_years": null,
 "min_deposit": 4050.0,
 "rent": 608.0,
 "service_charge": 152.0,
@@ -3497,7 +6619,10 @@
 "share_price": 40500.0
 },
 "779667:1198.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 405000.0,
+"lease_years": null,
 "min_deposit": 10125.0,
 "rent": 506.0,
 "service_charge": 152.0,
@@ -3505,7 +6630,10 @@
 "share_price": 101250.0
 },
 "779672:1229.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 530000.0,
+"lease_years": null,
 "min_deposit": 5300.0,
 "rent": 795.0,
 "service_charge": 152.0,
@@ -3513,7 +6641,10 @@
 "share_price": 53000.0
 },
 "779673:1521.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 530000.0,
+"lease_years": null,
 "min_deposit": 13250.0,
 "rent": 663.0,
 "service_charge": 152.0,
@@ -3521,7 +6652,10 @@
 "share_price": 132500.0
 },
 "779676:1525.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 640000.0,
+"lease_years": null,
 "min_deposit": 6400.0,
 "rent": 1032.0,
 "service_charge": 152.0,
@@ -3529,7 +6663,10 @@
 "share_price": 64000.0
 },
 "779897:1895.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 580000.0,
+"lease_years": 990,
 "min_deposit": 14500.0,
 "rent": 906.0,
 "service_charge": 216.0,
@@ -3537,7 +6674,10 @@
 "share_price": 145000.0
 },
 "780035:1550.0": {
+"council_tax": "D",
+"floor": "5th",
 "full_value": 330000.0,
+"lease_years": 86,
 "min_deposit": 18150.0,
 "rent": 336.0,
 "service_charge": 247.0,
@@ -3545,7 +6685,10 @@
 "share_price": 181500.0
 },
 "780375:1524.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 375000.0,
+"lease_years": 115,
 "min_deposit": 13125.0,
 "rent": 656.0,
 "service_charge": 168.0,
@@ -3553,7 +6696,10 @@
 "share_price": 131250.0
 },
 "780387:1763.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 400000.0,
+"lease_years": 117,
 "min_deposit": 7000.0,
 "rent": 745.0,
 "service_charge": 223.0,
@@ -3561,7 +6707,10 @@
 "share_price": 140000.0
 },
 "780501:1187.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 385000.0,
+"lease_years": 990,
 "min_deposit": 1925.0,
 "rent": 794.0,
 "service_charge": 174.0,
@@ -3569,7 +6718,10 @@
 "share_price": 38500.0
 },
 "780691:1858.0": {
+"council_tax": "C",
+"floor": "8th",
 "full_value": 380000.0,
+"lease_years": 245,
 "min_deposit": 9500.0,
 "rent": 983.0,
 "service_charge": 369.0,
@@ -3577,7 +6729,10 @@
 "share_price": 95000.0
 },
 "780727:1662.0": {
+"council_tax": "D",
+"floor": "1st",
 "full_value": 520000.0,
+"lease_years": 994,
 "min_deposit": 13000.0,
 "rent": 565.0,
 "service_charge": 404.0,
@@ -3585,7 +6740,10 @@
 "share_price": 130000.0
 },
 "780777:1340.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 350000.0,
+"lease_years": 125,
 "min_deposit": 8750.0,
 "rent": 602.0,
 "service_charge": 272.0,
@@ -3593,7 +6751,10 @@
 "share_price": 87500.0
 },
 "780805:1653.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 452500.0,
+"lease_years": 125,
 "min_deposit": 11313.0,
 "rent": 778.0,
 "service_charge": 272.0,
@@ -3601,7 +6762,10 @@
 "share_price": 113125.0
 },
 "780947:1601.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 562500.0,
+"lease_years": null,
 "min_deposit": 14063.0,
 "rent": 404.0,
 "service_charge": 448.0,
@@ -3609,7 +6773,10 @@
 "share_price": 140625.0
 },
 "780948:1279.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 360000.0,
+"lease_years": 115,
 "min_deposit": 9000.0,
 "rent": 593.0,
 "service_charge": 206.0,
@@ -3617,7 +6784,10 @@
 "share_price": 90000.0
 },
 "781067:1627.0": {
+"council_tax": "C",
+"floor": "8th",
 "full_value": 350000.0,
+"lease_years": 115,
 "min_deposit": 8750.0,
 "rent": 985.0,
 "service_charge": 176.0,
@@ -3625,7 +6795,10 @@
 "share_price": 87500.0
 },
 "781087:1899.0": {
+"council_tax": "C",
+"floor": "5th",
 "full_value": 442500.0,
+"lease_years": 123,
 "min_deposit": 5531.0,
 "rent": 1138.0,
 "service_charge": 132.0,
@@ -3633,7 +6806,10 @@
 "share_price": 110625.0
 },
 "781178:1834.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 450000.0,
+"lease_years": 125,
 "min_deposit": 5625.0,
 "rent": 1072.0,
 "service_charge": 123.0,
@@ -3641,7 +6817,10 @@
 "share_price": 112500.0
 },
 "781225:1754.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 482500.0,
+"lease_years": 999,
 "min_deposit": 12063.0,
 "rent": 829.0,
 "service_charge": 282.0,
@@ -3649,7 +6828,10 @@
 "share_price": 120625.0
 },
 "781231:1472.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 390000.0,
+"lease_years": 999,
 "min_deposit": 9750.0,
 "rent": 670.0,
 "service_charge": 282.0,
@@ -3657,7 +6839,10 @@
 "share_price": 97500.0
 },
 "781447:1343.0": {
+"council_tax": "C",
+"floor": "7th",
 "full_value": 365000.0,
+"lease_years": 108,
 "min_deposit": 14600.0,
 "rent": 407.0,
 "service_charge": 158.0,
@@ -3665,7 +6850,10 @@
 "share_price": 146000.0
 },
 "781693:1646.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 560000.0,
+"lease_years": 990,
 "min_deposit": 4200.0,
 "rent": 893.0,
 "service_charge": 276.0,
@@ -3673,7 +6861,10 @@
 "share_price": 84000.0
 },
 "781724:1280.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 475000.0,
+"lease_years": 990,
 "min_deposit": 5938.0,
 "rent": 419.0,
 "service_charge": 186.0,
@@ -3681,7 +6872,10 @@
 "share_price": 118750.0
 },
 "781739:1843.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 400000.0,
+"lease_years": 121,
 "min_deposit": 10000.0,
 "rent": 898.0,
 "service_charge": 412.0,
@@ -3689,7 +6883,10 @@
 "share_price": 100000.0
 },
 "781854:1795.0": {
+"council_tax": "D",
+"floor": "2nd",
 "full_value": 360000.0,
+"lease_years": 114,
 "min_deposit": 18000.0,
 "rent": 587.0,
 "service_charge": 249.0,
@@ -3697,7 +6894,10 @@
 "share_price": 180000.0
 },
 "781881:1495.0": {
+"council_tax": "C",
+"floor": "3rd",
 "full_value": 430000.0,
+"lease_years": 993,
 "min_deposit": 10750.0,
 "rent": 546.0,
 "service_charge": 376.0,
@@ -3705,7 +6905,10 @@
 "share_price": 107500.0
 },
 "782124:1437.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 480000.0,
+"lease_years": 990,
 "min_deposit": 2400.0,
 "rent": 990.0,
 "service_charge": 174.0,
@@ -3713,7 +6916,10 @@
 "share_price": 48000.0
 },
 "782125:1442.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 485000.0,
+"lease_years": 990,
 "min_deposit": 2425.0,
 "rent": 1000.0,
 "service_charge": 166.0,
@@ -3721,7 +6927,10 @@
 "share_price": 48500.0
 },
 "782127:1751.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 395000.0,
+"lease_years": 107,
 "min_deposit": 7900.0,
 "rent": 683.0,
 "service_charge": 170.0,
@@ -3729,7 +6938,10 @@
 "share_price": 158000.0
 },
 "782182:1804.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 480000.0,
+"lease_years": 990,
 "min_deposit": 6000.0,
 "rent": 825.0,
 "service_charge": 297.0,
@@ -3737,7 +6949,10 @@
 "share_price": 120000.0
 },
 "782295:1701.0": {
+"council_tax": "C",
+"floor": "1st",
 "full_value": 500000.0,
+"lease_years": 119,
 "min_deposit": 6250.0,
 "rent": 804.0,
 "service_charge": 187.0,
@@ -3745,7 +6960,10 @@
 "share_price": 125000.0
 },
 "782384:1453.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 300000.0,
+"lease_years": 101,
 "min_deposit": 4500.0,
 "rent": 568.0,
 "service_charge": 374.0,
@@ -3753,7 +6971,10 @@
 "share_price": 90000.0
 },
 "782398:1414.0": {
+"council_tax": "D",
+"floor": "6th",
 "full_value": 544000.0,
+"lease_years": 242,
 "min_deposit": 13600.0,
 "rent": 362.0,
 "service_charge": 327.0,
@@ -3761,7 +6982,10 @@
 "share_price": 136000.0
 },
 "782624:1330.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 280000.0,
+"lease_years": 106,
 "min_deposit": 11200.0,
 "rent": 520.0,
 "service_charge": 213.0,
@@ -3769,7 +6993,10 @@
 "share_price": 112000.0
 },
 "782657:1690.0": {
+"council_tax": null,
+"floor": "11th",
 "full_value": 532500.0,
+"lease_years": 999,
 "min_deposit": 6656.0,
 "rent": 699.0,
 "service_charge": 235.0,
@@ -3777,7 +7004,10 @@
 "share_price": 133125.0
 },
 "782971:1313.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 357500.0,
+"lease_years": null,
 "min_deposit": 8938.0,
 "rent": 614.0,
 "service_charge": 223.0,
@@ -3785,7 +7015,10 @@
 "share_price": 89375.0
 },
 "783075:1568.0": {
+"council_tax": "E",
+"floor": "5th",
 "full_value": 700000.0,
+"lease_years": 110,
 "min_deposit": 8750.0,
 "rent": 149.0,
 "service_charge": 425.0,
@@ -3793,7 +7026,10 @@
 "share_price": 175000.0
 },
 "783452:1295.0": {
+"council_tax": "D",
+"floor": "4th",
 "full_value": 360000.0,
+"lease_years": 112,
 "min_deposit": 9000.0,
 "rent": 473.0,
 "service_charge": 342.0,
@@ -3801,7 +7037,10 @@
 "share_price": 90000.0
 },
 "783677:1738.0": {
+"council_tax": "E",
+"floor": "3rd",
 "full_value": 550000.0,
+"lease_years": 115,
 "min_deposit": 6875.0,
 "rent": 553.0,
 "service_charge": 404.0,
@@ -3809,7 +7048,10 @@
 "share_price": 137500.0
 },
 "784259:1655.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 400000.0,
+"lease_years": 83,
 "min_deposit": 8000.0,
 "rent": 547.0,
 "service_charge": 199.0,
@@ -3817,7 +7059,10 @@
 "share_price": 160000.0
 },
 "784284:1641.0": {
+"council_tax": "B",
+"floor": "2nd",
 "full_value": 340000.0,
+"lease_years": 114,
 "min_deposit": 11900.0,
 "rent": 819.0,
 "service_charge": 188.0,
@@ -3825,7 +7070,10 @@
 "share_price": 119000.0
 },
 "784358:1587.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 520000.0,
+"lease_years": 999,
 "min_deposit": 13000.0,
 "rent": 894.0,
 "service_charge": null,
@@ -3833,7 +7081,10 @@
 "share_price": 130000.0
 },
 "784361:1872.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 520000.0,
+"lease_years": 999,
 "min_deposit": 13000.0,
 "rent": 894.0,
 "service_charge": 285.0,
@@ -3841,7 +7092,10 @@
 "share_price": 130000.0
 },
 "784364:1435.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 395000.0,
+"lease_years": 999,
 "min_deposit": 9875.0,
 "rent": 679.0,
 "service_charge": 230.0,
@@ -3849,7 +7103,10 @@
 "share_price": 98750.0
 },
 "784382:1382.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 567500.0,
+"lease_years": 990,
 "min_deposit": 4256.0,
 "rent": 703.0,
 "service_charge": 195.0,
@@ -3857,7 +7114,10 @@
 "share_price": 85125.0
 },
 "784400:1420.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 587500.0,
+"lease_years": 990,
 "min_deposit": 4406.0,
 "rent": 728.0,
 "service_charge": 191.0,
@@ -3865,7 +7125,10 @@
 "share_price": 88125.0
 },
 "784423:1238.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 480000.0,
+"lease_years": 990,
 "min_deposit": 3600.0,
 "rent": 680.0,
 "service_charge": 149.0,
@@ -3873,7 +7136,10 @@
 "share_price": 72000.0
 },
 "784424:1182.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 457500.0,
+"lease_years": 990,
 "min_deposit": 3431.0,
 "rent": 648.0,
 "service_charge": 144.0,
@@ -3881,7 +7147,10 @@
 "share_price": 68625.0
 },
 "784596:1445.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 425000.0,
+"lease_years": 111,
 "min_deposit": 6375.0,
 "rent": 564.0,
 "service_charge": 157.0,
@@ -3889,7 +7158,10 @@
 "share_price": 127500.0
 },
 "784684:1407.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 400000.0,
+"lease_years": 998,
 "min_deposit": 5000.0,
 "rent": 600.0,
 "service_charge": 239.0,
@@ -3897,7 +7169,10 @@
 "share_price": 100000.0
 },
 "784784:1705.0": {
+"council_tax": "C",
+"floor": null,
 "full_value": 380000.0,
+"lease_years": 119,
 "min_deposit": 4750.0,
 "rent": 914.0,
 "service_charge": 251.0,
@@ -3905,7 +7180,10 @@
 "share_price": 95000.0
 },
 "785036:1475.0": {
+"council_tax": "C",
+"floor": "Ground",
 "full_value": 600000.0,
+"lease_years": 113,
 "min_deposit": 15000.0,
 "rent": 517.0,
 "service_charge": 159.0,
@@ -3913,7 +7191,10 @@
 "share_price": 150000.0
 },
 "785200:1062.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 375000.0,
+"lease_years": 999,
 "min_deposit": 9375.0,
 "rent": 281.0,
 "service_charge": 281.0,
@@ -3921,7 +7202,10 @@
 "share_price": 93750.0
 },
 "785204:1468.0": {
+"council_tax": null,
+"floor": "Ground",
 "full_value": 375000.0,
+"lease_years": 999,
 "min_deposit": 18750.0,
 "rent": 188.0,
 "service_charge": 281.0,
@@ -3929,7 +7213,10 @@
 "share_price": 187500.0
 },
 "785274:1094.0": {
+"council_tax": null,
+"floor": "12th",
 "full_value": 400000.0,
+"lease_years": 999,
 "min_deposit": 10000.0,
 "rent": 300.0,
 "service_charge": 261.0,
@@ -3937,7 +7224,10 @@
 "share_price": 100000.0
 },
 "785301:1527.0": {
+"council_tax": null,
+"floor": "12th",
 "full_value": 400000.0,
+"lease_years": 999,
 "min_deposit": 20000.0,
 "rent": 200.0,
 "service_charge": 261.0,
@@ -3945,7 +7235,10 @@
 "share_price": 200000.0
 },
 "785577:1846.0": {
+"council_tax": null,
+"floor": "4th",
 "full_value": 526000.0,
+"lease_years": 999,
 "min_deposit": 13150.0,
 "rent": 789.0,
 "service_charge": 356.0,
@@ -3953,7 +7246,10 @@
 "share_price": 131500.0
 },
 "785578:1882.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 536000.0,
+"lease_years": 999,
 "min_deposit": 13400.0,
 "rent": 804.0,
 "service_charge": 364.0,
@@ -3961,7 +7257,10 @@
 "share_price": 134000.0
 },
 "785594:1341.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 390000.0,
+"lease_years": null,
 "min_deposit": 9750.0,
 "rent": 585.0,
 "service_charge": 236.0,
@@ -3969,7 +7268,10 @@
 "share_price": 97500.0
 },
 "785642:1898.0": {
+"council_tax": "E",
+"floor": null,
 "full_value": 555000.0,
+"lease_years": null,
 "min_deposit": 13875.0,
 "rent": 833.0,
 "service_charge": 325.0,
@@ -3977,7 +7279,10 @@
 "share_price": 138750.0
 },
 "785644:1372.0": {
+"council_tax": "D",
+"floor": null,
 "full_value": 400000.0,
+"lease_years": null,
 "min_deposit": 10000.0,
 "rent": 600.0,
 "service_charge": 239.0,
@@ -3985,7 +7290,10 @@
 "share_price": 100000.0
 },
 "785992:1570.0": {
+"council_tax": "B",
+"floor": "Ground",
 "full_value": 360000.0,
+"lease_years": 114,
 "min_deposit": 9000.0,
 "rent": 902.0,
 "service_charge": 188.0,
@@ -3993,7 +7301,10 @@
 "share_price": 90000.0
 },
 "786268:1886.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 350000.0,
+"lease_years": 114,
 "min_deposit": 14000.0,
 "rent": 688.0,
 "service_charge": 452.0,
@@ -4001,7 +7312,10 @@
 "share_price": 140000.0
 },
 "786996:1505.0": {
+"council_tax": "C",
+"floor": "4th",
 "full_value": 325000.0,
+"lease_years": 115,
 "min_deposit": 14625.0,
 "rent": 569.0,
 "service_charge": 157.0,
@@ -4009,7 +7323,10 @@
 "share_price": 146250.0
 },
 "787188:1723.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 560000.0,
+"lease_years": null,
 "min_deposit": 14000.0,
 "rent": 700.0,
 "service_charge": 277.0,
@@ -4017,7 +7334,10 @@
 "share_price": 140000.0
 },
 "787189:1825.0": {
+"council_tax": null,
+"floor": null,
 "full_value": 510000.0,
+"lease_years": null,
 "min_deposit": 12750.0,
 "rent": 877.0,
 "service_charge": 268.0,
@@ -4025,7 +7345,10 @@
 "share_price": 127500.0
 },
 "787226:1609.0": {
+"council_tax": null,
+"floor": "1st",
 "full_value": 590000.0,
+"lease_years": 999,
 "min_deposit": 7375.0,
 "rent": 535.0,
 "service_charge": 236.0,
@@ -4033,7 +7356,10 @@
 "share_price": 147500.0
 },
 "787237:1654.0": {
+"council_tax": null,
+"floor": "3rd",
 "full_value": 607500.0,
+"lease_years": 999,
 "min_deposit": 7594.0,
 "rent": 551.0,
 "service_charge": 240.0,
@@ -4041,7 +7367,10 @@
 "share_price": 151875.0
 },
 "787244:1700.0": {
+"council_tax": null,
+"floor": "5th",
 "full_value": 625000.0,
+"lease_years": 999,
 "min_deposit": 7813.0,
 "rent": 566.0,
 "service_charge": 246.0,
@@ -4049,7 +7378,10 @@
 "share_price": 156250.0
 },
 "787277:1678.0": {
+"council_tax": null,
+"floor": "2nd",
 "full_value": 630000.0,
+"lease_years": 999,
 "min_deposit": 7875.0,
 "rent": 492.0,
 "service_charge": 291.0,
@@ -4057,7 +7389,10 @@
 "share_price": 157500.0
 },
 "787381:1579.0": {
+"council_tax": null,
+"floor": "10th",
 "full_value": 465000.0,
+"lease_years": null,
 "min_deposit": 11625.0,
 "rent": 581.0,
 "service_charge": 378.0,
@@ -4065,7 +7400,10 @@
 "share_price": 116250.0
 },
 "787382:1669.0": {
+"council_tax": null,
+"floor": "6th",
 "full_value": 507500.0,
+"lease_years": null,
 "min_deposit": 12688.0,
 "rent": 634.0,
 "service_charge": 359.0,
@@ -4073,7 +7411,10 @@
 "share_price": 126875.0
 },
 "787399:1511.0": {
+"council_tax": null,
+"floor": "9th",
 "full_value": 472500.0,
+"lease_years": null,
 "min_deposit": 11813.0,
 "rent": 591.0,
 "service_charge": 290.0,
@@ -4081,306 +7422,15 @@
 "share_price": 118125.0
 },
 "98817:1764.0": {
+"council_tax": "C",
+"floor": "2nd",
 "full_value": 375000.0,
+"lease_years": 101,
 "min_deposit": 7500.0,
 "rent": 614.0,
 "service_charge": 298.0,
 "share_pct": 40.0,
 "share_price": 150000.0
 }
-},
-"travel": {
-"51.417,-0.101": 60,
-"51.423,-0.098": 53,
-"51.428,-0.091": 58,
-"51.430,-0.037": 46,
-"51.445,-0.126": 57,
-"51.446,-0.025": 46,
-"51.448,-0.003": 48,
-"51.448,-0.125": 55,
-"51.449,-0.125": 55,
-"51.449,-0.131": 58,
-"51.450,-0.017": 52,
-"51.451,-0.131": 55,
-"51.455,-0.005": 44,
-"51.456,-0.016": 40,
-"51.456,-0.043": 42,
-"51.457,-0.195": 63,
-"51.458,0.030": 55,
-"51.459,-0.106": 44,
-"51.459,-0.212": 54,
-"51.459,0.030": 53,
-"51.460,0.022": 59,
-"51.460,0.029": 51,
-"51.461,-0.015": 43,
-"51.461,0.022": 57,
-"51.461,0.027": 49,
-"51.462,0.027": 51,
-"51.462,0.028": 48,
-"51.464,-0.016": 40,
-"51.464,-0.184": 58,
-"51.464,-0.185": 59,
-"51.465,-0.010": 39,
-"51.465,-0.011": 39,
-"51.466,-0.017": 36,
-"51.467,-0.018": 38,
-"51.467,-0.066": 35,
-"51.468,-0.015": 39,
-"51.469,-0.096": 41,
-"51.469,-0.142": 45,
-"51.470,-0.115": 47,
-"51.470,-0.176": 55,
-"51.471,-0.178": 59,
-"51.472,-0.014": 38,
-"51.472,-0.029": 34,
-"51.472,-0.030": 33,
-"51.474,-0.024": 32,
-"51.474,-0.052": 31,
-"51.474,-0.061": 29,
-"51.474,-0.062": 30,
-"51.474,-0.077": 41,
-"51.474,-0.183": 50,
-"51.475,-0.010": 43,
-"51.476,-0.022": 35,
-"51.476,0.032": 53,
-"51.477,-0.046": 32,
-"51.477,-0.047": 32,
-"51.478,-0.013": 36,
-"51.478,-0.026": 31,
-"51.478,-0.048": 32,
-"51.478,-0.049": 31,
-"51.478,-0.050": 31,
-"51.478,-0.074": 43,
-"51.478,-0.093": 42,
-"51.479,-0.016": 38,
-"51.479,-0.018": 39,
-"51.479,-0.055": 31,
-"51.479,-0.198": 50,
-"51.480,-0.017": 39,
-"51.480,-0.077": 48,
-"51.481,-0.024": 38,
-"51.481,-0.035": 31,
-"51.481,-0.183": 48,
-"51.482,-0.015": 42,
-"51.482,-0.016": 41,
-"51.482,-0.072": 42,
-"51.482,-0.102": 44,
-"51.482,-0.139": 48,
-"51.482,0.005": 42,
-"51.483,-0.072": 41,
-"51.483,-0.090": 46,
-"51.483,-0.092": 47,
-"51.484,-0.089": 48,
-"51.484,0.071": 39,
-"51.485,-0.057": 35,
-"51.485,-0.113": 42,
-"51.485,0.024": 43,
-"51.486,-0.072": 37,
-"51.486,-0.115": 42,
-"51.486,-0.117": 42,
-"51.486,0.007": 35,
-"51.487,-0.148": 47,
-"51.487,-0.202": 50,
-"51.487,0.009": 40,
-"51.487,0.066": 37,
-"51.488,-0.034": 32,
-"51.488,-0.048": 30,
-"51.488,-0.064": 34,
-"51.488,-0.097": 37,
-"51.488,0.029": 42,
-"51.489,-0.051": 29,
-"51.489,0.003": 45,
-"51.490,-0.040": 27,
-"51.490,0.087": 36,
-"51.491,-0.037": 30,
-"51.491,-0.119": 47,
-"51.491,0.079": 32,
-"51.492,-0.033": 30,
-"51.492,-0.084": 32,
-"51.492,-0.104": 37,
-"51.492,-0.121": 46,
-"51.492,0.015": 37,
-"51.492,0.017": 36,
-"51.492,0.047": 42,
-"51.492,0.058": 38,
-"51.493,-0.039": 29,
-"51.493,0.019": 40,
-"51.493,0.073": 29,
-"51.494,-0.095": 33,
-"51.494,0.009": 35,
-"51.494,0.012": 33,
-"51.495,0.014": 36,
-"51.496,0.009": 37,
-"51.496,0.010": 38,
-"51.496,0.013": 37,
-"51.496,0.014": 38,
-"51.497,-0.015": 33,
-"51.497,-0.085": 35,
-"51.498,-0.041": 29,
-"51.498,0.012": 38,
-"51.499,-0.112": 35,
-"51.500,-0.100": 30,
-"51.500,0.063": 44,
-"51.501,0.025": 38,
-"51.501,0.026": 39,
-"51.501,0.028": 40,
-"51.501,0.037": 40,
-"51.501,0.085": 43,
-"51.501,0.087": 40,
-"51.502,0.024": 35,
-"51.502,0.027": 38,
-"51.502,0.029": 40,
-"51.502,0.051": 40,
-"51.503,-0.025": 23,
-"51.503,0.029": 39,
-"51.503,0.041": 41,
-"51.506,0.075": 41,
-"51.508,0.023": 28,
-"51.508,0.027": 27,
-"51.508,0.079": 41,
-"51.509,0.019": 27,
-"51.510,-0.027": 22,
-"51.511,-0.038": 28,
-"51.511,-0.046": 25,
-"51.511,0.011": 34,
-"51.511,0.012": 34,
-"51.511,0.033": 30,
-"51.512,0.001": 36,
-"51.512,0.010": 31,
-"51.512,0.020": 31,
-"51.513,-0.043": 24,
-"51.513,0.020": 31,
-"51.514,-0.013": 32,
-"51.514,-0.024": 32,
-"51.515,-0.015": 28,
-"51.515,-0.056": 19,
-"51.516,-0.002": 40,
-"51.516,-0.003": 39,
-"51.516,-0.004": 40,
-"51.516,-0.005": 36,
-"51.516,-0.015": 30,
-"51.516,0.019": 36,
-"51.517,-0.007": 35,
-"51.517,-0.016": 31,
-"51.517,-0.021": 31,
-"51.517,0.011": 32,
-"51.517,0.019": 38,
-"51.518,-0.016": 33,
-"51.518,-0.039": 22,
-"51.518,-0.056": 14,
-"51.518,-0.057": 13,
-"51.519,-0.023": 29,
-"51.519,-0.037": 23,
-"51.520,-0.017": 32,
-"51.520,-0.041": 22,
-"51.521,-0.017": 30,
-"51.521,-0.018": 29,
-"51.521,-0.025": 29,
-"51.521,0.045": 44,
-"51.522,-0.009": 27,
-"51.524,-0.057": 18,
-"51.525,-0.010": 21,
-"51.525,-0.011": 21,
-"51.525,-0.016": 26,
-"51.525,-0.056": 18,
-"51.525,-0.214": 56,
-"51.526,-0.010": 22,
-"51.526,-0.011": 21,
-"51.526,0.004": 27,
-"51.526,0.005": 25,
-"51.527,-0.011": 24,
-"51.527,-0.017": 26,
-"51.529,-0.012": 27,
-"51.529,-0.017": 25,
-"51.530,-0.016": 26,
-"51.530,-0.021": 29,
-"51.530,-0.097": 18,
-"51.530,0.024": 28,
-"51.530,0.033": 36,
-"51.531,-0.012": 29,
-"51.531,-0.020": 29,
-"51.531,-0.231": 52,
-"51.532,-0.013": 31,
-"51.532,0.039": 33,
-"51.532,0.040": 34,
-"51.533,-0.011": 30,
-"51.533,-0.097": 21,
-"51.533,-0.199": 47,
-"51.533,0.059": 39,
-"51.533,0.075": 42,
-"51.534,0.052": 36,
-"51.536,-0.005": 31,
-"51.537,-0.008": 29,
-"51.537,-0.024": 36,
-"51.537,0.072": 42,
-"51.537,0.073": 42,
-"51.538,-0.024": 38,
-"51.538,0.075": 39,
-"51.539,0.078": 35,
-"51.540,0.079": 33,
-"51.540,0.080": 33,
-"51.541,0.084": 36,
-"51.542,-0.023": 34,
-"51.542,-0.025": 32,
-"51.543,-0.022": 35,
-"51.543,-0.056": 25,
-"51.543,-0.090": 26,
-"51.544,-0.028": 35,
-"51.546,0.006": 25,
-"51.548,0.024": 23,
-"51.548,0.025": 23,
-"51.552,0.063": 41,
-"51.554,-0.110": 33,
-"51.557,-0.108": 36,
-"51.557,0.066": 31,
-"51.558,-0.011": 33,
-"51.558,-0.012": 34,
-"51.558,-0.062": 27,
-"51.558,0.068": 30,
-"51.559,-0.012": 34,
-"51.559,-0.013": 34,
-"51.560,0.078": 36,
-"51.564,-0.026": 43,
-"51.565,-0.051": 42,
-"51.565,-0.097": 38,
-"51.569,-0.008": 34,
-"51.569,-0.024": 39,
-"51.569,0.010": 29,
-"51.570,-0.088": 39,
-"51.571,-0.089": 37,
-"51.572,-0.089": 38,
-"51.572,-0.221": 56,
-"51.575,-0.073": 35,
-"51.575,-0.097": 36,
-"51.576,-0.085": 37,
-"51.581,-0.002": 43,
-"51.581,-0.030": 39,
-"51.586,-0.064": 41,
-"51.586,-0.071": 37,
-"51.587,-0.069": 40,
-"51.587,-0.070": 39,
-"51.587,-0.079": 41,
-"51.588,-0.057": 37,
-"51.588,-0.058": 37,
-"51.589,-0.062": 38,
-"51.589,-0.119": 47,
-"51.590,-0.118": 46,
-"51.591,-0.072": 42,
-"51.591,-0.112": 43,
-"51.591,-0.113": 43,
-"51.592,-0.113": 43,
-"51.593,-0.037": 46,
-"51.594,-0.005": 50,
-"51.595,-0.027": 55,
-"51.599,-0.104": 42,
-"51.600,-0.026": 52,
-"51.601,-0.069": 48,
-"51.602,-0.193": 50,
-"51.607,-0.074": 46,
-"51.608,-0.069": 49,
-"51.608,-0.070": 50,
-"51.611,-0.065": 51,
-"51.612,-0.051": 47,
-"51.612,-0.137": 49
 }
 }

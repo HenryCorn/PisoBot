@@ -23,12 +23,41 @@ def _next_weekday():
     return d.strftime("%Y%m%d")
 
 
-def travel_minutes(lat, lng):
-    """Fastest weekday 08:30 public-transport journey to the target, cached per ~100 m."""
+STATION_SUFFIXES = (" Underground Station", " Rail Station", " DLR Station", " Station")
+
+
+def _leg_label(leg):
+    mode = leg["mode"]["id"]
+    name = ((leg.get("routeOptions") or [{}])[0].get("name") or "").strip()
+    if mode == "tube":
+        return f"{name} line" if name else "Tube"
+    if mode == "overground":
+        return f"Overground ({name})" if name else "Overground"
+    if mode == "elizabeth-line":
+        return "Elizabeth line"
+    if mode == "dlr":
+        return "DLR"
+    if mode == "bus":
+        return f"bus {name}".strip()
+    if mode == "national-rail":
+        return "National Rail"
+    return name or mode
+
+
+def _station(leg):
+    s = leg.get("departurePoint", {}).get("commonName", "")
+    for suffix in STATION_SUFFIXES:
+        s = s.replace(suffix, "")
+    return s
+
+
+def journey(lat, lng):
+    """Fastest weekday 08:30 public-transport journey to the target, cached per ~100 m.
+    Returns {"minutes", "route", "station", "walk", "changes"} or None."""
     key = f"{lat:.3f},{lng:.3f}"
-    hit = cache.get("travel", key)
+    hit = cache.get("journey", key)
     if hit is not None:
-        return hit
+        return hit or None
     params = {"date": _next_weekday(), "time": "0830", "timeIs": "Departing"}
     if os.environ.get("TFL_APP_KEY"):
         params["app_key"] = os.environ["TFL_APP_KEY"]
@@ -36,10 +65,21 @@ def travel_minutes(lat, lng):
                 f"{config.TARGET_LAT},{config.TARGET_LNG}", params=params)
     journeys = r.json().get("journeys") or []
     if not journeys:
+        cache.put("journey", key, {})
         return None
-    minutes = min(j["duration"] for j in journeys)
-    cache.put("travel", key, minutes)
-    return minutes
+    j = min(journeys, key=lambda j: j["duration"])
+    legs = j.get("legs") or []
+    ride = [l for l in legs if l["mode"]["id"] not in ("walking", "cycle")]
+    first_walk = legs[0]["duration"] if legs and legs[0]["mode"]["id"] == "walking" else 0
+    out = {
+        "minutes": j["duration"],
+        "route": " → ".join(_leg_label(l) for l in ride) or "walk",
+        "station": _station(ride[0]) if ride else None,
+        "walk": first_walk,
+        "changes": max(len(ride) - 1, 0),
+    }
+    cache.put("journey", key, out)
+    return out
 
 
 _latest_month = None

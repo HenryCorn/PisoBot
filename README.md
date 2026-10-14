@@ -31,8 +31,22 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
    - `TFL_APP_KEY`
 2. **Actions → PisoBot → Run workflow** to run immediately. It then runs every 2 h from 06:17 to 22:17 UTC.
 
-The first run sends a single digest of all current matches; after that each new listing
-(or a price drop of ≥ £25/month) gets its own alert. State is committed to `state/`.
+## What you get in Telegram
+
+- **Instant alerts** (every 2 h, 07:17–23:17 UK; silent 22:00–07:00): photo, cost breakdown,
+  **mortgage needed / deposit / term**, share & full value, lease, council tax band, floor,
+  commute (time, route, boarding station), crime score, warnings (short lease, high service charge).
+  Buttons: ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open.
+- **Daily report** at 08:00 UK (also first run, `/report`, or the workflow's *report* box):
+  a numbered photo collage of the best 10 (score = cost 45% · commute 30% · crime 25%, max two per
+  building), their details with ❤️/👎 buttons, saved homes, then everything else grouped by building.
+- **Saved homes** are tracked: you're told when the cost changes or the listing disappears.
+- **Commands**: `/report`, `/saved`, `/unhide`, `/help`. Buttons and commands are picked up by the
+  next run (GitHub Actions has no always-on server).
+- **Map**: `docs/index.html`, published by GitHub Pages at https://henrycorn.github.io/PisoBot/ —
+  enable once in *Settings → Pages → Deploy from a branch → main / docs*.
+
+State lives in `state/` (seen listings, saved/hidden choices, API caches) and is committed by each run.
 
 ## Local run
 

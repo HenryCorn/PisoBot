@@ -1,6 +1,8 @@
 """lqhomes.com - public WordPress JSON: /wp-json/custom/developments and
 /wp-json/custom/development/{id}/properties."""
+import datetime as dt
 import math
+import re
 from html import unescape
 
 from .. import config, net
@@ -13,6 +15,17 @@ PLOT_TYPES = {
     "london_living_rent": ("London Living Rent", "rent"),
     "rent_to_buy": ("Rent to Buy", "rent"),
 }
+
+
+def _lease_remaining(text):
+    """'999 from May 2004' -> years left today; '125' -> 125."""
+    m = re.search(r"(\d{2,4})(?:\D+(\d{4}))?", str(text or ""))
+    if not m:
+        return None
+    years = int(m.group(1))
+    if m.group(2):
+        years -= dt.date.today().year - int(m.group(2))
+    return years
 
 
 def _km(lat, lng):
@@ -58,6 +71,10 @@ def fetch():
                 l.rent = money(a.get("plot_monthly_rent"))
                 l.service_charge = money(a.get("plot_service_charge"))
                 l.min_deposit = money(a.get("plot_minimum_deposit"))
+                l.lease_years = _lease_remaining(a.get("plot_length_of_lease"))
+            band = (a.get("plot_council_tax_band") or "").strip().upper()
+            l.council_tax = band if len(band) == 1 else None
+            l.floor = a.get("plot_floor") or None
             img = a.get("plot_featured_image")
             if isinstance(img, dict):
                 l.image = img.get("url")

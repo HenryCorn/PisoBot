@@ -31,3 +31,16 @@ def best(listings, n=None, per_development=None):
         if len(top) == n:
             break
     return top
+
+
+def group_by_development(listings):
+    """Cluster listings within ~150 m of each other; groups ordered by their cheapest home."""
+    groups = []
+    for l in sorted(listings, key=lambda l: l.monthly_cost):
+        for g in groups:
+            if _same_development(l, g[0]):
+                g.append(l)
+                break
+        else:
+            groups.append([l])
+    return groups

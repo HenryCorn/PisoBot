@@ -6,7 +6,7 @@ def money(s):
     """'£1,403' / '&pound; 97,500' -> 1403.0"""
     if s is None:
         return None
-    m = re.search(r"[\d,]+(?:\.\d+)?", unescape(str(s)))
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", unescape(str(s)))
     return float(m.group(0).replace(",", "")) if m else None
 
 

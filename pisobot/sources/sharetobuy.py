@@ -58,7 +58,7 @@ def _attr(card, name):
 def _details(pid, card_cost):
     """Cost breakdown from the property page (cached while the card's cost is unchanged)."""
     ck = f"{pid}:{card_cost}"
-    hit = cache.get("stb_detail", ck)
+    hit = cache.get("stb_detail2", ck)
     if hit:
         return hit
     try:
@@ -66,6 +66,8 @@ def _details(pid, card_cost):
     except Exception:  # listing withdrawn between search and detail fetch
         return {}
     f = lambda pat: money(m.group(1)) if (m := re.search(pat, t)) else None
+    s = lambda pat: m.group(1) if (m := re.search(pat, t)) else None
+    lease = f(r"Lease Length\s*(\d[\d,]*)")
     d = {
         "share_price": f(r"£\s*([\d,]+)\s*share price"),
         "share_pct": f(r"([\d.]+)\s*%\s*share"),
@@ -73,8 +75,11 @@ def _details(pid, card_cost):
         "rent": f(r"£\s*([\d,]+)\s*rent\b"),
         "service_charge": f(r"£\s*([\d,]+)\s*service charge"),
         "full_value": f(r"Full value of property\s*£\s*([\d,]+)"),
+        "lease_years": int(lease) if lease else None,
+        "council_tax": s(r"Council Tax Band\s*([A-H])\b"),
+        "floor": s(r"\bFloor\s*(Ground|Lower ground|Basement|\d+(?:st|nd|rd|th))\b"),
     }
-    cache.put("stb_detail", ck, d)
+    cache.put("stb_detail2", ck, d)
     return d
 
 
