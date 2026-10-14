@@ -104,7 +104,7 @@ def fetch():
                 lat, lng = coords.get(pid, (None, None))
                 l = Listing(
                     source="stb", id=pid, url=f"{BASE}/properties/{pid}/",
-                    address=text(title.group(1)) if title else "",
+                    address=(text(title.group(1)) if title else "") or f"ShareToBuy #{pid}",
                     bedrooms=int(_attr(c, "bedrooms") or 0),
                     scheme=SCHEMES.get(scheme_id, f"scheme {scheme_id}"),
                     tenure="rent" if rent_or_buy == "2" else "sale",

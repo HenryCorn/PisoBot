@@ -72,23 +72,48 @@ def throttle():
     time.sleep(1.2)  # Telegram allows ~1 message/second per chat
 
 
-def digest(listings, limit=3800):
-    """Compact one-line-per-listing summary split into Telegram-sized messages."""
+def send_photo_bytes(jpeg, caption=""):
+    url = API.format(token=_env("TELEGRAM_BOT_TOKEN"), method="sendPhoto")
+    r = net.session.post(url, data={"chat_id": _env("TELEGRAM_CHAT_ID"), "caption": caption,
+                                    "parse_mode": "HTML"},
+                         files={"photo": ("top.jpg", jpeg, "image/jpeg")}, timeout=60, verify=net.VERIFY)
+    res = r.json()
+    if not res.get("ok"):
+        raise RuntimeError(f"Telegram sendPhoto failed ({r.status_code}): {res.get('description')}")
+
+
+def _short_line(l):
     e = html.escape
-    lines = [
-        f'£{l.monthly_cost:,.0f} · {l.bedrooms}b · {l.travel_minutes}′ · 🛡{l.crime_score} · '
-        f'<a href="{e(l.url)}">{e(l.address[:55])}</a> ({l.source})'
-        for l in listings
-    ]
-    header = (f"👋 <b>PisoBot is live.</b> {len(listings)} current matches "
-              f"(≤£{config.MAX_MONTHLY_COST:,.0f}/mo, ≤{config.MAX_TRAVEL_MINUTES} min to "
-              f"{config.TARGET_NAME}), cheapest first. From now on you'll get one alert per new listing.\n")
-    chunks, cur = [], header
-    for line in lines:
-        if len(cur) + len(line) + 1 > limit:
+    return (f'£{l.monthly_cost:,.0f} · {l.bedrooms}b · {l.travel_minutes}′ · 🛡{l.crime_score} · '
+            f'<a href="{e(l.url)}">{e(l.address[:55])}</a> ({l.source})')
+
+
+def _top_line(rank, l):
+    e = html.escape
+    star = " ⭐" if l.tenure == "rent" or (l.deposit or 0) <= config.PREFERRED_DEPOSIT else ""
+    est = " (est.)" if l.estimated else ""
+    money = (f"£{l.monthly_cost:,.0f}/mo{est} · dep £{l.deposit:,.0f}{star}" if l.tenure == "sale"
+             else f"£{l.monthly_cost:,.0f}/mo rent{star}")
+    return (f"<b>{rank}. {money}</b>\n"
+            f"    {l.bedrooms} bed · {l.travel_minutes} min · 🛡{l.crime_score} · {e(l.scheme)}\n"
+            f'    <a href="{e(l.url)}">{e(l.address[:70])}</a> ({l.source})')
+
+
+def _chunk(blocks, limit=3800):
+    chunks, cur = [], ""
+    for b in blocks:
+        if cur and len(cur) + len(b) + 1 > limit:
             chunks.append(cur)
             cur = ""
-        cur += line + "\n"
+        cur += b + "\n"
     if cur.strip():
         chunks.append(cur)
     return chunks
+
+
+def report_messages(top, rest, title):
+    """Text part of the report: numbered top picks (matching the collage), then a compact list."""
+    blocks = [title, ""] + [_top_line(i + 1, l) for i, l in enumerate(top)]
+    if rest:
+        blocks += ["", f"<b>Other {len(rest)} matches</b> (cheapest first)"] + [_short_line(l) for l in rest]
+    return _chunk(blocks)

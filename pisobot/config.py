@@ -35,7 +35,15 @@ DEFAULT_SERVICE_CHARGE = _env("DEFAULT_SERVICE_CHARGE", 250)
 # Conservative full-value floor when a listing doesn't state its share %
 MIN_FULL_VALUE_BY_BEDS = {1: 350000, 2: 450000, 3: 550000}
 
-MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
+# "Best" ranking for the report: each term is scaled 0-1 against its cap, lower is better
+RANK_WEIGHTS = {"cost": 0.45, "travel": 0.30, "crime": 0.25}
+RANK_DEPOSIT_PENALTY = 0.10     # deposit above PREFERRED_DEPOSIT
+RANK_ESTIMATE_PENALTY = 0.05    # some costs were estimated, not published
+RANK_EXTRA_BED_BONUS = 0.05     # per bedroom above MIN_BEDROOMS
+REPORT_TOP_N = _env("REPORT_TOP_N", 10, int)
+REPORT_MAX_PER_DEVELOPMENT = 2  # keep the top 10 varied (no 10 plots of one building)
+
+MAX_ALERTS_PER_RUN =_env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much
 
 EXCLUDE_KEYWORDS = [

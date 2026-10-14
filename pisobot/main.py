@@ -7,7 +7,7 @@ import os
 import sys
 import traceback
 
-from . import cache, config, costs, enrich, telegram
+from . import cache, collage, config, costs, enrich, ranking, telegram
 from .sources import lq, nhg, onthemarket, sharetobuy
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket}
@@ -85,7 +85,30 @@ def _record(l, today, alerted, prev=None):
             "lat": l.lat, "lng": l.lng}
 
 
-def run(selected, dry_run, verbose):
+def send_report(matches, title, preview_dir=None):
+    top = ranking.best(matches)
+    rest = sorted((m for m in matches if m not in top), key=lambda l: l.monthly_cost)
+    jpeg = collage.build(top)
+    caption = f"🏆 Top {len(top)} of {len(matches)} matches"
+    texts = telegram.report_messages(top, rest, title)
+    if preview_dir:
+        os.makedirs(preview_dir, exist_ok=True)
+        if jpeg:
+            with open(os.path.join(preview_dir, "top.jpg"), "wb") as f:
+                f.write(jpeg)
+        with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
+            f.write("\n<hr>\n".join(t.replace("\n", "<br>\n") for t in texts))
+        print(f"report preview written to {preview_dir}")
+        return
+    if jpeg:
+        telegram.send_photo_bytes(jpeg, caption)
+        telegram.throttle()
+    for t in texts:
+        telegram.send_text(t)
+        telegram.throttle()
+
+
+def run(selected, dry_run, verbose, report=False, preview_dir=None):
     seen = load_seen()
     alerted = [v for v in seen.values() if v.get("alerted")]
     listings, failures = [], []
@@ -103,18 +126,10 @@ def run(selected, dry_run, verbose):
     except Exception as ex:
         print(f"geocoding failed: {ex}", file=sys.stderr)
 
-    first_run = not seen
-    today = dt.date.today().isoformat()
-    to_send, rejected = [], {}
+    # 1. everything that currently fits the criteria, one entry per physical flat
+    matches, kept, rejected = [], [], {}
     for l in listings:
-        prev = seen.get(l.key)
-        if prev and not prev.get("alerted"):
-            continue  # known duplicate of something already sent
         why = passes_basic(l)
-        if not why and prev:
-            if prev.get("cost", 0) - l.monthly_cost < config.PRICE_DROP_ALERT:
-                prev["last"] = today
-                continue
         if not why:
             try:
                 why = passes_area(l)
@@ -127,27 +142,41 @@ def run(selected, dry_run, verbose):
                 cost = round(l.monthly_cost) if l.monthly_cost else None
                 print(f"  - {why:13} {l.key} {l.address[:60]} {cost}")
             continue
-        reason = "drop" if prev else "new"
-        if reason == "new" and is_duplicate(l, alerted):
-            if not dry_run:
-                seen[l.key] = _record(l, today, alerted=False)
+        rec = _record(l, "", alerted=True)
+        if is_duplicate(l, kept):
             continue
-        alerted.append(_record(l, today, alerted=True))
-        to_send.append((l, reason))
-
-    to_send.sort(key=lambda x: x[0].monthly_cost)
+        kept.append(rec)
+        matches.append(l)
     print(f"rejected: {rejected}")
-    if first_run:
-        # Don't flood the chat with hundreds of photos: one digest of the current market,
-        # then individual alerts only for listings that appear later.
-        print(f"first run: digest of {len(to_send)} matches")
-        if not dry_run:
-            for chunk in telegram.digest([l for l, _ in to_send]):
-                telegram.send_text(chunk)
-                telegram.throttle()
-            for l, _ in to_send:
-                seen[l.key] = _record(l, today, alerted=True)
+    print(f"current matches: {len(matches)}")
+
+    # 2. what's new or cheaper since last time
+    today = dt.date.today().isoformat()
+    to_send = []
+    for l in matches:
+        prev = seen.get(l.key)
+        if prev is None:
+            if not is_duplicate(l, alerted):
+                to_send.append((l, "new"))
+        elif prev.get("alerted") and prev.get("cost", 0) - l.monthly_cost >= config.PRICE_DROP_ALERT:
+            to_send.append((l, "drop"))
+        elif prev:
+            prev["last"] = today
+    to_send.sort(key=lambda x: ranking.score(x[0]))
+
+    first_run = not seen
+    if first_run or report or preview_dir:
+        # A report covers everything, so no separate per-listing alerts this run.
+        title = ("👋 <b>PisoBot is live.</b> From now on you'll get one alert per new listing."
+                 if first_run else f"📋 <b>PisoBot report</b> · {today}")
+        print(f"report: {len(matches)} matches")
+        if not dry_run or preview_dir:
+            send_report(matches, title, preview_dir)
         to_send = []
+        if not dry_run and not preview_dir:
+            for l in matches:
+                seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     for l, reason in to_send[: config.MAX_ALERTS_PER_RUN]:
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
@@ -161,7 +190,7 @@ def run(selected, dry_run, verbose):
     if failures and not dry_run and len(failures) == len(selected):
         telegram.send_text("⚠️ PisoBot: every source failed this run: " + ", ".join(failures))
     cache.save()
-    if not dry_run:
+    if not dry_run and not preview_dir:
         save_seen(seen)
 
 
@@ -169,9 +198,11 @@ def main():
     ap = argparse.ArgumentParser(description="London shared-ownership alert bot")
     ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update seen.json")
+    ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
+    ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
-    run([s for s in a.sources.split(",") if s], a.dry_run, a.verbose)
+    run([s for s in a.sources.split(",") if s], a.dry_run, a.verbose, a.report, a.preview)
 
 
 if __name__ == "__main__":
