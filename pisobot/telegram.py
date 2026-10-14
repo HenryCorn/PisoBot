@@ -7,9 +7,24 @@ from . import config, net
 API = "https://api.telegram.org/bot{token}/{method}"
 
 
+def _env(name):
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} is not set (add it as a GitHub Actions secret)")
+    return value
+
+
 def _call(method, **data):
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
-    return net.post(API.format(token=token, method=method), data=data).json()
+    url = API.format(token=_env("TELEGRAM_BOT_TOKEN"), method=method)
+    r = net.session.post(url, data=data, timeout=30, verify=net.VERIFY)
+    try:
+        res = r.json()
+    except ValueError:
+        res = {}
+    if not res.get("ok"):
+        # Telegram's description says what's wrong (e.g. "chat not found", "Unauthorized")
+        raise RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
+    return res
 
 
 def format_listing(l, reason="new"):
@@ -36,7 +51,7 @@ def format_listing(l, reason="new"):
 
 
 def send_listing(l, reason="new"):
-    chat = os.environ["TELEGRAM_CHAT_ID"]
+    chat = _env("TELEGRAM_CHAT_ID")
     caption = format_listing(l, reason)
     if l.image:
         try:
@@ -49,7 +64,7 @@ def send_listing(l, reason="new"):
 
 
 def send_text(text):
-    _call("sendMessage", chat_id=os.environ["TELEGRAM_CHAT_ID"], text=text, parse_mode="HTML",
+    _call("sendMessage", chat_id=_env("TELEGRAM_CHAT_ID"), text=text, parse_mode="HTML",
           disable_web_page_preview="true")
 
 
