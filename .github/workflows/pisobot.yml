@@ -31,8 +31,8 @@ jobs:
       - name: Check listings
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TFL_APP_KEY: ${{ secrets.TFL_APP_KEY }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || vars.TELEGRAM_CHAT_ID }}
+          TFL_APP_KEY: ${{ secrets.TFL_APP_KEY || vars.TFL_APP_KEY }}
         run: python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Save state
         if: always()
