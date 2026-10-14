@@ -39,10 +39,11 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
 
 - **Twice-daily digest** at 06:30 and 18:00 UK (also first run, `/report`, or the workflow's
   *report* box): timestamp, matching/new/saved counts, cheapest price and fastest commute;
-  a phone-friendly two-column photo collage of the best 10 (score = cost 45% · commute 30% ·
-  crime 25%, max two per building); three clearly separated ranked cards per message with
-  monthly cost, deposit, mortgage, commute, crime and warnings. Each card has numbered
-  🔗 Open / ❤️ Save / 👎 Hide buttons in the same message.
+  the best 10 (score = cost 45% · commute 30% · crime 25%, max two per building);
+  one card per listing with **three distinct photo thumbnails** above its details:
+  monthly cost, deposit, mortgage, commute, crime and warnings. Each card has
+  🔗 Open / ❤️ Save / 👎 Hide / 🔕 Hide building buttons in the same message.
+  Missing photos are marked unavailable, never filled with repeated or unrelated photos.
   Saved homes already in the shortlist aren't repeated. Only the **five cheapest alternative
   locations** are shown, grouped by building with price ranges. The **map contains every
   listing**, so the report stays short even when hundreds of homes match.
@@ -53,12 +54,16 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
   There are no automatic two-hour alerts.
 - **Saved homes** are tracked: you're told when the cost changes or the listing disappears.
 - **Commands**: `/report`, `/saved`, `/unhide`, `/help`. Buttons and commands are picked up by the
-  next run (GitHub Actions has no always-on server).
+  lightweight **five-minute button check** (GitHub can delay scheduled runs). Save means
+  track the home; Hide means exclude it from subsequent reports. The selected card's buttons
+  change to **Saved/Hidden** once processed, without removing its other controls.
+  `/report` requests a full scan and digest at the next button check.
 - **Map**: `docs/index.html`, published by GitHub Pages at https://henrycorn.github.io/PisoBot/ —
   enable once in *Settings → Pages → Deploy from a branch → main / docs*.
 
 State lives in `state/` (seen listings, saved/hidden choices, API caches) and is committed by each run.
-Buttons and commands therefore take effect at the next morning/evening run (or a manual run).
+Button checks do not scrape listings or send digests unless `/report` was requested.
+You can force a check with **Actions → PisoBot → Run workflow → preferences_only**.
 
 ## Local run
 

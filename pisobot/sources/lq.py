@@ -75,8 +75,11 @@ def fetch():
             band = (a.get("plot_council_tax_band") or "").strip().upper()
             l.council_tax = band if len(band) == 1 else None
             l.floor = a.get("plot_floor") or None
-            img = a.get("plot_featured_image")
-            if isinstance(img, dict):
-                l.image = img.get("url")
+            images = [a.get("plot_featured_image"), a.get("hero_image")]
+            images += a.get("image_grid_gallery") or []
+            images += (a.get("plot_image_grid") or {}).get("image_grid_gallery") or []
+            l.images = list(dict.fromkeys(img["url"] for img in images
+                                         if isinstance(img, dict) and img.get("url")))
+            l.image = l.images[0] if l.images else None
             out.append(l)
     return out

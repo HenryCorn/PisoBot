@@ -55,6 +55,25 @@ def _attr(card, name):
     return m.group(1) if m else None
 
 
+def _photo_urls(html, pid):
+    page = html.split(f'id="property-{pid}"', 1)
+    if len(page) != 2:
+        raise ValueError(f"Property {pid} not found on details page")
+    gallery = re.search(r'card-images-main-image\b(.*?)card-images-secondary-image', page[1], re.S)
+    if not gallery:
+        return []
+    return list(dict.fromkeys(unescape(url) for url in re.findall(
+        r'data-src-original="(https://sih\.cdn\.sharetobuy\.com/[^"]+)"', gallery.group(1))))
+
+
+def photos(listing):
+    urls = cache.get("stb_photos", listing.id)
+    if urls is None:
+        urls = _photo_urls(net.get(listing.url).text, listing.id)
+        cache.put("stb_photos", listing.id, urls)
+    return urls
+
+
 def _details(pid, card_cost):
     """Cost breakdown from the property page (cached while the card's cost is unchanged)."""
     ck = f"{pid}:{card_cost}"
@@ -62,7 +81,8 @@ def _details(pid, card_cost):
     if hit:
         return hit
     try:
-        t = text(net.get(f"{BASE}/properties/{pid}/").text)
+        html = net.get(f"{BASE}/properties/{pid}/").text
+        t = text(html)
     except Exception:  # listing withdrawn between search and detail fetch
         return {}
     f = lambda pat: money(m.group(1)) if (m := re.search(pat, t)) else None
@@ -79,6 +99,8 @@ def _details(pid, card_cost):
         "council_tax": s(r"Council Tax Band\s*([A-H])\b"),
         "floor": s(r"\bFloor\s*(Ground|Lower ground|Basement|\d+(?:st|nd|rd|th))\b"),
     }
+    if f'id="property-{pid}"' in html:
+        cache.put("stb_photos", pid, _photo_urls(html, pid))
     cache.put("stb_detail2", ck, d)
     return d
 

@@ -6,6 +6,9 @@ on:
       timezone: "Europe/London"
     - cron: "0 18 * * *"
       timezone: "Europe/London"
+    # ponytail: best-effort polling; a hosted webhook is needed for instant buttons.
+    - cron: "*/5 * * * *"
+      timezone: "Europe/London"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -16,6 +19,10 @@ on:
         description: "Send the full report (photo shortlist + grouped matches)"
         type: boolean
         default: true
+      preferences_only:
+        description: "Process buttons only (no listing scan or report unless /report was requested)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -30,6 +37,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -37,12 +46,18 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Check report formatting
         run: python -m unittest discover -s tests
-      - name: Check listings
+      - name: Process buttons or check listings
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || vars.TELEGRAM_CHAT_ID }}
           TFL_APP_KEY: ${{ secrets.TFL_APP_KEY || vars.TFL_APP_KEY }}
-        run: python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ (inputs.report || github.event_name == 'schedule') && '--report' || '' }}
+          PREFERENCES_ONLY: ${{ inputs.preferences_only || github.event.schedule == '*/5 * * * *' }}
+        run: |
+          if [ "$PREFERENCES_ONLY" = "true" ]; then
+            python -m pisobot.main --preferences-only ${{ inputs.dry_run && '--dry-run' || '' }}
+          else
+            python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ (inputs.report || github.event_name == 'schedule') && '--report' || '' }}
+          fi
       - name: Save state
         if: always()
         run: |

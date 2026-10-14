@@ -2,8 +2,11 @@ import datetime as dt
 import html
 import json
 import os
+import sys
 import time
 from zoneinfo import ZoneInfo
+
+from requests import RequestException
 
 from . import config, net, ranking
 
@@ -98,10 +101,10 @@ def format_listing(l, reason="new"):
     return "\n".join(lines)
 
 
-def listing_keyboard(l):
+def listing_keyboard(l, saved=False):
     sid = l.short_id
     return {"inline_keyboard": [
-        [{"text": "❤️ Save", "callback_data": f"s:{sid}"},
+        [{"text": "❤️ Saved" if saved else "❤️ Save", "callback_data": f"s:{sid}"},
          {"text": "👎 Hide", "callback_data": f"h:{sid}"},
          {"text": "🔕 Hide building", "callback_data": f"d:{sid}"}],
         [{"text": "🔗 Open listing", "url": l.url}],
@@ -112,7 +115,7 @@ def listing_keyboard(l):
 
 def send_listing(l, reason="new"):
     text = format_listing(l, reason)
-    kb = listing_keyboard(l)
+    kb = listing_keyboard(l, saved=reason == "saved")
     if l.image and len(text) <= 1024:
         try:
             return _call("sendPhoto", photo=l.image, caption=text, parse_mode="HTML", reply_markup=kb)
@@ -128,9 +131,9 @@ def send_text(text, reply_markup=None):
     return _call("sendMessage", **data)
 
 
-def send_photo_bytes(jpeg, caption=""):
+def send_photo_bytes(jpeg, caption="", reply_markup=None):
     return _call("sendPhoto", files={"photo": ("top.jpg", jpeg, "image/jpeg")},
-                 caption=caption, parse_mode="HTML")
+                 caption=caption, parse_mode="HTML", reply_markup=reply_markup)
 
 
 def answer_callback(callback_id, text):
@@ -140,13 +143,16 @@ def answer_callback(callback_id, text):
         pass  # callbacks older than a few minutes can't be answered; the action still applies
 
 
-def mark_message(chat_id, message_id, label):
-    """Replace a listing's buttons with its new status."""
+def mark_message(chat_id, message_id, keyboard):
+    """Update status without removing the listing's other controls."""
     try:
         _call("editMessageReplyMarkup", chat_id=chat_id, message_id=message_id,
-              reply_markup={"inline_keyboard": [[{"text": label, "callback_data": "noop"}]]})
-    except Exception:
-        pass
+              reply_markup=keyboard)
+    except RuntimeError as ex:
+        if "message is not modified" not in str(ex):
+            print(f"Button feedback failed: {ex}", file=sys.stderr)
+    except RequestException:
+        print("Button feedback failed: Telegram network error", file=sys.stderr)
 
 
 def get_updates(offset):
@@ -204,7 +210,7 @@ def _chunk(blocks, limit=3800):
 
 
 def report_messages(top, rest, saved, title, flags_of):
-    """Summary, three ranked cards per message with local buttons, then grouped alternatives."""
+    """Summary, one ranked card per listing with local buttons, then grouped alternatives."""
     matches = {l.key: l for l in top + saved + rest}
     if matches:
         cheapest = min(matches.values(), key=lambda l: l.monthly_cost)
@@ -214,20 +220,12 @@ def report_messages(top, rest, saved, title, flags_of):
     else:
         title += "\nNo homes matched your filters this time."
     title += (f'\n\n<a href="{e(config.MAP_URL)}">🗺 Browse photos, filter and compare all homes</a>\n'
-              "🆕 New since last report · ❤️ Saved · ⭐ Low deposit · est. = estimated costs")
+              "🆕 New since last report · ❤️ Saved · ⭐ Low deposit · est. = estimated costs\n"
+              "❤️ Save / 👎 Hide · checked every 5 min (GitHub can delay)")
     out = [(title, None)]
-    for start in range(0, len(top), 3):
-        batch = top[start:start + 3]
-        blocks = [f"🏆 <b>Top picks {start + 1}–{start + len(batch)} of {len(top)}</b>"]
-        buttons = []
-        for rank, l in enumerate(batch, start + 1):
-            blocks.append(_top_line(rank, l, flags_of(l)))
-            buttons.append([
-                {"text": f"🔗 #{rank}", "url": l.url},
-                {"text": f"❤️ #{rank}", "callback_data": f"s:{l.short_id}"},
-                {"text": f"👎 #{rank}", "callback_data": f"h:{l.short_id}"},
-            ])
-        out.append(("\n\n".join(blocks), {"inline_keyboard": buttons}))
+    saved_keys = {l.key for l in saved}
+    for rank, l in enumerate(top, 1):
+        out.append((_top_line(rank, l, flags_of(l)), listing_keyboard(l, saved=l.key in saved_keys)))
 
     top_keys = {l.key for l in top}
     saved = [l for l in saved if l.key not in top_keys]

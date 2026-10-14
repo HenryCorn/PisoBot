@@ -24,6 +24,7 @@ class Listing:
     lat: Optional[float] = None
     lng: Optional[float] = None
     image: Optional[str] = None
+    images: list[str] = field(default_factory=list)
     description: str = ""
     estimated: list = field(default_factory=list)   # which cost components were estimated
     lease_years: Optional[int] = None

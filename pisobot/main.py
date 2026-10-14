@@ -8,6 +8,8 @@ import sys
 import traceback
 from zoneinfo import ZoneInfo
 
+from requests import RequestException
+
 from . import cache, collage, config, costs, enrich, mapgen, prefs, ranking, telegram
 from .sources import lq, nhg, onthemarket, sharetobuy
 
@@ -92,25 +94,45 @@ def _record(l, today, alerted, prev=None):
 
 
 def send_report(top, saved, rest, title, flags_of, preview_dir=None):
-    jpeg = collage.build(top)
-    count = len({l.key for l in top + saved + rest})
-    caption = f"🏆 Top {len(top)} of {count} matches · numbers match the cards below"
     messages = telegram.report_messages(top, rest, saved, title, flags_of)
     if preview_dir:
         os.makedirs(preview_dir, exist_ok=True)
-        if jpeg:
-            with open(os.path.join(preview_dir, "top.jpg"), "wb") as f:
-                f.write(jpeg)
+    preview = []
+    for i, (text, kb) in enumerate(messages):
+        jpeg = None
+        if 1 <= i <= len(top):
+            l = top[i - 1]
+            loader = getattr(SOURCES[l.source], "photos", None)
+            if loader and len(l.images) < 3:
+                try:
+                    l.images = loader(l)
+                except (RequestException, ValueError) as ex:
+                    print(f"Gallery unavailable for {l.key}: {ex}", file=sys.stderr)
+            jpeg = collage.build(l)
+            print(f"card #{i}: {l.key}, {min(3, len(l.images or ([l.image] if l.image else [])))} source photos")
+            if not jpeg:
+                text += "\n📷 Photos unavailable · use Open listing to view the gallery"
+        if preview_dir:
+            image = ""
+            if jpeg:
+                filename = f"listing-{i}.jpg"
+                with open(os.path.join(preview_dir, filename), "wb") as f:
+                    f.write(jpeg)
+                image = f'<img src="{filename}" alt="Listing {i} thumbnails" style="max-width:100%"><br>\n'
+            preview.append(image + text.replace("\n", "<br>\n"))
+        elif jpeg and len(text.encode("utf-16-le")) // 2 <= 1024:
+            telegram.send_photo_bytes(jpeg, text, kb)
+            telegram.throttle()
+        else:
+            if jpeg:
+                telegram.send_photo_bytes(jpeg, f"🏠 Listing #{i}")
+                telegram.throttle()
+            telegram.send_text(text, kb)
+            telegram.throttle()
+    if preview_dir:
         with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
-            f.write("\n<hr>\n".join(t.replace("\n", "<br>\n") for t, _ in messages))
+            f.write("\n<hr>\n".join(preview))
         print(f"report preview written to {preview_dir}")
-        return
-    if jpeg:
-        telegram.send_photo_bytes(jpeg, caption)
-        telegram.throttle()
-    for text, kb in messages:
-        telegram.send_text(text, kb)
-        telegram.throttle()
 
 
 def run(selected, dry_run, verbose, report=False, preview_dir=None):
@@ -273,10 +295,21 @@ def main():
     ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
+    ap.add_argument("--preferences-only", action="store_true", help="process Telegram buttons without scraping")
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
-    run([s for s in a.sources.split(",") if s], a.dry_run, a.verbose, a.report, a.preview)
+    selected = [s for s in a.sources.split(",") if s]
+    if a.preferences_only:
+        if a.dry_run or a.preview or a.report:
+            ap.error("--preferences-only cannot be combined with --dry-run, --preview or --report")
+        p = prefs.load()
+        prefs.process_updates(p, load_seen())
+        prefs.save(p)
+        if p["report_requested"]:
+            run(selected, False, a.verbose, report=True)
+    else:
+        run(selected, a.dry_run, a.verbose, a.report, a.preview)
 
 
 if __name__ == "__main__":

@@ -1,16 +1,16 @@
-"""One low-res JPEG grid of the top listings: photo, rank number and price/commute label."""
+"""Three distinct photo thumbnails per listing, combined into one Telegram card image."""
 import base64
 import io
 import json
 import re
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
+from requests import RequestException
 
 from . import net
 
-TILE_W, TILE_H, LABEL_H, COLS = 420, 280, 68, 2
-LABEL_FONT, BADGE_FONT = 23, 25
-BG, FG, BADGE = (245, 245, 242), (25, 25, 25), (214, 51, 108)
+TILE_W, TILE_H = 420, 280
 
 
 def small_url(url):
@@ -31,7 +31,8 @@ def _thumb(url):
         return None
     try:
         img = Image.open(io.BytesIO(net.get(small_url(url), retries=1).content)).convert("RGB")
-    except Exception:
+    except (RequestException, OSError, ValueError, Image.DecompressionBombError) as ex:
+        print(f"Thumbnail unavailable: {type(ex).__name__}", file=sys.stderr)
         return None
     # centre-crop to the tile's aspect ratio
     ratio = TILE_W / TILE_H
@@ -58,29 +59,22 @@ def _font(size):
     return ImageFont.load_default(size=size)
 
 
-def build(listings):
-    """Return JPEG bytes, or None if no listing has a usable photo."""
-    thumbs = [_thumb(l.image) for l in listings]
+def build(listing):
+    """Return a three-panel JPEG, or None if no photo is usable. Never repeat a photo."""
+    urls = list(dict.fromkeys(small_url(url) for url in (listing.images or [listing.image]) if url))
+    thumbs = [_thumb(url) for url in urls[:3]]
     if not any(thumbs):
         return None
-    rows = (len(listings) + COLS - 1) // COLS
-    sheet = Image.new("RGB", (min(COLS, len(listings)) * TILE_W, rows * (TILE_H + LABEL_H)), BG)
+    thumbs += [None] * (3 - len(thumbs))
+    sheet = Image.new("RGB", (3 * TILE_W, TILE_H), (210, 210, 205))
     draw = ImageDraw.Draw(sheet)
-    big, small = _font(BADGE_FONT), _font(LABEL_FONT)
-    for i, (l, t) in enumerate(zip(listings, thumbs)):
-        x, y = (i % COLS) * TILE_W, (i // COLS) * (TILE_H + LABEL_H)
+    for i, t in enumerate(thumbs):
+        x = i * TILE_W
         if t:
-            sheet.paste(t, (x, y))
+            sheet.paste(t, (x, 0))
         else:
-            draw.rectangle((x, y, x + TILE_W - 1, y + TILE_H - 1), fill=(210, 210, 205))
-            draw.text((x + TILE_W // 2, y + TILE_H // 2), "no photo", fill=(120, 120, 120),
-                      font=small, anchor="mm")
-        draw.ellipse((x + 10, y + 10, x + 58, y + 58), fill=BADGE)
-        draw.text((x + 34, y + 34), str(i + 1), fill="white", font=big, anchor="mm")
-        label = f"£{l.monthly_cost:,.0f}/mo" + (" (est.)" if l.estimated else "")
-        draw.text((x + 12, y + TILE_H + 17), label, fill=FG, font=small, anchor="lm")
-        facts = f"{l.bedrooms} bed · {l.travel_minutes} min commute"
-        draw.text((x + 12, y + TILE_H + 48), facts, fill=FG, font=small, anchor="lm")
+            draw.text((x + TILE_W // 2, TILE_H // 2), "Photo unavailable", fill=(100, 100, 100),
+                      font=_font(22), anchor="mm")
     out = io.BytesIO()
     sheet.save(out, "JPEG", quality=70, optimize=True)
     return out.getvalue()

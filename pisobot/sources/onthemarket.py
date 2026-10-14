@@ -14,6 +14,29 @@ SHARE_PRICE_CEILING = 250000
 MAX_PAGES = 30
 
 
+def _property_data(html):
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    return json.loads(m.group(1))["props"]["pageProps"]["initialReduxState"].get("property", {}) if m else {}
+
+
+def _photo_urls(property):
+    return list(dict.fromkeys(img.get("largeUrl") or img.get("default") or img.get("url")
+                             for img in property.get("images") or []
+                             if isinstance(img, dict) and img.get("isImage", True)
+                             and (img.get("largeUrl") or img.get("default") or img.get("url"))))
+
+
+def photos(listing):
+    urls = cache.get("otm_photos", listing.id)
+    if urls is None:
+        property = _property_data(net.get(listing.url).text)
+        if str(property.get("id")) != listing.id:
+            raise ValueError(f"Property {listing.id} not found on details page")
+        urls = _photo_urls(property)
+        cache.put("otm_photos", listing.id, urls)
+    return urls
+
+
 def fetch():
     out, seen = [], set()
     radius_mi = round(config.SEARCH_RADIUS_KM / 1.609, 1)
@@ -47,7 +70,8 @@ def fetch():
                 share_pct=float(pct.group(1)) if pct else None,
                 full_value=money(full.group(1)) if full else None,
                 lat=loc.get("lat"), lng=loc.get("lon"),
-                image=imgs[0].get("default") if imgs else None, description=blob,
+                image=imgs[0].get("default") if imgs else None,
+                images=[img["default"] for img in imgs if img.get("default")], description=blob,
             )
             out.append(l)
         nxt = (results.get("paginationControls") or {}).get("next")
@@ -65,8 +89,9 @@ def refine(listing):
             html = net.get(listing.url).text
         except Exception:
             return False
-        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
-        p = json.loads(m.group(1))["props"]["pageProps"]["initialReduxState"].get("property", {}) if m else {}
+        p = _property_data(html)
+        if str(p.get("id")) == listing.id:
+            cache.put("otm_photos", listing.id, _photo_urls(p))
         feats = " ".join(f.get("feature", "") if isinstance(f, dict) else str(f) for f in p.get("features") or [])
         d = text(f"{feats} {p.get('description', '')}")[:4000]
         cache.put("otm_detail", listing.id, d)
