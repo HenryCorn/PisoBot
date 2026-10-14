@@ -11,7 +11,8 @@ PATH = os.path.join(os.path.dirname(__file__), "..", "state", "prefs.json")
 
 HELP = (
     "<b>PisoBot</b>\n"
-    "Buttons on each listing: ❤️ Save · 👎 Hide · 🔕 Hide building. They apply at the next run (≤ 2 h).\n\n"
+    "Buttons: ❤️ Save · 👎 Hide · 🔕 Hide building (individual alerts). "
+    "They apply at the next run: 06:30 or 18:00 UK time.\n\n"
     "/report – full report (sent by the next run)\n"
     "/saved – list saved homes\n"
     "/unhide – show hidden homes again\n"
@@ -85,8 +86,10 @@ def process_updates(p, known):
             else:
                 continue
             telegram.answer_callback(cb["id"], label)
-            # only single-listing alerts get their buttons replaced; report keyboards cover 10 homes
-            if len(cb["message"].get("reply_markup", {}).get("inline_keyboard", [])) <= 2:
+            keyboard = cb["message"].get("reply_markup", {}).get("inline_keyboard", [])
+            ids = {button["callback_data"].partition(":")[2]
+                   for row in keyboard for button in row if "callback_data" in button}
+            if ids == {short}:
                 telegram.mark_message(cb["message"]["chat"]["id"], cb["message"]["message_id"], label)
             print(f"pref: {label} {key}")
         elif msg and str(msg["chat"]["id"]) == chat:

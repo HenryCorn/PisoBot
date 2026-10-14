@@ -49,10 +49,6 @@ def throttle():
 
 # ---------- formatting helpers ----------
 
-def _k(v):
-    return f"£{v / 1000:,.0f}k" if v >= 10000 else f"£{v:,.0f}"
-
-
 def _star(l):
     return " ⭐" if l.tenure == "rent" or (l.deposit or 0) <= config.PREFERRED_DEPOSIT else ""
 
@@ -162,34 +158,37 @@ def get_updates(offset):
 
 def _top_line(rank, l, flags):
     if l.tenure == "sale":
-        money = (f"£{l.monthly_cost:,.0f}/mo · dep {_k(l.deposit)}{_star(l)} · "
-                 f"loan {_k(l.loan)}/{config.MORTGAGE_YEARS}y")
+        finance = (f"💰 Deposit <b>£{l.deposit:,.0f}</b>{_star(l)} · "
+                   f"mortgage £{l.loan:,.0f}/{config.MORTGAGE_YEARS}y")
     else:
-        money = f"£{l.monthly_cost:,.0f}/mo rent{_star(l)}"
+        finance = "🔑 Rent · no mortgage needed"
     est = " (est.)" if l.estimated else ""
-    route = f" · {e(l.route)}" if l.route else ""
-    warn = f"\n    ⚠️ {' · '.join(l.warnings)}" if l.warnings else ""
-    return (f"<b>{rank}. {money}{est}</b> {flags}\n"
-            f"    {l.bedrooms} bed · {l.travel_minutes} min{route} · 🛡{l.crime_score}\n"
-            f'    <a href="{e(l.url)}">{e(l.address[:70])}</a> ({l.source}){warn}')
+    route = f"\n🚇 {e(l.route[:160])}" if l.route else ""
+    warn = f"\n⚠️ {e(' · '.join(l.warnings))}" if l.warnings else ""
+    return (f'<b>#{rank}</b> {flags} <a href="{e(l.url)}">{e(l.address[:90])}</a>\n'
+            f"💷 <b>£{l.monthly_cost:,.0f}/mo</b>{est} · 🛏 {l.bedrooms} bed · "
+            f"⏱ <b>{l.travel_minutes} min</b>\n"
+            f"{finance}\n🛡 Crime {l.crime_score} · {e(l.scheme[:60])} · {e(l.source)}{route}{warn}")
 
 
 def _short_line(l, flags):
-    loan = f" · loan {_k(l.loan)}" if l.loan else ""
-    return (f'£{l.monthly_cost:,.0f} · {l.bedrooms}b · {l.travel_minutes}′ · 🛡{l.crime_score}{loan} · '
-            f'<a href="{e(l.url)}">{e(l.address[:55])}</a> ({l.source}) {flags}').rstrip()
+    est = " (est.)" if l.estimated else ""
+    return (f'<a href="{e(l.url)}"><b>{e(l.address[:70])}</b></a> {flags}\n'
+            f'💷 £{l.monthly_cost:,.0f}/mo{est} · 🛏 {l.bedrooms} bed · '
+            f'⏱ {l.travel_minutes} min · 🛡 {l.crime_score}').rstrip()
 
 
 def _group_line(group, flags_of):
     costs = sorted(l.monthly_cost for l in group)
     beds = sorted({l.bedrooms for l in group})
-    bed_txt = "/".join(f"{b}" for b in beds) + "b"
+    bed_txt = "/".join(f"{b}" for b in beds) + " bed"
     first = min(group, key=lambda l: l.monthly_cost)
-    links = " ".join(f'<a href="{e(l.url)}">[{i + 1}]</a>' for i, l in enumerate(
-        sorted(group, key=lambda l: l.monthly_cost)))
     flags = " ".join(sorted({f for l in group for f in flags_of(l).split()}))
-    return (f"£{costs[0]:,.0f}–{costs[-1]:,.0f} · {bed_txt} · {first.travel_minutes}′ · 🛡{first.crime_score} · "
-            f"<b>{e(first.address[:45])}</b> — {len(group)} homes: {links} {flags}").rstrip()
+    est = " · includes estimates" if any(l.estimated for l in group) else ""
+    return (f"<b>{e(first.address[:70])}</b> · {len(group)} homes {flags}\n"
+            f"💷 £{costs[0]:,.0f}–£{costs[-1]:,.0f}/mo · 🛏 {bed_txt}{est}\n"
+            f'<a href="{e(first.url)}">Open cheapest home</a> · '
+            f'<a href="{e(config.MAP_URL)}">Compare all on map</a>').rstrip()
 
 
 def _chunk(blocks, limit=3800):
@@ -205,29 +204,43 @@ def _chunk(blocks, limit=3800):
 
 
 def report_messages(top, rest, saved, title, flags_of):
-    """[(text, reply_markup)] - top picks numbered like the collage (with Save/Hide buttons),
-    saved listings, then the rest grouped by development."""
-    top_blocks = [title, ""] + [_top_line(i + 1, l, flags_of(l)) for i, l in enumerate(top)]
-    buttons, row = [], []
-    for i, l in enumerate(top):
-        row += [{"text": f"❤️ {i + 1}", "callback_data": f"s:{l.short_id}"},
-                {"text": f"👎 {i + 1}", "callback_data": f"h:{l.short_id}"}]
-        if len(row) == 4:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    out = [(c, None) for c in _chunk(top_blocks)]
-    if out and buttons:
-        out[-1] = (out[-1][0], {"inline_keyboard": buttons})
+    """Summary, three ranked cards per message with local buttons, then grouped alternatives."""
+    matches = {l.key: l for l in top + saved + rest}
+    if matches:
+        cheapest = min(matches.values(), key=lambda l: l.monthly_cost)
+        fastest = min(matches.values(), key=lambda l: l.travel_minutes)
+        title += (f"\n💷 From <b>£{cheapest.monthly_cost:,.0f}/mo</b> · "
+                  f"⏱ Fastest <b>{fastest.travel_minutes} min</b>")
+    else:
+        title += "\nNo homes matched your filters this time."
+    title += (f'\n\n<a href="{e(config.MAP_URL)}">🗺 Browse photos, filter and compare all homes</a>\n'
+              "🆕 New since last report · ❤️ Saved · ⭐ Low deposit · est. = estimated costs")
+    out = [(title, None)]
+    for start in range(0, len(top), 3):
+        batch = top[start:start + 3]
+        blocks = [f"🏆 <b>Top picks {start + 1}–{start + len(batch)} of {len(top)}</b>"]
+        buttons = []
+        for rank, l in enumerate(batch, start + 1):
+            blocks.append(_top_line(rank, l, flags_of(l)))
+            buttons.append([
+                {"text": f"🔗 #{rank}", "url": l.url},
+                {"text": f"❤️ #{rank}", "callback_data": f"s:{l.short_id}"},
+                {"text": f"👎 #{rank}", "callback_data": f"h:{l.short_id}"},
+            ])
+        out.append(("\n\n".join(blocks), {"inline_keyboard": buttons}))
 
+    top_keys = {l.key for l in top}
+    saved = [l for l in saved if l.key not in top_keys]
     blocks = []
     if saved:
-        blocks += [f"<b>❤️ Saved ({len(saved)})</b>"] + [_short_line(l, flags_of(l)) for l in saved] + [""]
+        blocks += [f"<b>❤️ More saved homes ({len(saved)})</b>"]
+        blocks += [_short_line(l, flags_of(l)) + "\n" for l in saved]
     if rest:
         groups = ranking.group_by_development(rest)
-        blocks.append(f"<b>Other {len(rest)} matches</b> in {len(groups)} places (cheapest first)")
-        for g in groups:
-            blocks.append(_short_line(g[0], flags_of(g[0])) if len(g) == 1 else _group_line(g, flags_of))
+        blocks.append(f"🏘 <b>Other {len(rest)} homes · {len(groups)} places</b>\n"
+                      f"Showing the {min(5, len(groups))} cheapest places\n")
+        for g in groups[:5]:
+            blocks.append((_short_line(g[0], flags_of(g[0])) if len(g) == 1 else _group_line(g, flags_of)) + "\n")
+        blocks.append(f'<a href="{e(config.MAP_URL)}">🗺 Browse all {len(rest)} other homes on the map</a>')
     out += [(c, None) for c in _chunk(blocks)]
     return out

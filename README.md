@@ -29,17 +29,28 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID` (send `/start` to the bot, then `TELEGRAM_BOT_TOKEN=… python scripts/get_chat_id.py`)
    - `TFL_APP_KEY`
-2. **Actions → PisoBot → Run workflow** to run immediately. It then runs every 2 h from 06:17 to 22:17 UTC.
+2. **Actions → PisoBot → Run workflow** to run immediately; **report** is enabled by default
+   so the digest is sent after the listing checks.
+   Automatic reports run at **06:30 and 18:00 UK time**, adjusting for daylight saving.
+   The workflow must be on the default branch, with Actions enabled. GitHub's scheduler can
+   start late, so these are target times, not guaranteed delivery times.
 
 ## What you get in Telegram
 
-- **Instant alerts** (every 2 h, 07:17–23:17 UK; silent 22:00–07:00): photo, cost breakdown,
-  **mortgage needed / deposit / term**, share & full value, lease, council tax band, floor,
-  commute (time, route, boarding station), crime score, warnings (short lease, high service charge).
-  Buttons: ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open.
-- **Daily report** at 08:00 UK (also first run, `/report`, or the workflow's *report* box):
-  a numbered photo collage of the best 10 (score = cost 45% · commute 30% · crime 25%, max two per
-  building), their details with ❤️/👎 buttons, saved homes, then everything else grouped by building.
+- **Twice-daily digest** at 06:30 and 18:00 UK (also first run, `/report`, or the workflow's
+  *report* box): timestamp, matching/new/saved counts, cheapest price and fastest commute;
+  a phone-friendly two-column photo collage of the best 10 (score = cost 45% · commute 30% ·
+  crime 25%, max two per building); three clearly separated ranked cards per message with
+  monthly cost, deposit, mortgage, commute, crime and warnings. Each card has numbered
+  🔗 Open / ❤️ Save / 👎 Hide buttons in the same message.
+  Saved homes already in the shortlist aren't repeated. Only the **five cheapest alternative
+  locations** are shown, grouped by building with price ranges. The **map contains every
+  listing**, so the report stays short even when hundreds of homes match.
+  Estimated costs are marked throughout; unavailable sources are flagged in the summary.
+  The 06:30 digest is silent under the existing 22:00–07:00 quiet hours.
+- **Individual alerts** remain available for manual runs without *report*, with a photo,
+  full financial breakdown and ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open buttons.
+  There are no automatic two-hour alerts.
 - **Saved homes** are tracked: you're told when the cost changes or the listing disappears.
 - **Commands**: `/report`, `/saved`, `/unhide`, `/help`. Buttons and commands are picked up by the
   next run (GitHub Actions has no always-on server).
@@ -47,6 +58,7 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
   enable once in *Settings → Pages → Deploy from a branch → main / docs*.
 
 State lives in `state/` (seen listings, saved/hidden choices, API caches) and is committed by each run.
+Buttons and commands therefore take effect at the next morning/evening run (or a manual run).
 
 ## Local run
 
@@ -57,3 +69,6 @@ TFL_APP_KEY=… python -m pisobot.main --sources stb,lq --dry-run
 ```
 
 Set `INSECURE_SSL=1` only on networks that intercept TLS.
+
+Check report formatting without fetching listings or sending Telegram messages:
+`python -m unittest discover -s tests`

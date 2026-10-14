@@ -8,8 +8,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 from . import net
 
-TILE_W, TILE_H, LABEL_H, COLS = 300, 200, 34, 5
-LABEL_FONT, BADGE_FONT = 17, 21
+TILE_W, TILE_H, LABEL_H, COLS = 420, 280, 68, 2
+LABEL_FONT, BADGE_FONT = 23, 25
 BG, FG, BADGE = (245, 245, 242), (25, 25, 25), (214, 51, 108)
 
 
@@ -64,7 +64,7 @@ def build(listings):
     if not any(thumbs):
         return None
     rows = (len(listings) + COLS - 1) // COLS
-    sheet = Image.new("RGB", (COLS * TILE_W, rows * (TILE_H + LABEL_H)), BG)
+    sheet = Image.new("RGB", (min(COLS, len(listings)) * TILE_W, rows * (TILE_H + LABEL_H)), BG)
     draw = ImageDraw.Draw(sheet)
     big, small = _font(BADGE_FONT), _font(LABEL_FONT)
     for i, (l, t) in enumerate(zip(listings, thumbs)):
@@ -75,10 +75,12 @@ def build(listings):
             draw.rectangle((x, y, x + TILE_W - 1, y + TILE_H - 1), fill=(210, 210, 205))
             draw.text((x + TILE_W // 2, y + TILE_H // 2), "no photo", fill=(120, 120, 120),
                       font=small, anchor="mm")
-        draw.ellipse((x + 8, y + 8, x + 44, y + 44), fill=BADGE)
-        draw.text((x + 26, y + 26), str(i + 1), fill="white", font=big, anchor="mm")
-        label = f"£{l.monthly_cost:,.0f}/mo · {l.bedrooms}b · {l.travel_minutes} min"
-        draw.text((x + 8, y + TILE_H + LABEL_H // 2), label, fill=FG, font=small, anchor="lm")
+        draw.ellipse((x + 10, y + 10, x + 58, y + 58), fill=BADGE)
+        draw.text((x + 34, y + 34), str(i + 1), fill="white", font=big, anchor="mm")
+        label = f"£{l.monthly_cost:,.0f}/mo" + (" (est.)" if l.estimated else "")
+        draw.text((x + 12, y + TILE_H + 17), label, fill=FG, font=small, anchor="lm")
+        facts = f"{l.bedrooms} bed · {l.travel_minutes} min commute"
+        draw.text((x + 12, y + TILE_H + 48), facts, fill=FG, font=small, anchor="lm")
     out = io.BytesIO()
     sheet.save(out, "JPEG", quality=70, optimize=True)
     return out.getvalue()

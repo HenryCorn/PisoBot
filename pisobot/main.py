@@ -93,7 +93,8 @@ def _record(l, today, alerted, prev=None):
 
 def send_report(top, saved, rest, title, flags_of, preview_dir=None):
     jpeg = collage.build(top)
-    caption = f"🏆 Top {len(top)} of {len(top) + len(saved) + len(rest)} matches"
+    count = len({l.key for l in top + saved + rest})
+    caption = f"🏆 Top {len(top)} of {count} matches · numbers match the cards below"
     messages = telegram.report_messages(top, rest, saved, title, flags_of)
     if preview_dir:
         os.makedirs(preview_dir, exist_ok=True)
@@ -217,15 +218,19 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None):
     except Exception:
         print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
 
-    # 5. report (first run, daily schedule, /report, or --report) ...
+    # 5. report (first run, twice-daily schedule, /report, or --report) ...
     first_run = not seen
     if first_run or report or p["report_requested"] or preview_dir:
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
         rest = [l for l in matches if l not in top and l.key not in saved_keys]
         n_new = len([l for l in matches if l.key in new_keys])
-        title = (f"{'👋 <b>PisoBot is live.</b>' if first_run else '📋 <b>PisoBot daily report</b>'} "
-                 f"{len(matches)} homes · {n_new} 🆕 · "
-                 f'<a href="{config.MAP_URL}">🗺 open the map</a>')
+        now = dt.datetime.now(ZoneInfo("Europe/London"))
+        edition = "Morning" if now.hour < 12 else "Evening"
+        heading = "👋 PisoBot is live" if first_run else f"🏠 PisoBot · {edition} report"
+        title = (f"<b>{heading}</b>\n<i>{now:%a %d %b · %H:%M %Z}</i>\n\n"
+                 f"<b>{len(matches)} homes</b> · 🆕 {n_new} new · ❤️ {len(saved)} saved")
+        if failures:
+            title += f"\n⚠️ Partial results: unavailable sources {telegram.e(', '.join(failures))}"
         print(f"report: {len(matches)} matches")
         if not dry_run or preview_dir:
             send_report(top, saved, rest, title, flags_of, preview_dir)
