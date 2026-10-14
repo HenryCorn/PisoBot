@@ -1,5 +1,6 @@
 {
  "lq:146": {
+  "address": "Margetson Apartments Plot 11, Rockcliffe Square, London SE18 7DQ, UK",
   "alerted": true,
   "beds": 2,
   "cost": 1553,
@@ -11,6 +12,7 @@
   "url": "https://lqhomes.com/rockcliffesquare/properties/plot-11/"
  },
  "lq:256": {
+  "address": "Margetson Apartments Plot 2, Rockcliffe Square, London SE18 7DQ, UK",
   "alerted": true,
   "beds": 1,
   "cost": 1198,
@@ -33,6 +35,7 @@
   "url": "https://lqhomes.com/primepoint/properties/plot-315/"
  },
  "lq:317": {
+  "address": "Margetson Apartments Plot 54, Rockcliffe Square, London SE18 7DQ, UK",
   "alerted": true,
   "beds": 1,
   "cost": 1238,
@@ -99,6 +102,7 @@
   "url": "https://nhghomes.com/developments/gadwall-quarter/14-whitetail-court-london"
  },
  "otm:13914345": {
+  "address": "at Pilch House, 27 Violet Road, London E3",
   "alerted": true,
   "beds": 1,
   "cost": 1314,
@@ -110,6 +114,7 @@
   "url": "https://www.onthemarket.com/details/13914345/"
  },
  "otm:13981600": {
+  "address": "morris Road, london",
   "alerted": true,
   "beds": 1,
   "cost": 1261,
@@ -121,6 +126,7 @@
   "url": "https://www.onthemarket.com/details/13981600/"
  },
  "otm:13992835": {
+  "address": "at Blackwall Lane, Greenwich, London SE10",
   "alerted": true,
   "beds": 1,
   "cost": 1555,
@@ -132,6 +138,7 @@
   "url": "https://www.onthemarket.com/details/13992835/"
  },
  "otm:14050494": {
+  "address": "Mill Road, Ilford, Essex",
   "alerted": true,
   "beds": 2,
   "cost": 1161,
@@ -143,6 +150,7 @@
   "url": "https://www.onthemarket.com/details/14050494/"
  },
  "otm:14164949": {
+  "address": "at St. Paul's House, 2 Market Yard, London SE8",
   "alerted": true,
   "beds": 2,
   "cost": 1574,
@@ -154,6 +162,7 @@
   "url": "https://www.onthemarket.com/details/14164949/"
  },
  "otm:15748414": {
+  "address": "Plot 377, 2 Bedroom Apartment at Abbey Quay, IG11, Edward Point IG11",
   "alerted": true,
   "beds": 2,
   "cost": 1512,
@@ -165,6 +174,7 @@
   "url": "https://www.onthemarket.com/details/15748414/"
  },
  "otm:15977229": {
+  "address": "Atelier Court, Poplar, London, E14",
   "alerted": true,
   "beds": 2,
   "cost": 1409,
@@ -209,6 +219,7 @@
   "url": "https://www.onthemarket.com/details/16657411/"
  },
  "otm:17095526": {
+  "address": "at 45 Parkside Court, 15 Booth Road, London E16",
   "alerted": true,
   "beds": 1,
   "cost": 1260,
@@ -253,6 +264,7 @@
   "url": "https://www.onthemarket.com/details/17689461/"
  },
  "otm:17806582": {
+  "address": "Fable Apartments, 261c City Road, London, EC1V",
   "alerted": true,
   "beds": 1,
   "cost": 1574,
@@ -264,6 +276,7 @@
   "url": "https://www.onthemarket.com/details/17806582/"
  },
  "otm:17810336": {
+  "address": "High Street, Stratford",
   "alerted": true,
   "beds": 1,
   "cost": 1053,
@@ -275,6 +288,7 @@
   "url": "https://www.onthemarket.com/details/17810336/"
  },
  "otm:17858346": {
+  "address": "London E16",
   "alerted": true,
   "beds": 1,
   "cost": 1375,
@@ -297,6 +311,7 @@
   "url": "https://www.onthemarket.com/details/17858869/"
  },
  "otm:18133945": {
+  "address": "Mercury Walk, London, E14",
   "alerted": true,
   "beds": 1,
   "cost": 1563,
@@ -341,6 +356,7 @@
   "url": "https://www.onthemarket.com/details/18433798/"
  },
  "otm:18442976": {
+  "address": "Leven Road, London E14",
   "alerted": true,
   "beds": 1,
   "cost": 1115,
@@ -374,6 +390,7 @@
   "url": "https://www.onthemarket.com/details/18443141/"
  },
  "otm:18541455": {
+  "address": "Horseferry Road, LONDON E14",
   "alerted": true,
   "beds": 1,
   "cost": 1460,
@@ -385,6 +402,7 @@
   "url": "https://www.onthemarket.com/details/18541455/"
  },
  "otm:18586074": {
+  "address": "Richmond Road, Hackney, London, E8",
   "alerted": true,
   "beds": 1,
   "cost": 1375,
@@ -418,6 +436,7 @@
   "url": "https://www.onthemarket.com/details/18655343/"
  },
  "otm:18673309": {
+  "address": "Rathbone Market, Barking Road, Canning Town, London, E16",
   "alerted": true,
   "beds": 1,
   "cost": 1165,
@@ -429,6 +448,7 @@
   "url": "https://www.onthemarket.com/details/18673309/"
  },
  "otm:18963087": {
+  "address": "Umbriel Place, London E13",
   "alerted": true,
   "beds": 1,
   "cost": 931,
@@ -440,6 +460,7 @@
   "url": "https://www.onthemarket.com/details/18963087/"
  },
  "otm:19306508": {
+  "address": "Salter Street, London",
   "alerted": true,
   "beds": 1,
   "cost": 1421,
@@ -462,6 +483,7 @@
   "url": "https://www.onthemarket.com/details/19331360/"
  },
  "otm:19396621": {
+  "address": "Flat 25, Hale Point, 45 Ilford Hill, Ilford",
   "alerted": true,
   "beds": 1,
   "cost": 1123,
@@ -473,6 +495,7 @@
   "url": "https://www.onthemarket.com/details/19396621/"
  },
  "otm:19404471": {
+  "address": "Knowles Court, 18 Brumwell Avenue, Woolwich, London, SE18",
   "alerted": true,
   "beds": 1,
   "cost": 1229,
@@ -517,6 +540,7 @@
   "url": "https://www.onthemarket.com/details/19533499/"
  },
  "otm:19560663": {
+  "address": "Carlton Grove, London SE15",
   "alerted": true,
   "beds": 1,
   "cost": 1344,
@@ -528,6 +552,7 @@
   "url": "https://www.onthemarket.com/details/19560663/"
  },
  "otm:19621214": {
+  "address": "Station Road, London, N17",
   "alerted": true,
   "beds": 1,
   "cost": 1248,
@@ -539,6 +564,7 @@
   "url": "https://www.onthemarket.com/details/19621214/"
  },
  "otm:19631154": {
+  "address": "Coronation Square, Leyton, E10",
   "alerted": true,
   "beds": 1,
   "cost": 1544,
@@ -550,6 +576,7 @@
   "url": "https://www.onthemarket.com/details/19631154/"
  },
  "otm:19635678": {
+  "address": "Raphael House, High Road, Ilford, IG1",
   "alerted": true,
   "beds": 1,
   "cost": 1421,
@@ -561,6 +588,7 @@
   "url": "https://www.onthemarket.com/details/19635678/"
  },
  "otm:19639612": {
+  "address": "Headwater Point, Dipper Drive, London, E3",
   "alerted": true,
   "beds": 2,
   "cost": 1543,
@@ -572,6 +600,7 @@
   "url": "https://www.onthemarket.com/details/19639612/"
  },
  "otm:19657400": {
+  "address": "8 Manbey Park Rd, London, E15 1EQ",
   "alerted": true,
   "beds": 2,
   "cost": 1418,
@@ -594,6 +623,7 @@
   "url": "https://www.onthemarket.com/details/19690768/"
  },
  "otm:19706088": {
+  "address": "Building 22, Woolwich Riverside, London, SE18",
   "alerted": true,
   "beds": 2,
   "cost": 1536,
@@ -627,6 +657,7 @@
   "url": "https://www.onthemarket.com/details/19797873/"
  },
  "otm:19808128": {
+  "address": "Merbury Road, London SE28",
   "alerted": true,
   "beds": 2,
   "cost": 1080,
@@ -660,6 +691,7 @@
   "url": "https://www.onthemarket.com/details/19837849/"
  },
  "otm:19846415": {
+  "address": "15 Thomas Fyre Drive, Bow E3",
   "alerted": true,
   "beds": 1,
   "cost": 1130,
@@ -671,6 +703,7 @@
   "url": "https://www.onthemarket.com/details/19846415/"
  },
  "otm:19859011": {
+  "address": "Plot RAW_A.07.03 at Royal Albert Wharf, Shared Ownership, 49 Lockmen Building E16",
   "alerted": true,
   "beds": 2,
   "cost": 1548,
@@ -682,6 +715,7 @@
   "url": "https://www.onthemarket.com/details/19859011/"
  },
  "otm:19859250": {
+  "address": "Creekside, London, SE8",
   "alerted": true,
   "beds": 1,
   "cost": 1467,
@@ -715,6 +749,7 @@
   "url": "https://www.onthemarket.com/details/19873754/"
  },
  "otm:19917317": {
+  "address": "5 Station Road, London",
   "alerted": true,
   "beds": 1,
   "cost": 1344,
@@ -726,6 +761,7 @@
   "url": "https://www.onthemarket.com/details/19917317/"
  },
  "otm:19976706": {
+  "address": "5 Thomas Fyre Drive, London E3",
   "alerted": true,
   "beds": 2,
   "cost": 1252,
@@ -737,6 +773,7 @@
   "url": "https://www.onthemarket.com/details/19976706/"
  },
  "otm:20014583": {
+  "address": "Headwater Point, Bow E3",
   "alerted": true,
   "beds": 2,
   "cost": 1497,
@@ -748,6 +785,7 @@
   "url": "https://www.onthemarket.com/details/20014583/"
  },
  "otm:20018581": {
+  "address": "Tallack Road, London",
   "alerted": true,
   "beds": 2,
   "cost": 1390,
@@ -759,6 +797,7 @@
   "url": "https://www.onthemarket.com/details/20018581/"
  },
  "otm:20024686": {
+  "address": "Tyburn Gardens, 9 Peto Street North, London, Greater London, E16",
   "alerted": true,
   "beds": 1,
   "cost": 1314,
@@ -792,6 +831,7 @@
   "url": "https://www.onthemarket.com/details/20062520/"
  },
  "otm:20072887": {
+  "address": "Riverstone Heights, Tower Hamlets, London, E3",
   "alerted": true,
   "beds": 1,
   "cost": 1329,
@@ -814,6 +854,7 @@
   "url": "https://www.onthemarket.com/details/20099076/"
  },
  "otm:20185412": {
+  "address": "Bloomfield Road, London SE18",
   "alerted": true,
   "beds": 1,
   "cost": 1059,
@@ -836,6 +877,7 @@
   "url": "https://www.onthemarket.com/details/20202455/"
  },
  "otm:20232355": {
+  "address": "102 Violet Road, London E3",
   "alerted": true,
   "beds": 1,
   "cost": 1344,
@@ -968,6 +1010,7 @@
   "url": "https://www.onthemarket.com/details/20424537/"
  },
  "otm:20454364": {
+  "address": "Rothsay Street, London, SE1",
   "alerted": true,
   "beds": 1,
   "cost": 1298,
@@ -979,6 +1022,7 @@
   "url": "https://www.onthemarket.com/details/20454364/"
  },
  "otm:20458557": {
+  "address": "St. Peters Gardens, London, SE13",
   "alerted": true,
   "beds": 2,
   "cost": 1344,
@@ -1012,6 +1056,7 @@
   "url": "https://www.onthemarket.com/details/20473640/"
  },
  "otm:20473695": {
+  "address": "Rookery Court, 80 Ruckholt Road, London, E10",
   "alerted": true,
   "beds": 2,
   "cost": 1543,
@@ -1023,6 +1068,7 @@
   "url": "https://www.onthemarket.com/details/20473695/"
  },
  "otm:20479253": {
+  "address": "Shipbuilding Way, London, E13",
   "alerted": true,
   "beds": 2,
   "cost": 1497,
@@ -1034,6 +1080,7 @@
   "url": "https://www.onthemarket.com/details/20479253/"
  },
  "otm:20482870": {
+  "address": "Jarman Building, 51 Royal Crest Avenue, London, Greater London, E16",
   "alerted": true,
   "beds": 1,
   "cost": 1314,
@@ -1045,6 +1092,7 @@
   "url": "https://www.onthemarket.com/details/20482870/"
  },
  "otm:20517414": {
+  "address": "Oceanis Apartments, 19 Seagull Lane, London, E16",
   "alerted": true,
   "beds": 2,
   "cost": 1268,
@@ -1067,6 +1115,7 @@
   "url": "https://www.onthemarket.com/details/20545371/"
  },
  "stb:144685": {
+  "address": "Flat 10, Coppermill Heights, Ferry Lane, N17 9FG",
   "alerted": true,
   "beds": 1,
   "cost": 1222,
@@ -1078,6 +1127,7 @@
   "url": "https://www.sharetobuy.com/properties/144685/"
  },
  "stb:225820": {
+  "address": "Flat 503 Copeland Court, 3 Knights Road, E16 2TZ",
   "alerted": true,
   "beds": 1,
   "cost": 1487,
@@ -1089,6 +1139,7 @@
   "url": "https://www.sharetobuy.com/properties/225820/"
  },
  "stb:255284": {
+  "address": "Landmann Point, 6 Peartree Way, Greenwich, SE10 0GW",
   "alerted": true,
   "beds": 1,
   "cost": 1348,
@@ -1100,6 +1151,7 @@
   "url": "https://www.sharetobuy.com/properties/255284/"
  },
  "stb:277613": {
+  "address": "Cottrell Court, Hop Street, London, SE10 0QR",
   "alerted": true,
   "beds": 1,
   "cost": 1574,
@@ -1111,6 +1163,7 @@
   "url": "https://www.sharetobuy.com/properties/277613/"
  },
  "stb:292470": {
+  "address": "Gateway House, 221 Kender Street, SE14 5JQ",
   "alerted": true,
   "beds": 1,
   "cost": 1433,
@@ -1122,6 +1175,7 @@
   "url": "https://www.sharetobuy.com/properties/292470/"
  },
  "stb:292571": {
+  "address": "Metcalfe Court, John Harrison Way, SE10 0BY",
   "alerted": true,
   "beds": 1,
   "cost": 1341,
@@ -1133,6 +1187,7 @@
   "url": "https://www.sharetobuy.com/properties/292571/"
  },
  "stb:303950": {
+  "address": "113 Reaston Street, New Cross, SE14 5BB",
   "alerted": true,
   "beds": 2,
   "cost": 1408,
@@ -1166,6 +1221,7 @@
   "url": "https://www.sharetobuy.com/properties/311516/"
  },
  "stb:311543": {
+  "address": "1302 Salus House, E16 1DB",
   "alerted": true,
   "beds": 1,
   "cost": 1573,
@@ -1177,6 +1233,7 @@
   "url": "https://www.sharetobuy.com/properties/311543/"
  },
  "stb:320811": {
+  "address": "05 Halcyon House, E16 1DB",
   "alerted": true,
   "beds": 1,
   "cost": 1458,
@@ -1199,6 +1256,7 @@
   "url": "https://www.sharetobuy.com/properties/337269/"
  },
  "stb:340386": {
+  "address": "112 Reaston Street, SE14 5AW",
   "alerted": true,
   "beds": 1,
   "cost": 1132,
@@ -1232,6 +1290,7 @@
   "url": "https://www.sharetobuy.com/properties/385846/"
  },
  "stb:398447": {
+  "address": "Ensign House, Tavern Quay, Rope Street, SE16 7EX",
   "alerted": true,
   "beds": 1,
   "cost": 1509,
@@ -1254,6 +1313,7 @@
   "url": "https://www.sharetobuy.com/properties/406920/"
  },
  "stb:407896": {
+  "address": "London E14 6UA, London, E14 6UA",
   "alerted": true,
   "beds": 2,
   "cost": 1306,
@@ -1265,6 +1325,7 @@
   "url": "https://www.sharetobuy.com/properties/407896/"
  },
  "stb:408484": {
+  "address": "Flat 32 Cowan House, 37 Greenwich High Road, SE10 8GR",
   "alerted": true,
   "beds": 1,
   "cost": 1576,
@@ -1276,6 +1337,7 @@
   "url": "https://www.sharetobuy.com/properties/408484/"
  },
  "stb:413939": {
+  "address": "Holly Court, John Harrison Way, SE10 0BL",
   "alerted": true,
   "beds": 1,
   "cost": 1439,
@@ -1298,6 +1360,7 @@
   "url": "https://www.sharetobuy.com/properties/416613/"
  },
  "stb:425256": {
+  "address": "Queens Road, Peckham, SE15 2QW",
   "alerted": true,
   "beds": 2,
   "cost": 1491,
@@ -1309,6 +1372,7 @@
   "url": "https://www.sharetobuy.com/properties/425256/"
  },
  "stb:428164": {
+  "address": "Augustus Court, Old Kent Road, London, SE1 4NY",
   "alerted": true,
   "beds": 1,
   "cost": 1281,
@@ -1320,6 +1384,7 @@
   "url": "https://www.sharetobuy.com/properties/428164/"
  },
  "stb:431438": {
+  "address": "FLAT 3, 16 Kenninghall Road, Hackney, E5 8BY",
   "alerted": true,
   "beds": 1,
   "cost": 1384,
@@ -1331,6 +1396,7 @@
   "url": "https://www.sharetobuy.com/properties/431438/"
  },
  "stb:435511": {
+  "address": "Werner Court, 2 Aqua Vista Square, E3 4FF",
   "alerted": true,
   "beds": 1,
   "cost": 1208,
@@ -1342,6 +1408,7 @@
   "url": "https://www.sharetobuy.com/properties/435511/"
  },
  "stb:436741": {
+  "address": "Eileen Lenton Court, Tottenham Green East, Tottenham, N15 4UR",
   "alerted": true,
   "beds": 1,
   "cost": 1201,
@@ -1353,6 +1420,7 @@
   "url": "https://www.sharetobuy.com/properties/436741/"
  },
  "stb:437408": {
+  "address": "Pilch House, 27 Violet Road, E3 3XE",
   "alerted": true,
   "beds": 1,
   "cost": 1558,
@@ -1375,6 +1443,7 @@
   "url": "https://www.sharetobuy.com/properties/437858/"
  },
  "stb:440430": {
+  "address": "Arden House, 52-54 Thurston Road, SE13 7GT",
   "alerted": true,
   "beds": 1,
   "cost": 1211,
@@ -1386,6 +1455,7 @@
   "url": "https://www.sharetobuy.com/properties/440430/"
  },
  "stb:453738": {
+  "address": "Flat 59 Coppermill Heights, Mill Mead Road, N17 9FH",
   "alerted": true,
   "beds": 1,
   "cost": 1171,
@@ -1408,6 +1478,7 @@
   "url": "https://www.sharetobuy.com/properties/475892/"
  },
  "stb:476460": {
+  "address": "103 Dunlip House, 2 William Murdoch Road, E14 0YH",
   "alerted": true,
   "beds": 1,
   "cost": 1411,
@@ -1419,6 +1490,7 @@
   "url": "https://www.sharetobuy.com/properties/476460/"
  },
  "stb:486254": {
+  "address": "128 Reaston Street, SE14 5FW",
   "alerted": true,
   "beds": 1,
   "cost": 1556,
@@ -1430,6 +1502,7 @@
   "url": "https://www.sharetobuy.com/properties/486254/"
  },
  "stb:488269": {
+  "address": "3 Holden House, 616 high road Leyton, E10 6EZ",
   "alerted": true,
   "beds": 1,
   "cost": 1355,
@@ -1452,6 +1525,7 @@
   "url": "https://www.sharetobuy.com/properties/522841/"
  },
  "stb:531241": {
+  "address": "Flat 4, 317 Essex Road, N1 2EE",
   "alerted": true,
   "beds": 1,
   "cost": 1401,
@@ -1463,6 +1537,7 @@
   "url": "https://www.sharetobuy.com/properties/531241/"
  },
  "stb:531685": {
+  "address": "Flat 45 Norfolk House, 9 Brookmill Road, SE8 4HL",
   "alerted": true,
   "beds": 1,
   "cost": 1010,
@@ -1474,6 +1549,7 @@
   "url": "https://www.sharetobuy.com/properties/531685/"
  },
  "stb:532608": {
+  "address": "Flat 602 Metcalfe Court, 1 Anderson Square, E3 3XJ",
   "alerted": true,
   "beds": 1,
   "cost": 1576,
@@ -1485,6 +1561,7 @@
   "url": "https://www.sharetobuy.com/properties/532608/"
  },
  "stb:554335": {
+  "address": "Marshgate Lane, E15 2NH",
   "alerted": true,
   "beds": 1,
   "cost": 1470,
@@ -1507,6 +1584,7 @@
   "url": "https://www.sharetobuy.com/properties/558134/"
  },
  "stb:558454": {
+  "address": "Spillers Street, London, E16 2QD",
   "alerted": true,
   "beds": 1,
   "cost": 1291,
@@ -1518,6 +1596,7 @@
   "url": "https://www.sharetobuy.com/properties/558454/"
  },
  "stb:562115": {
+  "address": "East Ferry Road, E14 9FP",
   "alerted": true,
   "beds": 2,
   "cost": 1591,
@@ -1529,6 +1608,7 @@
   "url": "https://www.sharetobuy.com/properties/562115/"
  },
  "stb:562117": {
+  "address": "Chaseway Lodge, Butchers Road, E16 1NZ",
   "alerted": true,
   "beds": 1,
   "cost": 1021,
@@ -1540,6 +1620,7 @@
   "url": "https://www.sharetobuy.com/properties/562117/"
  },
  "stb:566730": {
+  "address": "Fleming House, 22 George Peabody Street, E13 9DG",
   "alerted": true,
   "beds": 1,
   "cost": 1263,
@@ -1551,6 +1632,7 @@
   "url": "https://www.sharetobuy.com/properties/566730/"
  },
  "stb:572440": {
+  "address": "139 Leven Road, E14 0LL",
   "alerted": true,
   "beds": 2,
   "cost": 1395,
@@ -1573,6 +1655,7 @@
   "url": "https://www.sharetobuy.com/properties/572504/"
  },
  "stb:581075": {
+  "address": "Flat 107, 6 Witan Street, London, E2 6HH",
   "alerted": true,
   "beds": 1,
   "cost": 1260,
@@ -1584,6 +1667,7 @@
   "url": "https://www.sharetobuy.com/properties/581075/"
  },
  "stb:581289": {
+  "address": "Carolean Crescent, London, SE8 5EZ",
   "alerted": true,
   "beds": 2,
   "cost": 1597,
@@ -1595,6 +1679,7 @@
   "url": "https://www.sharetobuy.com/properties/581289/"
  },
  "stb:593556": {
+  "address": "Duffield Drive, N15 4UH",
   "alerted": true,
   "beds": 1,
   "cost": 1370,
@@ -1606,6 +1691,7 @@
   "url": "https://www.sharetobuy.com/properties/593556/"
  },
  "stb:597386": {
+  "address": "8 Reed Avenue, London, E3 3DA",
   "alerted": true,
   "beds": 1,
   "cost": 1214,
@@ -1617,6 +1703,7 @@
   "url": "https://www.sharetobuy.com/properties/597386/"
  },
  "stb:602633": {
+  "address": "Tyburn Gardens, 9 Peto Street North, London, E16 1RL",
   "alerted": true,
   "beds": 1,
   "cost": 1483,
@@ -1628,6 +1715,7 @@
   "url": "https://www.sharetobuy.com/properties/602633/"
  },
  "stb:606049": {
+  "address": "17 Fawe Street, London, E14 6FD",
   "alerted": true,
   "beds": 2,
   "cost": 1471,
@@ -1639,6 +1727,7 @@
   "url": "https://www.sharetobuy.com/properties/606049/"
  },
  "stb:607411": {
+  "address": "606 Wigeon Heights, 7 Aukland Road, E10 5ZB",
   "alerted": true,
   "beds": 1,
   "cost": 1294,
@@ -1650,6 +1739,7 @@
   "url": "https://www.sharetobuy.com/properties/607411/"
  },
  "stb:608311": {
+  "address": "Meridia Court, E15 2LG",
   "alerted": true,
   "beds": 1,
   "cost": 1347,
@@ -1661,6 +1751,7 @@
   "url": "https://www.sharetobuy.com/properties/608311/"
  },
  "stb:609070": {
+  "address": "Apollo Court, High Street, E15 2FF",
   "alerted": true,
   "beds": 1,
   "cost": 1539,
@@ -1672,6 +1763,7 @@
   "url": "https://www.sharetobuy.com/properties/609070/"
  },
  "stb:610441": {
+  "address": "Katie Court, 7 Edwin Street, London, E16 1XS",
   "alerted": true,
   "beds": 1,
   "cost": 1342,
@@ -1683,6 +1775,7 @@
   "url": "https://www.sharetobuy.com/properties/610441/"
  },
  "stb:610632": {
+  "address": "Effra Gardens, Heartwell Avenue, Canning Town, E16 1QH",
   "alerted": true,
   "beds": 1,
   "cost": 1345,
@@ -1694,6 +1787,7 @@
   "url": "https://www.sharetobuy.com/properties/610632/"
  },
  "stb:614403": {
+  "address": "Graciosa Court, 176 Harford Street, Stepney, E1 4GF",
   "alerted": true,
   "beds": 1,
   "cost": 1296,
@@ -1705,6 +1799,7 @@
   "url": "https://www.sharetobuy.com/properties/614403/"
  },
  "stb:616705": {
+  "address": "12 Norfolk House, 9 Brookmill Road, SE8 4HL",
   "alerted": true,
   "beds": 1,
   "cost": 1365,
@@ -1716,6 +1811,7 @@
   "url": "https://www.sharetobuy.com/properties/616705/"
  },
  "stb:618199": {
+  "address": "70 Barlborough Street, SE14 5EY",
   "alerted": true,
   "beds": 1,
   "cost": 1144,
@@ -1727,6 +1823,7 @@
   "url": "https://www.sharetobuy.com/properties/618199/"
  },
  "stb:618551": {
+  "address": "Chorley Court, 24 Madeira Street, Poplar, E14 6TS",
   "alerted": true,
   "beds": 2,
   "cost": 1447,
@@ -1738,6 +1835,7 @@
   "url": "https://www.sharetobuy.com/properties/618551/"
  },
  "stb:618780": {
+  "address": "Stevenson Crescent, Catlin Street, SE16 3EN",
   "alerted": true,
   "beds": 1,
   "cost": 1088,
@@ -1749,6 +1847,7 @@
   "url": "https://www.sharetobuy.com/properties/618780/"
  },
  "stb:620109": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1595,
@@ -1760,6 +1859,7 @@
   "url": "https://www.sharetobuy.com/properties/620109/"
  },
  "stb:621167": {
+  "address": "London, London, E14 6GF",
   "alerted": true,
   "beds": 1,
   "cost": 1231,
@@ -1771,6 +1871,7 @@
   "url": "https://www.sharetobuy.com/properties/621167/"
  },
  "stb:624102": {
+  "address": "Hoey Court, 4 Barry Blandford Way, E3 3TR",
   "alerted": true,
   "beds": 1,
   "cost": 1575,
@@ -1782,6 +1883,7 @@
   "url": "https://www.sharetobuy.com/properties/624102/"
  },
  "stb:634524": {
+  "address": "Cornwell House, London, E6 1FB",
   "alerted": true,
   "beds": 2,
   "cost": 1419,
@@ -1793,6 +1895,7 @@
   "url": "https://www.sharetobuy.com/properties/634524/"
  },
  "stb:634960": {
+  "address": "Oleander House, Glengall Road, SE15 6FS",
   "alerted": true,
   "beds": 1,
   "cost": 1134,
@@ -1804,6 +1907,7 @@
   "url": "https://www.sharetobuy.com/properties/634960/"
  },
  "stb:637811": {
+  "address": "Chapman House, 17 Shipbuilding Way, London, E13 9GH",
   "alerted": true,
   "beds": 1,
   "cost": 1383,
@@ -1815,6 +1919,7 @@
   "url": "https://www.sharetobuy.com/properties/637811/"
  },
  "stb:639599": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1549,
@@ -1826,6 +1931,7 @@
   "url": "https://www.sharetobuy.com/properties/639599/"
  },
  "stb:641236": {
+  "address": "Painter House, 1 Sidney Street, E1 2HU",
   "alerted": true,
   "beds": 1,
   "cost": 1346,
@@ -1848,6 +1954,7 @@
   "url": "https://www.sharetobuy.com/properties/646590/"
  },
  "stb:650184": {
+  "address": "139 Leven Road, E14 0LL",
   "alerted": true,
   "beds": 2,
   "cost": 1560,
@@ -1870,6 +1977,7 @@
   "url": "https://www.sharetobuy.com/properties/650190/"
  },
  "stb:650400": {
+  "address": "Flat 36 Len Bishop Court, 63 Schoolhouse Lane, E1W 3AJ",
   "alerted": true,
   "beds": 1,
   "cost": 1315,
@@ -1881,6 +1989,7 @@
   "url": "https://www.sharetobuy.com/properties/650400/"
  },
  "stb:653411": {
+  "address": "Park View Court, London E3 3AN, E3 3AN",
   "alerted": true,
   "beds": 1,
   "cost": 1087,
@@ -1892,6 +2001,7 @@
   "url": "https://www.sharetobuy.com/properties/653411/"
  },
  "stb:654025": {
+  "address": "Waterway Building, 12 Hart Yard, E3 2FW",
   "alerted": true,
   "beds": 1,
   "cost": 1590,
@@ -1903,6 +2013,7 @@
   "url": "https://www.sharetobuy.com/properties/654025/"
  },
  "stb:657034": {
+  "address": "Gadwall Quarter at Woodberry Down, Woodberry Grove, N4 2UQ",
   "alerted": true,
   "beds": 1,
   "cost": 1521,
@@ -1925,6 +2036,7 @@
   "url": "https://www.sharetobuy.com/properties/657079/"
  },
  "stb:657080": {
+  "address": "Gadwall Quarter at Woodberry Down, Woodberry Grove, N4 2UQ",
   "alerted": true,
   "beds": 1,
   "cost": 1529,
@@ -1936,6 +2048,7 @@
   "url": "https://www.sharetobuy.com/properties/657080/"
  },
  "stb:659156": {
+  "address": "4 Kerslake Mews, SE18 5AY",
   "alerted": true,
   "beds": 1,
   "cost": 1422,
@@ -1947,6 +2060,7 @@
   "url": "https://www.sharetobuy.com/properties/659156/"
  },
  "stb:660777": {
+  "address": "44 Stainsby Road, Poplar, E14 6JR",
   "alerted": true,
   "beds": 1,
   "cost": 1509,
@@ -1958,6 +2072,7 @@
   "url": "https://www.sharetobuy.com/properties/660777/"
  },
  "stb:668800": {
+  "address": "51 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 1,
   "cost": 1290,
@@ -1969,6 +2084,7 @@
   "url": "https://www.sharetobuy.com/properties/668800/"
  },
  "stb:669858": {
+  "address": "Leven Road, E14 0XZ",
   "alerted": true,
   "beds": 1,
   "cost": 1425,
@@ -1980,6 +2096,7 @@
   "url": "https://www.sharetobuy.com/properties/669858/"
  },
  "stb:673033": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 1,
   "cost": 1231,
@@ -1991,6 +2108,7 @@
   "url": "https://www.sharetobuy.com/properties/673033/"
  },
  "stb:673034": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 1,
   "cost": 1340,
@@ -2002,6 +2120,7 @@
   "url": "https://www.sharetobuy.com/properties/673034/"
  },
  "stb:677095": {
+  "address": "Seven Sisters Road, Haringey, N15 6RD",
   "alerted": true,
   "beds": 1,
   "cost": 1158,
@@ -2013,6 +2132,7 @@
   "url": "https://www.sharetobuy.com/properties/677095/"
  },
  "stb:680069": {
+  "address": "Co Operative House, Rye Lane, SE15 4UR",
   "alerted": true,
   "beds": 1,
   "cost": 1235,
@@ -2024,6 +2144,7 @@
   "url": "https://www.sharetobuy.com/properties/680069/"
  },
  "stb:685493": {
+  "address": "Taylor Place, London, E3 2PJ",
   "alerted": true,
   "beds": 1,
   "cost": 1441,
@@ -2057,6 +2178,7 @@
   "url": "https://www.sharetobuy.com/properties/688717/"
  },
  "stb:699234": {
+  "address": "FLAT 63 Elizabeth House, Enterprise Way, SE8 3PY",
   "alerted": true,
   "beds": 1,
   "cost": 1152,
@@ -2068,6 +2190,7 @@
   "url": "https://www.sharetobuy.com/properties/699234/"
  },
  "stb:701481": {
+  "address": "Baroque Gardens, Mary Rose Square, Lewisham, London - RG2606111467, SE16 7EL",
   "alerted": true,
   "beds": 1,
   "cost": 1201,
@@ -2079,6 +2202,7 @@
   "url": "https://www.sharetobuy.com/properties/701481/"
  },
  "stb:706860": {
+  "address": "Royal Crest Avenue, E16 7DR",
   "alerted": true,
   "beds": 1,
   "cost": 1452,
@@ -2112,6 +2236,7 @@
   "url": "https://www.sharetobuy.com/properties/710509/"
  },
  "stb:713329": {
+  "address": "Sequoia House, Quebec Way, Bermondsey, SE16 7ET",
   "alerted": true,
   "beds": 1,
   "cost": 1585,
@@ -2123,6 +2248,7 @@
   "url": "https://www.sharetobuy.com/properties/713329/"
  },
  "stb:715740": {
+  "address": "London E3 3EA, London, E3 3EA",
   "alerted": true,
   "beds": 1,
   "cost": 1373,
@@ -2134,6 +2260,7 @@
   "url": "https://www.sharetobuy.com/properties/715740/"
  },
  "stb:716533": {
+  "address": "Biggs Square, Felstead Street, E9 5DS",
   "alerted": true,
   "beds": 1,
   "cost": 1092,
@@ -2145,6 +2272,7 @@
   "url": "https://www.sharetobuy.com/properties/716533/"
  },
  "stb:719429": {
+  "address": "59 Millstream Tower, 5 Station Road, N17 9LT",
   "alerted": true,
   "beds": 1,
   "cost": 1591,
@@ -2156,6 +2284,7 @@
   "url": "https://www.sharetobuy.com/properties/719429/"
  },
  "stb:724869": {
+  "address": "Peet court, E3 2SJ",
   "alerted": true,
   "beds": 1,
   "cost": 1154,
@@ -2189,6 +2318,7 @@
   "url": "https://www.sharetobuy.com/properties/734106/"
  },
  "stb:737644": {
+  "address": "Flat 141 Myddleton Avenue, N4 2FP",
   "alerted": true,
   "beds": 1,
   "cost": 1325,
@@ -2200,6 +2330,7 @@
   "url": "https://www.sharetobuy.com/properties/737644/"
  },
  "stb:739109": {
+  "address": "Booth Court, Thurston Road, Lewisham, SE13 7JG",
   "alerted": true,
   "beds": 2,
   "cost": 1286,
@@ -2211,6 +2342,7 @@
   "url": "https://www.sharetobuy.com/properties/739109/"
  },
  "stb:742965": {
+  "address": "Turner House, 22 McMillan Street, SE8 3FR",
   "alerted": true,
   "beds": 1,
   "cost": 1318,
@@ -2222,6 +2354,7 @@
   "url": "https://www.sharetobuy.com/properties/742965/"
  },
  "stb:744441": {
+  "address": "Estelle House, 21 Stroudley Walk, E3 3ZZ",
   "alerted": true,
   "beds": 1,
   "cost": 1345,
@@ -2233,6 +2366,7 @@
   "url": "https://www.sharetobuy.com/properties/744441/"
  },
  "stb:745000": {
+  "address": "Pilot Walk, Greenwich, London, SE10 0UR",
   "alerted": true,
   "beds": 1,
   "cost": 1510,
@@ -2244,6 +2378,7 @@
   "url": "https://www.sharetobuy.com/properties/745000/"
  },
  "stb:745607": {
+  "address": "61 Cudworth Street, E1 5QU",
   "alerted": true,
   "beds": 1,
   "cost": 1490,
@@ -2255,6 +2390,7 @@
   "url": "https://www.sharetobuy.com/properties/745607/"
  },
  "stb:745923": {
+  "address": "118 Oliver Road, E10 5UJ",
   "alerted": true,
   "beds": 1,
   "cost": 1422,
@@ -2266,6 +2402,7 @@
   "url": "https://www.sharetobuy.com/properties/745923/"
  },
  "stb:745932": {
+  "address": "118 Oliver Road, E10 5UJ",
   "alerted": true,
   "beds": 1,
   "cost": 1308,
@@ -2277,6 +2414,7 @@
   "url": "https://www.sharetobuy.com/properties/745932/"
  },
  "stb:749089": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1595,
@@ -2288,6 +2426,7 @@
   "url": "https://www.sharetobuy.com/properties/749089/"
  },
  "stb:749164": {
+  "address": "Artisan Apartments, 16 Montford Place, E15 2ZF",
   "alerted": true,
   "beds": 1,
   "cost": 1594,
@@ -2299,6 +2438,7 @@
   "url": "https://www.sharetobuy.com/properties/749164/"
  },
  "stb:751789": {
+  "address": "Riverstone Heights, Reed Avenue, E3 3ZB",
   "alerted": true,
   "beds": 1,
   "cost": 1464,
@@ -2310,6 +2450,7 @@
   "url": "https://www.sharetobuy.com/properties/751789/"
  },
  "stb:751850": {
+  "address": "Pilot Walk, SE10 0UR",
   "alerted": true,
   "beds": 1,
   "cost": 1454,
@@ -2332,6 +2473,7 @@
   "url": "https://www.sharetobuy.com/properties/754286/"
  },
  "stb:754294": {
+  "address": "Flat 9, 52 Silwood Street, SE16 2AW",
   "alerted": true,
   "beds": 2,
   "cost": 1435,
@@ -2343,6 +2485,7 @@
   "url": "https://www.sharetobuy.com/properties/754294/"
  },
  "stb:754403": {
+  "address": "Epping House, 41 Woodgrange Road, Forest Gate, E7 8EJ",
   "alerted": true,
   "beds": 1,
   "cost": 1375,
@@ -2354,6 +2497,7 @@
   "url": "https://www.sharetobuy.com/properties/754403/"
  },
  "stb:754492": {
+  "address": "54 Lewis Gardens, N16 5PF",
   "alerted": true,
   "beds": 2,
   "cost": 1502,
@@ -2365,6 +2509,7 @@
   "url": "https://www.sharetobuy.com/properties/754492/"
  },
  "stb:755345": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 2,
   "cost": 1556,
@@ -2376,6 +2521,7 @@
   "url": "https://www.sharetobuy.com/properties/755345/"
  },
  "stb:755646": {
+  "address": "Flat 405, 2 Davey Square, Hackney, E9 5ZF",
   "alerted": true,
   "beds": 1,
   "cost": 1165,
@@ -2387,6 +2533,7 @@
   "url": "https://www.sharetobuy.com/properties/755646/"
  },
  "stb:755653": {
+  "address": "Bessemer Place, SE10 0GP",
   "alerted": true,
   "beds": 2,
   "cost": 1595,
@@ -2398,6 +2545,7 @@
   "url": "https://www.sharetobuy.com/properties/755653/"
  },
  "stb:756544": {
+  "address": "Flat 65, Horseley Court, 4 Candle Street, E1 4RX",
   "alerted": true,
   "beds": 1,
   "cost": 1522,
@@ -2409,6 +2557,7 @@
   "url": "https://www.sharetobuy.com/properties/756544/"
  },
  "stb:758360": {
+  "address": "Woodview Close, London, N4 1DG",
   "alerted": true,
   "beds": 1,
   "cost": 1400,
@@ -2420,6 +2569,7 @@
   "url": "https://www.sharetobuy.com/properties/758360/"
  },
  "stb:758468": {
+  "address": "Paynter House,, 1 Shipbuilding Way, East Ham, E13 9FG",
   "alerted": true,
   "beds": 1,
   "cost": 1320,
@@ -2431,6 +2581,7 @@
   "url": "https://www.sharetobuy.com/properties/758468/"
  },
  "stb:759412": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1344,
@@ -2442,6 +2593,7 @@
   "url": "https://www.sharetobuy.com/properties/759412/"
  },
  "stb:759848": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1328,
@@ -2453,6 +2605,7 @@
   "url": "https://www.sharetobuy.com/properties/759848/"
  },
  "stb:759898": {
+  "address": "West Parkside, North Greenwich, SE10 0JT",
   "alerted": true,
   "beds": 1,
   "cost": 1488,
@@ -2464,6 +2617,7 @@
   "url": "https://www.sharetobuy.com/properties/759898/"
  },
  "stb:760916": {
+  "address": "Deptford Edge, Grove Street, SE8 3QQ",
   "alerted": true,
   "beds": 1,
   "cost": 1385,
@@ -2475,6 +2629,7 @@
   "url": "https://www.sharetobuy.com/properties/760916/"
  },
  "stb:760934": {
+  "address": "Oleander House, 1B Glengall Road, SE15 6FS",
   "alerted": true,
   "beds": 1,
   "cost": 1384,
@@ -2486,6 +2641,7 @@
   "url": "https://www.sharetobuy.com/properties/760934/"
  },
  "stb:762214": {
+  "address": "ShareToBuy #762214",
   "alerted": true,
   "beds": 1,
   "cost": 1144,
@@ -2497,6 +2653,7 @@
   "url": "https://www.sharetobuy.com/properties/762214/"
  },
  "stb:762865": {
+  "address": "Flat G03 Werner Court, 2 Aqua Vista Square, E3 4FF",
   "alerted": true,
   "beds": 1,
   "cost": 1400,
@@ -2508,6 +2665,7 @@
   "url": "https://www.sharetobuy.com/properties/762865/"
  },
  "stb:764504": {
+  "address": "8 St James House, Blackheath Hill, SE10 8EN",
   "alerted": true,
   "beds": 2,
   "cost": 1408,
@@ -2519,6 +2677,7 @@
   "url": "https://www.sharetobuy.com/properties/764504/"
  },
  "stb:764545": {
+  "address": "Moulding Lane, London, SE14 6BP, SE14 6BP",
   "alerted": true,
   "beds": 1,
   "cost": 1269,
@@ -2530,6 +2689,7 @@
   "url": "https://www.sharetobuy.com/properties/764545/"
  },
  "stb:764867": {
+  "address": "64 South Grove, London, E17 7FP",
   "alerted": true,
   "beds": 1,
   "cost": 1481,
@@ -2541,6 +2701,7 @@
   "url": "https://www.sharetobuy.com/properties/764867/"
  },
  "stb:766379": {
+  "address": "Greenway Close, Tottenham, N15 4UG",
   "alerted": true,
   "beds": 1,
   "cost": 1320,
@@ -2552,6 +2713,7 @@
   "url": "https://www.sharetobuy.com/properties/766379/"
  },
  "stb:768146": {
+  "address": "Azura Court, 48 Warton Road, Stratford, E15 2JS",
   "alerted": true,
   "beds": 1,
   "cost": 1492,
@@ -2563,6 +2725,7 @@
   "url": "https://www.sharetobuy.com/properties/768146/"
  },
  "stb:768534": {
+  "address": "Flat 30 / 3 Ardisia Mews, E7 9FG",
   "alerted": true,
   "beds": 1,
   "cost": 1379,
@@ -2574,6 +2737,7 @@
   "url": "https://www.sharetobuy.com/properties/768534/"
  },
  "stb:769528": {
+  "address": "Ashburton Triangle, N5 1GE",
   "alerted": true,
   "beds": 1,
   "cost": 1450,
@@ -2585,6 +2749,7 @@
   "url": "https://www.sharetobuy.com/properties/769528/"
  },
  "stb:769647": {
+  "address": "Print Apartments, Duckett Street, London, E1 4FY",
   "alerted": true,
   "beds": 1,
   "cost": 1495,
@@ -2596,6 +2761,7 @@
   "url": "https://www.sharetobuy.com/properties/769647/"
  },
  "stb:770802": {
+  "address": "1303, 10 Marsh Wall, E14 9GU",
   "alerted": true,
   "beds": 1,
   "cost": 1064,
@@ -2607,6 +2773,7 @@
   "url": "https://www.sharetobuy.com/properties/770802/"
  },
  "stb:771882": {
+  "address": "5 Tarves Way, London, SE10 9JG",
   "alerted": true,
   "beds": 1,
   "cost": 1169,
@@ -2618,6 +2785,7 @@
   "url": "https://www.sharetobuy.com/properties/771882/"
  },
  "stb:771991": {
+  "address": "London E3 3YW, London, E3 3YW",
   "alerted": true,
   "beds": 1,
   "cost": 1398,
@@ -2629,6 +2797,7 @@
   "url": "https://www.sharetobuy.com/properties/771991/"
  },
  "stb:772798": {
+  "address": "West Ham Village, Avery Avenue, E15 3AW",
   "alerted": true,
   "beds": 1,
   "cost": 1393,
@@ -2640,6 +2809,7 @@
   "url": "https://www.sharetobuy.com/properties/772798/"
  },
  "stb:772799": {
+  "address": "50 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 1,
   "cost": 1106,
@@ -2651,6 +2821,7 @@
   "url": "https://www.sharetobuy.com/properties/772799/"
  },
  "stb:772800": {
+  "address": "70 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 1,
   "cost": 1146,
@@ -2662,6 +2833,7 @@
   "url": "https://www.sharetobuy.com/properties/772800/"
  },
  "stb:772807": {
+  "address": "53 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 1,
   "cost": 1136,
@@ -2673,6 +2845,7 @@
   "url": "https://www.sharetobuy.com/properties/772807/"
  },
  "stb:772817": {
+  "address": "68 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 2,
   "cost": 1597,
@@ -2684,6 +2857,7 @@
   "url": "https://www.sharetobuy.com/properties/772817/"
  },
  "stb:772821": {
+  "address": "47 Leggit House , 2 Varcoe Road, SE16 3DG",
   "alerted": true,
   "beds": 2,
   "cost": 1549,
@@ -2695,6 +2869,7 @@
   "url": "https://www.sharetobuy.com/properties/772821/"
  },
  "stb:774445": {
+  "address": "Botanical Apartments, 3 Lavendar Way, E3 4ZF",
   "alerted": true,
   "beds": 1,
   "cost": 1427,
@@ -2706,6 +2881,7 @@
   "url": "https://www.sharetobuy.com/properties/774445/"
  },
  "stb:774965": {
+  "address": "Goodchild Road, Hackney, N4 2BP",
   "alerted": true,
   "beds": 1,
   "cost": 1468,
@@ -2717,6 +2893,7 @@
   "url": "https://www.sharetobuy.com/properties/774965/"
  },
  "stb:775471": {
+  "address": "Commercial Road, E1 0HJ",
   "alerted": true,
   "beds": 1,
   "cost": 1222,
@@ -2728,6 +2905,7 @@
   "url": "https://www.sharetobuy.com/properties/775471/"
  },
  "stb:775571": {
+  "address": "Wharf Road, Southwark, N1 7EW",
   "alerted": true,
   "beds": 1,
   "cost": 1500,
@@ -2739,6 +2917,7 @@
   "url": "https://www.sharetobuy.com/properties/775571/"
  },
  "stb:777382": {
+  "address": "118 Oliver Road, E10 5UJ",
   "alerted": true,
   "beds": 1,
   "cost": 1383,
@@ -2750,6 +2929,7 @@
   "url": "https://www.sharetobuy.com/properties/777382/"
  },
  "stb:778546": {
+  "address": "Nexus Court, Kirkdale Road, Leytonstone, E11 1HB",
   "alerted": true,
   "beds": 1,
   "cost": 1108,
@@ -2772,6 +2952,7 @@
   "url": "https://www.sharetobuy.com/properties/779418/"
  },
  "stb:779427": {
+  "address": "Diadem House, Francis Harvey Way, London, SE8 4DA",
   "alerted": true,
   "beds": 2,
   "cost": 1566,
@@ -2783,6 +2964,7 @@
   "url": "https://www.sharetobuy.com/properties/779427/"
  },
  "stb:779528": {
+  "address": "Flat 503, 2 Davey Square, Hackney, E9 5ZF",
   "alerted": true,
   "beds": 1,
   "cost": 1403,
@@ -2816,6 +2998,7 @@
   "url": "https://www.sharetobuy.com/properties/779541/"
  },
  "stb:779654": {
+  "address": "46-52 Norman Road, Greenwich, SE10 9QX",
   "alerted": true,
   "beds": 1,
   "cost": 924,
@@ -2827,6 +3010,7 @@
   "url": "https://www.sharetobuy.com/properties/779654/"
  },
  "stb:779667": {
+  "address": "46-52 Norman Road, Greenwich, SE10 9QX",
   "alerted": true,
   "beds": 1,
   "cost": 1147,
@@ -2838,6 +3022,7 @@
   "url": "https://www.sharetobuy.com/properties/779667/"
  },
  "stb:779672": {
+  "address": "46-52 Norman Road, Greenwich, SE10 9QX",
   "alerted": true,
   "beds": 2,
   "cost": 1178,
@@ -2849,6 +3034,7 @@
   "url": "https://www.sharetobuy.com/properties/779672/"
  },
  "stb:779673": {
+  "address": "46-52 Norman Road, Greenwich, SE10 9QX",
   "alerted": true,
   "beds": 2,
   "cost": 1455,
@@ -2860,6 +3046,7 @@
   "url": "https://www.sharetobuy.com/properties/779673/"
  },
  "stb:779676": {
+  "address": "46-52 Norman Road, Greenwich, SE10 9QX",
   "alerted": true,
   "beds": 3,
   "cost": 1474,
@@ -2871,6 +3058,7 @@
   "url": "https://www.sharetobuy.com/properties/779676/"
  },
  "stb:780035": {
+  "address": "Flat 46, 1 Queensland Road, N7 7BY",
   "alerted": true,
   "beds": 1,
   "cost": 1460,
@@ -2882,6 +3070,7 @@
   "url": "https://www.sharetobuy.com/properties/780035/"
  },
  "stb:780805": {
+  "address": "87 Blackwall Lane, SE10 0AP",
   "alerted": true,
   "beds": 2,
   "cost": 1597,
@@ -2893,6 +3082,7 @@
   "url": "https://www.sharetobuy.com/properties/780805/"
  },
  "stb:780948": {
+  "address": "ShareToBuy #780948",
   "alerted": true,
   "beds": 1,
   "cost": 1228,
@@ -2904,6 +3094,7 @@
   "url": "https://www.sharetobuy.com/properties/780948/"
  },
  "stb:781067": {
+  "address": "Pioneer Court, 50 Hammersley Road, London, E16 1TQ",
   "alerted": true,
   "beds": 2,
   "cost": 1577,
@@ -2915,6 +3106,7 @@
   "url": "https://www.sharetobuy.com/properties/781067/"
  },
  "stb:781447": {
+  "address": "Biggs Square, Felstead Street, E9 5DT",
   "alerted": true,
   "beds": 1,
   "cost": 1270,
@@ -2926,6 +3118,7 @@
   "url": "https://www.sharetobuy.com/properties/781447/"
  },
  "stb:783452": {
+  "address": "Maestro Apartments, 55 Violet Road, London, E3 3FW",
   "alerted": true,
   "beds": 2,
   "cost": 1244,
@@ -2937,6 +3130,7 @@
   "url": "https://www.sharetobuy.com/properties/783452/"
  },
  "stb:784259": {
+  "address": "Bookbinders Court, London, E1 5QU",
   "alerted": true,
   "beds": 1,
   "cost": 1551,
@@ -2959,6 +3153,7 @@
   "url": "https://www.sharetobuy.com/properties/784364/"
  },
  "stb:784382": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 2,
   "cost": 1301,
@@ -2970,6 +3165,7 @@
   "url": "https://www.sharetobuy.com/properties/784382/"
  },
  "stb:784400": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 2,
   "cost": 1338,
@@ -2981,6 +3177,7 @@
   "url": "https://www.sharetobuy.com/properties/784400/"
  },
  "stb:784423": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 1,
   "cost": 1162,
@@ -2992,6 +3189,7 @@
   "url": "https://www.sharetobuy.com/properties/784423/"
  },
  "stb:784424": {
+  "address": "London, Greater London, SE15 1NQ",
   "alerted": true,
   "beds": 1,
   "cost": 1107,
@@ -3025,6 +3223,7 @@
   "url": "https://www.sharetobuy.com/properties/785594/"
  },
  "stb:785644": {
+  "address": "B.03.04 Argenta, Spillers Street, E16 2QD",
   "alerted": true,
   "beds": 1,
   "cost": 1322,
@@ -3036,6 +3235,7 @@
   "url": "https://www.sharetobuy.com/properties/785644/"
  },
  "stb:786996": {
+  "address": "Neap Court, 32 Navigation Road, E3 3TP",
   "alerted": true,
   "beds": 1,
   "cost": 1433,
@@ -3047,6 +3247,7 @@
   "url": "https://www.sharetobuy.com/properties/786996/"
  },
  "stb:787226": {
+  "address": "101, 5 Lock Road, London,, Hackney, E9 5HJ",
   "alerted": true,
   "beds": 2,
   "cost": 1509,
@@ -3058,6 +3259,7 @@
   "url": "https://www.sharetobuy.com/properties/787226/"
  },
  "stb:787237": {
+  "address": "303, 5 Lock Road, London,, E9 5YF",
   "alerted": true,
   "beds": 2,
   "cost": 1553,
@@ -3069,6 +3271,7 @@
   "url": "https://www.sharetobuy.com/properties/787237/"
  },
  "stb:787244": {
+  "address": "ShareToBuy #787244",
   "alerted": true,
   "beds": 2,
   "cost": 1597,
