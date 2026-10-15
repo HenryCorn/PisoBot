@@ -495,6 +495,18 @@
   "price": 110000.0,
   "url": "https://www.onthemarket.com/details/18673309/"
  },
+ "otm:18850846": {
+  "address": "Cavendish Road, London",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1347,
+  "first": "2026-10-15T09:02",
+  "last": "2026-10-15",
+  "lat": 51.418736,
+  "lng": -0.177118,
+  "price": 94000.0,
+  "url": "https://www.onthemarket.com/details/18850846/"
+ },
  "otm:18930940": {
   "address": "Winchelsea Road, London, NW10",
   "alerted": true,
