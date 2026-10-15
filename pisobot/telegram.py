@@ -2,11 +2,8 @@ import datetime as dt
 import html
 import json
 import os
-import sys
 import time
 from zoneinfo import ZoneInfo
-
-from requests import RequestException
 
 from . import collage, config, net, ranking
 
@@ -168,30 +165,6 @@ def send_text(text, reply_markup=None, silent=False):
 def send_photo_bytes(jpeg, caption="", reply_markup=None):
     return _call("sendPhoto", files={"photo": ("top.jpg", jpeg, "image/jpeg")},
                  caption=caption, parse_mode="HTML", reply_markup=reply_markup)
-
-
-def answer_callback(callback_id, text):
-    try:
-        _call("answerCallbackQuery", callback_query_id=callback_id, text=text)
-    except Exception:
-        pass  # callbacks older than a few minutes can't be answered; the action still applies
-
-
-def mark_message(chat_id, message_id, keyboard):
-    """Update status without removing the listing's other controls."""
-    try:
-        _call("editMessageReplyMarkup", chat_id=chat_id, message_id=message_id,
-              reply_markup=keyboard)
-    except RuntimeError as ex:
-        if "message is not modified" not in str(ex):
-            print(f"Button feedback failed: {ex}", file=sys.stderr)
-    except RequestException:
-        print("Button feedback failed: Telegram network error", file=sys.stderr)
-
-
-def get_updates(offset):
-    return _call("getUpdates", offset=offset, timeout=0,
-                 allowed_updates=json.dumps(["message", "callback_query"]))["result"]
 
 
 # ---------- report ----------

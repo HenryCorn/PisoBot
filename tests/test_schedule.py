@@ -26,11 +26,9 @@ class ScheduleTests(unittest.TestCase):
 
     def test_every_scheduled_check_can_recover_a_missed_report(self):
         for due in (True, False):
-            p = {"report_requested": False}
-            with patch("sys.argv", ["pisobot", "--scheduled"]), \
-                    patch.object(prefs, "load", return_value=p), patch.object(main, "load_seen", return_value={}), \
-                    patch.object(prefs, "process_updates"), patch.object(prefs, "save"), \
-                    patch.object(main, "report_due", return_value=due), patch.object(main, "run") as run:
+            with patch("sys.argv", ["pisobot", "--scheduled"]), patch.object(prefs, "load", return_value={}), \
+                    patch.object(main, "report_due", return_value=due), patch.object(main, "run") as run, \
+                    patch("sys.stdout"):
                 main.main()
             self.assertEqual(run.called, due)
             if due:

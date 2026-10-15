@@ -1,13 +1,14 @@
 import io
-import os
+import json
 import re
+import sqlite3
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
 
-from pisobot import collage, main, prefs, telegram
+from pisobot import collage, d1, main, prefs, telegram
 from pisobot.models import Listing
 from pisobot.sources import onthemarket, sharetobuy
 
@@ -27,12 +28,10 @@ class ReportTests(unittest.TestCase):
     def test_schedule_always_requests_reports_in_uk_time(self):
         workflow = (Path(__file__).resolve().parents[1] / ".github" / "workflows" / "pisobot.yml").read_text()
         schedules = re.findall(r'cron: "([^"]+)"\s+timezone: "([^"]+)"', workflow)
-        self.assertEqual(schedules, [("30 6 * * *", "Europe/London"),
-                                     ("0 18 * * *", "Europe/London"),
-                                     ("*/5 * * * *", "Europe/London")])
-        self.assertIn('"$GITHUB_EVENT_NAME" = "schedule"', workflow)
+        self.assertEqual(schedules, [("40 * * * *", "Europe/London")])  # catch-up backstop
+        self.assertIn("SCHEDULED: ${{ github.event_name == 'schedule' || inputs.scheduled }}", workflow)
         self.assertIn("--scheduled", workflow)
-        self.assertIn("--preferences-only", workflow)
+        self.assertIn("CLOUDFLARE_D1_DATABASE_ID", workflow)
         self.assertIn("ref: ${{ github.ref }}", workflow)
 
     def test_cards_and_buttons_stay_together_without_duplicate_saved_homes(self):
@@ -75,78 +74,45 @@ class ReportTests(unittest.TestCase):
         self.assertNotIn("Home 5 &amp;", text)
         self.assertIn("Browse all 100", text)
 
-    def test_saving_does_not_remove_other_report_buttons(self):
+    def test_prefs_round_trip_through_d1_without_overwriting_worker_taps(self):
+        db = sqlite3.connect(":memory:")
+        db.row_factory = sqlite3.Row
+        db.executescript((Path(__file__).resolve().parents[1] / "worker" / "schema.sql").read_text())
+
+        def query(sql, *params):
+            rows = [dict(row) for row in db.execute(sql, params)]
+            db.commit()
+            return rows
+
         a, b = home(1), home(2)
         known = {l.key: {"lat": l.lat, "lng": l.lng, "url": l.url, "address": l.address,
-                         "cost": l.monthly_cost} for l in (a, b)}
-        report_keyboard = {"inline_keyboard": [
-            [{"text": f"Save #{rank}", "callback_data": f"s:{l.short_id}"},
-             {"text": f"Hide #{rank}", "callback_data": f"h:{l.short_id}"}]
-            for rank, l in enumerate((a, b), 1)]}
-        for keyboard in (report_keyboard, telegram.listing_keyboard(a)):
-            p = {"offset": 0, "saved": {}, "hidden": [a.key], "hidden_dev": []}
-            update = {"update_id": 1, "callback_query": {
-                "id": "callback", "data": f"s:{a.short_id}",
-                "message": {"chat": {"id": 123}, "message_id": 5, "reply_markup": keyboard}}}
-            with patch.dict(os.environ, TELEGRAM_CHAT_ID="123"), \
-                    patch.object(telegram, "get_updates", return_value=[update]), \
-                    patch.object(telegram, "answer_callback"), patch.object(telegram, "mark_message") as mark, \
-                    patch("sys.stdout", new=io.StringIO()):
-                prefs.process_updates(p, known)
-                self.assertIn(a.key, p["saved"])
-                self.assertNotIn(a.key, p["hidden"])
-                mark.assert_called_once()
-                updated = mark.call_args.args[2]["inline_keyboard"]
-                self.assertEqual(len(updated), len(keyboard["inline_keyboard"]))
-                saved_button = next(button for row in updated for button in row
-                                    if button.get("callback_data") == f"s:{a.short_id}")
-                self.assertEqual(saved_button["text"], "❤️ Saved")
-                self.assertTrue(any(button.get("callback_data") == f"h:{a.short_id}"
-                                    for row in updated for button in row))
-
-    def test_preferences_only_does_not_scrape_or_send_a_report_without_request(self):
-        for requested in (False, True):
-            p = {"report_requested": requested}
-            with patch("sys.argv", ["pisobot", "--preferences-only"]), \
-                    patch.object(main, "load_seen", return_value={}), patch.object(prefs, "load", return_value=p), \
-                    patch.object(prefs, "process_updates"), patch.object(prefs, "save") as save, \
-                    patch.object(main, "run") as run:
-                main.main()
-            save.assert_called_once_with(p)
-            self.assertEqual(run.called, requested)
-
-    def test_queued_taps_preserve_both_cards_and_hide_removes_saved_home(self):
-        a, b = home(1), home(2)
-        known = {l.key: {"lat": l.lat, "lng": l.lng, "url": l.url, "address": l.address,
-                         "cost": l.monthly_cost} for l in (a, b)}
-        keyboard = {"inline_keyboard": [
-            [{"text": "Save", "callback_data": f"s:{l.short_id}"},
-             {"text": "Hide", "callback_data": f"h:{l.short_id}"}] for l in (a, b)]}
-        updates = [{"update_id": i, "callback_query": {
-            "id": str(i), "data": f"{action}:{l.short_id}",
-            "message": {"chat": {"id": 123}, "message_id": 5, "reply_markup": keyboard}}}
-            for i, (action, l) in enumerate((("s", a), ("s", b), ("h", a)), 1)]
-        p = {"offset": 0, "saved": {}, "hidden": [], "hidden_dev": []}
-        with patch.dict(os.environ, TELEGRAM_CHAT_ID="123"), \
-                patch.object(telegram, "get_updates", return_value=updates), \
-                patch.object(telegram, "answer_callback"), patch.object(telegram, "mark_message") as mark, \
-                patch("sys.stdout", new=io.StringIO()):
-            prefs.process_updates(p, known)
-        self.assertNotIn(a.key, p["saved"])
-        self.assertIn(b.key, p["saved"])
-        self.assertTrue(prefs.is_hidden(p, a))
-        self.assertEqual(p["offset"], 4)
-        rows = mark.call_args.args[2]["inline_keyboard"]
-        self.assertEqual(rows[0][1]["text"], "👎 Hidden")
-        self.assertEqual(rows[1][0]["text"], "❤️ Saved")
+                         "cost": round(l.monthly_cost)} for l in (a, b)}
+        with patch.object(d1, "configured", return_value=True), patch.object(d1, "query", side_effect=query):
+            prefs.publish(known, chunk=1)
+            # card buttons carry Listing.short_id; the Worker looks that up in `listings`
+            self.assertEqual(query("SELECT key FROM listings WHERE sid = ?", a.short_id), [{"key": a.key}])
+            query("INSERT INTO saved VALUES (?, ?)", a.key, json.dumps({**known[a.key], "missing": 0}))
+            query("INSERT INTO hidden_dev VALUES (?, ?)", b.lat, b.lng)
+            p = prefs.load()
+            self.assertEqual(set(p["saved"]), {a.key})
+            self.assertTrue(prefs.is_hidden(p, b))
+            query("INSERT INTO saved VALUES (?, ?)", b.key, "{}")  # tapped while the run is busy
+            p["saved"][a.key]["cost"] = 990
+            p["last_report"] = "2026-01-02T18:00"
+            prefs.save(p)
+            self.assertEqual(json.loads(query("SELECT info FROM saved WHERE key = ?", a.key)[0]["info"])["cost"], 990)
+            self.assertEqual(len(query("SELECT key FROM saved WHERE key = ?", b.key)), 1)
+            self.assertEqual(prefs.load()["last_report"], "2026-01-02T18:00")
+            del p["saved"][a.key]  # a saved home that disappeared from the sources
+            prefs.save(p)
+            self.assertEqual([r["key"] for r in query("SELECT key FROM saved")], [b.key])
 
     def test_full_report_run_sends_digest_and_records_reported_homes(self):
         a, b = home(1), home(2, lat=51.52)
         seen = {a.key: {"alerted": True, "cost": 1001, "first": "2026-01-01T06:30"}}
-        p = {"saved": {}, "hidden": [], "hidden_dev": [], "report_requested": False,
-             "last_report": "2026-01-01T06:30"}
+        p = {"saved": {}, "hidden": [], "hidden_dev": [], "last_report": "2026-01-01T06:30"}
         with patch.object(main, "load_seen", return_value=seen), \
-                patch.object(prefs, "load", return_value=p), patch.object(prefs, "process_updates"), \
+                patch.object(prefs, "load", return_value=p), patch.object(prefs, "publish"), \
                 patch.object(main.SOURCES["stb"], "fetch", return_value=[a, b]), \
                 patch.object(main.enrich, "geocode"), patch.object(main, "passes_basic", return_value=None), \
                 patch.object(main, "passes_area", return_value=None), \

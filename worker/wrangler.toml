@@ -1,0 +1,17 @@
+name = "pisobot-telegram"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Secrets (set with `npx wrangler secret put <NAME>`):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_WEBHOOK_SECRET,
+#   GITHUB_TOKEN (fine-grained, this repo only, Actions: Read and write; used by /report)
+
+[vars]
+GITHUB_REPO = "HenryCorn/PisoBot"
+GITHUB_WORKFLOW = "pisobot.yml"
+GITHUB_REF = "main"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pisobot"
+database_id = "d74ffe1a-381c-4da4-89b0-3ca62ab06308"

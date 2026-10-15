@@ -39,13 +39,34 @@ rejected, while temporary optional-detail failures keep the API listing with unk
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID` (send `/start` to the bot, then `TELEGRAM_BOT_TOKEN=… python scripts/get_chat_id.py`)
    - `TFL_APP_KEY`
-2. **Actions → PisoBot → Run workflow** to run immediately; **report** is enabled by default
-   so the digest is sent after the listing checks.
-   Automatic reports run at **06:30 and 18:00 UK time**, adjusting for daylight saving.
-   The workflow must be on the default branch, with Actions enabled. GitHub's scheduler can
-   start late, so these are target times, not guaranteed delivery times.
-   Every scheduled button check also catches up the latest missed report slot that day.
-   A successful report records its delivery time so later checks do not repeat it.
+   - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`, `CLOUDFLARE_API_TOKEN`
+     (custom token with *Account → D1 → Edit*)
+2. **Telegram Worker** (free Cloudflare account). Buttons and commands go to a Cloudflare
+   Worker that records them in D1 instantly; runs read them from there.
+
+   ```sh
+   cd worker
+   npx wrangler login
+   npx wrangler d1 create pisobot            # copy database_id into wrangler.toml
+   npx wrangler d1 execute pisobot --remote --file=schema.sql
+   npx wrangler secret put TELEGRAM_BOT_TOKEN
+   npx wrangler secret put TELEGRAM_CHAT_ID
+   npx wrangler secret put TELEGRAM_WEBHOOK_SECRET   # any random string
+   npx wrangler secret put GITHUB_TOKEN      # fine-grained, this repo only, Actions: Read and write
+   npx wrangler deploy
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=<WORKER_URL>&secret_token=<WEBHOOK_SECRET>"
+   ```
+
+   On networks that intercept TLS, set `NODE_OPTIONS=--use-system-ca` for wrangler.
+3. **Report times.** GitHub's own cron is throttled and can run late, so reports are
+   triggered by two [cron-job.org](https://cron-job.org) jobs at **06:30 and 18:00**
+   (time zone *Europe/London*), each sending
+   `POST https://api.github.com/repos/HenryCorn/PisoBot/actions/workflows/pisobot.yml/dispatches`
+   with headers `Authorization: Bearer <GitHub token>`, `Accept: application/vnd.github+json`,
+   `X-GitHub-Api-Version: 2022-11-28` and body `{"ref":"main","inputs":{"scheduled":"true"}}`
+   (a `204` response means it worked). An hourly GitHub run catches up a missed slot,
+   and a successful report records its delivery time so later checks do not repeat it.
+4. **Actions → PisoBot → Run workflow** runs a full report immediately.
 
 ## What you get in Telegram
 
@@ -86,20 +107,19 @@ rejected, while temporary optional-detail failures keep the API listing with unk
   full financial breakdown and ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open buttons.
   There are no automatic two-hour alerts.
 - **Saved homes** are tracked: you're told when the cost changes or the listing disappears.
-- **Commands**: `/report`, `/saved`, `/unhide`, `/help`. Buttons and commands are picked up by the
-  lightweight **five-minute button check** (GitHub can delay scheduled runs). Save means
-  track the home; Hide means exclude it from subsequent reports. The selected card's buttons
-  change to **Saved/Hidden** once processed, without removing its other controls.
-  `/report` requests a full scan and digest at the next button check.
+- **Commands**: `/report`, `/saved`, `/unhide`, `/help`, answered instantly by the Worker.
+  Save means track the home; Hide means exclude it from subsequent reports. The selected
+  card's buttons change to **Saved/Hidden** straight away, without removing its other controls.
+  `/report` starts a full scan and digest immediately; it arrives a few minutes later.
 - **Map**: `docs/index.html`, published by GitHub Pages at https://henrycorn.github.io/PisoBot/ —
   enable once in *Settings → Pages → Deploy from a branch → main / docs*.
 
-State lives in `state/` (seen listings, saved/hidden choices, API caches) and is committed by each run.
-Button checks do not scrape listings or send digests unless `/report` was requested or
-the latest UK report slot has not been delivered. An all-source fetch failure fails the
+Saved/hidden choices, the last report time and the listings that cards refer to live in
+Cloudflare D1. Seen listings and API caches live in `state/` and are committed by each run
+that changes them. Scheduled checks do not scrape listings or send digests unless the latest
+UK report slot has not been delivered. An all-source fetch failure fails the
 run rather than recording an empty report as delivered. Action logs identify whether a
 report was due, which header panels rendered, and when unchanged cards were suppressed.
-You can force a check with **Actions → PisoBot → Run workflow → preferences_only**.
 
 ## Local run
 

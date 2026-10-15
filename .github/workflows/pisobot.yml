@@ -1,13 +1,11 @@
 name: PisoBot
 
+# Buttons and commands are handled instantly by the Cloudflare Worker (worker/).
+# cron-job.org dispatches `scheduled: true` at 06:30 and 18:00 UK time; GitHub's own cron
+# is throttled, so the hourly run below only catches up a report slot that was missed.
 on:
   schedule:
-    - cron: "30 6 * * *"
-      timezone: "Europe/London"
-    - cron: "0 18 * * *"
-      timezone: "Europe/London"
-    # ponytail: best-effort polling; a hosted webhook is needed for instant buttons.
-    - cron: "*/5 * * * *"
+    - cron: "40 * * * *"
       timezone: "Europe/London"
   workflow_dispatch:
     inputs:
@@ -19,8 +17,8 @@ on:
         description: "Send the full report (photo shortlist + grouped matches)"
         type: boolean
         default: true
-      preferences_only:
-        description: "Process buttons only (no listing scan or report unless /report was requested)"
+      scheduled:
+        description: "Send the 06:30/18:00 report only if that slot is due (used by cron-job.org)"
         type: boolean
         default: false
 
@@ -51,17 +49,18 @@ jobs:
           path: .cache/map-tiles
           key: osm-tiles-${{ runner.os }}-${{ github.run_id }}
           restore-keys: osm-tiles-${{ runner.os }}-
-      - name: Process buttons or check listings
+      - name: Check listings
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || vars.TELEGRAM_CHAT_ID }}
           TFL_APP_KEY: ${{ secrets.TFL_APP_KEY || vars.TFL_APP_KEY }}
-          PREFERENCES_ONLY: ${{ inputs.preferences_only || github.event.schedule == '*/5 * * * *' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          SCHEDULED: ${{ github.event_name == 'schedule' || inputs.scheduled }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+          if [ "$SCHEDULED" = "true" ]; then
             python -m pisobot.main --scheduled
-          elif [ "$PREFERENCES_ONLY" = "true" ]; then
-            python -m pisobot.main --preferences-only ${{ inputs.dry_run && '--dry-run' || '' }}
           else
             python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.report && '--report' || '' }}
           fi

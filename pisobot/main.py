@@ -187,14 +187,14 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     print(f"rejected: {rejected}")
     enrich.assign_crime_percentiles(matches)
 
-    # 2. Telegram buttons / commands since the last run
+    # 2. Saved/hidden choices (recorded instantly by the Worker) apply to these matches
     today = dt.date.today().isoformat()
     known = {k: {"lat": v.get("lat"), "lng": v.get("lng"), "url": v.get("url"),
                  "address": v.get("address", ""), "cost": v.get("cost")} for k, v in seen.items()}
     known.update({l.key: {"lat": l.lat, "lng": l.lng, "url": l.url, "address": l.address,
                           "cost": round(l.monthly_cost)} for l in matches})
     if live:
-        prefs.process_updates(p, known)
+        prefs.publish(known)
     hidden = [l for l in matches if prefs.is_hidden(p, l)]
     matches = [l for l in matches if not prefs.is_hidden(p, l)]
     print(f"current matches: {len(matches)} (+{len(hidden)} hidden)")
@@ -249,9 +249,9 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     except Exception:
         print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
 
-    # 5. report (first run, twice-daily schedule, /report, or --report) ...
+    # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
     first_run = not seen
-    if first_run or report or p["report_requested"] or preview_dir:
+    if first_run or report or preview_dir:
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
         rest = [l for l in matches if l not in top and l.key not in saved_keys]
         n_new = len([l for l in matches if l.key in new_keys])
@@ -264,7 +264,7 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
             title += f"\n⚠️ Partial results: unavailable sources {telegram.e(', '.join(failures))}"
         changes = {l.key: l for l, reason in to_send if reason == "drop"}
         changes.update({l.key: l for l in saved_changes})
-        compact = scheduled and not p["report_requested"] and not first_run and n_new == 0
+        compact = scheduled and not first_run and n_new == 0
         report_top, report_saved, report_rest = top, saved, rest
         if compact:
             icon = "🌅" if edition == "Morning" else "🌙"
@@ -286,7 +286,6 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         reported_keys = {l.key for l in report_top}
         saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
-            p["report_requested"] = False
             for l in matches:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
             p["last_report"] = _now()
@@ -322,22 +321,18 @@ def main():
     ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
-    ap.add_argument("--preferences-only", action="store_true", help="process Telegram buttons without scraping")
-    ap.add_argument("--scheduled", action="store_true", help="process buttons and catch up any due UK report")
+    ap.add_argument("--scheduled", action="store_true", help="send the UK report if its slot is due (else exit)")
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
     selected = [s for s in a.sources.split(",") if s]
-    if a.preferences_only or a.scheduled:
-        if a.dry_run or a.preview or a.report or (a.preferences_only and a.scheduled):
-            ap.error("button/scheduled checks cannot be combined with other run modes")
-        p = prefs.load()
-        prefs.process_updates(p, load_seen())
-        prefs.save(p)
-        due = a.scheduled and report_due(p)
-        print(f"Button check complete; report requested={p['report_requested']}, scheduled report due={due}")
-        if p["report_requested"] or due:
-            run(selected, False, a.verbose, report=True, scheduled=bool(due and not p["report_requested"]))
+    if a.scheduled:
+        if a.dry_run or a.preview or a.report:
+            ap.error("--scheduled cannot be combined with other run modes")
+        due = report_due(prefs.load())
+        print(f"Scheduled check: report due={due}")
+        if due:
+            run(selected, False, a.verbose, report=True, scheduled=True)
     else:
         run(selected, a.dry_run, a.verbose, a.report, a.preview)
 

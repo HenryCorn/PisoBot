@@ -72,22 +72,19 @@ class CardTests(unittest.TestCase):
         title = telegram.report_messages([home()], [], [], "Evening report", lambda l: "")[0][0]
         self.assertNotIn("checked every", title)
         self.assertNotIn("New since", title)
-        self.assertIn("M = modelled mortgage", prefs.HELP)
         with patch.object(telegram, "_call") as call:
             telegram.send_text("0 new homes", silent=True)
         self.assertEqual(call.call_args.kwargs["disable_notification"], "true")
 
     def test_scheduled_zero_new_sends_one_silent_summary_but_manual_report_is_full(self):
-        for scheduled, old_cost, requested in ((True, 1021, False), (False, 1021, False),
-                                                (True, 1071, False), (True, 1021, True)):
+        for scheduled, old_cost in ((True, 1021), (False, 1021), (True, 1071)):
             l, other = home(), home()
             other.id, other.lng = "2", -0.12
             seen = {item.key: {"alerted": True, "cost": cost, "first": "2026-01-01T06:30"}
                     for item, cost in ((l, old_cost), (other, 1021))}
-            p = {"saved": {}, "hidden": [], "hidden_dev": [], "report_requested": requested,
-                 "last_report": "2026-01-02T18:00"}
+            p = {"saved": {}, "hidden": [], "hidden_dev": [], "last_report": "2026-01-02T18:00"}
             with patch.object(main, "load_seen", return_value=seen), \
-                    patch.object(prefs, "load", return_value=p), patch.object(prefs, "process_updates"), \
+                    patch.object(prefs, "load", return_value=p), patch.object(prefs, "publish"), \
                     patch.object(main.SOURCES["stb"], "fetch", return_value=[l, other]), \
                     patch.object(enrich, "geocode"), patch.object(enrich, "assign_crime_percentiles"), \
                     patch.object(main, "passes_basic", return_value=None), \
@@ -96,14 +93,14 @@ class CardTests(unittest.TestCase):
                     patch.object(cache, "save"), patch.object(main, "save_seen"), patch.object(prefs, "save"), \
                     patch("sys.stdout", new=io.StringIO()):
                 main.run(["stb"], False, False, report=True, scheduled=scheduled)
-            if scheduled and not requested and old_cost == 1021:
+            if scheduled and old_cost == 1021:
                 report.assert_not_called()
                 send.assert_called_once()
                 self.assertIn("0 new homes · 2 tracked", send.call_args.args[0])
                 self.assertTrue(send.call_args.kwargs["silent"])
             else:
                 report.assert_called_once()
-                if scheduled and not requested:
+                if scheduled:
                     self.assertEqual(report.call_args.args[0], [l])
                     self.assertEqual(report.call_args.args[2], [])
 
