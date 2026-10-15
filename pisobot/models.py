@@ -85,6 +85,16 @@ class Listing:
     crime_score: Optional[int] = None
     crime_percentile: Optional[float] = None
 
+    # filled by intelligence / taste
+    changes: int = 0
+    match_score: Optional[int] = None
+    match_reasons: list = field(default_factory=list)
+    deal_tag: Optional[str] = None
+    rent_savings: Optional[int] = None
+    red_flags: list = field(default_factory=list)
+    vibes: list = field(default_factory=list)
+    livability_tags: list = field(default_factory=list)
+
     @property
     def key(self):
         return f"{self.source}:{self.id}"
@@ -102,12 +112,24 @@ class Listing:
         return max(self.share_price - self.deposit, 0)
 
     @property
+    def commute_friction(self):
+        """Quality-weighted commute: penalty for tube/rail changes and excessive walking."""
+        if self.travel_minutes is None:
+            return None
+        walk_penalty = max(0, (self.walk_minutes or 0) - 8) * 0.4
+        changes_penalty = (self.changes or 0) * 6.0
+        return self.travel_minutes + walk_penalty + changes_penalty
+
+    @property
     def warnings(self):
         w = []
         if (self.service_charge or 0) > config.HIGH_SERVICE_CHARGE:
             w.append("High SC" + (" (est.)" if "service charge" in self.estimated else ""))
         if self.lease_years is not None and self.lease_years < config.SHORT_LEASE_YEARS:
             w.append(f"short lease {self.lease_years} yrs")
+        for flag in self.red_flags:
+            if flag not in w:
+                w.append(flag)
         return w
 
     @property
@@ -141,6 +163,12 @@ class Listing:
             tags.append("⚠️ Cladding mentioned")
         if re.search(r"\b(?:no\s+pets|pets\s+(?:are\s+)?not\s+(?:allowed|permitted))\b", blob, re.I):
             tags.append("⚠️ Pets not allowed")
+        for v in self.vibes:
+            if v not in tags:
+                tags.append(v)
+        for lt in self.livability_tags:
+            if lt not in tags:
+                tags.append(lt)
         return tags
 
     @property
@@ -155,8 +183,8 @@ class Listing:
 
     @property
     def outcode(self):
-        m = re.match(r"[A-Z]{1,2}\d[A-Z\d]?", self.postcode)
-        return m[0] if m else ""
+        m = re.search(r"\b([A-Z]{1,2}\d[A-Z\d]?)(?:\s*\d[A-Z]{2})?\b", self.address.upper())
+        return m.group(1) if m else ""
 
     @property
     def area_name(self):
@@ -182,4 +210,6 @@ class Listing:
             "floorplan": self.floorplan, "area_m2": self.floor_area_m2, "price_per_m2": self.price_per_m2,
             "walk": self.walk_minutes, "crime_percentile": self.crime_percentile,
             "area": self.area_name, "features": self.feature_tags,
+            "match_score": self.match_score, "deal_tag": self.deal_tag,
+            "savings": self.rent_savings,
         }

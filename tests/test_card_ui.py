@@ -60,6 +60,19 @@ class CardTests(unittest.TestCase):
             enrich.assign_crime_percentiles(listings)
         self.assertTrue(all(l.crime_percentile is None for l in listings))
 
+    def test_card_renders_taste_match_deal_tag_and_rent_savings(self):
+        l = home()
+        l.match_score = 88
+        l.match_reasons = ["near saved home (0.8km)", "budget sweet spot"]
+        l.deal_tag = "⏳ 52d on market (Negotiation potential)"
+        l.rent_savings = 580
+        l.vibes = ["☀️ Bright & Airy"]
+        text = telegram.format_listing(l, rank=1)
+        self.assertIn("✨ <b>88% Match</b> (near saved home (0.8km))", text)
+        self.assertIn("⏳ 52d on market", text)
+        self.assertIn("💡 Saves ~£580/mo vs rent", text)
+        self.assertIn("☀️ Bright & Airy", text)
+
     def test_individual_alerts_use_the_same_composite_and_card_template(self):
         with patch.object(telegram.collage, "build", return_value=b"jpeg") as build, \
                 patch.object(telegram, "send_photo_bytes") as photo:

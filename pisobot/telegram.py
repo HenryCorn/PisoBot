@@ -114,7 +114,16 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines += finance_lines(l)
     lines.append(facts_line(l))
     lines.append(commute_line(l))
-    tags = ["🛡️ Crime: " + crime_label(l), *l.feature_tags]
+    tags = []
+    if getattr(l, "match_score", None) and l.match_score >= 70:
+        reason_txt = f" ({l.match_reasons[0]})" if getattr(l, "match_reasons", None) else ""
+        tags.append(f"✨ <b>{l.match_score}% Match</b>{reason_txt}")
+    tags.append("🛡️ Crime: " + crime_label(l))
+    tags += l.feature_tags
+    if getattr(l, "deal_tag", None):
+        tags.append(l.deal_tag)
+    if getattr(l, "rent_savings", None):
+        tags.append(f"💡 Saves ~£{l.rent_savings}/mo vs rent")
     if (l.service_charge or 0) > config.HIGH_SERVICE_CHARGE:
         tags.append("⚠️ High SC" + (" (est.)" if "service charge" in l.estimated else ""))
     lines.append(" · ".join(tags))

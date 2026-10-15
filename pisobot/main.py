@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, config, costs, enrich, mapgen, prefs, ranking, telegram
+from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram
 from .sources import lq, nhg, onthemarket, sharetobuy
 from .sources import detail_fields
 
@@ -65,6 +65,7 @@ def passes_area(l):
     if not j or j["minutes"] > config.MAX_TRAVEL_MINUTES:
         return "travel"
     l.travel_minutes, l.route, l.station, l.walk_minutes = j["minutes"], j["route"], j["station"], j["walk"]
+    l.changes = j.get("changes", 0)
     l.crime_score = enrich.crime_score(l.lat, l.lng)
     if l.crime_score > config.MAX_CRIME_SCORE:
         return "crime"
@@ -205,7 +206,17 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     matches = [l for l in matches if not prefs.is_hidden(p, l)]
     print(f"current matches: {len(matches)} (+{len(hidden)} hidden)")
 
-    # 3. saved homes: price changes and disappearances
+    # 3. Intelligence & Taste preference matching
+    taste_engine = taste.TasteProfile(p.get("saved", {}), p.get("hidden", []), p.get("hidden_dev", []), seen)
+    for l in matches:
+        l.red_flags = intelligence.detect_red_flags(l.description)
+        l.vibes = intelligence.detect_vibes(l.description)
+        l.livability_tags = intelligence.nearby_green_spaces(l.lat, l.lng)
+        l.rent_savings = intelligence.opportunity_cost_savings(l)
+        l.deal_tag = intelligence.deal_hunter_signals(l, seen.get(l.key))
+        l.match_score, l.match_reasons = taste_engine.match(l)
+
+    # 4. saved homes: price changes and disappearances
     by_key = {l.key: l for l in matches}
     fetched_keys = {l.key for l in listings}
     saved_changes, gone = [], []
