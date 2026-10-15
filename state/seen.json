@@ -208,6 +208,18 @@
   "price": 108000.0,
   "url": "https://www.onthemarket.com/details/16117904/"
  },
+ "otm:16491789": {
+  "address": "Newson House, Brixton, SW9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1498,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.459087,
+  "lng": -0.10568,
+  "price": 101250.0,
+  "url": "https://www.onthemarket.com/details/16491789/"
+ },
  "otm:16515961": {
   "alerted": false,
   "beds": 1,
@@ -334,6 +346,18 @@
   "price": 127500.0,
   "url": "https://www.onthemarket.com/details/18133945/"
  },
+ "otm:18176573": {
+  "address": "403 Nether Street, London N3",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1344,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.601631,
+  "lng": -0.19336,
+  "price": 93750.0,
+  "url": "https://www.onthemarket.com/details/18176573/"
+ },
  "otm:18335972": {
   "alerted": false,
   "beds": 2,
@@ -407,7 +431,7 @@
   "beds": 1,
   "cost": 1460,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.510512,
   "lng": -0.038377,
   "price": 165000.0,
@@ -417,13 +441,25 @@
   "address": "Richmond Road, Hackney, London, E8",
   "alerted": true,
   "beds": 1,
-  "cost": 1375,
+  "cost": 1595,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.543013,
   "lng": -0.056032,
   "price": 122500.0,
   "url": "https://www.onthemarket.com/details/18586074/"
+ },
+ "otm:18590982": {
+  "address": "Crown Close, (50% Share) Winkfield Road, London, N22, Wood Green, London, N22",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1345,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.599167,
+  "lng": -0.103525,
+  "price": 150000.0,
+  "url": "https://www.onthemarket.com/details/18590982/"
  },
  "otm:18622733": {
   "alerted": false,
@@ -458,6 +494,18 @@
   "lng": 0.011403,
   "price": 110000.0,
   "url": "https://www.onthemarket.com/details/18673309/"
+ },
+ "otm:18930940": {
+  "address": "Winchelsea Road, London, NW10",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1268,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.5397576563629,
+  "lng": -0.25752763580837,
+  "price": 87500.0,
+  "url": "https://www.onthemarket.com/details/18930940/"
  },
  "otm:18963087": {
   "address": "Umbriel Place, London E13",
@@ -540,6 +588,30 @@
   "price": 92250.0,
   "url": "https://www.onthemarket.com/details/19443498/"
  },
+ "otm:19449176": {
+  "address": "Winchelsea Road, London, NW10",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1174,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.539087,
+  "lng": -0.257849,
+  "price": 83750.0,
+  "url": "https://www.onthemarket.com/details/19449176/"
+ },
+ "otm:19516200": {
+  "address": "Cavendish Road, London",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1347,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.418736,
+  "lng": -0.177118,
+  "price": 94000.0,
+  "url": "https://www.onthemarket.com/details/19516200/"
+ },
  "otm:19533499": {
   "alerted": false,
   "beds": 1,
@@ -605,7 +677,7 @@
   "beds": 2,
   "cost": 1543,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.5255849,
   "lng": -0.0110001,
   "price": 110000.0,
@@ -617,7 +689,7 @@
   "beds": 2,
   "cost": 1418,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.5455226,
   "lng": 0.0057907,
   "price": 114000.0,
@@ -656,6 +728,18 @@
   "lng": -0.0225521,
   "price": 98000.0,
   "url": "https://www.onthemarket.com/details/19742972/"
+ },
+ "otm:19753630": {
+  "address": "6 Salamanca Place, Vauxhall, London, SE1",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1447,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.491669,
+  "lng": -0.120868,
+  "price": 142000.0,
+  "url": "https://www.onthemarket.com/details/19753630/"
  },
  "otm:19797873": {
   "alerted": false,
@@ -749,6 +833,18 @@
   "price": 175000.0,
   "url": "https://www.onthemarket.com/details/19861710/"
  },
+ "otm:19864534": {
+  "address": "Woods House (25% shared ownership), Belgravia, London, SW1W",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1574,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.487248,
+  "lng": -0.148144,
+  "price": 112500.0,
+  "url": "https://www.onthemarket.com/details/19864534/"
+ },
  "otm:19873754": {
   "alerted": false,
   "beds": 1,
@@ -764,13 +860,25 @@
   "address": "5 Station Road, London",
   "alerted": true,
   "beds": 1,
-  "cost": 1344,
+  "cost": 1370,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.588844,
   "lng": -0.062449,
   "price": 93750.0,
   "url": "https://www.onthemarket.com/details/19917317/"
+ },
+ "otm:19943020": {
+  "address": "Holst Road, London",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1206,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.522752,
+  "lng": -0.265282,
+  "price": 82500.0,
+  "url": "https://www.onthemarket.com/details/19943020/"
  },
  "otm:19976706": {
   "address": "5 Thomas Fyre Drive, London E3",
@@ -790,7 +898,7 @@
   "beds": 2,
   "cost": 1497,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.525666,
   "lng": -0.010956,
   "price": 106250.0,
@@ -842,17 +950,41 @@
   "price": 108125.0,
   "url": "https://www.onthemarket.com/details/20062520/"
  },
+ "otm:20069397": {
+  "address": "3 Aerial Square, London, NW9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1372,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.595302,
+  "lng": -0.248931,
+  "price": 87500.0,
+  "url": "https://www.onthemarket.com/details/20069397/"
+ },
  "otm:20072887": {
   "address": "Riverstone Heights, Tower Hamlets, London, E3",
   "alerted": true,
   "beds": 1,
-  "cost": 1329,
+  "cost": 636,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.525195,
   "lng": -0.010183,
   "price": 92500.0,
   "url": "https://www.onthemarket.com/details/20072887/"
+ },
+ "otm:20094077": {
+  "address": "Ainsworth Court, Plough Close, London NW10",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1268,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.53091,
+  "lng": -0.231105,
+  "price": 87500.0,
+  "url": "https://www.onthemarket.com/details/20094077/"
  },
  "otm:20099076": {
   "alerted": false,
@@ -887,6 +1019,18 @@
   "lng": -0.057715,
   "price": 105000.0,
   "url": "https://www.onthemarket.com/details/20202455/"
+ },
+ "otm:20203865": {
+  "address": "14 Plough Close, London, NW10",
+  "alerted": true,
+  "beds": 1,
+  "cost": 971,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.53091,
+  "lng": -0.231104,
+  "price": 95000.0,
+  "url": "https://www.onthemarket.com/details/20203865/"
  },
  "otm:20232355": {
   "address": "102 Violet Road, London E3",
@@ -1010,6 +1154,30 @@
   "price": 87500.0,
   "url": "https://www.onthemarket.com/details/20393540/"
  },
+ "otm:20398753": {
+  "address": "25% SHARE AVAILABLE",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1115,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.561279982124,
+  "lng": -0.27638001380319,
+  "price": 75000.0,
+  "url": "https://www.onthemarket.com/details/20398753/"
+ },
+ "otm:20415208": {
+  "address": "Bradley Road, Clapham Park, LONDON, SW4",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1549,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.450757,
+  "lng": -0.13124,
+  "price": 110500.0,
+  "url": "https://www.onthemarket.com/details/20415208/"
+ },
  "otm:20424537": {
   "alerted": false,
   "beds": 1,
@@ -1021,13 +1189,25 @@
   "price": 115000.0,
   "url": "https://www.onthemarket.com/details/20424537/"
  },
+ "otm:20427434": {
+  "address": "Newson House, Brixton, SW9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1552,
+  "first": "2026-10-15T07:57",
+  "last": "2026-10-15",
+  "lat": 51.459141,
+  "lng": -0.105755,
+  "price": 95000.0,
+  "url": "https://www.onthemarket.com/details/20427434/"
+ },
  "otm:20454364": {
   "address": "Rothsay Street, London, SE1",
   "alerted": true,
   "beds": 1,
   "cost": 1298,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.496691383187,
   "lng": -0.084904907311,
   "price": 90000.0,
@@ -1109,7 +1289,7 @@
   "beds": 2,
   "cost": 1268,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-15",
   "lat": 51.508793,
   "lng": 0.019049,
   "price": 87500.0,
