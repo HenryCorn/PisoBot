@@ -1578,7 +1578,7 @@
   "url": "https://www.sharetobuy.com/properties/402485/"
  },
  "stb:403580": {
-  "address": "London SW9 0BF, London, SW9 0BF",
+  "address": "ShareToBuy #403580",
   "alerted": true,
   "beds": 1,
   "cost": 1594,
@@ -2452,7 +2452,7 @@
   "first": "2026-10-14",
   "last": "2026-10-15",
   "lat": 51.57140463,
-  "lng": -0.08940646,
+  "lng": -0.08940645999999997,
   "price": 115000.0,
   "url": "https://www.sharetobuy.com/properties/657034/"
  },
@@ -2475,7 +2475,7 @@
   "first": "2026-10-14",
   "last": "2026-10-15",
   "lat": 51.57140463,
-  "lng": -0.08940646,
+  "lng": -0.08940645999999997,
   "price": 120000.0,
   "url": "https://www.sharetobuy.com/properties/657080/"
  },
@@ -3400,12 +3400,12 @@
   "address": "Ashburton Triangle, N5 1GE",
   "alerted": true,
   "beds": 1,
-  "cost": 1450,
+  "cost": 1402,
   "first": "2026-10-14",
   "last": "2026-10-15",
   "lat": 51.556898,
   "lng": -0.108268,
-  "price": 130000.0,
+  "price": 120000.0,
   "url": "https://www.sharetobuy.com/properties/769528/"
  },
  "stb:769647": {
@@ -4120,5 +4120,17 @@
   "lng": -0.024633600000000033,
   "price": 157500.0,
   "url": "https://www.sharetobuy.com/properties/787277/"
+ },
+ "stb:787642": {
+  "address": "Flat 605, 6 Witan Street, London, E2 6HH",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1292,
+  "first": "2026-10-15T18:03",
+  "last": "2026-10-15",
+  "lat": 51.525271000000004,
+  "lng": -0.05608100000000005,
+  "price": 125000.0,
+  "url": "https://www.sharetobuy.com/properties/787642/"
  }
 }
