@@ -30,6 +30,8 @@ Floor area uses published total internal area (sq ft converted to m²), never ro
 Price/m² uses the **100% full market value**, not the share price.
 Source floorplan images are read from ShareToBuy downloads, OnTheMarket's `floorplans` data,
 and L&Q's plot-specific floorplan slider; missing facts remain unknown.
+L&Q sometimes marks withdrawn plots as available in its API; 404/410 plot pages are
+rejected, while temporary optional-detail failures keep the API listing with unknown facts.
 
 ## Setup
 

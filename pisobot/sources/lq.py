@@ -44,7 +44,8 @@ def refine(listing):
             d = _page_details(net.get(listing.url).text)
         except (RequestException, ValueError) as ex:
             print(f"L&Q optional details unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
-            return True
+            return not (isinstance(ex, RequestException) and ex.response is not None
+                        and ex.response.status_code in (404, 410))
         cache.put("lq_detail", listing.url, d)
     listing.description += " " + d["description"]
     for key, value in d.items():

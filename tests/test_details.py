@@ -1,14 +1,39 @@
 import datetime as dt
+import io
 import json
 import unittest
 from unittest.mock import Mock, patch
 
+from requests import HTTPError, Response
+
 from pisobot import cache, config, enrich
 from pisobot.models import Listing
-from pisobot.sources import detail_fields, lease_remaining, lq, onthemarket, sharetobuy
+from pisobot.sources import detail_fields, lease_remaining, lq, nhg, onthemarket, sharetobuy
 
 
 class DetailTests(unittest.TestCase):
+    def test_onthemarket_search_uses_the_published_station_location(self):
+        results = {"list": [{"id": 1, "price": "£100,000", "bedrooms": 1, "address": "Home"}]}
+        payload = {"props": {"pageProps": {"initialReduxState": {"results": results}}}}
+        html = '<script id="__NEXT_DATA__">' + json.dumps(payload) + '</script>'
+        with patch.object(onthemarket.net, "get", return_value=Mock(text=html)) as get:
+            homes = onthemarket.fetch()
+        self.assertEqual(len(homes), 1)
+        self.assertEqual(get.call_args.args[0],
+                         "https://www.onthemarket.com/for-sale/property/oxford-circus-station/")
+        self.assertTrue(get.call_args.kwargs["params"]["radius"] > 0)
+
+    def test_nhg_hero_images_support_both_absolute_and_relative_urls(self):
+        for url in ("https://example.com/home.jpg", "/media/home.jpg"):
+            html = ('<div class="plotcard"><span class="plotcard-tag">Available</span>'
+                    '<a href="/developments/home/plot-1"><img src="' + url + '"></a>'
+                    '<p class="plotcard-address">Home E16 2LS</p>1 Bedroom'
+                    '<p>Shared ownership</p><p>£100,000</p></div>')
+            with patch.object(nhg.net, "get", return_value=Mock(text=html)), patch.object(enrich, "geocode"):
+                homes = nhg.fetch()
+            self.assertEqual(len(homes), 1)
+            self.assertEqual(homes[0].image, url if url.startswith("https:") else nhg.BASE + url)
+
     def test_monthly_annual_and_weekly_costs_preserve_pence(self):
         self.assertEqual(detail_fields("Rent £464.06pcm; Service charge £3,600 per annum"),
                          {"rent": 464.06, "service_charge": 300})
@@ -64,6 +89,16 @@ class DetailTests(unittest.TestCase):
                 self.assertTrue(lq.refine(l))
         self.assertEqual(get.call_count, 2)
         self.assertNotEqual(listings[0].floorplan, listings[1].floorplan)
+
+    def test_lq_stale_available_api_records_with_withdrawn_pages_are_rejected(self):
+        for status in (404, 410, 503):
+            response = Response()
+            response.status_code = status
+            error = HTTPError(response=response)
+            l = Listing("lq", "1", "https://example.com/plot-1", "Home", 1, "SO")
+            with patch.object(cache, "_data", {}), patch.object(lq.net, "get", side_effect=error), \
+                    patch("sys.stderr", new=io.StringIO()):
+                self.assertEqual(lq.refine(l), status == 503)
 
     def test_onthemarket_uses_structured_plan_area_and_full_advert_costs(self):
         p = {"id": 1, "minimumAreaSqM": 50, "floorplans": [{"largeUrl": "https://example.com/plan.png"}],

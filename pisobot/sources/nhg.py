@@ -2,6 +2,7 @@
 published statically, so rent and service charge are estimated. Coordinates come from
 the postcode (enrich.geocode)."""
 import re
+from urllib.parse import urljoin
 
 from .. import enrich, net
 from ..models import Listing
@@ -38,7 +39,7 @@ def fetch():
             source="nhg", id=href.group(1).rsplit("/", 1)[-1], url=BASE + href.group(1),
             address=text(addr.group(1)) if addr else "", bedrooms=int(beds.group(1)) if beds else 0,
             scheme="Shared Ownership", share_price=money(price.group(1)),
-            image=BASE + img.group(1) if img and img.group(1).startswith("/") else None,
+            image=urljoin(BASE, img.group(1)) if img else None,
             description=text(c)[:300],
         )
         out.append(l)

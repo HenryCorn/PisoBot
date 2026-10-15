@@ -48,7 +48,7 @@ def fetch():
                   "max-price": SHARE_PRICE_CEILING}
         if page > 1:
             params["page"] = page
-        html = net.get(f"{BASE}/for-sale/property/oxford-circus/", params=params).text
+        html = net.get(f"{BASE}/for-sale/property/oxford-circus-station/", params=params).text
         m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
         if not m:
             break
