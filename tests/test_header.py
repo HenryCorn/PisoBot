@@ -74,3 +74,40 @@ class MapTests(unittest.TestCase):
             with patch.object(collage.time, "time", return_value=10 ** 12):
                 collage._tile(12, 2046, 1362)
             self.assertEqual(get.call_count, 2)
+
+    def test_gallery_row_attaches_three_images_and_deduplicates(self):
+        photos = [f"https://example.com/photo_{i}.jpg" for i in range(5)]
+        l = listing(floorplan="https://example.com/plan.png", image=photos[0], images=photos[1:])
+        thumb_img = Image.new("RGB", (398, 280), "blue")
+        with patch.object(collage, "_map", return_value=Image.new("RGB", (480, 500), "grey")), \
+                patch.object(collage, "_thumb", return_value=Image.new("RGB", (720, 500), "white")), \
+                patch.object(collage, "_gallery_thumb", return_value=thumb_img) as gallery_thumb:
+            jpeg = collage.build(l)
+        with Image.open(io.BytesIO(jpeg)) as img:
+            self.assertEqual(img.size, (1200, 784))
+        # Ensure floorplan is not passed to gallery thumb
+        called_urls = [call.args[0] for call in gallery_thumb.call_args_list]
+        self.assertNotIn("https://example.com/plan.png", called_urls)
+        self.assertEqual(called_urls, photos[:3])
+
+    def test_gallery_row_omits_top_hero_when_no_floorplan(self):
+        photos = [f"https://example.com/photo_{i}.jpg" for i in range(5)]
+        l = listing(floorplan=None, image=photos[0], images=photos[1:])
+        thumb_img = Image.new("RGB", (398, 280), "blue")
+        with patch.object(collage, "_map", return_value=Image.new("RGB", (480, 500), "grey")), \
+                patch.object(collage, "_thumb", side_effect=[Image.new("RGB", (720, 500), "white")]), \
+                patch.object(collage, "_gallery_thumb", return_value=thumb_img) as gallery_thumb:
+            jpeg = collage.build(l)
+        with Image.open(io.BytesIO(jpeg)) as img:
+            self.assertEqual(img.size, (1200, 784))
+        called_urls = [call.args[0] for call in gallery_thumb.call_args_list]
+        # photo_0 was used as top hero, so gallery gets photo_1, photo_2, photo_3
+        self.assertNotIn(photos[0], called_urls)
+        self.assertEqual(called_urls, photos[1:4])
+
+    def test_map_top_bar_renders_commute_stat(self):
+        l = listing(travel_minutes=35)
+        with patch.object(collage, "_tile", return_value=Image.new("RGB", (256, 256), "lightgrey")):
+            result = collage._map(l)
+        self.assertEqual(result.size, (480, 500))
+

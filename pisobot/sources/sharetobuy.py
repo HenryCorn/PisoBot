@@ -116,7 +116,9 @@ def _details(pid, card_cost):
     plan = re.search(r'<a\b[^>]*class="[^"]*\bdownload-floor-plan\b[^"]*"[^>]*>', html, re.S)
     href = re.search(r'href="([^"]+)"', plan[0]) if plan else None
     d["floorplan"] = unescape(href[1]) if href else None
-    cache.put("stb_photos", pid, _photo_urls(html, pid))
+    photos = _photo_urls(html, pid)
+    d["images"] = photos
+    cache.put("stb_photos", pid, photos)
     cache.put("stb_detail3", ck, d)
     return d
 
@@ -159,10 +161,13 @@ def fetch():
                 if l.tenure == "rent":
                     l.rent = card_cost
                     l.service_charge = 0
+                    l.images = cache.get("stb_photos", pid) or []
                 else:
                     for k, v in _details(pid, card_cost).items():
                         if v is not None:
                             setattr(l, k, v)
+                    if not l.images:
+                        l.images = cache.get("stb_photos", pid) or []
                 listings[l.key] = l
             if f"/properties/page/{page + 1}/" not in html:
                 break

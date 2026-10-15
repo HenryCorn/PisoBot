@@ -105,6 +105,17 @@ def _record(l, today, alerted, prev=None):
             "lat": l.lat, "lng": l.lng, "address": l.address}
 
 
+def _ensure_photos(l):
+    loader = getattr(SOURCES.get(l.source), "photos", None)
+    if loader and len(l.images) < 3:
+        try:
+            loaded = loader(l)
+            if loaded:
+                l.images = list(dict.fromkeys([*l.images, *loaded]))
+        except (RequestException, ValueError) as ex:
+            print(f"Gallery unavailable for {l.key}: {ex}", file=sys.stderr)
+
+
 def send_report(top, saved, rest, title, flags_of, preview_dir=None):
     messages = telegram.report_messages(top, rest, saved, title, flags_of)
     if preview_dir:
@@ -114,12 +125,7 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None):
         jpeg = None
         if 1 <= i <= len(top):
             l = top[i - 1]
-            loader = getattr(SOURCES[l.source], "photos", None)
-            if loader and not (l.floorplan or l.image or l.images):
-                try:
-                    l.images = loader(l)
-                except (RequestException, ValueError) as ex:
-                    print(f"Gallery unavailable for {l.key}: {ex}", file=sys.stderr)
+            _ensure_photos(l)
             jpeg = collage.build(l)
             print(f"card #{i}: {l.key}")
             if not jpeg:
@@ -298,11 +304,13 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
               f"{l.bedrooms}b {l.address[:60]} {l.url}")
         if not live:
             continue
+        _ensure_photos(l)
         telegram.send_listing(l, reason)
         telegram.throttle()
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
     if live:
         for l in saved_changes:
+            _ensure_photos(l)
             telegram.send_listing(l, "saved")
             telegram.throttle()
         for info in gone:
