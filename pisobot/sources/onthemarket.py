@@ -4,10 +4,13 @@ quote either the share price or the full value, so anything above SHARE_PRICE_CE
 treated as a full value and skipped (the share-price version is usually listed too)."""
 import json
 import re
+import sys
+
+from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import money, text
+from . import detail_fields, money, text
 
 BASE = "https://www.onthemarket.com"
 SHARE_PRICE_CEILING = 250000
@@ -45,7 +48,7 @@ def fetch():
                   "max-price": SHARE_PRICE_CEILING}
         if page > 1:
             params["page"] = page
-        html = net.get(f"{BASE}/for-sale/property/shoreditch/", params=params).text
+        html = net.get(f"{BASE}/for-sale/property/oxford-circus/", params=params).text
         m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
         if not m:
             break
@@ -83,19 +86,32 @@ def fetch():
 def refine(listing):
     """Pull features + description from the details page (cached) so keyword exclusions and
     share % / full value parsing see the whole advert. Returns False to drop the listing."""
-    d = cache.get("otm_detail", listing.id)
+    d = cache.get("otm_detail2", listing.id)
     if d is None:
         try:
             html = net.get(listing.url).text
-        except Exception:
+        except RequestException as ex:
+            print(f"OnTheMarket detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
             return False
         p = _property_data(html)
-        if str(p.get("id")) == listing.id:
-            cache.put("otm_photos", listing.id, _photo_urls(p))
+        if str(p.get("id")) != listing.id:
+            print(f"OnTheMarket detail has no matching property ID: {listing.id}", file=sys.stderr)
+            return False
+        cache.put("otm_photos", listing.id, _photo_urls(p))
         feats = " ".join(f.get("feature", "") if isinstance(f, dict) else str(f) for f in p.get("features") or [])
-        d = text(f"{feats} {p.get('description', '')}")[:4000]
-        cache.put("otm_detail", listing.id, d)
-    listing.description = f"{listing.description} {d}"
+        description = text(f"{feats} {p.get('description', '')}")
+        plans = _photo_urls({"images": p.get("floorplans") or []})
+        d = {**detail_fields(description), "description": description,
+             "floorplan": plans[0] if plans else None}
+        area = money(p.get("minimumAreaSqM"))
+        feet = money(p.get("minimumAreaSqFt"))
+        if area or feet:
+            d["floor_area_m2"] = area or round(feet * 0.09290304, 2)
+        cache.put("otm_detail2", listing.id, d)
+    listing.description = f"{listing.description} {d['description']}"
+    for key, value in d.items():
+        if key != "description" and value is not None:
+            setattr(listing, key, value)
     blob = listing.description
     pct = re.search(r"(\d{1,2}(?:\.\d+)?)\s*%\s*(?:shared?|ownership|stake)", blob, re.I)
     full = re.search(r"(?:full(?:\s+market)?\s+value|FMV|100%)[^£]{0,30}£\s*([\d,]+)", blob, re.I)
@@ -103,10 +119,6 @@ def refine(listing):
         listing.share_pct = float(pct.group(1))
     if full:
         listing.full_value = money(full.group(1))
-    lease = re.search(r"(\d{2,3})\s*years?\s*(?:remaining|left|unexpired|lease)|lease[^.]{0,30}?(\d{2,3})\s*years",
-                      blob, re.I)
-    if lease:
-        listing.lease_years = int(lease.group(1) or lease.group(2))
     band = re.search(r"council tax band:?\s*([A-H])\b", blob, re.I)
     if band:
         listing.council_tax = band.group(1).upper()

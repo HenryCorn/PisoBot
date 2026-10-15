@@ -2,11 +2,14 @@
 page embeds a JSON map of property coordinates (data-map-properties)."""
 import json
 import re
+import sys
 from html import unescape
+
+from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import money, text
+from . import detail_fields, money, text
 
 BASE = "https://www.sharetobuy.com"
 
@@ -22,7 +25,7 @@ MAX_PAGES = 15
 
 def _params(rent_or_buy, schemes, max_cost):
     p = [
-        ("location", "Shoreditch"), ("lat", config.TARGET_LAT), ("lon", config.TARGET_LNG),
+        ("location", config.TARGET_NAME), ("lat", config.TARGET_LAT), ("lon", config.TARGET_LNG),
         ("radius", round(config.SEARCH_RADIUS_KM / 1.609)),  # whole miles; decimals return nothing
         ("minBedrooms", config.MIN_BEDROOMS), ("maxMonthlyCost", int(max_cost)),
         ("status[]", "1"), ("rentOrBuy", rent_or_buy),
@@ -77,31 +80,40 @@ def photos(listing):
 def _details(pid, card_cost):
     """Cost breakdown from the property page (cached while the card's cost is unchanged)."""
     ck = f"{pid}:{card_cost}"
-    hit = cache.get("stb_detail2", ck)
+    hit = cache.get("stb_detail3", ck)
     if hit:
         return hit
     try:
         html = net.get(f"{BASE}/properties/{pid}/").text
+        if f'id="property-{pid}"' not in html:
+            raise ValueError("Property ID missing from details page")
         t = text(html)
-    except Exception:  # listing withdrawn between search and detail fetch
+    except (RequestException, ValueError) as ex:
+        print(f"ShareToBuy detail unavailable for {pid}: {type(ex).__name__}", file=sys.stderr)
         return {}
-    f = lambda pat: money(m.group(1)) if (m := re.search(pat, t)) else None
-    s = lambda pat: m.group(1) if (m := re.search(pat, t)) else None
+    f = lambda pat: money(m.group(1)) if (m := re.search(pat, t, re.I)) else None
+    s = lambda pat: m.group(1) if (m := re.search(pat, t, re.I)) else None
     lease = f(r"Lease Length\s*(\d[\d,]*)")
     d = {
         "share_price": f(r"£\s*([\d,]+)\s*share price"),
         "share_pct": f(r"([\d.]+)\s*%\s*share"),
         "min_deposit": f(r"£\s*([\d,]+)\s*min deposit"),
-        "rent": f(r"£\s*([\d,]+)\s*rent\b"),
-        "service_charge": f(r"£\s*([\d,]+)\s*service charge"),
+        "rent": f(r"£\s*([\d,]+(?:\.\d+)?)\s*rent\b"),
+        "service_charge": f(r"£\s*([\d,]+(?:\.\d+)?)\s*service charge"),
         "full_value": f(r"Full value of property\s*£\s*([\d,]+)"),
         "lease_years": int(lease) if lease else None,
         "council_tax": s(r"Council Tax Band\s*([A-H])\b"),
         "floor": s(r"\bFloor\s*(Ground|Lower ground|Basement|\d+(?:st|nd|rd|th))\b"),
     }
-    if f'id="property-{pid}"' in html:
-        cache.put("stb_photos", pid, _photo_urls(html, pid))
-    cache.put("stb_detail2", ck, d)
+    description = re.search(r'<div\s+id="description-content".*?(?=<div class="property-information-and-downloads|\Z)',
+                            html, re.S)
+    d["description"] = text(description[0]) if description else ""
+    d.update(detail_fields(d["description"]))
+    plan = re.search(r'<a\b[^>]*class="[^"]*\bdownload-floor-plan\b[^"]*"[^>]*>', html, re.S)
+    href = re.search(r'href="([^"]+)"', plan[0]) if plan else None
+    d["floorplan"] = unescape(href[1]) if href else None
+    cache.put("stb_photos", pid, _photo_urls(html, pid))
+    cache.put("stb_detail3", ck, d)
     return d
 
 

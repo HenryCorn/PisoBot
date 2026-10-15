@@ -12,6 +12,7 @@ from requests import RequestException
 
 from . import cache, collage, config, costs, enrich, mapgen, prefs, ranking, telegram
 from .sources import lq, nhg, onthemarket, sharetobuy
+from .sources import detail_fields
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket}
 SEEN_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "seen.json")
@@ -51,6 +52,9 @@ def passes_basic(l):
             return "details"
         if l.excluded_by_keywords():
             return "beds/keywords"
+    for key, value in detail_fields(l.description).items():
+        if getattr(l, key) is None:
+            setattr(l, key, value)
     if not _cost_ok(l):
         return "cost"
     return None

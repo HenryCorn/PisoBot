@@ -1,4 +1,5 @@
 import re
+import datetime as dt
 from html import unescape
 
 
@@ -13,3 +14,54 @@ def money(s):
 def text(html):
     html = re.sub(r"<(script|style|svg)[^>]*>.*?</\1>", " ", html, flags=re.S)
     return re.sub(r"\s+", " ", unescape(re.sub(r"<[^>]+>", " ", html))).strip()
+
+
+def lease_remaining(value):
+    m = re.search(r"(\d{2,4})(?:\s*(?:years?|yrs?))?(?:\s+from\b[^.;]{0,45}?\b((?:19|20)\d{2}))?",
+                  str(value or ""), re.I)
+    if not m:
+        return None
+    return max(0, int(m[1]) - (dt.date.today().year - int(m[2]) if m[2] else 0))
+
+
+def detail_fields(blob):
+    """Only explicit advert facts; absence stays unknown rather than becoming zero."""
+    blob = text(blob)
+    fields = {}
+    for name, label in (("rent", r"rent"), ("service_charge", r"service\s+charges?")):
+        label = rf"(?:(?:monthly|annual|yearly|weekly)\s+)?{label}"
+        amount = r"£\s*([\d,]+(?:\.\d+)?)"
+        period = r"(?:\s*(?:per\s+(?:calendar\s+)?(?:month|annum|year|week)|p\.?[acmw]\.?m?\.?|monthly|annually|/month|/year|/week))?"
+        match = re.search(rf"\b{label}\s*[:\-]?\s*{amount}{period}", blob, re.I)
+        if not match:
+            match = re.search(rf"{amount}{period}\s+{label}\b", blob, re.I)
+        if match:
+            value, phrase = money(match[1]), match[0].lower()
+            if re.search(r"annum|annual|year|\bp\.?a\.?\b", phrase):
+                value /= 12
+            elif re.search(r"week|\bpw\b", phrase):
+                value *= 52 / 12
+            fields[name] = value
+    share = re.search(r"\b(\d{1,3}(?:\.\d+)?)\s*%\s*(?:share|ownership|stake)", blob, re.I)
+    full = re.search(r"\b(?:full(?:\s+market)?\s+value(?:\s+of\s+property)?|FMV|100%)\s*[:\-]?\s*£\s*([\d,]+(?:\.\d+)?)",
+                     blob, re.I)
+    if share and 0 < float(share[1]) <= 100:
+        fields["share_pct"] = float(share[1])
+    if full:
+        fields["full_value"] = money(full[1])
+    lease = re.search(r"\blease(?:hold)?(?:\s+(?:length|remaining))?\s*[:\-]?\s*(\d{2,4}(?:\s+years?)?(?:\s+from\b[^.;]{0,45}?\b(?:19|20)\d{2})?)"
+                      r"|(\d{2,4}\s+years?(?:\s+from\b[^.;]{0,45}?\b(?:19|20)\d{2})?)\s*(?:remaining|unexpired|lease)",
+                      blob, re.I)
+    if lease:
+        fields["lease_years"] = lease_remaining(lease[1] or lease[2])
+    area = re.search(r"\b(?:total(?:\s+(?:gross|internal|floor))*(?:\s+area)?|(?:gross|internal|floor)\s+area|size)"
+                     r"\s*[:\-=]?\s*(?:approx(?:\.|imately)?\s*)?([\d,.]+)\s*"
+                     r"(m²|m2|sq\.?\s*m(?:etres?)?|square\s+metres?|sq\.?\s*ft|ft²|square\s+feet)\b",
+                     blob, re.I)
+    if area:
+        value = money(area[1])
+        if re.search(r"ft|feet", area[2], re.I):
+            value *= 0.09290304
+        if 0 < value < 10000:
+            fields["floor_area_m2"] = round(value, 2)
+    return fields

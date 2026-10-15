@@ -54,7 +54,7 @@ def _station(leg):
 def journey(lat, lng):
     """Fastest weekday 08:30 public-transport journey to the target, cached per ~100 m.
     Returns {"minutes", "route", "station", "walk", "changes"} or None."""
-    key = f"{lat:.3f},{lng:.3f}"
+    key = f"{lat:.3f},{lng:.3f}->{config.TARGET_LAT},{config.TARGET_LNG}"
     hit = cache.get("journey", key)
     if hit is not None:
         return hit or None
@@ -70,7 +70,11 @@ def journey(lat, lng):
     j = min(journeys, key=lambda j: j["duration"])
     legs = j.get("legs") or []
     ride = [l for l in legs if l["mode"]["id"] not in ("walking", "cycle")]
-    first_walk = legs[0]["duration"] if legs and legs[0]["mode"]["id"] == "walking" else 0
+    first_walk = 0
+    for leg in legs:
+        if leg["mode"]["id"] != "walking":
+            break
+        first_walk += leg["duration"]
     out = {
         "minutes": j["duration"],
         "route": " → ".join(_leg_label(l) for l in ride) or "walk",

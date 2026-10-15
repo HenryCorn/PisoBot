@@ -25,6 +25,8 @@ class Listing:
     lng: Optional[float] = None
     image: Optional[str] = None
     images: list[str] = field(default_factory=list)
+    floorplan: Optional[str] = None
+    floor_area_m2: Optional[float] = None
     description: str = ""
     estimated: list = field(default_factory=list)   # which cost components were estimated
     lease_years: Optional[int] = None
@@ -40,6 +42,7 @@ class Listing:
     station: Optional[str] = None     # first station boarded
     walk_minutes: Optional[int] = None
     crime_score: Optional[int] = None
+    crime_percentile: Optional[float] = None
 
     @property
     def key(self):
@@ -60,12 +63,15 @@ class Listing:
     @property
     def warnings(self):
         w = []
-        if self.tenure == "sale" and (self.service_charge or 0) > config.HIGH_SERVICE_CHARGE \
-                and "service charge" not in self.estimated:
-            w.append(f"high service charge £{self.service_charge:,.0f}")
-        if self.lease_years and self.lease_years < config.SHORT_LEASE_YEARS:
+        if (self.service_charge or 0) > config.HIGH_SERVICE_CHARGE:
+            w.append("High SC" + (" (est.)" if "service charge" in self.estimated else ""))
+        if self.lease_years is not None and self.lease_years < config.SHORT_LEASE_YEARS:
             w.append(f"short lease {self.lease_years} yrs")
         return w
+
+    @property
+    def price_per_m2(self):
+        return self.full_value / self.floor_area_m2 if self.full_value and self.floor_area_m2 else None
 
     @property
     def postcode(self):
@@ -94,4 +100,6 @@ class Listing:
             "lat": self.lat, "lng": self.lng, "image": self.image, "estimated": self.estimated,
             "lease": self.lease_years, "council_tax": self.council_tax, "floor": self.floor,
             "warnings": self.warnings,
+            "floorplan": self.floorplan, "area_m2": self.floor_area_m2, "price_per_m2": self.price_per_m2,
+            "walk": self.walk_minutes, "crime_percentile": self.crime_percentile,
         }

@@ -4,7 +4,7 @@ Telegram alerts for London shared-ownership / London Living Rent flats that fit:
 
 - ≥ 1 bedroom (no studios, flat-shares, over-55/sheltered schemes)
 - mortgage + rent + service charge ≤ **£1,600/month**, deposit ≤ **£20k** (⭐ when ≤ £10k)
-- ≤ **40 min** by public transport to Shoreditch High Street (TfL Journey Planner, weekday 08:30)
+- ≤ **40 min** by public transport to Oxford Circus (TfL Journey Planner, weekday 08:30)
 - not in a high-crime spot: police.uk "safety" crimes within 500 m in the latest month ≤ **120**
   (town centres such as Shoreditch/Brixton score 150–250; quiet residential streets 30–90)
 
@@ -17,11 +17,19 @@ All thresholds live in `pisobot/config.py` and can be overridden with env vars o
 | ShareToBuy | server-rendered search (`/properties/page/N/?lat=…&radius=…&maxMonthlyCost=…`), cards' `data-*` attributes + per-property cost breakdown |
 | L&Q | public JSON: `/wp-json/custom/developments`, `/wp-json/custom/development/{id}/properties` |
 | NHG Homes | `/find-a-home?ownership=Shared` plot cards (rent & service charge estimated) |
-| OnTheMarket | `__NEXT_DATA__` of `/for-sale/property/shoreditch/?shared-ownership=true` + details page |
+| OnTheMarket | `__NEXT_DATA__` of `/for-sale/property/oxford-circus/?shared-ownership=true` + details page |
 
 Monthly cost is recomputed the same way for every source: repayment mortgage on
 (share price − deposit) at `MORTGAGE_RATE` over `MORTGAGE_YEARS`, deposit = max(minimum, £10k).
 Values a source doesn't publish are estimated and flagged "est." in the alert.
+Advert rent/service-charge figures preserve pence and are converted from explicitly stated
+annual or weekly amounts to monthly amounts. Service charges **over £250/month** and leases
+**under 90 years** are flagged. Original lease terms with a stated commencement year are
+reduced by elapsed calendar years; the exact anniversary should be confirmed by a solicitor.
+Floor area uses published total internal area (sq ft converted to m²), never room dimensions.
+Price/m² uses the **100% full market value**, not the share price.
+Source floorplan images are read from ShareToBuy downloads, OnTheMarket's `floorplans` data,
+and L&Q's plot-specific floorplan slider; missing facts remain unknown.
 
 ## Setup
 

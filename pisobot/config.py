@@ -7,10 +7,10 @@ def _env(name, default, cast=float):
     return cast(raw) if raw not in (None, "") else default
 
 
-# Target: Shoreditch High Street station
-TARGET_NAME = "Shoreditch High St"
-TARGET_LAT = 51.5233
-TARGET_LNG = -0.0752
+# Target: Oxford Circus station
+TARGET_NAME = "Oxford Circus"
+TARGET_LAT = 51.5152
+TARGET_LNG = -0.1419
 
 # Hard filters
 MAX_MONTHLY_COST = _env("MAX_MONTHLY_COST", 1600)   # mortgage + rent + service charge
@@ -47,8 +47,8 @@ MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much
 
 # Warnings shown on listings
-HIGH_SERVICE_CHARGE = 300       # £/month
-SHORT_LEASE_YEARS = 99          # mortgage lenders get wary below ~80-90 years
+HIGH_SERVICE_CHARGE = 250       # £/month; strictly greater triggers a warning
+SHORT_LEASE_YEARS = 90
 
 # Notifications between these UK hours are delivered silently
 QUIET_HOURS = (22, 7)
