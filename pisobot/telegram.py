@@ -135,7 +135,7 @@ def format_listing(l, reason="new", rank=None, flags=""):
 def listing_keyboard(l, saved=False):
     sid = l.short_id
     return {"inline_keyboard": [
-        [{"text": "❤️ Saved" if saved else "❤️ Save", "callback_data": f"s:{sid}"},
+        [{"text": "🩶 Saved" if saved else "❤️ Save", "callback_data": f"s:{sid}"},
          {"text": "👎 Hide", "callback_data": f"h:{sid}"},
          {"text": "🔕 Hide building", "callback_data": f"d:{sid}"}],
         [{"text": "🔗 Open listing", "url": l.url}],

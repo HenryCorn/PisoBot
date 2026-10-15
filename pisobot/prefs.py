@@ -10,7 +10,7 @@ from . import d1
 
 
 def load():
-    p = {"saved": {}, "hidden": [], "hidden_dev": []}
+    p = {"saved": {}, "hidden": [], "hidden_dev": [], "feedback": []}
     if not d1.configured():
         print("D1 is not configured: running without saved/hidden choices", file=sys.stderr)
     else:
@@ -18,8 +18,24 @@ def load():
         p["hidden"] = [r["key"] for r in d1.query("SELECT key FROM hidden")]
         p["hidden_dev"] = [[r["lat"], r["lng"]] for r in d1.query("SELECT lat, lng FROM hidden_dev")]
         p.update({r["name"]: r["value"] for r in d1.query("SELECT name, value FROM meta")})
+        try:
+            p["feedback"] = d1.query("SELECT key, action, reason FROM feedback")
+        except Exception:
+            p["feedback"] = []
     _snapshot(p)
     return p
+
+
+def restart(full=False):
+    """Clears preferences in D1. full=True also clears saved homes and feedback."""
+    if not d1.configured():
+        return
+    d1.query("DELETE FROM hidden")
+    d1.query("DELETE FROM hidden_dev")
+    d1.query("DELETE FROM meta WHERE name = 'last_report'")
+    if full:
+        d1.query("DELETE FROM saved")
+        d1.query("DELETE FROM feedback")
 
 
 def _snapshot(p):

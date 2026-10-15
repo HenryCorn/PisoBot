@@ -4,8 +4,9 @@
 export const HELP =
   "<b>PisoBot</b>\n" +
   "Buttons: ❤️ Save · 👎 Hide · 🔕 Hide building. They apply instantly; " +
-  "hidden homes drop out of the next report.\n\n" +
-  "🆕 New since the last report · ❤️ Saved · ⭐ Deposit at most £10k.\n" +
+  "hidden homes drop out of the next report.\n" +
+  "When saving or hiding, tap an optional reason chip to train your recommendation taste.\n\n" +
+  "🆕 New since the last report · 🩶 Saved · ⭐ Deposit at most £10k.\n" +
   "M = modelled mortgage · R = rent · SC = service charge. " +
   "~ / est. means an estimated input, not a published cost. " +
   "Mortgage uses the configured repayment rate/term, not a lender's offer.\n" +
@@ -19,9 +20,38 @@ export const HELP =
   "/report – full report now (arrives in a few minutes)\n" +
   "/saved – list saved homes\n" +
   "/unhide – show hidden homes again\n" +
+  "/restart – clear hidden homes & run a fresh report\n" +
+  "/reset – factory reset (clears saved, hidden, feedback)\n" +
   "/help – this message";
 
 const DEFAULT_LABELS = { s: "❤️ Save", h: "👎 Hide", d: "🔕 Hide building" };
+const ACTIVE_LABELS = { s: "🩶 Saved", h: "🩶 Hidden", d: "🔕 Building hidden" };
+
+const REASON_LABELS = {
+  area: "📍 Area",
+  value: "💷 Value",
+  vibe: "🌿 Vibe",
+  commute: "🚇 Commute",
+  price: "💷 Price",
+  trap: "⚠️ Red Flag",
+};
+
+const REASONS = {
+  s: ["area", "value", "vibe", "commute"],
+  h: ["price", "commute", "area", "trap"],
+};
+
+function buildReasonRow(action, sid) {
+  const reasons = REASONS[action] || [];
+  return reasons.map((r) => ({
+    text: REASON_LABELS[r] || r,
+    callback_data: `r:${action}:${r}:${sid}`,
+  }));
+}
+
+function isReasonRow(row, sid) {
+  return row.some((b) => (b.callback_data || "").startsWith("r:") && (b.callback_data || "").endsWith(`:${sid}`));
+}
 
 function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -71,9 +101,50 @@ function statements(env, action, listing) {
 }
 
 async function handleCallback(query, env) {
-  const [action, sid] = (query.data || "").split(":");
   const message = query.message;
-  if (!(action in DEFAULT_LABELS) || !sid || !fromOwnChat(message?.chat, env)) {
+  if (!fromOwnChat(message?.chat, env)) {
+    await telegram(env, "answerCallbackQuery", { callback_query_id: query.id });
+    return;
+  }
+
+  // Handle reason chip selection
+  if ((query.data || "").startsWith("r:")) {
+    const parts = query.data.split(":");
+    if (parts[1] === "ack") {
+      await telegram(env, "answerCallbackQuery", { callback_query_id: query.id, text: "Preference already noted!" });
+      return;
+    }
+    const [, action, reason, sid] = parts;
+    const listing = await env.DB.prepare("SELECT * FROM listings WHERE sid = ?").bind(sid).first();
+    if (!listing) {
+      await telegram(env, "answerCallbackQuery", { callback_query_id: query.id, text: "Listing no longer tracked" });
+      return;
+    }
+    await env.DB.prepare(
+      "INSERT INTO feedback (key, action, reason, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(key, action, reason) DO NOTHING"
+    ).bind(listing.key, action, reason, new Date().toISOString()).run();
+
+    const noteText = `✓ Noted: ${REASON_LABELS[reason] || reason}`;
+    const keyboard = (message.reply_markup?.inline_keyboard || []).map((row) => {
+      if (isReasonRow(row, sid)) {
+        return [{ text: noteText, callback_data: `r:ack:${sid}` }];
+      }
+      return row;
+    });
+
+    await Promise.all([
+      telegram(env, "answerCallbackQuery", { callback_query_id: query.id, text: noteText }),
+      telegram(env, "editMessageReplyMarkup", {
+        chat_id: message.chat.id,
+        message_id: message.message_id,
+        reply_markup: { inline_keyboard: keyboard },
+      }),
+    ]);
+    return;
+  }
+
+  const [action, sid] = (query.data || "").split(":");
+  if (!(action in DEFAULT_LABELS) || !sid) {
     await telegram(env, "answerCallbackQuery", { callback_query_id: query.id });
     return;
   }
@@ -83,15 +154,28 @@ async function handleCallback(query, env) {
     return;
   }
   await env.DB.batch(statements(env, action, listing));
-  const label = { s: "❤️ Saved", h: "👎 Hidden", d: "🔕 Building hidden" }[action];
-  // Only this listing's Save/Hide buttons change; other cards' buttons and links are kept.
-  const keyboard = (message.reply_markup?.inline_keyboard || []).map((row) =>
-    row.map((button) => {
+  const label = ACTIVE_LABELS[action];
+
+  const hasExistingReasonRow = (message.reply_markup?.inline_keyboard || []).some((r) => isReasonRow(r, sid));
+  const keyboard = [];
+  for (const row of message.reply_markup?.inline_keyboard || []) {
+    if (isReasonRow(row, sid)) {
+      if (action === "s" || action === "h") {
+        keyboard.push(buildReasonRow(action, sid));
+      }
+      continue;
+    }
+    const updatedRow = row.map((button) => {
       const [buttonAction, buttonSid] = (button.callback_data || "").split(":");
       if (buttonSid !== sid || !(buttonAction in DEFAULT_LABELS)) return button;
       return { ...button, text: buttonAction === action ? label : DEFAULT_LABELS[buttonAction] };
-    }),
-  );
+    });
+    keyboard.push(updatedRow);
+    if (!hasExistingReasonRow && (action === "s" || action === "h") && row.some((b) => (b.callback_data || "").endsWith(`:${sid}`))) {
+      keyboard.push(buildReasonRow(action, sid));
+    }
+  }
+
   await Promise.all([
     telegram(env, "answerCallbackQuery", { callback_query_id: query.id, text: label }),
     telegram(env, "editMessageReplyMarkup", {
@@ -125,6 +209,24 @@ async function handleCommand(text, env) {
   const command = (text.split(/\s+/)[0] || "").split("@")[0].toLowerCase();
   if (command === "/report") {
     await reply(env, await dispatchReport(env));
+  } else if (command === "/restart") {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM hidden"),
+      env.DB.prepare("DELETE FROM hidden_dev"),
+      env.DB.prepare("DELETE FROM meta WHERE name = 'last_report'"),
+    ]);
+    const reportStatus = await dispatchReport(env);
+    await reply(env, `🔄 <b>Engine restarted!</b>\nCleared hidden listings and triggered a fresh report.\n\n${reportStatus}`);
+  } else if (command === "/reset") {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM hidden"),
+      env.DB.prepare("DELETE FROM hidden_dev"),
+      env.DB.prepare("DELETE FROM saved"),
+      env.DB.prepare("DELETE FROM feedback"),
+      env.DB.prepare("DELETE FROM meta"),
+    ]);
+    const reportStatus = await dispatchReport(env);
+    await reply(env, `💥 <b>Full engine reset complete!</b>\nCleared all saved homes, hidden listings, taste feedback, and triggered a fresh report.\n\n${reportStatus}`);
   } else if (command === "/saved") {
     const { results } = await env.DB.prepare("SELECT info FROM saved").all();
     const lines = results.map((row) => {

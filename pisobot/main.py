@@ -207,7 +207,9 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     print(f"current matches: {len(matches)} (+{len(hidden)} hidden)")
 
     # 3. Intelligence & Taste preference matching
-    taste_engine = taste.TasteProfile(p.get("saved", {}), p.get("hidden", []), p.get("hidden_dev", []), seen)
+    taste_engine = taste.TasteProfile(
+        p.get("saved", {}), p.get("hidden", []), p.get("hidden_dev", []), seen, p.get("feedback", [])
+    )
     for l in matches:
         l.red_flags = intelligence.detect_red_flags(l.description)
         l.vibes = intelligence.detect_vibes(l.description)
@@ -340,12 +342,22 @@ def main():
     ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
+    ap.add_argument("--restart", action="store_true", help="clear hidden choices and run a fresh report")
+    ap.add_argument("--reset", action="store_true", help="factory reset all preferences and state, then run report")
     ap.add_argument("--scheduled", action="store_true", help="send the UK report if its slot is due (else exit)")
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
     selected = [s for s in a.sources.split(",") if s]
-    if a.scheduled:
+    if a.restart:
+        prefs.restart(full=False)
+        save_seen({})
+        run(selected, dry_run=False, verbose=a.verbose, report=True)
+    elif a.reset:
+        prefs.restart(full=True)
+        save_seen({})
+        run(selected, dry_run=False, verbose=a.verbose, report=True)
+    elif a.scheduled:
         if a.dry_run or a.preview or a.report:
             ap.error("--scheduled cannot be combined with other run modes")
         due = report_due(prefs.load())

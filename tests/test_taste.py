@@ -71,6 +71,57 @@ class TasteTests(unittest.TestCase):
         self.assertLess(direct.commute_friction, multi_change.commute_friction)
         self.assertLess(ranking.score(direct), ranking.score(multi_change))
 
+    def test_feedback_liked_area_boosts_matching_outcode(self):
+        saved = {"stb:1": {"lat": 51.508, "lng": 0.025, "address": "Royal Docks, E16", "cost": 1100}}
+        feedback = [{"key": "stb:1", "action": "s", "reason": "area"}]
+        engine = TasteProfile(saved=saved, hidden=[], hidden_dev=[], feedback=feedback)
+
+        match_candidate = sample_home(1, address="Canning Town, E16", monthly_cost=1100)
+        score, reasons = engine.match(match_candidate)
+        self.assertGreater(score, 75)
+        self.assertTrue(any("feedback favorite area" in r for r in reasons))
+
+    def test_feedback_disliked_price_penalizes_expensive_listings(self):
+        seen = {"stb:50": {"lat": 51.5, "lng": -0.1, "address": "Brixton, SW9", "cost": 1500}}
+        feedback = [{"key": "stb:50", "action": "h", "reason": "price"}]
+        engine = TasteProfile(saved={}, hidden=["stb:50"], hidden_dev=[], seen=seen, feedback=feedback)
+
+        too_costly = sample_home(1, monthly_cost=1550)
+        score, reasons = engine.match(too_costly)
+        self.assertLessEqual(score, 40)
+        self.assertTrue(any("above feedback budget" in r for r in reasons))
+
+    def test_feedback_disliked_commute_penalizes_high_friction(self):
+        feedback = [{"key": "stb:51", "action": "h", "reason": "commute"}]
+        engine = TasteProfile(saved={}, hidden=["stb:51"], hidden_dev=[], feedback=feedback)
+
+        high_friction = sample_home(1, travel_minutes=42, changes=2)
+        score, reasons = engine.match(high_friction)
+        self.assertLess(score, 40)
+        self.assertTrue(any("commute friction" in r for r in reasons))
+
+    def test_feedback_disliked_trap_penalizes_red_flags(self):
+        feedback = [{"key": "stb:52", "action": "h", "reason": "trap"}]
+        engine = TasteProfile(saved={}, hidden=["stb:52"], hidden_dev=[], feedback=feedback)
+
+        trap_home = sample_home(1, red_flags=["short lease: 82 years"])
+        score, reasons = engine.match(trap_home)
+        self.assertLessEqual(score, 20)
+        self.assertTrue(any("red flag alert" in r for r in reasons))
+
+    def test_feedback_liked_vibe_and_value_boosts_matching_listings(self):
+        feedback = [
+            {"key": "stb:1", "action": "s", "reason": "vibe"},
+            {"key": "stb:1", "action": "s", "reason": "value"},
+        ]
+        engine = TasteProfile(saved={}, hidden=[], hidden_dev=[], feedback=feedback)
+
+        vibe_home = sample_home(1, vibes=["Sun-drenched & Bright", "Modern & Sleek"], rent_savings=420)
+        score, reasons = engine.match(vibe_home)
+        self.assertGreater(score, 70)
+        self.assertTrue(any("rent savings" in r for r in reasons))
+        self.assertTrue(any("preferred vibe" in r for r in reasons))
+
 
 if __name__ == "__main__":
     unittest.main()
