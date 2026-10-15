@@ -86,6 +86,14 @@ def _now():
     return dt.datetime.now(ZoneInfo("Europe/London")).strftime("%Y-%m-%dT%H:%M")
 
 
+def report_due(p, now=None):
+    """Catch up the latest UK report slot if GitHub missed its dedicated cron."""
+    now = now or dt.datetime.now(ZoneInfo("Europe/London"))
+    slots = [now.replace(hour=h, minute=m, second=0, microsecond=0) for h, m in ((6, 30), (18, 0))]
+    due = [slot for slot in slots if slot <= now]
+    return bool(due and p.get("last_report", "") < max(due).strftime("%Y-%m-%dT%H:%M"))
+
+
 def _record(l, today, alerted, prev=None):
     prev = prev or {}
     return {"alerted": alerted, "cost": round(l.monthly_cost), "first": prev.get("first", _now()),
@@ -135,7 +143,7 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None):
         print(f"report preview written to {preview_dir}")
 
 
-def run(selected, dry_run, verbose, report=False, preview_dir=None):
+def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False):
     seen = load_seen()
     p = prefs.load()
     live = not dry_run and not preview_dir
@@ -296,18 +304,21 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
     ap.add_argument("--preferences-only", action="store_true", help="process Telegram buttons without scraping")
+    ap.add_argument("--scheduled", action="store_true", help="process buttons and catch up any due UK report")
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
     selected = [s for s in a.sources.split(",") if s]
-    if a.preferences_only:
-        if a.dry_run or a.preview or a.report:
-            ap.error("--preferences-only cannot be combined with --dry-run, --preview or --report")
+    if a.preferences_only or a.scheduled:
+        if a.dry_run or a.preview or a.report or (a.preferences_only and a.scheduled):
+            ap.error("button/scheduled checks cannot be combined with other run modes")
         p = prefs.load()
         prefs.process_updates(p, load_seen())
         prefs.save(p)
-        if p["report_requested"]:
-            run(selected, False, a.verbose, report=True)
+        due = a.scheduled and report_due(p)
+        print(f"Button check complete; report requested={p['report_requested']}, scheduled report due={due}")
+        if p["report_requested"] or due:
+            run(selected, False, a.verbose, report=True, scheduled=bool(due and not p["report_requested"]))
     else:
         run(selected, a.dry_run, a.verbose, a.report, a.preview)
 

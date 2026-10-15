@@ -34,6 +34,8 @@ Values a source doesn't publish are estimated and flagged "est." in the alert.
    Automatic reports run at **06:30 and 18:00 UK time**, adjusting for daylight saving.
    The workflow must be on the default branch, with Actions enabled. GitHub's scheduler can
    start late, so these are target times, not guaranteed delivery times.
+   Every scheduled button check also catches up the latest missed report slot that day.
+   A successful report records its delivery time so later checks do not repeat it.
 
 ## What you get in Telegram
 

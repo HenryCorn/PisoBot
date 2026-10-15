@@ -30,7 +30,8 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(schedules, [("30 6 * * *", "Europe/London"),
                                      ("0 18 * * *", "Europe/London"),
                                      ("*/5 * * * *", "Europe/London")])
-        self.assertIn("github.event_name == 'schedule'", workflow)
+        self.assertIn('"$GITHUB_EVENT_NAME" = "schedule"', workflow)
+        self.assertIn("--scheduled", workflow)
         self.assertIn("--preferences-only", workflow)
         self.assertIn("ref: ${{ github.ref }}", workflow)
 

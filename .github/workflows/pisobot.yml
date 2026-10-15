@@ -53,10 +53,12 @@ jobs:
           TFL_APP_KEY: ${{ secrets.TFL_APP_KEY || vars.TFL_APP_KEY }}
           PREFERENCES_ONLY: ${{ inputs.preferences_only || github.event.schedule == '*/5 * * * *' }}
         run: |
-          if [ "$PREFERENCES_ONLY" = "true" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            python -m pisobot.main --scheduled
+          elif [ "$PREFERENCES_ONLY" = "true" ]; then
             python -m pisobot.main --preferences-only ${{ inputs.dry_run && '--dry-run' || '' }}
           else
-            python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ (inputs.report || github.event_name == 'schedule') && '--report' || '' }}
+            python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.report && '--report' || '' }}
           fi
       - name: Save state
         if: always()
