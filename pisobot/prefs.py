@@ -21,6 +21,12 @@ def load():
         try:
             p["feedback"] = d1.query("SELECT key, action, reason FROM feedback")
         except Exception:
+            try:
+                d1.query("CREATE TABLE IF NOT EXISTS feedback ("
+                         "key TEXT NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL, "
+                         "created_at TEXT NOT NULL, PRIMARY KEY (key, action, reason))")
+            except Exception:
+                pass
             p["feedback"] = []
     _snapshot(p)
     return p
