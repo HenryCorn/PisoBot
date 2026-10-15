@@ -635,6 +635,18 @@
   "price": 78750.0,
   "url": "https://www.onthemarket.com/details/19533499/"
  },
+ "otm:19554983": {
+  "address": "Plot 87 at SO Resi Wembley Park, 41 Brook Avenue HA9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1323,
+  "first": "2026-10-15T13:40",
+  "last": "2026-10-15",
+  "lat": 51.56391540698671,
+  "lng": -0.28218910052490775,
+  "price": 99375.0,
+  "url": "https://www.onthemarket.com/details/19554983/"
+ },
  "otm:19560663": {
   "address": "Carlton Grove, London SE15",
   "alerted": true,
@@ -2668,6 +2680,18 @@
   "lng": -0.091666,
   "price": 113125.0,
   "url": "https://www.sharetobuy.com/properties/701388/"
+ },
+ "stb:701390": {
+  "address": "Portland Street, Albany Road, SE17 2LY",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1460,
+  "first": "2026-10-15T13:40",
+  "last": "2026-10-15",
+  "lat": 51.482727,
+  "lng": -0.091666,
+  "price": 107500.0,
+  "url": "https://www.sharetobuy.com/properties/701390/"
  },
  "stb:701481": {
   "address": "Baroque Gardens, Mary Rose Square, Lewisham, London - RG2606111467, SE16 7EL",
