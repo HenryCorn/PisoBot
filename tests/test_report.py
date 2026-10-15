@@ -50,7 +50,7 @@ class ReportTests(unittest.TestCase):
             for tag in ("b", "i", "a"):
                 self.assertEqual(len(re.findall(fr"<{tag}(?:>| )", t)), t.count(f"</{tag}>"))
             if keyboard:
-                rank = int(re.search(r"<b>#(\d+)</b>", t).group(1))
+                rank = int(re.search(r"<b>#(\d+) ·", t).group(1))
                 self.assertEqual(keyboard, telegram.listing_keyboard(top[rank - 1], saved=top[rank - 1] in saved))
                 self.assertLessEqual(len(t.encode("utf-16-le")) // 2, 1024)
 
@@ -58,7 +58,7 @@ class ReportTests(unittest.TestCase):
         rented = home(1, tenure="rent", deposit=None, share_price=None, estimated=["rent"])
         text = "\n".join(t for t, _ in telegram.report_messages([rented], [], [], "Report", lambda l: ""))
         self.assertIn("no mortgage needed", text)
-        self.assertIn("(est.)", text)
+        self.assertIn("est. rent", text)
         empty = telegram.report_messages([], [], [], "Report", lambda l: "")
         self.assertEqual(len(empty), 1)
         self.assertIn("No homes matched", empty[0][0])
@@ -149,7 +149,8 @@ class ReportTests(unittest.TestCase):
                 patch.object(prefs, "load", return_value=p), patch.object(prefs, "process_updates"), \
                 patch.object(main.SOURCES["stb"], "fetch", return_value=[a, b]), \
                 patch.object(main.enrich, "geocode"), patch.object(main, "passes_basic", return_value=None), \
-                patch.object(main, "passes_area", return_value=None), patch.object(main.mapgen, "write"), \
+                patch.object(main, "passes_area", return_value=None), \
+                patch.object(main.enrich, "assign_crime_percentiles"), patch.object(main.mapgen, "write"), \
                 patch.object(collage, "build", return_value=None), patch.object(telegram, "throttle"), \
                 patch.object(telegram, "send_text") as send, patch.object(telegram, "send_listing") as alert, \
                 patch.object(main.cache, "save"), patch.object(main, "save_seen") as save_seen, \

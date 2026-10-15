@@ -38,14 +38,14 @@ def _page_details(html):
 
 
 def refine(listing):
-    d = cache.get("lq_detail", listing.id)
+    d = cache.get("lq_detail", listing.url)
     if d is None:
         try:
             d = _page_details(net.get(listing.url).text)
         except (RequestException, ValueError) as ex:
             print(f"L&Q optional details unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
             return True
-        cache.put("lq_detail", listing.id, d)
+        cache.put("lq_detail", listing.url, d)
     listing.description += " " + d["description"]
     for key, value in d.items():
         if key != "description" and getattr(listing, key) is None:

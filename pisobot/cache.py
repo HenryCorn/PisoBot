@@ -25,6 +25,10 @@ def put(ns, key, value):
     _load().setdefault(ns, {})[key] = value
 
 
+def items(ns):
+    return _load().get(ns, {}).items()
+
+
 def save():
     if _data is None:
         return

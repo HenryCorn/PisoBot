@@ -1,6 +1,7 @@
 import datetime as dt
 import math
 import os
+from bisect import bisect_left, bisect_right
 from collections import Counter
 
 from . import cache, config, net
@@ -114,6 +115,24 @@ def crime_score(lat, lng):
     score = sum(v for k, v in counts.items() if k in SAFETY_CATEGORIES)
     cache.put("crime", key, score)
     return score
+
+
+def assign_crime_percentiles(listings):
+    """Mid-rank against distinct cached London search locations, not only accepted homes."""
+    if not listings:
+        return
+    for l in listings:
+        l.crime_percentile = None
+    suffix = f":{_crime_month()}:{config.CRIME_RADIUS_M}"
+    reference = sorted(value for key, value in cache.items("crime") if key.endswith(suffix))
+    if len(reference) < 20:
+        print(f"Crime bands unavailable: only {len(reference)} London search locations for this month")
+        return
+    for l in listings:
+        if l.crime_score is not None:
+            l.crime_percentile = 100 * (bisect_left(reference, l.crime_score) +
+                                        bisect_right(reference, l.crime_score)) / (2 * len(reference))
+    print(f"Crime bands: {_crime_month()}, {len(reference)} distinct London search locations (sample tertiles)")
 
 
 def geocode(listings):

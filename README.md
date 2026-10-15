@@ -66,6 +66,20 @@ and L&Q's plot-specific floorplan slider; missing facts remain unknown.
   listing**, so the report stays short even when hundreds of homes match.
   Estimated costs are marked throughout; unavailable sources are flagged in the summary.
   The 06:30 digest is silent under the existing 22:00–07:00 quiet hours.
+  Card titles translate outcodes to broad London area names. Costs show M (modelled
+  mortgage), R (unowned-share rent) and SC separately; `~`/`est.` marks estimated inputs.
+  Cards include share %, full market value, share price, lease (`TBC` if unknown),
+  floor area/value per m², and the walk to the first boarding point.
+  Description tags highlight balcony/terrace, parking, lift, affirmative EWS1 evidence,
+  cladding mentions and explicit pet bans; these are advert cues, not verified guarantees.
+  Crime colours are **tertiles of the latest month's sampled London search locations**
+  at the same 500 m radius, including locations rejected by the crime filter.
+  This is **not an official London-wide or population-adjusted risk percentile**.
+  At least 20 distinct ~100 m cache locations are needed; otherwise cards say *Unrated*.
+  The static legend and explanations live in `/help`, not each report.
+  Scheduled runs with **zero new homes** send just a **silent one-line summary**, without
+  repeating unchanged cards. Price changes still get updated cards; manual reports and
+  `/report` intentionally return the full digest even when nothing is new.
 - **Individual alerts** remain available for manual runs without *report*, with a photo,
   full financial breakdown and ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open buttons.
   There are no automatic two-hour alerts.
@@ -79,7 +93,10 @@ and L&Q's plot-specific floorplan slider; missing facts remain unknown.
   enable once in *Settings → Pages → Deploy from a branch → main / docs*.
 
 State lives in `state/` (seen listings, saved/hidden choices, API caches) and is committed by each run.
-Button checks do not scrape listings or send digests unless `/report` was requested.
+Button checks do not scrape listings or send digests unless `/report` was requested or
+the latest UK report slot has not been delivered. An all-source fetch failure fails the
+run rather than recording an empty report as delivered. Action logs identify whether a
+report was due, which header panels rendered, and when unchanged cards were suppressed.
 You can force a check with **Actions → PisoBot → Run workflow → preferences_only**.
 
 ## Local run

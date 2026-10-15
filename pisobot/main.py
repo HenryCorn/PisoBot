@@ -132,14 +132,8 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None):
                     f.write(jpeg)
                 image = f'<img src="{filename}" alt="Listing {i} map and property" style="max-width:100%"><br>\n'
             preview.append(image + text.replace("\n", "<br>\n"))
-        elif jpeg and len(text.encode("utf-16-le")) // 2 <= 1024:
-            telegram.send_photo_bytes(jpeg, text, kb)
-            telegram.throttle()
         else:
-            if jpeg:
-                telegram.send_photo_bytes(jpeg, f"🏠 Listing #{i}")
-                telegram.throttle()
-            telegram.send_text(text, kb)
+            telegram.send_card(jpeg, text, kb, f"🏠 Listing #{i}")
             telegram.throttle()
     if preview_dir:
         with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
@@ -161,6 +155,8 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         except Exception:
             failures.append(name)
             print(f"[{name}] FAILED\n{traceback.format_exc()}", file=sys.stderr)
+    if failures and len(failures) == len(selected):
+        raise RuntimeError("Every source failed; report delivery is incomplete and will be retried")
 
     try:
         enrich.geocode(listings)
@@ -189,6 +185,7 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         kept.append(rec)
         matches.append(l)
     print(f"rejected: {rejected}")
+    enrich.assign_crime_percentiles(matches)
 
     # 2. Telegram buttons / commands since the last run
     today = dt.date.today().isoformat()
@@ -265,14 +262,34 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
                  f"<b>{len(matches)} homes</b> · 🆕 {n_new} new · ❤️ {len(saved)} saved")
         if failures:
             title += f"\n⚠️ Partial results: unavailable sources {telegram.e(', '.join(failures))}"
+        changes = {l.key: l for l, reason in to_send if reason == "drop"}
+        changes.update({l.key: l for l in saved_changes})
+        compact = scheduled and not p["report_requested"] and not first_run and n_new == 0
+        report_top, report_saved, report_rest = top, saved, rest
+        if compact:
+            icon = "🌅" if edition == "Morning" else "🌙"
+            title = f"{icon} {edition} report: 0 new homes · {len(matches)} tracked"
+            if changes:
+                title += f" · {len(changes)} price updates"
+            if failures:
+                title += f"\n⚠️ Partial results: unavailable sources {telegram.e(', '.join(failures))}"
+            report_top = ranking.best(list(changes.values()))
+            report_saved = []
+            report_rest = [l for l in changes.values() if l not in report_top]
         print(f"report: {len(matches)} matches")
         if not dry_run or preview_dir:
-            send_report(top, saved, rest, title, flags_of, preview_dir)
+            if compact and not changes and not preview_dir:
+                telegram.send_text(title, silent=True)
+                print("Sent silent no-new summary; unchanged listing cards suppressed")
+            else:
+                send_report(report_top, report_saved, report_rest, title, flags_of, preview_dir)
+        reported_keys = {l.key for l in report_top}
+        saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
             p["report_requested"] = False
-            p["last_report"] = _now()
             for l in matches:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+            p["last_report"] = _now()
         to_send = []
 
     # 6. ... otherwise individual alerts
@@ -293,8 +310,6 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
             telegram.send_text(f'❤️ <b>Saved home no longer listed</b>\n<a href="{info.get("url")}">'
                                f'{telegram.e(info.get("address") or "listing")}</a>')
             telegram.throttle()
-        if failures and len(failures) == len(selected):
-            telegram.send_text("⚠️ PisoBot: every source failed this run: " + ", ".join(failures))
 
     cache.save()
     if live:

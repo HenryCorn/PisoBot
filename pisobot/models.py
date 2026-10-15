@@ -5,6 +5,47 @@ from typing import Optional
 
 from . import config
 
+LONDON_AREAS = {
+    "E1": "Whitechapel / Stepney", "E2": "Bethnal Green", "E3": "Bow", "E4": "Chingford",
+    "E5": "Clapton", "E6": "East Ham", "E7": "Forest Gate", "E8": "Dalston / Hackney",
+    "E9": "Homerton / Hackney Wick", "E10": "Leyton", "E11": "Leytonstone", "E12": "Manor Park",
+    "E13": "Plaistow", "E14": "Poplar / Isle of Dogs", "E15": "Stratford",
+    "E16": "Canning Town / Custom House", "E17": "Walthamstow", "E18": "South Woodford",
+    "E20": "Olympic Park", "EC1": "Clerkenwell", "EC2": "Moorgate",
+    "EC3": "City / Aldgate", "EC4": "Blackfriars",
+    "N1": "Islington / Hoxton", "N1C": "King's Cross", "N2": "East Finchley", "N3": "Finchley",
+    "N4": "Finsbury Park", "N5": "Highbury", "N6": "Highgate", "N7": "Holloway",
+    "N8": "Hornsey / Crouch End", "N9": "Edmonton", "N10": "Muswell Hill",
+    "N11": "New Southgate", "N12": "North Finchley", "N13": "Palmers Green", "N14": "Southgate",
+    "N15": "Seven Sisters / Tottenham", "N16": "Stoke Newington", "N17": "Tottenham",
+    "N18": "Upper Edmonton", "N19": "Archway", "N20": "Whetstone", "N21": "Winchmore Hill", "N22": "Wood Green",
+    "NW1": "Camden / Marylebone", "NW2": "Cricklewood", "NW3": "Hampstead", "NW4": "Hendon",
+    "NW5": "Kentish Town", "NW6": "Kilburn / West Hampstead", "NW7": "Mill Hill",
+    "NW8": "St John's Wood", "NW9": "Colindale", "NW10": "Willesden", "NW11": "Golders Green",
+    "SE1": "Waterloo / Bermondsey", "SE2": "Abbey Wood", "SE3": "Blackheath", "SE4": "Brockley",
+    "SE5": "Camberwell", "SE6": "Catford", "SE7": "Charlton", "SE8": "Deptford", "SE9": "Eltham",
+    "SE10": "Greenwich", "SE11": "Kennington", "SE12": "Lee", "SE13": "Lewisham",
+    "SE14": "New Cross", "SE15": "Peckham", "SE16": "Rotherhithe / Surrey Quays", "SE17": "Walworth",
+    "SE18": "Woolwich / Plumstead", "SE19": "Crystal Palace", "SE20": "Penge", "SE21": "Dulwich",
+    "SE22": "East Dulwich", "SE23": "Forest Hill", "SE24": "Herne Hill",
+    "SE25": "South Norwood", "SE26": "Sydenham", "SE27": "West Norwood", "SE28": "Thamesmead",
+    "SW1": "Westminster", "SW2": "Brixton", "SW3": "Chelsea", "SW4": "Clapham", "SW5": "Earl's Court",
+    "SW6": "Fulham", "SW7": "South Kensington", "SW8": "Vauxhall", "SW9": "Stockwell",
+    "SW10": "West Brompton", "SW11": "Battersea", "SW12": "Balham", "SW13": "Barnes",
+    "SW14": "Mortlake / East Sheen", "SW15": "Putney", "SW16": "Streatham", "SW17": "Tooting",
+    "SW18": "Wandsworth", "SW19": "Wimbledon", "SW20": "Raynes Park",
+    "W1": "West End", "W2": "Paddington / Bayswater", "W3": "Acton", "W4": "Chiswick",
+    "W5": "Ealing", "W6": "Hammersmith", "W7": "Hanwell", "W8": "Kensington", "W9": "Maida Vale",
+    "W10": "North Kensington", "W11": "Notting Hill", "W12": "Shepherd's Bush",
+    "W13": "West Ealing", "W14": "West Kensington", "WC1": "Bloomsbury", "WC2": "Covent Garden / Holborn",
+    "HA0": "Wembley", "HA1": "Harrow", "HA9": "Wembley Park", "IG1": "Ilford", "IG2": "Gants Hill",
+    "IG3": "Seven Kings", "IG4": "Redbridge", "IG5": "Clayhall", "IG6": "Barkingside", "IG11": "Barking",
+    "TW1": "Twickenham", "TW3": "Hounslow", "TW7": "Isleworth", "TW8": "Brentford", "TW9": "Richmond",
+    "UB1": "Southall", "UB2": "Southall", "UB3": "Hayes", "UB5": "Northolt", "UB6": "Greenford",
+    "BR1": "Bromley", "BR3": "Beckenham", "CR0": "Croydon", "CR4": "Mitcham",
+    "EN1": "Enfield", "EN2": "Enfield Chase", "KT1": "Kingston", "SM1": "Sutton", "SM4": "Morden",
+}
+
 
 @dataclass
 class Listing:
@@ -74,6 +115,35 @@ class Listing:
         return self.full_value / self.floor_area_m2 if self.full_value and self.floor_area_m2 else None
 
     @property
+    def feature_tags(self):
+        blob = self.description
+        tags = []
+        for pattern, label in ((r"\bbalcony\b", "🌿 Balcony"), (r"\bterrace\b", "🌿 Terrace"),
+                                (r"\bparking\b", "🅿️ Parking"), (r"\b(?:lift|elevator)\b", "🛗 Lift")):
+            for match in re.finditer(pattern, blob, re.I):
+                before = blob[max(0, match.start() - 40):match.start()]
+                after = blob[match.end():match.end() + 35]
+                if not re.search(r"\b(?:no|without|not)\b[^.;!?]{0,35}$", before, re.I) \
+                        and not re.match(r"\s+(?:is\s+)?(?:not|unavailable|excluded)\b", after, re.I):
+                    tags.append(label)
+                    break
+        if re.search(r"\b(?:EWS1(?:\s+(?:form|certificate|rating))?\s*[:\-]?\s*"
+                     r"(?:available|approved|compliant|passed|provided|A[12]|B1)|"
+                     r"(?:valid|satisfactory|approved|compliant|[AB]1\s+rated)\s+EWS1)\b", blob, re.I) \
+                and not re.search(r"\bEWS1[^.;!?]{0,30}\b(?:not|pending|required|awaiting|B2)\b"
+                                  r"|\bB2\s+(?:rated\s+)?EWS1\b"
+                                  r"|\b(?:no|without)\s+(?:(?:valid|approved|satisfactory|compliant)\s+)?EWS1\b",
+                                  blob, re.I):
+            tags.append("✅ EWS1")
+        if re.search(r"\bEWS1[^.;!?]{0,30}\bB2\b|\bB2\s+(?:rated\s+)?EWS1\b", blob, re.I):
+            tags.append("⚠️ EWS1 B2")
+        if re.search(r"\bcladding\b", blob, re.I):
+            tags.append("⚠️ Cladding mentioned")
+        if re.search(r"\b(?:no\s+pets|pets\s+(?:are\s+)?not\s+(?:allowed|permitted))\b", blob, re.I):
+            tags.append("⚠️ Pets not allowed")
+        return tags
+
+    @property
     def postcode(self):
         m = re.search(r"\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})?\b", self.address.upper())
         return m.group(0).replace(" ", "") if m else ""
@@ -82,6 +152,15 @@ class Listing:
     def postcode_full(self):
         m = re.search(r"\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b", self.address.upper())
         return f"{m.group(1)} {m.group(2)}" if m else ""
+
+    @property
+    def outcode(self):
+        m = re.match(r"[A-Z]{1,2}\d[A-Z\d]?", self.postcode)
+        return m[0] if m else ""
+
+    @property
+    def area_name(self):
+        return LONDON_AREAS.get(self.outcode) or LONDON_AREAS.get(re.sub(r"[A-Z]$", "", self.outcode), "")
 
     def excluded_by_keywords(self):
         text = f"{self.address} {self.scheme} {self.description}".lower()
@@ -102,4 +181,5 @@ class Listing:
             "warnings": self.warnings,
             "floorplan": self.floorplan, "area_m2": self.floor_area_m2, "price_per_m2": self.price_per_m2,
             "walk": self.walk_minutes, "crime_percentile": self.crime_percentile,
+            "area": self.area_name, "features": self.feature_tags,
         }

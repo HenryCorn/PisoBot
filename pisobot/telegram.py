@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import config, net, ranking
+from . import collage, config, net, ranking
 
 API = "https://api.telegram.org/bot{token}/{method}"
 e = html.escape
@@ -53,51 +53,76 @@ def throttle():
 # ---------- formatting helpers ----------
 
 def _star(l):
-    return " ⭐" if l.tenure == "rent" or (l.deposit or 0) <= config.PREFERRED_DEPOSIT else ""
+    return " ⭐" if l.tenure == "rent" or (l.deposit is not None and l.deposit <= config.PREFERRED_DEPOSIT) else ""
+
+
+def _money(value, compact=False):
+    if value is None:
+        return "TBC"
+    if compact and value >= 1000:
+        return "£" + f"{value / 1000:,.1f}".rstrip("0").rstrip(".") + "k"
+    return f"£{value:,.0f}"
 
 
 def finance_lines(l):
-    """Cost breakdown + what to ask the bank for."""
-    est = f" <i>(est. {', '.join(l.estimated)})</i>" if l.estimated else ""
+    def amount(value, component):
+        return ("~" if component in l.estimated and value is not None else "") + _money(value)
+    total = f"💷 <b>{_money(l.monthly_cost)}/mo</b>"
+    sc = amount(l.service_charge, "service charge")
+    rent = amount(l.rent, "rent")
     if l.tenure == "rent":
-        return [f"💷 <b>£{l.monthly_cost:,.0f}/mo rent</b>{est}{_star(l)}"]
-    min_dep = f" (min £{l.min_deposit:,.0f})" if l.min_deposit and l.min_deposit < l.deposit else ""
-    share = f"{l.share_pct:.0f}% share " if l.share_pct else "share "
-    full = f" of £{l.full_value:,.0f}" if l.full_value else ""
+        return [f"{total} <i>(R: {rent} · SC: {sc})</i>", "🔑 Rent · no mortgage needed"]
+    share = f"{'~' if 'share %' in l.estimated else ''}{l.share_pct:g}%" if l.share_pct else "Share TBC"
     return [
-        f"💷 <b>£{l.monthly_cost:,.0f}/mo</b> = mortgage £{l.mortgage:,.0f} + rent £{l.rent:,.0f}"
-        f" + service £{l.service_charge:,.0f}{est}",
-        f"🏦 Mortgage needed <b>£{l.loan:,.0f}</b> over {config.MORTGAGE_YEARS} yrs @ {config.MORTGAGE_RATE:g}%",
-        f"💰 Deposit <b>£{l.deposit:,.0f}</b>{min_dep}{_star(l)} · {share}£{l.share_price:,.0f}{full}",
+        f"{total} <i>(M: {_money(l.mortgage)} · R: {rent} · SC: {sc})</i>",
+        f"🏷️ <b>{share} of {_money(l.full_value, True)}</b> ({_money(l.share_price, True)})"
+        f" · 💰 <b>{_money(l.deposit, True)} dep</b>{_star(l)}",
     ]
 
 
 def facts_line(l):
-    bits = [f"{l.bedrooms} bed", e(l.scheme)]
-    if l.floor:
-        bits.append(f"floor {e(str(l.floor))}")
-    if l.lease_years:
-        bits.append(f"lease {l.lease_years} yrs")
-    if l.council_tax:
-        bits.append(f"CT band {l.council_tax}")
-    return " · ".join(bits)
+    area = f" ({l.floor_area_m2:g} m²" if l.floor_area_m2 else ""
+    if area:
+        area += (f" · {_money(l.price_per_m2)}/m²" if l.price_per_m2 else "") + ")"
+    lease = "📜 Lease: TBC" if l.lease_years is None else f"📜 <b>{l.lease_years}y lease</b>"
+    if l.lease_years is not None and l.lease_years < config.SHORT_LEASE_YEARS:
+        lease += " ⚠️"
+    return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {lease} · {e(l.scheme[:40])} ({e(l.source)})"
 
 
 def commute_line(l):
-    walk = f" · {l.walk_minutes}′ walk to {e(l.station)}" if l.station and l.walk_minutes else (
-        f" · from {e(l.station)}" if l.station else "")
-    route = f"\n    {e(l.route)}" if l.route else ""
-    return f"🚇 <b>{l.travel_minutes} min</b> to {config.TARGET_NAME}{walk}{route}"
+    walk = f"🚶{l.walk_minutes}m" if l.walk_minutes is not None else "🚶TBC"
+    first = f"{walk} {l.station or 'boarding point TBC'}"
+    route = f" → {l.route[:160]}" if l.route else ""
+    minutes = f"{l.travel_minutes}m" if l.travel_minutes is not None else "TBC"
+    return f"🚇 <b>{minutes}</b> to {e(config.TARGET_NAME)} <i>({e(first + route)})</i>"
 
 
-def format_listing(l, reason="new"):
+def crime_label(l):
+    if l.crime_score is None:
+        return "⚪ TBC"
+    if l.crime_percentile is None:
+        return f"⚪ Unrated ({l.crime_score})"
+    band = "🟢 Low" if l.crime_percentile <= 100 / 3 else "🟡 Med" if l.crime_percentile <= 200 / 3 else "🔴 High"
+    return f"{band} ({l.crime_score})"
+
+
+def format_listing(l, reason="new", rank=None, flags=""):
     head = {"drop": "📉 <b>Price drop</b>\n", "saved": "❤️ <b>Saved listing changed</b>\n"}.get(reason, "")
-    lines = [f"{head}🏠 <b>{e(l.address)}</b> ({l.source})", facts_line(l)]
+    title = [f"#{rank}"] if rank else []
+    if l.area_name or l.outcode:
+        title.append(e(f"{l.area_name} ({l.outcode})" if l.area_name else l.outcode))
+    title.append(f'<a href="{e(l.url)}">{e(l.address.split(",")[0][:90])}</a>')
+    lines = [head + "<b>" + " · ".join(title) + (" " + e(flags) if flags else "") + "</b>"]
     lines += finance_lines(l)
+    lines.append(facts_line(l))
     lines.append(commute_line(l))
-    lines.append(f"🛡 crime score {l.crime_score}")
-    if l.warnings:
-        lines.append("⚠️ " + " · ".join(l.warnings))
+    tags = ["🛡️ Crime: " + crime_label(l), *l.feature_tags]
+    if (l.service_charge or 0) > config.HIGH_SERVICE_CHARGE:
+        tags.append("⚠️ High SC" + (" (est.)" if "service charge" in l.estimated else ""))
+    lines.append(" · ".join(tags))
+    if l.estimated:
+        lines.append("<i>est. " + e(", ".join(l.estimated)) + "</i>")
     return "\n".join(lines)
 
 
@@ -116,18 +141,27 @@ def listing_keyboard(l, saved=False):
 def send_listing(l, reason="new"):
     text = format_listing(l, reason)
     kb = listing_keyboard(l, saved=reason == "saved")
-    if l.image and len(text) <= 1024:
-        try:
-            return _call("sendPhoto", photo=l.image, caption=text, parse_mode="HTML", reply_markup=kb)
-        except Exception:
-            pass
-    return _call("sendMessage", text=text, parse_mode="HTML", disable_web_page_preview="true", reply_markup=kb)
+    jpeg = collage.build(l)
+    if not jpeg:
+        text += "\n📷 Header unavailable · use Open listing to view the media"
+    return send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]))
 
 
-def send_text(text, reply_markup=None):
+def send_card(jpeg, text, keyboard, short_caption):
+    if jpeg and len(text.encode("utf-16-le")) // 2 <= 1024:
+        return send_photo_bytes(jpeg, text, keyboard)
+    if jpeg:
+        send_photo_bytes(jpeg, short_caption)
+        throttle()
+    return send_text(text, keyboard)
+
+
+def send_text(text, reply_markup=None, silent=False):
     data = {"text": text, "parse_mode": "HTML", "disable_web_page_preview": "true"}
     if reply_markup:
         data["reply_markup"] = reply_markup
+    if silent:
+        data["disable_notification"] = "true"
     return _call("sendMessage", **data)
 
 
@@ -162,26 +196,11 @@ def get_updates(offset):
 
 # ---------- report ----------
 
-def _top_line(rank, l, flags):
-    if l.tenure == "sale":
-        finance = (f"💰 Deposit <b>£{l.deposit:,.0f}</b>{_star(l)} · "
-                   f"mortgage £{l.loan:,.0f}/{config.MORTGAGE_YEARS}y")
-    else:
-        finance = "🔑 Rent · no mortgage needed"
-    est = " (est.)" if l.estimated else ""
-    route = f"\n🚇 {e(l.route[:160])}" if l.route else ""
-    warn = f"\n⚠️ {e(' · '.join(l.warnings))}" if l.warnings else ""
-    return (f'<b>#{rank}</b> {flags} <a href="{e(l.url)}">{e(l.address[:90])}</a>\n'
-            f"💷 <b>£{l.monthly_cost:,.0f}/mo</b>{est} · 🛏 {l.bedrooms} bed · "
-            f"⏱ <b>{l.travel_minutes} min</b>\n"
-            f"{finance}\n🛡 Crime {l.crime_score} · {e(l.scheme[:60])} · {e(l.source)}{route}{warn}")
-
-
 def _short_line(l, flags):
     est = " (est.)" if l.estimated else ""
     return (f'<a href="{e(l.url)}"><b>{e(l.address[:70])}</b></a> {flags}\n'
             f'💷 £{l.monthly_cost:,.0f}/mo{est} · 🛏 {l.bedrooms} bed · '
-            f'⏱ {l.travel_minutes} min · 🛡 {l.crime_score}').rstrip()
+            f'⏱ {l.travel_minutes} min · 🛡 {crime_label(l)}').rstrip()
 
 
 def _group_line(group, flags_of):
@@ -219,13 +238,11 @@ def report_messages(top, rest, saved, title, flags_of):
                   f"⏱ Fastest <b>{fastest.travel_minutes} min</b>")
     else:
         title += "\nNo homes matched your filters this time."
-    title += (f'\n\n<a href="{e(config.MAP_URL)}">🗺 Browse photos, filter and compare all homes</a>\n'
-              "🆕 New since last report · ❤️ Saved · ⭐ Low deposit · est. = estimated costs\n"
-              "❤️ Save / 👎 Hide · checked every 5 min (GitHub can delay)")
+    title += f'\n\n<a href="{e(config.MAP_URL)}">🗺 Browse photos, filter and compare all homes</a>'
     out = [(title, None)]
     saved_keys = {l.key for l in saved}
     for rank, l in enumerate(top, 1):
-        out.append((_top_line(rank, l, flags_of(l)), listing_keyboard(l, saved=l.key in saved_keys)))
+        out.append((format_listing(l, rank=rank, flags=flags_of(l)), listing_keyboard(l, saved=l.key in saved_keys)))
 
     top_keys = {l.key for l in top}
     saved = [l for l in saved if l.key not in top_keys]

@@ -94,6 +94,7 @@ def _details(pid, card_cost):
     f = lambda pat: money(m.group(1)) if (m := re.search(pat, t, re.I)) else None
     s = lambda pat: m.group(1) if (m := re.search(pat, t, re.I)) else None
     lease = f(r"Lease Length\s*(\d[\d,]*)")
+    material = re.search(r'<table\b[^>]*class="[^"]*property-material-information-table[^"]*".*?</table>', html, re.S)
     d = {
         "share_price": f(r"£\s*([\d,]+)\s*share price"),
         "share_pct": f(r"([\d.]+)\s*%\s*share"),
@@ -104,7 +105,10 @@ def _details(pid, card_cost):
         "lease_years": int(lease) if lease else None,
         "council_tax": s(r"Council Tax Band\s*([A-H])\b"),
         "floor": s(r"\bFloor\s*(Ground|Lower ground|Basement|\d+(?:st|nd|rd|th))\b"),
+        "floor_area_m2": detail_fields(text(material[0]) if material else "").get("floor_area_m2"),
     }
+    if material:
+        d.update(detail_fields(text(material[0])))
     description = re.search(r'<div\s+id="description-content".*?(?=<div class="property-information-and-downloads|\Z)',
                             html, re.S)
     d["description"] = text(description[0]) if description else ""
