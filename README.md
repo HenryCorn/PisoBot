@@ -50,10 +50,17 @@ and L&Q's plot-specific floorplan slider; missing facts remain unknown.
 - **Twice-daily digest** at 06:30 and 18:00 UK (also first run, `/report`, or the workflow's
   *report* box): timestamp, matching/new/saved counts, cheapest price and fastest commute;
   the best 10 (score = cost 45% · commute 30% · crime 25%, max two per building);
-  one card per listing with **three distinct photo thumbnails** above its details:
+  one card per listing with a **1200×500 map/floorplan header** above its details:
   monthly cost, deposit, mortgage, commute, crime and warnings. Each card has
   🔗 Open / ❤️ Save / 👎 Hide / 🔕 Hide building buttons in the same message.
-  Missing photos are marked unavailable, never filled with repeated or unrelated photos.
+  The left 40% shows Oxford Circus (A) and the source's listing location (B), north-up,
+  with bounds fitted to both pins. The connector is explicitly a **straight line, not a route**.
+  The right 60% contains the complete floorplan (no cropping), or a hero photo when
+  no usable floorplan image is available. Missing panels are marked unavailable.
+  Source coordinates may be approximate development pins or postcode centroids.
+  Map tiles are attributed to OpenStreetMap, requested only for rendered cards with a
+  PisoBot User-Agent, cached for seven days in `.cache/map-tiles`, and retained through
+  GitHub Actions cache. No paid map API key is required.
   Saved homes already in the shortlist aren't repeated. Only the **five cheapest alternative
   locations** are shown, grouped by building with price ranges. The **map contains every
   listing**, so the report stays short even when hundreds of homes match.

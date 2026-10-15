@@ -115,22 +115,22 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None):
         if 1 <= i <= len(top):
             l = top[i - 1]
             loader = getattr(SOURCES[l.source], "photos", None)
-            if loader and len(l.images) < 3:
+            if loader and not (l.floorplan or l.image or l.images):
                 try:
                     l.images = loader(l)
                 except (RequestException, ValueError) as ex:
                     print(f"Gallery unavailable for {l.key}: {ex}", file=sys.stderr)
             jpeg = collage.build(l)
-            print(f"card #{i}: {l.key}, {min(3, len(l.images or ([l.image] if l.image else [])))} source photos")
+            print(f"card #{i}: {l.key}")
             if not jpeg:
-                text += "\n📷 Photos unavailable · use Open listing to view the gallery"
+                text += "\n📷 Header unavailable · use Open listing to view the media"
         if preview_dir:
             image = ""
             if jpeg:
                 filename = f"listing-{i}.jpg"
                 with open(os.path.join(preview_dir, filename), "wb") as f:
                     f.write(jpeg)
-                image = f'<img src="{filename}" alt="Listing {i} thumbnails" style="max-width:100%"><br>\n'
+                image = f'<img src="{filename}" alt="Listing {i} map and property" style="max-width:100%"><br>\n'
             preview.append(image + text.replace("\n", "<br>\n"))
         elif jpeg and len(text.encode("utf-16-le")) // 2 <= 1024:
             telegram.send_photo_bytes(jpeg, text, kb)

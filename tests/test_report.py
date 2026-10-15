@@ -163,22 +163,24 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(seen[b.key]["alerted"])
         self.assertGreater(p["last_report"], "2026-01-01T06:30")
 
-    def test_three_thumbnails_handle_duplicates_and_missing_photos(self):
-        thumbnail = Image.new("RGB", (collage.TILE_W, collage.TILE_H), "navy")
-        l = home(1, images=["https://example.com/1.jpg", "https://example.com/1.jpg",
-                            "https://example.com/2.jpg", "https://example.com/3.jpg"])
-        with patch.object(collage, "_thumb", side_effect=[thumbnail, None, thumbnail]) as thumb:
+    def test_header_prefers_floorplan_and_can_send_map_without_photos(self):
+        photo = Image.new("RGB", (720, 500), "navy")
+        location = Image.new("RGB", (480, 500), "grey")
+        l = home(1, floorplan="https://example.com/plan.png")
+        with patch.object(collage, "_thumb", return_value=photo) as thumb, \
+                patch.object(collage, "_map", return_value=location):
             jpeg = collage.build(l)
-        self.assertEqual(thumb.call_count, 3)
+        thumb.assert_called_once_with(l.floorplan, floorplan=True)
         with Image.open(io.BytesIO(jpeg)) as image:
-            self.assertEqual(image.size, (1260, 280))
+            self.assertEqual(image.size, (1200, 500))
             self.assertEqual(image.format, "JPEG")
-            self.assertLess(image.getpixel((10, 10))[0], 10)
-            self.assertGreater(image.getpixel((430, 10))[0], 200)
-            self.assertLess(image.getpixel((850, 10))[0], 10)
-        with patch.object(collage, "_thumb", return_value=None):
+            self.assertGreater(image.getpixel((10, 100))[0], 100)
+            self.assertLess(image.getpixel((850, 100))[0], 10)
+        with patch.object(collage, "_thumb", return_value=None), patch.object(collage, "_map", return_value=None):
             self.assertIsNone(collage.build(l))
             self.assertIsNone(collage.build(home(1, image=None, images=[])))
+        with patch.object(collage, "_thumb", return_value=None), patch.object(collage, "_map", return_value=location):
+            self.assertIsNotNone(collage.build(l))
 
     def test_property_gallery_excludes_other_listings(self):
         urls = [f"https://sih.cdn.sharetobuy.com/photo{i}" for i in range(3)]

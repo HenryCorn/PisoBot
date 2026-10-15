@@ -46,6 +46,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Check report formatting
         run: python -m unittest discover -s tests
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache/map-tiles
+          key: osm-tiles-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: osm-tiles-${{ runner.os }}-
       - name: Process buttons or check listings
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -60,6 +65,11 @@ jobs:
           else
             python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.report && '--report' || '' }}
           fi
+      - uses: actions/cache/save@v4
+        if: success() && hashFiles('.cache/map-tiles.updated') != ''
+        with:
+          path: .cache/map-tiles
+          key: osm-tiles-${{ runner.os }}-${{ github.run_id }}
       - name: Save state
         if: always()
         run: |
