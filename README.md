@@ -18,6 +18,17 @@ All thresholds live in `pisobot/config.py` and can be overridden with env vars o
 | L&Q | public JSON: `/wp-json/custom/developments`, `/wp-json/custom/development/{id}/properties` |
 | NHG Homes | `/find-a-home?ownership=Shared` plot cards (rent & service charge estimated) |
 | OnTheMarket | `__NEXT_DATA__` of `/for-sale/property/oxford-circus/?shared-ownership=true` + details page |
+| Rightmove lettings (`rm`) | `__NEXT_DATA__` of `/property-to-rent/find.html` near Oxford Circus Station + `window.__PAGE_MODEL` details page |
+| OnTheMarket lettings (`otmr`) | `__NEXT_DATA__` of `/to-rent/property/oxford-circus-station/` + details page |
+
+**Private rentals** count rent + bills against the same £1,600 budget. Bills are estimated at
+`RENT_BILLS_ESTIMATE` (£280: council tax, energy, water, broadband) unless the advert says they are
+included; the deposit is the advertised one, else 5 weeks' rent. Rooms filed as flats (shared
+kitchen/bathroom, ensuite rooms, co-living, < `RENT_MIN_AREA_M2`, rent < `RENT_MIN`) and short or student
+lets are dropped. Portals block GitHub's runners, so with `DECODO_AUTH_TOKEN` set these pages are fetched
+through [Decodo's web data API](https://dashboard.decodo.com/web-data/playground) from UK residential IPs.
+Each page is one Decodo request (free plan: 2,000), so searches refresh every `RENT_REFRESH_HOURS` (11.5,
+i.e. once per report), hourly runs reuse the cached results, and details pages are cached forever.
 
 Monthly cost is recomputed the same way for every source: repayment mortgage on
 (share price − deposit) at `MORTGAGE_RATE` over `MORTGAGE_YEARS`, deposit = max(minimum, £10k).
@@ -39,6 +50,7 @@ rejected, while temporary optional-detail failures keep the API listing with unk
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID` (send `/start` to the bot, then `TELEGRAM_BOT_TOKEN=… python scripts/get_chat_id.py`)
    - `TFL_APP_KEY`
+   - `DECODO_AUTH_TOKEN` (API key from the [Decodo Playground](https://dashboard.decodo.com/web-data/playground); for local runs put it in `.env`)
    - `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`, `CLOUDFLARE_API_TOKEN`
      (custom token with *Account → D1 → Edit*)
 2. **Telegram Worker** (free Cloudflare account). Buttons and commands go to a Cloudflare

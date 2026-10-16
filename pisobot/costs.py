@@ -14,9 +14,9 @@ def monthly_repayment(principal, rate_pct=None, years=None):
 def compute(listing):
     """Fill deposit / mortgage / monthly_cost. Returns False if the deposit can't be met."""
     if listing.tenure == "rent":
-        listing.deposit = 0
+        listing.deposit = listing.min_deposit or 0
         listing.mortgage = 0
-        listing.monthly_cost = (listing.rent or 0) + (listing.service_charge or 0)
+        listing.monthly_cost = (listing.rent or 0) + (listing.service_charge or 0) + (listing.bills or 0)
         return listing.rent is not None
 
     if not listing.share_price:

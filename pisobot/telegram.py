@@ -67,6 +67,11 @@ def finance_lines(l):
     total = f"💷 <b>{_money(l.monthly_cost)}/mo</b>"
     sc = amount(l.service_charge, "service charge")
     rent = amount(l.rent, "rent")
+    if l.tenure == "rent" and l.bills is not None:
+        bills = "incl." if l.bills == 0 else amount(l.bills, "bills")
+        move_in = f" · 📅 from {l.available}" if l.available else ""
+        return [f"{total} <i>(R: {rent} · Bills: {bills})</i>",
+                f"🔑 Private rent · 💰 <b>{_money(l.deposit, True)} dep</b>{move_in}"]
     if l.tenure == "rent":
         return [f"{total} <i>(R: {rent} · SC: {sc})</i>", "🔑 Rent · no mortgage needed"]
     share = f"{'~' if 'share %' in l.estimated else ''}{l.share_pct:g}%" if l.share_pct else "Share TBC"

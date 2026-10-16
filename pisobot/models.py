@@ -61,6 +61,8 @@ class Listing:
     full_value: Optional[float] = None
     rent: Optional[float] = None      # monthly rent (on the unowned share, or LLR rent)
     service_charge: Optional[float] = None
+    bills: Optional[float] = None     # private rent: council tax + utilities (0 when included)
+    available: Optional[str] = None   # private rent: ISO move-in date, when published
     min_deposit: Optional[float] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
@@ -201,6 +203,7 @@ class Listing:
             "beds": self.bedrooms, "scheme": self.scheme, "tenure": self.tenure,
             "cost": round(self.monthly_cost), "mortgage": round(self.mortgage or 0),
             "rent": round(self.rent or 0), "service": round(self.service_charge or 0),
+            "bills": round(self.bills or 0), "available": self.available,
             "share_price": self.share_price, "share_pct": self.share_pct, "full_value": self.full_value,
             "deposit": self.deposit, "loan": self.loan, "travel": self.travel_minutes,
             "route": self.route, "station": self.station, "crime": self.crime_score,

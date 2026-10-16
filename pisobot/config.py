@@ -2,6 +2,22 @@
 import os
 
 
+def _load_dotenv(path=os.path.join(os.path.dirname(__file__), "..", ".env")):
+    """Local secrets (e.g. DECODO_AUTH_TOKEN) from a git-ignored .env; real env vars win."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except FileNotFoundError:
+        return
+    for line in lines:
+        name, sep, value = line.strip().partition("=")
+        if sep and name and not name.startswith("#"):
+            os.environ.setdefault(name.strip(), value.strip().strip("'\""))
+
+
+_load_dotenv()
+
+
 def _env(name, default, cast=float):
     raw = os.environ.get(name)
     return cast(raw) if raw not in (None, "") else default
@@ -13,7 +29,7 @@ TARGET_LAT = 51.5152
 TARGET_LNG = -0.1419
 
 # Hard filters
-MAX_MONTHLY_COST = _env("MAX_MONTHLY_COST", 1600)   # mortgage + rent + service charge
+MAX_MONTHLY_COST = _env("MAX_MONTHLY_COST", 1600)   # mortgage + rent + service charge (private rent: + bills)
 MAX_DEPOSIT = _env("MAX_DEPOSIT", 20000)
 PREFERRED_DEPOSIT = _env("PREFERRED_DEPOSIT", 10000)
 MIN_BEDROOMS = _env("MIN_BEDROOMS", 1, int)
@@ -34,6 +50,18 @@ SO_RENT_RATE = _env("SO_RENT_RATE", 2.75)           # % per year on the unowned 
 DEFAULT_SERVICE_CHARGE = _env("DEFAULT_SERVICE_CHARGE", 250)
 # Conservative full-value floor when a listing doesn't state its share %
 MIN_FULL_VALUE_BY_BEDS = {1: 350000, 2: 450000, 3: 550000}
+
+# Private rentals (Rightmove / OnTheMarket lettings). Portals block cloud runners, so these
+# searches go through Decodo when DECODO_AUTH_TOKEN is set (~16 pages per refresh, plus details pages
+# for new candidates; the free plan is 2,000 requests), so they refresh only twice a day.
+RENT_BILLS_ESTIMATE = _env("RENT_BILLS_ESTIMATE", 280)  # council tax + energy + water + broadband
+RENT_COUNCIL_TAX_ESTIMATE = _env("RENT_COUNCIL_TAX_ESTIMATE", 150)  # "bills included except council tax"
+RENT_MIN = _env("RENT_MIN", 1000)   # cheaper "1 bed" lets in zones 1-3 are rooms in shared houses
+RENT_MIN_AREA_M2 = _env("RENT_MIN_AREA_M2", 30)  # London Plan 1-bed minimum is 37 m²; smaller = room/bedsit
+RENT_DEPOSIT_WEEKS = 5                                  # Tenant Fees Act cap below £50k/yr rent
+RENT_SEARCH_MILES = _env("RENT_SEARCH_MILES", 5)       # portals accept 1/3/5/10/15 miles
+RENT_REFRESH_HOURS = _env("RENT_REFRESH_HOURS", 11.5)  # once per 06:30 / 18:00 report
+RENT_MAX_PAGES = _env("RENT_MAX_PAGES", 20, int)
 
 # "Best" ranking for the report: each term is scaled 0-1 against its cap, lower is better
 RANK_WEIGHTS = {"cost": 0.45, "travel": 0.30, "crime": 0.25}
@@ -60,5 +88,9 @@ EXCLUDE_KEYWORDS = [
     "studio", "over 55", "over-55", "over 55s", "older person", "retirement",
     "room in", "flat share", "flatshare", "house share", "houseshare", "auction",
     "coming soon", "under offer", "sold stc", "sstc", "reserved",
+    "short let", "short-let", "holiday let", "students only", "student accommodation",
+    "room only", "shared house", "shared flat", "multiple occupation", "room to rent", "double room",
+    "single room", "sharing with", "shared kitchen", "shared bathroom", "communal bathroom",
+    "short term let",
     "sheltered", "care staff", "extra care", "warden", "over 60", "aged 60", "aged 55",
 ]
