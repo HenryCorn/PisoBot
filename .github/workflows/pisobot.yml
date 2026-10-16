@@ -66,7 +66,6 @@ jobs:
         run: |
           if [ "$SCHEDULED" = "true" ]; then
             python -m pisobot.main --scheduled
-          else
           elif [ "${{ inputs.rentals }}" = "true" ]; then
             python -m pisobot.main --rentals ${{ inputs.dry_run && '--dry-run' || '' }}
           else
