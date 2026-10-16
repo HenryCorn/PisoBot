@@ -22,14 +22,17 @@ All thresholds live in `pisobot/config.py` and can be overridden with env vars o
 | OnTheMarket lettings (`otmr`) | `__NEXT_DATA__` of `/to-rent/flats-apartments/oxford-circus-station/` + details page |
 | Zoopla lettings (`zp`) | React Server Components stream (`self.__next_f`) of `/to-rent/flats/oxford-circus/` + details page; Decodo only |
 
-**Private rentals** count rent + bills against the same £1,600 budget. Bills are estimated at
+**Private rentals are on demand only**: scheduled runs and `/report` cover shared ownership;
+`/rentals` in Telegram (or the workflow's *rentals* box, `python -m pisobot.main --rentals`) searches the
+three lettings sources and sends a separate rentals report, with its own map at `docs/rentals.html`.
+It never counts as the 06:30/18:00 report. Rentals count rent + bills against the same £1,600 budget. Bills are estimated at
 `RENT_BILLS_ESTIMATE` (£280: council tax, energy, water, broadband) unless the advert says they are
 included; the deposit is the advertised one, else 5 weeks' rent. Rooms filed as flats (shared
 kitchen/bathroom, ensuite rooms, co-living, < `RENT_MIN_AREA_M2`, rent < `RENT_MIN`) and short or student
 lets are dropped. Portals block GitHub's runners, so with `DECODO_AUTH_TOKEN` set these pages are fetched
 through [Decodo's web data API](https://dashboard.decodo.com/web-data/playground) from UK residential IPs.
-Each page is one Decodo request (free plan: 2,000), so searches refresh every `RENT_REFRESH_HOURS` (11.5,
-i.e. once per report), hourly runs reuse the cached results, and details pages are cached forever.
+Each page is one Decodo request (free plan: 2,000; ~25 pages per `/rentals`), so a repeat `/rentals`
+within `RENT_REFRESH_HOURS` (2) reuses the last search, and details pages are cached forever.
 
 Monthly cost is recomputed the same way for every source: repayment mortgage on
 (share price − deposit) at `MORTGAGE_RATE` over `MORTGAGE_YEARS`, deposit = max(minimum, £10k).
@@ -120,10 +123,11 @@ rejected, while temporary optional-detail failures keep the API listing with unk
   full financial breakdown and ❤️ Save · 👎 Hide · 🔕 Hide building · 🔗 Open buttons.
   There are no automatic two-hour alerts.
 - **Saved homes** are tracked: you're told when the cost changes or the listing disappears.
-- **Commands**: `/report`, `/saved`, `/unhide`, `/help`, answered instantly by the Worker.
+- **Commands**: `/report`, `/rentals`, `/saved`, `/unhide`, `/help`, answered instantly by the Worker.
   Save means track the home; Hide means exclude it from subsequent reports. The selected
   card's buttons change to **Saved/Hidden** straight away, without removing its other controls.
   `/report` starts a full scan and digest immediately; it arrives a few minutes later.
+  `/rentals` does the same for private rentals only.
 - **Map**: `docs/index.html`, published by GitHub Pages at https://henrycorn.github.io/PisoBot/ —
   enable once in *Settings → Pages → Deploy from a branch → main / docs*.
 

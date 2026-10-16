@@ -21,6 +21,10 @@ on:
         description: "Send the 06:30/18:00 report only if that slot is due (used by cron-job.org)"
         type: boolean
         default: false
+      rentals:
+        description: "Private rentals only (Rightmove, OnTheMarket, Zoopla via Decodo); sent by /rentals"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -62,6 +66,9 @@ jobs:
         run: |
           if [ "$SCHEDULED" = "true" ]; then
             python -m pisobot.main --scheduled
+          else
+          elif [ "${{ inputs.rentals }}" = "true" ]; then
+            python -m pisobot.main --rentals ${{ inputs.dry_run && '--dry-run' || '' }}
           else
             python -m pisobot.main ${{ inputs.dry_run && '--dry-run' || '' }} ${{ inputs.report && '--report' || '' }}
           fi

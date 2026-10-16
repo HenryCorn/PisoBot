@@ -15,6 +15,9 @@ from .sources import lq, nhg, onthemarket, otm_rent, rightmove, sharetobuy, zoop
 from .sources import detail_fields
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove, "otmr": otm_rent, "zp": zoopla}
+# Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
+RENTAL_SOURCES = ["rm", "otmr", "zp"]
+DEFAULT_SOURCES = [name for name in SOURCES if name not in RENTAL_SOURCES]
 SEEN_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "seen.json")
 
 
@@ -117,8 +120,8 @@ def _ensure_photos(l):
             print(f"Gallery unavailable for {l.key}: {ex}", file=sys.stderr)
 
 
-def send_report(top, saved, rest, title, flags_of, preview_dir=None):
-    messages = telegram.report_messages(top, rest, saved, title, flags_of)
+def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=None):
+    messages = telegram.report_messages(top, rest, saved, title, flags_of, map_url=map_url)
     if preview_dir:
         os.makedirs(preview_dir, exist_ok=True)
     preview = []
@@ -148,7 +151,7 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None):
         print(f"report preview written to {preview_dir}")
 
 
-def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False):
+def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False):
     seen = load_seen()
     p = prefs.load()
     live = not dry_run and not preview_dir
@@ -231,7 +234,7 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
                 info["cost"] = round(l.monthly_cost)
         elif key in fetched_keys:
             info["missing"] = 0   # still advertised, just outside the filters now
-        elif key.split(":")[0] not in failures:
+        elif key.split(":")[0] in selected and key.split(":")[0] not in failures:  # skipped sources prove nothing
             info["missing"] = info.get("missing", 0) + 1
             if info["missing"] >= 2:
                 gone.append(info)
@@ -252,11 +255,12 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
             prev["last"] = today
     to_send.sort(key=lambda x: ranking.score(x[0]))
 
-    # 🆕 = first seen since the last report (older records only have a date: treat as reported)
+    # 🆕 = first seen since the last report (older records only have a date: treat as reported).
+    # On-demand rentals reports keep their own "last report" so they never stand in for 06:30/18:00.
     if not p.get("last_report") and seen:
         p["last_report"] = max(v.get("first", "") for v in seen.values())[:10] + "T23:59"
-    new_keys = {l.key for l in matches
-                if l.key not in seen or seen[l.key].get("first", "") > p.get("last_report", "")}
+    since = (cache.get("meta", "last_rentals_report") or "") if rentals else p.get("last_report", "")
+    new_keys = {l.key for l in matches if l.key not in seen or seen[l.key].get("first", "") > since}
     saved_keys = set(p["saved"])
 
     def flags_of(l):
@@ -264,19 +268,21 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
 
     top = ranking.best(matches)
     try:
-        mapgen.write(matches, top, saved_keys, new_keys)
+        mapgen.write(matches, top, saved_keys, new_keys, rentals=rentals)
     except Exception:
         print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
 
     # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
-    first_run = not seen
-    if first_run or report or preview_dir:
+    first_run = not seen and not rentals
+    if first_run or report or rentals or preview_dir:
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
         rest = [l for l in matches if l not in top and l.key not in saved_keys]
         n_new = len([l for l in matches if l.key in new_keys])
         now = dt.datetime.now(ZoneInfo("Europe/London"))
         edition = "Morning" if now.hour < 12 else "Evening"
         heading = "👋 PisoBot is live" if first_run else f"🏠 PisoBot · {edition} report"
+        if rentals:
+            heading = "🔑 PisoBot · Private rentals"
         title = (f"<b>{heading}</b>\n<i>{now:%a %d %b · %H:%M %Z}</i>\n\n"
                  f"<b>{len(matches)} homes</b> · 🆕 {n_new} new · ❤️ {len(saved)} saved")
         if failures:
@@ -301,13 +307,17 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
                 telegram.send_text(title, silent=True)
                 print("Sent silent no-new summary; unchanged listing cards suppressed")
             else:
-                send_report(report_top, report_saved, report_rest, title, flags_of, preview_dir)
+                send_report(report_top, report_saved, report_rest, title, flags_of, preview_dir,
+                            map_url=mapgen.url(rentals))
         reported_keys = {l.key for l in report_top}
         saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
             for l in matches:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
-            p["last_report"] = _now()
+            if rentals:
+                cache.put("meta", "last_rentals_report", _now())
+            else:
+                p["last_report"] = _now()
         to_send = []
 
     # 6. ... otherwise individual alerts
@@ -339,7 +349,9 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
 
 def main():
     ap = argparse.ArgumentParser(description="London shared-ownership alert bot")
-    ap.add_argument("--sources", default=",".join(SOURCES), help="comma list: " + ",".join(SOURCES))
+    ap.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="comma list: " + ",".join(SOURCES))
+    ap.add_argument("--rentals", action="store_true",
+                    help="search private rentals only (" + ",".join(RENTAL_SOURCES) + ") and send their report")
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
     ap.add_argument("--report", action="store_true", help="send the full report (top picks + list)")
     ap.add_argument("--restart", action="store_true", help="clear hidden choices and run a fresh report")
@@ -349,7 +361,11 @@ def main():
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
     selected = [s for s in a.sources.split(",") if s]
-    if a.restart:
+    if a.rentals:
+        if a.restart or a.reset or a.scheduled:
+            ap.error("--rentals cannot be combined with --restart, --reset or --scheduled")
+        run(RENTAL_SOURCES, a.dry_run, a.verbose, report=True, preview_dir=a.preview, rentals=True)
+    elif a.restart:
         prefs.restart(full=False)
         save_seen({})
         run(selected, dry_run=False, verbose=a.verbose, report=True)

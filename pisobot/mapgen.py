@@ -7,10 +7,15 @@ from zoneinfo import ZoneInfo
 
 from . import collage, config, ranking
 
-PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "index.html")
+DOCS = os.path.join(os.path.dirname(__file__), "..", "docs")
+RENTALS_PAGE = "rentals.html"   # on-demand rentals get their own page so neither run overwrites the other
 
 
-def write(matches, top, saved_keys, new_keys):
+def url(rentals=False):
+    return config.MAP_URL.rstrip("/") + "/" + RENTALS_PAGE if rentals else config.MAP_URL
+
+
+def write(matches, top, saved_keys, new_keys, rentals=False):
     rank = {l.key: i + 1 for i, l in enumerate(top)}
     rows = []
     for l in sorted(matches, key=ranking.score):
@@ -26,8 +31,9 @@ def write(matches, top, saved_keys, new_keys):
     }
     page = TEMPLATE.replace("__DATA__", json.dumps(rows).replace("</", "<\\/")) \
                    .replace("__META__", json.dumps(meta))
-    os.makedirs(os.path.dirname(PATH), exist_ok=True)
-    with open(PATH, "w", encoding="utf-8") as f:
+    path = os.path.join(DOCS, RENTALS_PAGE if rentals else "index.html")
+    os.makedirs(DOCS, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         f.write(page)
 
 

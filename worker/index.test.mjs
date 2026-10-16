@@ -139,6 +139,14 @@ test("/report dispatches the workflow with report=true", async () => {
   assert.match(calls.at(-1).body.text, /Report requested/);
 });
 
+test("/rentals dispatches a rentals-only run", async () => {
+  const { env, calls } = setup();
+  await worker.fetch(post({ message: { chat: { id: 42 }, text: "/rentals" } }), env);
+  const dispatch = calls.find((c) => c.url.includes("api.github.com"));
+  assert.deepEqual(dispatch.body, { ref: "main", inputs: { rentals: "true", report: "false" } });
+  assert.match(calls.at(-1).body.text, /Rentals report requested/);
+});
+
 test("/restart clears hidden homes and dispatches report", async () => {
   const { env, calls, db } = setup();
   db.prepare("INSERT INTO hidden VALUES ('stb:1')").run();
@@ -187,6 +195,7 @@ test("/saved lists escaped homes and /unhide clears hidden choices", async () =>
 test("help keeps the legend", () => {
   assert.match(HELP, /M = modelled mortgage/);
   assert.match(HELP, /\/report/);
+  assert.match(HELP, /\/rentals/);
   assert.match(HELP, /\/restart/);
   assert.match(HELP, /\/reset/);
 });

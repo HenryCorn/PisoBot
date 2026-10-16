@@ -1,5 +1,5 @@
 // Telegram webhook for PisoBot. Buttons and commands are applied to D1 immediately; the
-// GitHub Actions run reads those choices, and /report dispatches that run straight away.
+// GitHub Actions run reads those choices, and /report (or /rentals) dispatches that run straight away.
 
 export const HELP =
   "<b>PisoBot</b>\n" +
@@ -18,6 +18,7 @@ export const HELP =
   "North-up straight line, not a transit route. Map: © OpenStreetMap contributors.\n" +
   "Reports arrive at 06:30 and 18:00 UK time; zero-new reports are a silent summary.\n\n" +
   "/report – full report now (arrives in a few minutes)\n" +
+  "/rentals – search private rentals (Rightmove, OnTheMarket, Zoopla) and send their report\n" +
   "/saved – list saved homes\n" +
   "/unhide – show hidden homes again\n" +
   "/restart – clear hidden homes & run a fresh report\n" +
@@ -186,7 +187,7 @@ async function handleCallback(query, env) {
   ]);
 }
 
-async function dispatchReport(env) {
+async function dispatchReport(env, inputs = { report: "true" }, label = "Report") {
   const response = await fetch(
     `https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`,
     {
@@ -197,18 +198,20 @@ async function dispatchReport(env) {
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "pisobot-worker",
       },
-      body: JSON.stringify({ ref: env.GITHUB_REF, inputs: { report: "true" } }),
+      body: JSON.stringify({ ref: env.GITHUB_REF, inputs }),
     },
   );
-  if (response.status === 204) return "📊 Report requested · it arrives in a few minutes.";
+  if (response.status === 204) return `📊 ${label} requested · it arrives in a few minutes.`;
   console.error("dispatch", response.status, await response.text());
-  return `⚠️ Couldn't start the report (GitHub ${response.status}). Try again or run the workflow manually.`;
+  return `⚠️ Couldn't start the ${label.toLowerCase()} (GitHub ${response.status}). Try again or run the workflow manually.`;
 }
 
 async function handleCommand(text, env) {
   const command = (text.split(/\s+/)[0] || "").split("@")[0].toLowerCase();
   if (command === "/report") {
     await reply(env, await dispatchReport(env));
+  } else if (command === "/rentals") {
+    await reply(env, await dispatchReport(env, { rentals: "true", report: "false" }, "Rentals report"));
   } else if (command === "/restart") {
     await env.DB.batch([
       env.DB.prepare("DELETE FROM hidden"),

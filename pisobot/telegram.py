@@ -90,6 +90,8 @@ def facts_line(l):
     lease = "📜 Lease: TBC" if l.lease_years is None else f"📜 <b>{l.lease_years}y lease</b>"
     if l.lease_years is not None and l.lease_years < config.SHORT_LEASE_YEARS:
         lease += " ⚠️"
+    if l.scheme == PRIVATE_RENT:   # a tenant doesn't take on the lease
+        return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {e(l.scheme)} ({e(l.source)})"
     return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {lease} · {e(l.scheme[:40])} ({e(l.source)})"
 
 
@@ -129,7 +131,8 @@ def format_listing(l, reason="new", rank=None, flags=""):
     if getattr(l, "deal_tag", None):
         tags.append(l.deal_tag)
     if getattr(l, "rent_savings", None):
-        tags.append(f"💡 Saves ~£{l.rent_savings}/mo vs rent")
+        tags.append(f"💡 ~£{l.rent_savings}/mo below local median rent" if l.scheme == PRIVATE_RENT
+                    else f"💡 Saves ~£{l.rent_savings}/mo vs rent")
     if (l.service_charge or 0) > config.HIGH_SERVICE_CHARGE:
         tags.append("⚠️ High SC" + (" (est.)" if "service charge" in l.estimated else ""))
     lines.append(" · ".join(tags))
@@ -191,7 +194,7 @@ def _short_line(l, flags):
             f'⏱ {l.travel_minutes} min · 🛡 {crime_label(l)}').rstrip()
 
 
-def _group_line(group, flags_of):
+def _group_line(group, flags_of, map_url=None):
     costs = sorted(l.monthly_cost for l in group)
     beds = sorted({l.bedrooms for l in group})
     bed_txt = "/".join(f"{b}" for b in beds) + " bed"
@@ -201,7 +204,7 @@ def _group_line(group, flags_of):
     return (f"<b>{e(first.address[:70])}</b> · {len(group)} homes {flags}\n"
             f"💷 £{costs[0]:,.0f}–£{costs[-1]:,.0f}/mo · 🛏 {bed_txt}{est}\n"
             f'<a href="{e(first.url)}">Open cheapest home</a> · '
-            f'<a href="{e(config.MAP_URL)}">Compare all on map</a>').rstrip()
+            f'<a href="{e(map_url or config.MAP_URL)}">Compare all on map</a>').rstrip()
 
 
 def _chunk(blocks, limit=3800):
@@ -219,8 +222,9 @@ def _chunk(blocks, limit=3800):
 RENTALS_SHOWN = 8
 
 
-def report_messages(top, rest, saved, title, flags_of):
+def report_messages(top, rest, saved, title, flags_of, map_url=None):
     """Summary, one ranked card per listing with local buttons, then grouped alternatives."""
+    map_url = map_url or config.MAP_URL
     matches = {l.key: l for l in top + saved + rest}
     if matches:
         cheapest = min(matches.values(), key=lambda l: l.monthly_cost)
@@ -229,7 +233,7 @@ def report_messages(top, rest, saved, title, flags_of):
                   f"⏱ Fastest <b>{fastest.travel_minutes} min</b>")
     else:
         title += "\nNo homes matched your filters this time."
-    title += f'\n\n<a href="{e(config.MAP_URL)}">🗺 Browse photos, filter and compare all homes</a>'
+    title += f'\n\n<a href="{e(map_url)}">🗺 Browse photos, filter and compare all homes</a>'
     out = [(title, None)]
     saved_keys = {l.key for l in saved}
     for rank, l in enumerate(top, 1):
@@ -254,7 +258,7 @@ def report_messages(top, rest, saved, title, flags_of):
         blocks.append(f"🏘 <b>Other {len(rest)} homes · {len(groups)} places</b>\n"
                       f"Showing the {min(5, len(groups))} cheapest places\n")
         for g in groups[:5]:
-            blocks.append((_short_line(g[0], flags_of(g[0])) if len(g) == 1 else _group_line(g, flags_of)) + "\n")
-        blocks.append(f'<a href="{e(config.MAP_URL)}">🗺 Browse all {len(rest)} other homes on the map</a>')
+            blocks.append((_short_line(g[0], flags_of(g[0])) if len(g) == 1 else _group_line(g, flags_of, map_url)) + "\n")
+        blocks.append(f'<a href="{e(map_url)}">🗺 Browse all {len(rest)} other homes on the map</a>')
     out += [(c, None) for c in _chunk(blocks)]
     return out

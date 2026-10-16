@@ -1,10 +1,11 @@
 import datetime as dt
+import io
 import json
 import os
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import cache, costs, main, mapgen, net, telegram
+from pisobot import cache, costs, enrich, main, mapgen, net, prefs, telegram
 from pisobot.models import Listing
 from pisobot.sources import (PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, otm_rent,
                              private_rent_costs, rent_from_text, rightmove, zoopla)
@@ -192,6 +193,42 @@ class RentalTests(unittest.TestCase):
         self.assertIn('<a class="open" href="${esc(d.url)}" target="_blank"', mapgen.TEMPLATE)
         self.assertIn("ev.target.closest('a')", mapgen.TEMPLATE)
 
+    def test_rentals_run_only_on_demand(self):
+        self.assertEqual(main.DEFAULT_SOURCES, ["stb", "lq", "nhg", "otm"])
+        for argv, sources, rentals in ((["pisobot"], main.DEFAULT_SOURCES, False),
+                                       (["pisobot", "--report"], main.DEFAULT_SOURCES, False),
+                                       (["pisobot", "--rentals"], ["rm", "otmr", "zp"], True)):
+            with patch("sys.argv", argv), patch.object(main, "run") as run:
+                main.main()
+            self.assertEqual(run.call_args.args[0], sources)
+            self.assertEqual(run.call_args.kwargs.get("rentals", False), rentals)
+
+    def test_rentals_report_keeps_the_scheduled_slot_and_saved_homes_of_other_sources(self):
+        rented = private_rent_costs(Listing("rm", "1", "https://rm/1", "Rental flat W9", 1, PRIVATE_RENT,
+                                            tenure="rent", rent=1200, lat=51.52, lng=-0.18))
+        costs.compute(rented)
+        rented.travel_minutes, rented.crime_score = 25, 40
+        p = {"saved": {"stb:9": {"url": "https://stb/9", "cost": 1000}}, "hidden": [], "hidden_dev": [],
+             "last_report": "2026-10-16T06:30"}
+        seen = {"stb:9": {"alerted": True, "cost": 1000, "first": "2026-10-01T06:30"}}
+        with patch.object(main, "load_seen", return_value=seen), patch.object(prefs, "load", return_value=p), \
+                patch.object(prefs, "publish"), patch.object(rightmove, "fetch", return_value=[rented]), \
+                patch.object(otm_rent, "fetch", return_value=[]), patch.object(zoopla, "fetch", return_value=[]), \
+                patch.object(enrich, "geocode"), patch.object(enrich, "assign_crime_percentiles"), \
+                patch.object(main, "passes_basic", return_value=None), patch.object(main, "passes_area", return_value=None), \
+                patch.object(main.mapgen, "write") as write, patch.object(main, "send_report") as report, \
+                patch.object(cache, "save"), patch.object(main, "save_seen"), patch.object(prefs, "save"), \
+                patch("sys.stdout", new=io.StringIO()):
+            main.run(main.RENTAL_SOURCES, False, False, report=True, rentals=True)
+            main.run(main.RENTAL_SOURCES, False, False, report=True, rentals=True)
+        self.assertEqual(p["last_report"], "2026-10-16T06:30")
+        self.assertIn("stb:9", p["saved"])
+        self.assertTrue(cache.get("meta", "last_rentals_report"))
+        self.assertTrue(write.call_args.kwargs["rentals"])
+        self.assertEqual(report.call_args.kwargs["map_url"], "https://henrycorn.github.io/PisoBot/rentals.html")
+        self.assertIn("Private rentals", report.call_args.args[3])
+        self.assertEqual([l.key for l in report.call_args.args[0]], ["rm:1"])
+
     def test_rental_card_shows_bills_deposit_and_move_in(self):
         l = private_rent_costs(Listing("rm", "1", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1300,
                                        available="2026-10-19"))
@@ -200,6 +237,7 @@ class RentalTests(unittest.TestCase):
         self.assertIn("Bills: ~£280", lines[0])
         self.assertIn("£1.5k dep", lines[1])
         self.assertIn("from 2026-10-19", lines[1])
+        self.assertNotIn("Lease", telegram.facts_line(l))
 
 
 if __name__ == "__main__":
