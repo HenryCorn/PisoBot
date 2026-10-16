@@ -6,6 +6,7 @@ import time
 from zoneinfo import ZoneInfo
 
 from . import collage, config, net, ranking
+from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
 e = html.escape
@@ -215,6 +216,9 @@ def _chunk(blocks, limit=3800):
     return chunks
 
 
+RENTALS_SHOWN = 8
+
+
 def report_messages(top, rest, saved, title, flags_of):
     """Summary, one ranked card per listing with local buttons, then grouped alternatives."""
     matches = {l.key: l for l in top + saved + rest}
@@ -237,6 +241,14 @@ def report_messages(top, rest, saved, title, flags_of):
     if saved:
         blocks += [f"<b>❤️ More saved homes ({len(saved)})</b>"]
         blocks += [_short_line(l, flags_of(l)) + "\n" for l in saved]
+    # Private rentals cost more than most shared-ownership homes, so they get their own section
+    # instead of never reaching "the cheapest places" below.
+    rentals = sorted((l for l in rest if l.scheme == PRIVATE_RENT), key=ranking.score)
+    rest = [l for l in rest if l.scheme != PRIVATE_RENT]
+    if rentals:
+        blocks.append(f"🔑 <b>Private rentals · {len(rentals)}</b>\n"
+                      f"Rent + bills, best {min(RENTALS_SHOWN, len(rentals))} first\n")
+        blocks += [_short_line(l, flags_of(l)) + "\n" for l in rentals[:RENTALS_SHOWN]]
     if rest:
         groups = ranking.group_by_development(rest)
         blocks.append(f"🏘 <b>Other {len(rest)} homes · {len(groups)} places</b>\n"

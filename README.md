@@ -19,7 +19,8 @@ All thresholds live in `pisobot/config.py` and can be overridden with env vars o
 | NHG Homes | `/find-a-home?ownership=Shared` plot cards (rent & service charge estimated) |
 | OnTheMarket | `__NEXT_DATA__` of `/for-sale/property/oxford-circus/?shared-ownership=true` + details page |
 | Rightmove lettings (`rm`) | `__NEXT_DATA__` of `/property-to-rent/find.html` near Oxford Circus Station + `window.__PAGE_MODEL` details page |
-| OnTheMarket lettings (`otmr`) | `__NEXT_DATA__` of `/to-rent/property/oxford-circus-station/` + details page |
+| OnTheMarket lettings (`otmr`) | `__NEXT_DATA__` of `/to-rent/flats-apartments/oxford-circus-station/` + details page |
+| Zoopla lettings (`zp`) | React Server Components stream (`self.__next_f`) of `/to-rent/flats/oxford-circus/` + details page; Decodo only |
 
 **Private rentals** count rent + bills against the same £1,600 budget. Bills are estimated at
 `RENT_BILLS_ESTIMATE` (£280: council tax, energy, water, broadband) unless the advert says they are

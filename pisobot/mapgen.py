@@ -62,6 +62,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 440px;height:calc(100vh - 
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .chip{background:var(--chip);border-radius:10px;padding:1px 7px;font-size:12px}
 .warn{color:var(--bad)}
+.open{display:inline-block;margin-top:6px;font-weight:600;text-decoration:none;padding:4px 0}
 .rank{display:inline-block;background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;line-height:20px;margin-right:4px}
 .pop img{width:240px;height:150px;object-fit:cover;border-radius:6px}
 .pop table{border-collapse:collapse;margin:6px 0}.pop td{padding:1px 6px 1px 0}
@@ -101,7 +102,8 @@ function popup(d){
     ?`<tr><td>Monthly</td><td><b>${gbp(d.cost)}</b> = mortgage ${gbp(d.mortgage)} + rent ${gbp(d.rent)} + service ${gbp(d.service)}</td></tr>
       <tr><td>Mortgage</td><td><b>${gbp(d.loan)}</b> over ${META.years} yrs @ ${META.rate}%</td></tr>
       <tr><td>Deposit</td><td><b>${gbp(d.deposit)}</b> · ${d.share_pct?Math.round(d.share_pct)+'% ':''}share ${gbp(d.share_price)}${d.full_value?' of '+gbp(d.full_value):''}</td></tr>`
-    :`<tr><td>Rent</td><td><b>${gbp(d.cost)}</b>/mo</td></tr>`;
+    :`<tr><td>Monthly</td><td><b>${gbp(d.cost)}</b> = rent ${gbp(d.rent)}${d.bills?' + bills '+gbp(d.bills):''}</td></tr>
+      ${d.deposit?`<tr><td>Deposit</td><td><b>${gbp(d.deposit)}</b>${d.available?' · from '+esc(d.available):''}</td></tr>`:''}`;
   return `<div class="pop">${d.image?`<img src="${esc(d.image)}" loading="lazy">`:''}
     <div><b>${d.rank?'#'+d.rank+' ':''}${esc(d.address)}</b></div>
     <div class="muted">${d.beds} bed · ${esc(d.scheme)} · ${d.source}${d.lease?' · lease '+d.lease+' yrs':''}${d.council_tax?' · CT '+d.council_tax:''}</div>
@@ -119,7 +121,8 @@ function card(d){
     <div><div class="cost">${d.rank?`<span class="rank">${d.rank}</span>`:''}${gbp(d.cost)}/mo</div>
     <div>${esc(d.address)}</div><div class="muted">${esc(d.route||'')}</div>
     <div class="chips">${chips.map(c=>`<span class="chip">${esc(c)}</span>`).join('')}</div>
-    ${d.warnings.length?`<div class="warn">⚠️ ${esc(d.warnings.join(' · '))}</div>`:''}</div></div>`;
+    ${d.warnings.length?`<div class="warn">⚠️ ${esc(d.warnings.join(' · '))}</div>`:''}
+    <a class="open" href="${esc(d.url)}" target="_blank" rel="noopener">Open listing ↗</a></div></div>`;
 }
 function render(){
   const maxCost=+$('fCost').value, maxT=+$('fTravel').value, maxC=+$('fCrime').value, beds=+$('fBeds').value;
@@ -136,8 +139,9 @@ function render(){
   }
   $('list').innerHTML=rows.map(card).join('')||'<p style="padding:16px">No homes match these filters.</p>';
 }
-$('list').addEventListener('click',ev=>{const c=ev.target.closest('.card'); if(!c) return;
-  const m=markers[c.dataset.k]; if(m){map.setView(m.getLatLng(),15); m.openPopup();}
+$('list').addEventListener('click',ev=>{const c=ev.target.closest('.card'); if(!c||ev.target.closest('a')) return;
+  const m=markers[c.dataset.k]; if(m){map.setView(m.getLatLng(),15); m.openPopup();
+    if(innerWidth<=800) $('map').scrollIntoView({behavior:'smooth'});}  // map sits above the list on phones
   document.querySelectorAll('.card.sel').forEach(x=>x.classList.remove('sel')); c.classList.add('sel');});
 for(const id of ['fCost','fTravel','fCrime','fBeds','fEst','fDep','sort']) $(id).addEventListener('input',render);
 render();

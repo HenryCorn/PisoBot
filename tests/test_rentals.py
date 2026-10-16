@@ -4,9 +4,10 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import cache, costs, main, net, telegram
+from pisobot import cache, costs, main, mapgen, net, telegram
 from pisobot.models import Listing
-from pisobot.sources import PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, otm_rent, private_rent_costs, rightmove
+from pisobot.sources import (PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, otm_rent,
+                             private_rent_costs, rent_from_text, rightmove, zoopla)
 
 
 def next_data(page_props):
@@ -28,8 +29,8 @@ class RentalTests(unittest.TestCase):
     def test_rent_frequencies_convert_to_monthly(self):
         self.assertEqual(monthly_rent(300, "weekly"), 1300)
         self.assertEqual(monthly_rent(18000, "yearly"), 1500)
-        self.assertEqual(otm_rent._rent("£1,540 pcm (£355 pw)"), 1540)
-        self.assertEqual(otm_rent._rent("£300 pw"), 1300)
+        self.assertEqual(rent_from_text("£1,540 pcm (£355 pw)"), 1540)
+        self.assertEqual(rent_from_text("£300 pw"), 1300)
 
     def test_bills_are_estimated_unless_included_and_deposit_is_five_weeks(self):
         l = private_rent_costs(Listing("rm", "1", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1300))
@@ -67,6 +68,31 @@ class RentalTests(unittest.TestCase):
         with patch.object(net, "page", return_value=html):
             homes = otm_rent.search()
         self.assertEqual([(h.source, h.id, h.rent, h.tenure) for h in homes], [("otmr", "1", 1400, "rent")])
+
+    def test_zoopla_reads_the_server_components_stream(self):
+        rows = [{"listingId": "7", "price": "£1,300 pcm", "title": "1 bed flat to rent", "address": "Home W6",
+                 "features": [{"iconId": "bed", "content": 1}], "pos": {"lat": 51.49, "lng": -0.22},
+                 "gallery": ["a.jpg"], "sizeSqft": 480, "availableFrom": "1st Dec 2026",
+                 "listingUris": {"detail": "/to-rent/details/7/"}, "summaryDescription": "Bright flat"},
+                {"listingId": "8", "price": "£750 pcm", "title": "1 bed flat to rent", "summaryDescription": "Double room"}]
+        payload = json.dumps({"regularListingsFormatted": rows, "pagination": {"pageNumber": 1, "pageNumberMax": 1}})
+        html = f'<script>self.__next_f.push([1,{json.dumps("5:" + payload)}])</script>'
+        with patch.object(net, "page", return_value=html) as page:
+            homes = zoopla.search()
+        self.assertEqual(page.call_args.args[0], "https://www.zoopla.co.uk/to-rent/flats/oxford-circus/")
+        self.assertEqual(page.call_args.kwargs["params"]["is_shared_accommodation"], "false")
+        self.assertEqual(len(homes), 1)
+        h = homes[0]
+        self.assertEqual((h.key, h.bedrooms, h.rent, h.available, h.floor_area_m2, h.url),
+                         ("zp:7", 1, 1300, "2026-12-01", 44.59, "https://www.zoopla.co.uk/to-rent/details/7/"))
+        self.assertEqual(h.images, ["https://lid.zoocdn.com/u/1024/768/a.jpg"])
+        detail = json.dumps({"listingId": 7, "features": {"bullets": ["Communal bathroom"]},
+                             "floorPlan": {"image": [{"filename": "p.jpg"}]},
+                             "detailedDescription": "All bills included<br>First floor flat"}, separators=(",", ":"))
+        with patch.object(net, "page", return_value=f'<script>self.__next_f.push([1,{json.dumps("6:" + detail)}])</script>'):
+            self.assertTrue(zoopla.refine(h))
+        self.assertEqual((h.bills, h.floorplan), (0, "https://lid.zoocdn.com/u/1024/768/p.jpg"))
+        self.assertTrue(h.excluded_by_keywords())
 
     def test_blocked_page_fails_the_source_instead_of_returning_nothing(self):
         with patch.object(net, "page", return_value="<html>Just a moment...</html>"):
@@ -146,6 +172,25 @@ class RentalTests(unittest.TestCase):
         with patch.object(rightmove, "refine", return_value=True):
             self.assertIsNone(main.passes_basic(home))
         self.assertEqual(home.monthly_cost, 1480)
+
+    def test_report_lists_rentals_even_when_cheaper_homes_fill_the_cheapest_places(self):
+        def home(i, **kw):
+            values = dict(source="stb", id=str(i), url=f"https://example.com/{i}", address=f"Home {i}", bedrooms=1,
+                          scheme="Shared Ownership", monthly_cost=900 + i, deposit=10000, share_price=100000,
+                          travel_minutes=20, crime_score=30, lat=51.5 + i / 100, lng=-0.1)
+            values.update(kw)
+            return Listing(**values)
+        cheap = [home(i) for i in range(8)]
+        rented = home(50, source="rm", scheme=PRIVATE_RENT, tenure="rent", monthly_cost=1500,
+                      rent=1220, bills=280, url="https://www.rightmove.co.uk/properties/50", address="Rental flat")
+        text = "\n".join(t for t, _ in telegram.report_messages([], cheap + [rented], [], "Report", lambda l: ""))
+        self.assertIn("Private rentals · 1", text)
+        self.assertIn('href="https://www.rightmove.co.uk/properties/50"', text)
+        self.assertIn("Other 8 homes", text)
+
+    def test_map_cards_link_straight_to_the_original_listing(self):
+        self.assertIn('<a class="open" href="${esc(d.url)}" target="_blank"', mapgen.TEMPLATE)
+        self.assertIn("ev.target.closest('a')", mapgen.TEMPLATE)
 
     def test_rental_card_shows_bills_deposit_and_move_in(self):
         l = private_rent_costs(Listing("rm", "1", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1300,

@@ -9,27 +9,17 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import PRIVATE_RENT, apply_rent_details, cached_search, money, private_rent_costs, text
+from . import PRIVATE_RENT, apply_rent_details, cached_search, money, private_rent_costs, rent_from_text, text
 from .onthemarket import BASE, _photo_urls, _property_data
 
 SHARED = re.compile(r"\b(?:room|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
-
-
-def _rent(price):
-    """'£1,540 pcm (£355 pw)' / '£355 pw' -> monthly £."""
-    price = str(price or "")
-    pcm = re.search(r"£\s*([\d,]+(?:\.\d+)?)\s*pcm", price, re.I)
-    if pcm:
-        return money(pcm[1])
-    pw = re.search(r"£\s*([\d,]+(?:\.\d+)?)\s*pw", price, re.I)
-    return round(money(pw[1]) * 52 / 12, 2) if pw else money(price)
 
 
 def _listing(x):
     title = x.get("property-title", "")
     if x.get("ad?") or not x.get("id") or SHARED.search(f"{title} {x.get('humanised-property-type', '')}"):
         return None
-    rent = _rent(x.get("price"))
+    rent = rent_from_text(x.get("price"))
     if not rent or rent < config.RENT_MIN:
         return None
     loc = x.get("location") or {}

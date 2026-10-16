@@ -11,10 +11,10 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram
-from .sources import lq, nhg, onthemarket, otm_rent, rightmove, sharetobuy
+from .sources import lq, nhg, onthemarket, otm_rent, rightmove, sharetobuy, zoopla
 from .sources import detail_fields
 
-SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove, "otmr": otm_rent}
+SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove, "otmr": otm_rent, "zp": zoopla}
 SEEN_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "seen.json")
 
 

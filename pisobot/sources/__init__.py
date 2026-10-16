@@ -88,6 +88,16 @@ def monthly_rent(amount, frequency):
     return float(amount)
 
 
+def rent_from_text(price):
+    """'£1,540 pcm (£355 pw)' / '£355 pw' -> monthly £."""
+    price = str(price or "")
+    pcm = re.search(r"£\s*([\d,]+(?:\.\d+)?)\s*pcm", price, re.I)
+    if pcm:
+        return money(pcm[1])
+    pw = re.search(r"£\s*([\d,]+(?:\.\d+)?)\s*pw", price, re.I)
+    return round(money(pw[1]) * 52 / 12, 2) if pw else money(price)
+
+
 def private_rent_costs(listing):
     """Bills (estimated unless the advert says they are included) and the capped deposit."""
     listing.service_charge = 0   # the landlord pays it; adverts that mention one must not add it
