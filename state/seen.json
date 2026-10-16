@@ -4168,5 +4168,29 @@
   "lng": -0.05608100000000005,
   "price": 125000.0,
   "url": "https://www.sharetobuy.com/properties/787642/"
+ },
+ "zp:68359100": {
+  "address": "1 Bed Apartment, Cecil Road, London W3",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1430,
+  "first": "2026-10-16T16:51",
+  "last": "2026-10-16",
+  "lat": 51.520572,
+  "lng": -0.265416,
+  "price": 1150.0,
+  "url": "https://www.zoopla.co.uk/to-rent/details/68359100/"
+ },
+ "zp:74518409": {
+  "address": "Willesden High Road, London NW10",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1480,
+  "first": "2026-10-16T16:51",
+  "last": "2026-10-16",
+  "lat": 51.547555,
+  "lng": -0.22705,
+  "price": 1200.0,
+  "url": "https://www.zoopla.co.uk/to-rent/details/74518409/"
  }
 }
