@@ -641,7 +641,7 @@
   "beds": 1,
   "cost": 1323,
   "first": "2026-10-15T13:40",
-  "last": "2026-10-15",
+  "last": "2026-10-16",
   "lat": 51.56391540698671,
   "lng": -0.28218910052490775,
   "price": 99375.0,
@@ -1330,6 +1330,42 @@
   "price": 112500.0,
   "url": "https://www.onthemarket.com/details/20545371/"
  },
+ "otmr:13592502": {
+  "address": "Gee Street EC1V",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1294,
+  "first": "2026-10-16T16:29",
+  "last": "2026-10-16",
+  "lat": 51.524255,
+  "lng": -0.097744,
+  "price": 1014.0,
+  "url": "https://www.onthemarket.com/details/13592502/"
+ },
+ "otmr:16265746": {
+  "address": "Anson Road, Cricklewood, London",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1575,
+  "first": "2026-10-16T16:29",
+  "last": "2026-10-16",
+  "lat": 51.554382,
+  "lng": -0.213951,
+  "price": 1295.0,
+  "url": "https://www.onthemarket.com/details/16265746/"
+ },
+ "rm:94199508": {
+  "address": "Messenger Court, 150 Spa Road, London, SE16 4AU",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1544,
+  "first": "2026-10-16T16:29",
+  "last": "2026-10-16",
+  "lat": 51.496295,
+  "lng": -0.067665,
+  "price": 1264.0,
+  "url": "https://www.rightmove.co.uk/properties/94199508"
+ },
  "stb:144685": {
   "address": "Flat 10, Coppermill Heights, Ferry Lane, N17 9FG",
   "alerted": true,
@@ -1578,7 +1614,7 @@
   "url": "https://www.sharetobuy.com/properties/402485/"
  },
  "stb:403580": {
-  "address": "ShareToBuy #403580",
+  "address": "London SW9 0BF, London, SW9 0BF",
   "alerted": true,
   "beds": 1,
   "cost": 1594,
@@ -3558,9 +3594,9 @@
   "beds": 1,
   "cost": 1427,
   "first": "2026-10-14",
-  "last": "2026-10-14",
-  "lat": 51.520767,
-  "lng": -0.025426,
+  "last": "2026-10-16",
+  "lat": 51.51875948,
+  "lng": -0.03541879000000003,
   "price": 67500.0,
   "url": "https://www.sharetobuy.com/properties/774445/"
  },
