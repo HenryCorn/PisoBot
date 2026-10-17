@@ -671,6 +671,18 @@
   "price": 81250.0,
   "url": "https://www.onthemarket.com/details/19621214/"
  },
+ "otm:19625098": {
+  "address": "Aerial Square, London, NW9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1283,
+  "first": "2026-10-17T18:02",
+  "last": "2026-10-17",
+  "lat": 51.595303,
+  "lng": -0.248931,
+  "price": 88750.0,
+  "url": "https://www.onthemarket.com/details/19625098/"
+ },
  "otm:19631154": {
   "address": "Coronation Square, Leyton, E10",
   "alerted": true,
