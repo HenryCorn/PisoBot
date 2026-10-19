@@ -1342,6 +1342,18 @@
   "price": 112500.0,
   "url": "https://www.onthemarket.com/details/20545371/"
  },
+ "otm:20581971": {
+  "address": "Plot 87 at SO Resi Wembley Park, 41 Brook Avenue HA9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1323,
+  "first": "2026-10-19T18:03",
+  "last": "2026-10-19",
+  "lat": 51.56391540698671,
+  "lng": -0.28218910052490775,
+  "price": 99375.0,
+  "url": "https://www.onthemarket.com/details/20581971/"
+ },
  "otmr:13592502": {
   "address": "Gee Street EC1V",
   "alerted": true,
