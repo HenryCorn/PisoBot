@@ -1563,7 +1563,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.49148,
-  "lng": -0.11914,
+  "lng": -0.11914000000000002,
   "price": 88750.0,
   "url": "https://www.sharetobuy.com/properties/343632/"
  },
@@ -1697,11 +1697,12 @@
   "url": "https://www.sharetobuy.com/properties/413939/"
  },
  "stb:416613": {
-  "alerted": false,
+  "address": "Estelle House, 21 Stroudley Walk, E3 3ZZ",
+  "alerted": true,
   "beds": 1,
   "cost": 1361,
   "first": "2026-10-14",
-  "last": "2026-10-14",
+  "last": "2026-10-20",
   "lat": 51.52665668,
   "lng": -0.01726574000000003,
   "price": 98125.0,
@@ -2045,8 +2046,8 @@
   "cost": 1533,
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
-  "lat": 51.532612,
-  "lng": -0.198713,
+  "lat": 51.53270344,
+  "lng": -0.19909749,
   "price": 123750.0,
   "url": "https://www.sharetobuy.com/properties/591853/"
  },
@@ -2061,6 +2062,18 @@
   "lng": -0.198713,
   "price": 120500.0,
   "url": "https://www.sharetobuy.com/properties/592107/"
+ },
+ "stb:592154": {
+  "address": "Carlton Vale, Kilburn, NW6 5HH",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1517,
+  "first": "2026-10-20T18:03",
+  "last": "2026-10-20",
+  "lat": 51.53270344,
+  "lng": -0.19909749,
+  "price": 121250.0,
+  "url": "https://www.sharetobuy.com/properties/592154/"
  },
  "stb:593556": {
   "address": "Duffield Drive, N15 4UH",
@@ -2374,6 +2387,18 @@
   "price": 115625.0,
   "url": "https://www.sharetobuy.com/properties/639599/"
  },
+ "stb:640202": {
+  "address": "Acton, Ealing, W3 0PU",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1414,
+  "first": "2026-10-20T18:03",
+  "last": "2026-10-20",
+  "lat": 51.52178987,
+  "lng": -0.26432047999999997,
+  "price": 118750.0,
+  "url": "https://www.sharetobuy.com/properties/640202/"
+ },
  "stb:640204": {
   "address": "Acton, Ealing, W3 0PU",
   "alerted": true,
@@ -2385,6 +2410,18 @@
   "lng": -0.26432047999999997,
   "price": 118125.0,
   "url": "https://www.sharetobuy.com/properties/640204/"
+ },
+ "stb:640206": {
+  "address": "Acton, Ealing, W3 0PU",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1497,
+  "first": "2026-10-20T18:03",
+  "last": "2026-10-20",
+  "lat": 51.521567,
+  "lng": -0.266639,
+  "price": 121250.0,
+  "url": "https://www.sharetobuy.com/properties/640206/"
  },
  "stb:641236": {
   "address": "Painter House, 1 Sidney Street, E1 2HU",
@@ -2729,6 +2766,18 @@
   "price": 120000.0,
   "url": "https://www.sharetobuy.com/properties/699234/"
  },
+ "stb:701351": {
+  "address": "Portland Street, Albany Road, SE17 2LY",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1480,
+  "first": "2026-10-20T18:03",
+  "last": "2026-10-20",
+  "lat": 51.482727,
+  "lng": -0.09166600000000003,
+  "price": 111250.0,
+  "url": "https://www.sharetobuy.com/properties/701351/"
+ },
  "stb:701388": {
   "address": "Portland Street, Albany Road, SE17 2LY",
   "alerted": true,
@@ -2749,7 +2798,7 @@
   "first": "2026-10-15T13:40",
   "last": "2026-10-20",
   "lat": 51.482727,
-  "lng": -0.091666,
+  "lng": -0.09166600000000003,
   "price": 107500.0,
   "url": "https://www.sharetobuy.com/properties/701390/"
  },
@@ -2796,7 +2845,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.547606,
-  "lng": -0.235057,
+  "lng": -0.23505699999999996,
   "price": 154000.0,
   "url": "https://www.sharetobuy.com/properties/708788/"
  },
@@ -2855,7 +2904,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.588852,
-  "lng": -0.062205,
+  "lng": -0.062204999999999955,
   "price": 129500.0,
   "url": "https://www.sharetobuy.com/properties/719429/"
  },
@@ -2863,12 +2912,12 @@
   "address": "Wembley, Middlesex, HA9 8PH",
   "alerted": true,
   "beds": 1,
-  "cost": 1261,
+  "cost": 1268,
   "first": "2026-10-15T07:49",
-  "last": "2026-10-16",
+  "last": "2026-10-20",
   "lat": 51.563744,
   "lng": -0.282724,
-  "price": 99375.0,
+  "price": 100000.0,
   "url": "https://www.sharetobuy.com/properties/720275/"
  },
  "stb:723895": {
@@ -2891,7 +2940,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.586535,
-  "lng": -0.078973,
+  "lng": -0.07897299999999996,
   "price": 140000.0,
   "url": "https://www.sharetobuy.com/properties/724078/"
  },
@@ -2903,7 +2952,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.529189,
-  "lng": -0.01667,
+  "lng": -0.016669999999999963,
   "price": 93000.0,
   "url": "https://www.sharetobuy.com/properties/724869/"
  },
@@ -2949,7 +2998,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.564599,
-  "lng": -0.096952,
+  "lng": -0.09695200000000004,
   "price": 180000.0,
   "url": "https://www.sharetobuy.com/properties/737644/"
  },
@@ -3009,7 +3058,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.523869,
-  "lng": -0.057292,
+  "lng": -0.05729200000000001,
   "price": 146000.0,
   "url": "https://www.sharetobuy.com/properties/745607/"
  },
@@ -3069,7 +3118,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.525082,
-  "lng": -0.010967,
+  "lng": -0.010966999999999949,
   "price": 95000.0,
   "url": "https://www.sharetobuy.com/properties/751789/"
  },
@@ -3105,7 +3154,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.5702146,
-  "lng": -0.09370826,
+  "lng": -0.09370825999999999,
   "price": 191250.0,
   "url": "https://www.sharetobuy.com/properties/753527/"
  },
@@ -3152,7 +3201,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.574886,
-  "lng": -0.07271,
+  "lng": -0.07271000000000005,
   "price": 117000.0,
   "url": "https://www.sharetobuy.com/properties/754492/"
  },
@@ -3200,7 +3249,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.5186,
-  "lng": -0.03688,
+  "lng": -0.036880000000000024,
   "price": 97500.0,
   "url": "https://www.sharetobuy.com/properties/756544/"
  },
@@ -3308,7 +3357,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.46887,
-  "lng": -0.0962,
+  "lng": -0.09619999999999995,
   "price": 112500.0,
   "url": "https://www.sharetobuy.com/properties/762161/"
  },
@@ -3440,7 +3489,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.445479,
-  "lng": -0.125739,
+  "lng": -0.12573900000000005,
   "price": 125000.0,
   "url": "https://www.sharetobuy.com/properties/768843/"
  },
@@ -3452,7 +3501,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.46887,
-  "lng": -0.0962,
+  "lng": -0.09619999999999995,
   "price": 144000.0,
   "url": "https://www.sharetobuy.com/properties/769259/"
  },
@@ -3464,7 +3513,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.556898,
-  "lng": -0.108268,
+  "lng": -0.10826800000000003,
   "price": 120000.0,
   "url": "https://www.sharetobuy.com/properties/769528/"
  },
@@ -3524,7 +3573,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.548753,
-  "lng": -0.220643,
+  "lng": -0.22064300000000003,
   "price": 97500.0,
   "url": "https://www.sharetobuy.com/properties/772720/"
  },
@@ -3644,7 +3693,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.513272,
-  "lng": -0.043,
+  "lng": -0.04300000000000004,
   "price": 128000.0,
   "url": "https://www.sharetobuy.com/properties/775471/"
  },
@@ -3668,7 +3717,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.482073,
-  "lng": -0.101761,
+  "lng": -0.10176099999999999,
   "price": 117500.0,
   "url": "https://www.sharetobuy.com/properties/776814/"
  },
@@ -3704,7 +3753,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.470152,
-  "lng": -0.11547,
+  "lng": -0.11546999999999996,
   "price": 182500.0,
   "url": "https://www.sharetobuy.com/properties/779093/"
  },
@@ -3833,9 +3882,21 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.553516,
-  "lng": -0.109517,
+  "lng": -0.10951699999999998,
   "price": 181500.0,
   "url": "https://www.sharetobuy.com/properties/780035/"
+ },
+ "stb:780619": {
+  "address": "14 Steyne Road, W3 9EQ",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1381,
+  "first": "2026-10-20T18:03",
+  "last": "2026-10-20",
+  "lat": 51.5095677,
+  "lng": -0.2732418,
+  "price": 105000.0,
+  "url": "https://www.sharetobuy.com/properties/780619/"
  },
  "stb:780621": {
   "address": "14 Steyne Road, W3 9EQ",
@@ -3929,7 +3990,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.550526,
-  "lng": -0.232084,
+  "lng": -0.23208399999999996,
   "price": 114000.0,
   "url": "https://www.sharetobuy.com/properties/782308/"
  },
@@ -3941,7 +4002,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.586058,
-  "lng": -0.064139,
+  "lng": -0.06413899999999995,
   "price": 112000.0,
   "url": "https://www.sharetobuy.com/properties/782624/"
  },
@@ -3965,7 +4026,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.48161,
-  "lng": -0.138549,
+  "lng": -0.13854900000000003,
   "price": 175000.0,
   "url": "https://www.sharetobuy.com/properties/783075/"
  },
@@ -3989,7 +4050,7 @@
   "first": "2026-10-14",
   "last": "2026-10-20",
   "lat": 51.523869,
-  "lng": -0.057292,
+  "lng": -0.05729200000000001,
   "price": 160000.0,
   "url": "https://www.sharetobuy.com/properties/784259/"
  },
@@ -4106,7 +4167,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.459705,
-  "lng": -0.209632,
+  "lng": -0.20963200000000004,
   "price": 126000.0,
   "url": "https://www.sharetobuy.com/properties/786916/"
  },
@@ -4130,7 +4191,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-20",
   "lat": 51.459245,
-  "lng": -0.211401,
+  "lng": -0.21140099999999995,
   "price": 107500.0,
   "url": "https://www.sharetobuy.com/properties/787040/"
  },
