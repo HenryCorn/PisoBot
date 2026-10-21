@@ -3165,6 +3165,13 @@
 "station": "Harlesden",
 "walk": 9
 },
+"51.540,-0.260->51.5152,-0.1419": {
+"changes": 1,
+"minutes": 43,
+"route": "bus 206 \u2192 Bakerloo line",
+"station": "Knatchbull Road",
+"walk": 3
+},
 "51.540,-0.290->51.5152,-0.1419": {
 "changes": 1,
 "minutes": 47,
@@ -3367,6 +3374,13 @@
 "route": "bus 316 \u2192 Jubilee line \u2192 Bakerloo line",
 "station": "Skardu Road",
 "walk": 3
+},
+"51.555,-0.285->51.5152,-0.1419": {
+"changes": 2,
+"minutes": 43,
+"route": "bus 83 \u2192 Metropolitan line \u2192 Bakerloo line",
+"station": "Wembley Stadium",
+"walk": 2
 },
 "51.556,-0.287->51.5152,-0.1419": {
 "changes": 2,
@@ -5691,6 +5705,24 @@
 "floor_area_m2": 51.0,
 "floorplan": "https://media.onthemarket.com/properties/20581971/1653125993/floor-plan-0-1024x1024.jpg",
 "service_charge": 160.0,
+"share_pct": 25.0
+},
+"20595521": {
+"description": "Modern new Shared Ownership home No onward chain Moments from Wembley Stadium Concierge service and residents facilities Private balcony Superb travel links This modern home is available to buy from as little as \u00a393,750 with a 25% share! Williamson Heights is ideally positioned on South Way in the heart of Wembley, immediately adjacent to the iconic Wembley Stadium. This superb location places residents at the centre of one of London's most exciting and vibrant neighbourhoods, with the impressive London Designer Outlet offering an excellent selection of shops, restaurants, caf\u00e9s and entertainment, including a cinema. Wembley Park also provides a fantastic mix of independent eateries, leisure facilities and open spaces, while the world-famous OVO Arena Wembley and Wembley Stadium host an exciting calendar of concerts, sporting events and live entertainment throughout the year. The development is exceptionally well connected, making it an excellent choice for commuters and those looking to explore the capital. Wembley Stadium railway station is just a short walk away, offering Chiltern Railways services into London Marylebone, while nearby Wembley Park Underground station provides access to both the Jubilee and Metropolitan lines, with convenient connections to Central London, Canary Wharf and beyond. Wembley Central station offers further rail and Underground connections, while the A406 North Circular Road and A40 provide convenient access to London's wider road network. Williamson Heights offers an impressive range of residents' facilities designed to complement modern London living. These include a welcoming concierge service, a residents' lounge, a private cinema room, a fitness suite and a dedicated co-working space, ideal for those working from home. Residents can also enjoy beautifully designed communal outdoor areas, including a roof terrace, providing a relaxing space to unwind and socialise. These excellent facilities create a convenient and contemporary living environment in one of London's most exciting locations. PRICING & AFFORDABILITY Approximate Size 605 sq ft Full Market Value: \u00a3375,000 25% Share Price: \u00a393,750 (rent \u00a3644.53pcm) 50% Share Price: \u00a3187,500 (rent \u00a3429.69pcm) 75% Share Price: \u00a3281,250 (rent \u00a3214.84pcm) Minimum 5% Mortgage Deposit (25% share): \u00a34,688 Approximate Service Charges: \u00a3188.91 pcm* Shared Ownership Lease: XXX years EWS1 Rating: A1 ELIGIBILITY Shared Ownership gives first time buyers and those that do not currently own a home the opportunity to purchase a share in a new build or resales leasehold property. The purchaser pays a mortgage on the share they own and pays rent to a housing association on the remaining share. The combined mortgage and rent is usually less than you\u2019d expect to pay if you bought a similar property outright although this is not a guarantee. At Williamson Heights you can buy a minimum 25% share of your home (the maximum you can buy initially is 75%). When you\u2019re ready, you can buy more shares until you staircase to owning 100% of your home. To be eligible for shared ownership you would need to meet the following criteria: \u2022 Your annual household income does not exceed \u00a390,000 \u2022 You have a deposit of at least 5% of the share value \u2022 You do not own another property or have your name on the deeds or a mortgage for a property worldwide. \u2022 This will be your only residence. \u2022 You are a permanent UK resident or have indefinite right to remain. Please note the minimum share you can purchase can vary depending on your financial situation and you may be asked to purchase a larger share, should your personal circumstances permit. *Service charges are estimated and may subject to change. Rent and service charges will be reviewed annually by your housing provider, usually on 1st April each year. *These photos are for information purposes only and may not represent a true likeness for the units being sold. They may have been taken from earlier phases or similar developments/house types and digitally furnished to represent how the home could be laid out; the final colours/appearance/specification may differ from the images and are not plot specific. We advise applicants to make their own investigations on future development in the area. We would suggest contacting the local authority for more information. The units have been dressed using AI and any additional fixtures or fittings depicted within the images are not included within the sale.",
+"floor_area_m2": 56.21,
+"floorplan": "https://media.onthemarket.com/properties/20595521/1653554211/floor-plan-0-1024x1024.jpg",
+"full_value": 375000.0,
+"rent": 644.53,
+"service_charge": 188.91,
+"share_pct": 25.0
+},
+"20595555": {
+"description": "Modern new Shared Ownership home No onward chain Moments from Wembley Stadium Concierge service and residents facilities Private balcony Superb travel links This modern home is available to buy from as little as \u00a3106,250 with a 25% share! Williamson Heights is ideally positioned on South Way in the heart of Wembley, immediately adjacent to the iconic Wembley Stadium. This superb location places residents at the centre of one of London's most exciting and vibrant neighbourhoods, with the impressive London Designer Outlet offering an excellent selection of shops, restaurants, caf\u00e9s and entertainment, including a cinema. Wembley Park also provides a fantastic mix of independent eateries, leisure facilities and open spaces, while the world-famous OVO Arena Wembley and Wembley Stadium host an exciting calendar of concerts, sporting events and live entertainment throughout the year. The development is exceptionally well connected, making it an excellent choice for commuters and those looking to explore the capital. Wembley Stadium railway station is just a short walk away, offering Chiltern Railways services into London Marylebone, while nearby Wembley Park Underground station provides access to both the Jubilee and Metropolitan lines, with convenient connections to Central London, Canary Wharf and beyond. Wembley Central station offers further rail and Underground connections, while the A406 North Circular Road and A40 provide convenient access to London's wider road network. Williamson Heights offers an impressive range of residents' facilities designed to complement modern London living. These include a welcoming concierge service, a residents' lounge, a private cinema room, a fitness suite and a dedicated co-working space, ideal for those working from home. Residents can also enjoy beautifully designed communal outdoor areas, including a roof terrace, providing a relaxing space to unwind and socialise. These excellent facilities create a convenient and contemporary living environment in one of London's most exciting locations. PRICING & AFFORDABILITY Approximate Size 714 sq ft Full Market Value: \u00a3425,000 25% Share Price: \u00a3106,250 (rent \u00a3730.47pcm) 50% Share Price: \u00a3212,500 (rent \u00a3486.98pcm) 75% Share Price: \u00a3318,750 (rent \u00a3243.49pcm) Minimum 5% Mortgage Deposit (25% share): \u00a35,313 Approximate Service Charges: \u00a3217.57 pcm* Shared Ownership Lease: XXX years EWS1 Rating: A1 ELIGIBILITY Shared Ownership gives first time buyers and those that do not currently own a home the opportunity to purchase a share in a new build or resales leasehold property. The purchaser pays a mortgage on the share they own and pays rent to a housing association on the remaining share. The combined mortgage and rent is usually less than you\u2019d expect to pay if you bought a similar property outright although this is not a guarantee. At Williamson Heights you can buy a minimum 25% share of your home (the maximum you can buy initially is 75%). When you\u2019re ready, you can buy more shares until you staircase to owning 100% of your home. To be eligible for shared ownership you would need to meet the following criteria: \u2022 Your annual household income does not exceed \u00a390,000 \u2022 You have a deposit of at least 5% of the share value \u2022 You do not own another property or have your name on the deeds or a mortgage for a property worldwide. \u2022 This will be your only residence. \u2022 You are a permanent UK resident or have indefinite right to remain. Please note the minimum share you can purchase can vary depending on your financial situation and you may be asked to purchase a larger share, should your personal circumstances permit. *Service charges are estimated and may subject to change. Rent and service charges will be reviewed annually by your housing provider, usually on 1st April each year. *These photos are for information purposes only and may not represent a true likeness for the units being sold. They may have been taken from earlier phases or similar developments/house types and digitally furnished to represent how the home could be laid out; the final colours/appearance/specification may differ from the images and are not plot specific. We advise applicants to make their own investigations on future development in the area. We would suggest contacting the local authority for more information. The units have been dressed using AI and any additional fixtures or fittings depicted within the images are not included within the sale.",
+"floor_area_m2": 66.33,
+"floorplan": "https://media.onthemarket.com/properties/20595555/1653554658/floor-plan-0-1024x1024.jpg",
+"full_value": 425000.0,
+"rent": 730.47,
+"service_charge": 217.57,
 "share_pct": 25.0
 }
 },
@@ -9367,6 +9399,26 @@
 "https://media.onthemarket.com/developments/70154/1316763/image-0-1024x1024.jpg",
 "https://media.onthemarket.com/developments/70154/1316763/image-1-1024x1024.jpg",
 "https://media.onthemarket.com/developments/70154/1316763/image-2-1024x1024.jpg"
+],
+"20595521": [
+"https://media.onthemarket.com/properties/20595521/1653554211/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595521/1653554211/epc-graph-0-1024x1024.png"
+],
+"20595555": [
+"https://media.onthemarket.com/properties/20595555/1653554658/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20595555/1653554658/epc-graph-0-1024x1024.png"
 ]
 },
 "otmr_detail": {
@@ -34634,6 +34686,36 @@
 "share_pct": 25.0,
 "share_price": 130000.0
 },
+"788705:1347.0": {
+"council_tax": "B",
+"description": "Situated within a well-maintained development in northwest London, this spacious one-bedroom apartment offers a rare combination of privacy, practicality and outdoor space. Benefiting from its own private entrance and private terrace, the property enjoys a self-contained feel more commonly associated with a house than an apartment. The generous open-plan kitchen, living and dining area provides ample space for relaxing, entertaining or home working and benefits from excellent natural light throughout the day. The apartment further benefits from underfloor heating and a mechanical ventilation system throughout. The contemporary kitchen is fitted with gloss cabinetry, soft-close units and integrated appliances including an oven, hob, fridge/freezer, dishwasher and washer/dryer. Under-unit LED lighting, generous cupboard space and deep storage drawers complete the kitchen's practical design. The well-proportioned double bedroom features a full-height fitted wardrobe with mirrored doors, while the modern bathroom is finished with large-format wall and floor tiles, a heated towel rail, vanity surface and a shower over a full-size bath. Positioned overlooking a residential courtyard, the apartment benefits from a five-point multi-locking entrance door, offering additional security and peace of mind. Residents also enjoy access to communal gardens, a dedicated bicycle store and gated parking with an allocated parking space. Conveniently located within easy reach of Harlesden Station and a wide range of local amenities, caf\u00e9s, parks and leisure facilities, this chain-free home offers an excellent opportunity for first-time buyers seeking a well-connected London property. Read full description Less description Eligibility You may be eligible for this property if: You have a gross household income of no more than \u00a390,000 per annum. You are unable to purchase a suitable home to meet your housing needs on the open market. You do not already own a home or you will have sold your current home before you purchase or rent. Prior to viewing: All applicants must be registered and approved by Hyde New Homes and may be required to carry out a shared ownership affordability assessment. Features Chain free Spacious one-bedroom apartment Private entrance Private terrace Bright open-plan living, dining and kitchen area Contemporary kitchen with integrated appliances Underfloor heating throughout Mechanical ventilation system Double bedroom with fitted mirrored wardrobe Modern bathroom with shower over bath Five-point multi-locking entrance door Allocated gated parking space Communal gardens Dedicated bicycle storage Walking distance to Harlesden Station Excellent transport links Fibre broadband available Monthly Rent = \u00a3706.28 Monthly Service Charge = \u00a3145.36 Lease: Commenced 2018 with 999-year term Council Tax Band: Brent Council \u2013 B Monthly Ground Rent: \u00a312.50 Please note the rent and service charge is reviewed annually 01 April. Your home may be at risk if you do not keep up your mortgage and rent repayments. Particulars give an overall description of the property and are not intended to constitute an offer or form part of any contract. Areas, distances or measurements referred to are approximate. For confirmation of property details refer to the terms of the lease and plans from your solicitor. Hyde New Homes Resale properties are sold as seen. Please note that the Resales Team have not visited this property. Read all features Less features",
+"floor": "Ground",
+"floor_area_m2": null,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1792505295_a28b44_Floorplan_-_amended.jpg?download=1",
+"full_value": 310000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA1X2JmNTA1YV8yLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA2X2YzOGU5Y181LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5X2JhNjc1MF8xMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzdmNmM3N185LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA4XzAyNzgwMl8xMS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA2XzMwZTVkYl8zLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA1XzYyNGY2Ml8xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzNiYjYyNl80LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzgyZDcyMV82LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3X2M1NDVkNV83LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3X2NkNGNlYV84LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA4X2E4YzkxMl8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5XzYwMDNhMV8xMy5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5XzM4OWY2ZV8xNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
+"lease_years": 991,
+"min_deposit": 9300.0,
+"rent": 12.5,
+"service_charge": 706.28,
+"share_pct": 30.0,
+"share_price": 93000.0
+},
 "788737:1849.0": {
 "council_tax": null,
 "description": "Glengall Rise is an exciting new development on Glengall Road in the London Borough of Southwark offering a chance to live minutes away from Burgess Park and other green spaces. A new collection of 1, 2 & 3 bedroom Shared Ownership apartments in North Peckham. Benefits of living at Glengall Rise \u2022 Residents' only Brompton bike hire \u2022 Intelligent parcel lockers \u2022 8th floor rooftop terrace - a great space to unwind while enjoying stunning London views \u2022 2nd floor residents' podium with tables, benches and children's play area Designed to suit every lifestyle, these homes offer a versatile mix of layouts and features. Whether you're a first-time buyer, growing family or looking to downsize, you can do so at Glengall Rise without a compromise. Light-filled, open-plan layouts will help you make the most of space and will allow you to enjoy everyday living and entertaining. The development retains its original kiln chimney as a key architectural feature. Set between two buildings, selected Shared Ownership homes will feature stunning views of London and each home benefits from a balcony or a terrace. Wheelchair adaptable apartments Glengall Rise will offer several wheelchair adaptable apartments, designed to make living in London the best it can be. With great layout options that accommodate wheelchair users, rest assured you will find the perfect home. Speak to our sales team to find out more. Shared Ownership What are the benefits? Low deposit - you only pay from 5% of the share you are buying. Flexibility - you choose when you want to purchase extra share of your home. Accessibility - Shared Ownership helps you get a mortgage even with a lower salary. Lower costs - Monthly costs can work our cheaper than renting privately. Book your viewing today! Local area information North Peckham offers a mix of creativity, culture and community spirit. Spend weekends exploring Burgess Park (4 mins' walk away), catching exhibitions at South London Gallery, or trying local favourites from Peckham Levels to Rye Lane Market. For fitness fans Peckham has a wide range of gyms for all different interests. A little further in Bermondsey, explore the beer mile for undiscovered craft lagers, uncover hidden gems at Bermondsey antique market and immerse yourself in culture at the White Cube Gallery. In Elephant and Castle, check out the renowned Southwark Playhouse, BFI IMAX and many more bars and restaurants. Transport at Glengall Rise Packham Rye station is only 9 minutes away from your new home by bike. From there you can reach London Victoria in 13 minutes. Or, Elephant and Castle train station is a 9-minute bike ride away, from where you can get to: Liverpool Street in 13 minutes Farringdon in 9 minutes London Bridge in 4 minutes Nearest Bus stops St George's Way, Bird in Bush Road, and Trafalgar Avenue are within a 4-7 minute walk, served by multiple routes including the 149, 257, 294, 63, 78 and more All travel times and distances taken grom googlemaps.com and are subject to change. Read full description Less description Eligibility To be eligible for Shared Ownership: Your household income must be no more than \u00a390,000. You cannot own another property at the time of completing your purchase. You must have an offer on your current property to be able to reserve a new home. You must be over 18 years of age and able to obtain a mortgage. Priority will be given to those who live or work in the London Borough of Southwark Features Residents will enjoy exclusive features including: \u2022 Brompton bike hire lockers \u2022 Intelligent parcel lockers \u2022 Rooftop gardens with views and space to unwind \u2022 2nd floor terraces with tables and benches designed for neighbourly moments Read all features Less features Video",
@@ -34735,6 +34817,33 @@
 "service_charge": 294.0,
 "share_pct": 25.0,
 "share_price": 156250.0
+},
+"788875:1736.0": {
+"council_tax": "D",
+"description": "This generously-sized, one-bedroom apartment is on the seventh floor and has an open-plan kitchen/reception room with attractive flooring, integrated appliances, windows on two sides and a door that leads out onto the east-facing balcony. There is a spacious bedroom, a stylish bathroom and a pair of built-in storage/utility cupboards have been provided in the entrance hallway. Elmbridge House is part of a recently-built development in the Nine Elms Regeneration Area. Demanding insulation standards, high performance glazing and underfloor heating fed from a communal hot water system make for a good energy-efficiency rating. Battersea Park is only a few minutes away, offering a lake, sports facilities and large open spaces. Battersea Park Station and Queenstown Road are close and the redeveloped Battersea Power Station site provides restaurants, bars and stores as well as a new Northern Line station. Food shopping is convenient with Waitrose and Sainsbury's supermarkets in the local area and nearby Chelsea Bridge also means areas north of the Thames are in easy reach. SHARED OWNERSHIP (Advertised price represents 29% share. Full market value \u00a3525,000). INTERESTED PARTIES ARE REQUIRED TO COMPLETE THE SHARED OWNERSHIP COMMON APPLICATION FORM [ https://tinyurl.com/ysyv62r4] (Please note the minimum income and deposit requirements for eligibility. You do not need to request a viewing separately once you have completed the application form.) Housing Association: Clarion. Tenure: Leasehold (250 years from 01/01/2020). Minimum Share: 29% (\u00a3152,250). The housing association will expect that you will purchase the largest share affordable. Shared Ownership Rent: \u00a3723.66 per month (subject to annual review). Service Charge: \u00a3200.57 per month (subject to annual review). Personal Heating & Hot Water Charge: \u00a361.62 per month (subject to annual review). Guideline Minimum Income: Dual - \u00a357,900 | Single - \u00a366,600 (based on minimum share and 10% deposit). Council Tax: Band D, London Borough of Wandsworth. Priority is given to applicants living and/or working in this local authority. This property is offered for sale in the condition seen. The housing association does not warrant to carry out any remedial or redecoration work of a cosmetic nature unless specifically advised in writing. As a general rule, fitted domestic appliances are included in the sale; non-fitted appliances are not. If you require confirmation, you must request this in writing from Urban Moves. The information in this document supersedes any information given verbally either in person or by telephone. Pets may be permitted but only with prior consent from Clarion (which can only be obtained once you are the property owner). There is no parking space offered with this property. Read full description Less description Features Guideline Minimum Deposit \u00a315,225 Guide Min Income Dual \u00a357.9k | Single \u00a366.6k Seventh Floor with Balcony Approx. 582 Sqft Gross Internal Area Open Plan Kitchen/Reception Room Stylish Bathroom Underfloor Heating Throughout Communal Garden Minutes from Battersea Park Tube/Rail Stations Within Easy Reach Read all features Less features",
+"floor": "7th",
+"floor_area_m2": null,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1792573818_2c8db7_-6ad73f1f9fe91-1536240.v1_-_cropped.jpg?download=1",
+"full_value": 525000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2RhZWJlZV8xNTM2MjQwXygyKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzI4YTgwZl8xNTM2MjQwXygxMSkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0XzhjMmEzZl8xNTM2MjQwXyg0KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2NlOTQ2N18xNTM2MjQwXygzKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0XzUzZjA5NF8xNTM2MjQwXyg1KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2ViZmE4Nl8xNTM2MjQwXyg2KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzBhZjk3Yl8xNTM2MjQwXyg4KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1X2Q0MGJmNV8xNTM2MjQwXyg5KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzE1YzA1ZF8xNTM2MjQwXygxMCkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2MwNTdkOV8xNTM2MjQwXyg3KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzgwNjk1Nl8xNTM2MjQwXygxKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
+"lease_years": 243,
+"min_deposit": 15225.0,
+"rent": 723.66,
+"service_charge": 200.57,
+"share_pct": 29.0,
+"share_price": 152250.0
 }
 },
 "stb_photos": {
@@ -42637,6 +42746,22 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzY2MTU3MTkzXzA1NF9Mb3dSZXNfU291dGhlcm5Ib3VzaW5nX0dsZW5nYWxsUmlzZV8zQmVkU2hvd2hvbWVfMlI3QTE4MDIuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzY2MTU3MTkzXzA1M19Mb3dSZXNfU291dGhlcm5Ib3VzaW5nX0dsZW5nYWxsUmlzZV8zQmVkU2hvd2hvbWVfMlI3QTE4MDEuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0="
 ],
+"788705": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA1X2JmNTA1YV8yLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA2X2YzOGU5Y181LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5X2JhNjc1MF8xMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzdmNmM3N185LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA4XzAyNzgwMl8xMS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA2XzMwZTVkYl8zLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA1XzYyNGY2Ml8xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzNiYjYyNl80LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3XzgyZDcyMV82LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3X2M1NDVkNV83LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA3X2NkNGNlYV84LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA4X2E4YzkxMl8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5XzYwMDNhMV8xMy5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTA1MzA5XzM4OWY2ZV8xNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
 "788737": [
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzY2MTU3MTg0XzExLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzY2MTU3MTg0XzEyLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
@@ -42696,6 +42821,19 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzgzNDM5ODgwXzU3ODhhOV8zRTRKZ3JYZlFVQ3hzN0Z4UEQ4NWRRLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzY1NDcxMDE3XzAwM19Mb3dSZXNfMUJlZF9TaG93aG9tZVBob3RvZ3JhcGh5X0Nvcm5lclBsYWNlX1NIXzJSN0ExMDI4LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyMDc0ODczX2U0MGNlNl85UWsySzBIZS1rLTFiZUJwSlBObUd3LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19"
+],
+"788875": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2RhZWJlZV8xNTM2MjQwXygyKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzI4YTgwZl8xNTM2MjQwXygxMSkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0XzhjMmEzZl8xNTM2MjQwXyg0KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2NlOTQ2N18xNTM2MjQwXygzKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0XzUzZjA5NF8xNTM2MjQwXyg1KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2ViZmE4Nl8xNTM2MjQwXyg2KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzBhZjk3Yl8xNTM2MjQwXyg4KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1X2Q0MGJmNV8xNTM2MjQwXyg5KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzE1YzA1ZF8xNTM2MjQwXygxMCkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA0X2MwNTdkOV8xNTM2MjQwXyg3KS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNTczODA1XzgwNjk1Nl8xNTM2MjQwXygxKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
 ]
 },
 "zp_detail": {
