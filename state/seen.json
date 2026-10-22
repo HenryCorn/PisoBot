@@ -4254,6 +4254,42 @@
   "price": 125000.0,
   "url": "https://www.sharetobuy.com/properties/787642/"
  },
+ "stb:789153": {
+  "address": "Quilting Court, Garter Way, SE16 6XF",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1466,
+  "first": "2026-10-22T18:03",
+  "last": "2026-10-22",
+  "lat": 51.500874,
+  "lng": -0.046441,
+  "price": 219000.0,
+  "url": "https://www.sharetobuy.com/properties/789153/"
+ },
+ "stb:789278": {
+  "address": "Central Way, NW10 7NS",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1564,
+  "first": "2026-10-22T18:03",
+  "last": "2026-10-22",
+  "lat": 51.530936,
+  "lng": -0.269161,
+  "price": 112500.0,
+  "url": "https://www.sharetobuy.com/properties/789278/"
+ },
+ "stb:789297": {
+  "address": "Central Way, NW10 7NS",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1503,
+  "first": "2026-10-22T18:03",
+  "last": "2026-10-22",
+  "lat": 51.530936,
+  "lng": -0.269161,
+  "price": 107500.0,
+  "url": "https://www.sharetobuy.com/properties/789297/"
+ },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
   "alerted": true,
