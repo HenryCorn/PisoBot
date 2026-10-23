@@ -22,6 +22,7 @@
 "51.472,-0.014:2026-08:500": 54,
 "51.472,-0.029:2026-08:500": 60,
 "51.472,-0.030:2026-08:500": 59,
+"51.473,-0.185:2026-08:500": 44,
 "51.474,-0.024:2026-08:500": 79,
 "51.474,-0.052:2026-08:500": 47,
 "51.474,-0.061:2026-08:500": 67,
@@ -869,6 +870,13 @@
 "route": "Overground (Windrush) \u2192 Elizabeth line",
 "station": "New Cross ELL",
 "walk": 13
+},
+"51.473,-0.185->51.5152,-0.1419": {
+"changes": 1,
+"minutes": 40,
+"route": "Overground (Mildmay) \u2192 Central line",
+"station": "Imperial Wharf",
+"walk": 7
 },
 "51.474,-0.024": {
 "changes": 1,
@@ -5688,6 +5696,10 @@
 "description": "Historic setting Mature green open space Excellent transport connections High specification fixtures and fittings Brought to you by Latimer Homes, Twyford Park is an exceptional new neighbourhood set within beautifully restored parkland in North West London. Offering a collection of one and two-bedroom Shared Ownership apartments, Twyford Park combines elegant contemporary design with the rich character of its historic surroundings. Surrounded by mature trees, landscaped gardens and thoughtfully designed open spaces, it offers a rare opportunity to enjoy modern living in a unique parkland setting. Hanger Lane Underground Station is just a 10-minute walk away, offering direct access to the Central line and fast journeys into central London. Residents will also benefit from beautifully landscaped grounds, mature parkland and a restored walled garden provide space to relax, unwind and connect with nature. The homes at Twyford Park have been carefully designed with contemporary interiors, high-quality specifications and stylish finishes throughout. Generous windows and thoughtfully planned layouts create bright, welcoming living spaces. Register your interest today to receive the latest updates and be among the first to discover more about this exciting new Shared Ownership development CBRE and Hamptons are our sales agent at Twyford Park.",
 "floorplan": "https://media.onthemarket.com/properties/20523053/1651415501/floor-plan-0-1024x1024.jpg"
 },
+"20540896": {
+"description": "Bright & homely 1st-floor apartment Spacious open-plan kitchen Modern bathroom with spa-like tiling Excellent transport \u2013 Langdon Park DLR, Limehouse, Canary Wharf & buses on the doorstep Welcome to this bright and homely 1-bedroom, 1-bathroom apartment, thoughtfully arranged across a generously proportioned open-plan layout on the first floor. The heart of the home is a spacious open-plan kitchen and living area flooded with natural light from large windows. The kitchen offers ample workspace and modern integrated appliances, flowing seamlessly into a generous living and dining zone ideal for relaxing or entertaining. The bedroom is a calm, light-filled retreat with a large window framing pleasant outlooks, while the modern bathroom features spa-like tiling, a full-size bath with shower, and contemporary finishes throughout. Excellent transport links are right on your doorstep, with Langdon Park DLR, Limehouse, and Canary Wharf stations all nearby, plus a selection of bus stops immediately outside.",
+"floorplan": "https://media.onthemarket.com/properties/20540896/1651695543/floor-plan-0-1024x1024.jpg"
+},
 "20545371": {
 "description": "Private balconies to all homes Council tax band C Pet friendly Communal podium gardens Wheelchair adaptable homes 10-min walk from Hackney Wick Station Victoria Park and Queen Elizabeth Olympic Park nearby Located in the heart of Fish Island in Hackney Wick, Fish Island Point sits within one of London\u2019s most creative areas, offering an exciting place to live and unwind. Fish Island Point is a vibrant collection of 1, 2 & 3 bedroom apartments available through Shared Ownership with great layout options that can also accommodate wheelchair users.* Key features: Private balconies to all homes Contemporary kitchen designs 10-minute walk to Hackney Wick Station Modern Fixtures and fittings Why should you consider buying in Fish Island, Hackney Wick E3 Everything is within easy reach with fantastic transport links connecting you to central London by tube and rail; and pedestrian and cycling routes into east London\u2019s hubs and green spaces. Stratford\u2019s Queen Elizabeth Olympic Park is also a stone\u2019s throw away. Example 1-bedroom apartment Shared Ownership cost breakdown - 30% Share* - Full market value = \u00a3450,000 - Example 30% share price = \u00a3135,000 - Estimated monthly rent = \u00a3722 - Estimated monthly service charge = \u00a3139 - Estimated monthly mortgage = \u00a3659 - Deposit required (10%) = \u00a313,500 Total monthly cost = \u00a31,520 What is Shared Ownership? Available to purchase through Shared Ownership, purchasers are able to buy as much of the property as they can afford, from 25 - 75%, paying a low cost rent on the remaining unpurchased 'share' of the home. What's more, your mortgage deposit is based on the value of the share you buy, not the full market value, making these high-spec homes even more affordable in such a sought-after location. Wheelchair-adaptable homes are also available* This stunning new development includes a collection of 1 and 2-bedroom wheelchair-adaptable homes also available through Shared Ownership. If you or a member of your household require a wheelchair-adaptable home, visit the Peabody New Homes website and search for Fish Island Point to complete our enquiry form. Register your interest to find out more *CGIs (Computer Generated Images) are indicative only *Travel timings are taken from Google Maps. *Wheelchair adaptable homes: Select number of homes available with parking. Additional costs to adaptions are required.",
 "floorplan": "https://media.onthemarket.com/properties/20545371/1651762105/floor-plan-0-1024x1024.png",
@@ -5766,6 +5778,15 @@
 "lease_years": 995,
 "rent": 577.0,
 "service_charge": 230.31,
+"share_pct": 25.0
+},
+"20614131": {
+"description": "Guideline Minimum Deposit \u00a310,250 Guide Min Income Dual \u00a355.2k Single \u00a363.4k Fourth Floor (building has a lift) Approx. 681 Sqft Gross Internal Area Open Plan Kitchen/Reception Room Large Balcony Two Good-Sized Double Bedrooms Stylish Bathroom Secure, Underground Parking Space Short Walk to Alperton Station (Piccadilly Line) SHARED OWNERSHIP (Advertised price represents 25% share. Full market value \u00a3410,000). This smartly-presented apartment is on the fourth floor of a recently-constructed development and has a twenty-two-foot reception room with open-plan kitchen featuring sleek units and integrated appliances. A door leads from the living area out onto a large balcony, the elevation providing a view over the top of the neighbouring, low-level housing. There is a main bedroom, with fitted wardrobe, plus a slightly smaller second double bedroom, a stylish bathroom and a hallway storage/utility cupboard. Demanding insulation standards and high performance glazing make for a good energy-efficiency rating. Waterfront Heights takes its name from the Paddington Branch of the Grand Union Canal that it borders. The development has a central communal garden which overlooks the canal. Alperton Station, for the Piccadilly Line, is close by. Stonebridge Park (Bakerloo Line, London Overground) and Hanger Lane (Central Line) are also within walking distance or a brief cycle ride and Wembley Central offers additional mainline services. The property comes with use of an allocated space in the underground car park. INTERESTED PARTIES ARE REQUIRED TO COMPLETE THE SHARED OWNERSHIP COMMON APPLICATION FORM [ ] (Please note the minimum income and deposit requirements for eligibility. You do not need to request a viewing separately once you have completed the application form.) Housing Association: Clarion. Tenure: Leasehold (125 years from 29/09/2020). Minimum Share: 25% (\u00a3102,500). The housing association will expect that you will purchase the largest share affordable. Shared Ownership Rent: \u00a3933.86 per month (subject to annual review). Service Charge: \u00a3196.64 per month (subject to annual review). Guideline Minimum Income: Dual - \u00a355,200 | Single - \u00a363,400 (based on minimum share and 10% deposit). Council Tax: Band D, London Borough of Brent. Priority is given to applicants living and/or working in this local authority. This property is offered for sale in the condition seen. The housing association does not warrant to carry out any remedial or redecoration work of a cosmetic nature unless specifically advised in writing. As a general rule, fitted domestic appliances are included in the sale; non-fitted appliances are not. If you require confirmation, you must request this in writing from Urban Moves. The information in this document supersedes any information given verbally either in person or by telephone. Pets may be permitted but only with prior consent from Clarion (which can only be obtained once you are the property owner). WHAT IS SHARED OWNERSHIP ? Shared Ownership is a housing scheme designed to help homebuyers who are unable to afford the cost of buying a property outright on the open market. Properties may be sold off-plan or new build direct from housing associations, or pre-owned from existing shared owners. The rules and terms of the scheme are set by the Greater London Authority (GLA) in London and Homes England outside of London. IS SHARED OWNERSHIP FOR YOU ? The GLA and Homes England set the eligibility criteria for Shared Ownership, but broadly speaking you must: 1. Not own another property in the UK or any other country. 2. Have a household income that falls below \u00a390,000 (\u00a380,000 threshold outside the M25). Every property will have a minimum income level too, determined by its value, rent and service charge costs. In most cases you will need to meet or exceed the given minimum income. 3. Have access to a minimum deposit of 10% of the share being purchased (a minimum deposit of 5% of the share being purchased may be acceptable depending on individual financial status). 4. Be in full time permanent employment. 5. Be a British, EU or EEA Citizen or have indefinite leave to remain in the UK. 6. Have a good credit history.",
+"floor_area_m2": 69.0,
+"floorplan": "https://media.onthemarket.com/properties/20614131/1654086155/floor-plan-0-1024x1024.jpg",
+"full_value": 410000.0,
+"rent": 933.86,
+"service_charge": 196.64,
 "share_pct": 25.0
 }
 },
@@ -9314,6 +9335,21 @@
 "https://media.onthemarket.com/properties/20523053/1651415501/image-14-1024x1024.png",
 "https://media.onthemarket.com/properties/20523053/1651415501/image-15-1024x1024.png"
 ],
+"20540896": [
+"https://media.onthemarket.com/properties/20540896/1651695543/image-0-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-2-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-3-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-4-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-5-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-6-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-7-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-8-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-9-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-10-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-11-1024x1024.png",
+"https://media.onthemarket.com/properties/20540896/1651695543/image-12-1024x1024.png"
+],
 "20545371": [
 "https://media.onthemarket.com/properties/20545371/1651762105/image-0-1024x1024.jpg",
 "https://media.onthemarket.com/properties/20545371/1651762105/image-1-1024x1024.jpg",
@@ -9536,6 +9572,19 @@
 "https://media.onthemarket.com/developments/69141/1393437/image-23-1024x1024.jpg",
 "https://media.onthemarket.com/developments/69141/1393437/image-24-1024x1024.jpg",
 "https://media.onthemarket.com/developments/69141/1393437/image-25-1024x1024.jpg"
+],
+"20614131": [
+"https://media.onthemarket.com/properties/20614131/1654086155/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-7-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-8-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/image-9-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20614131/1654086155/epc-graph-0-1024x1024.png"
 ]
 },
 "otmr_detail": {
@@ -34989,6 +35038,30 @@
 "share_pct": 60.0,
 "share_price": 219000.0
 },
+"789217:1714.0": {
+"council_tax": "C",
+"description": "Viewings will be taking place: Saturday 14th November and Sunday 15th November (between 10am-2pm) A spacious one-bedroom maisonette arranged over two floors, extending to approximately 64.4 sq m. The property offers generous living accommodation throughout, including a private balcony, and may appeal to purchasers looking for potential to create a second bedroom, subject to any necessary consents. Situated in a well-established residential area of Streatham, close to local amenities and transport links. No demised parking space. Internally Raised Ground Floor: Entrance Hall, Open-Plan Reception/Kitchen, W/C. Lower Ground Floor: Double Bedroom, Bathroom. Approximate Gross Internal Area: 64.4 sq m (693 sq ft). Externally The property benefits from a private balcony. There is no demised parking space. EPC B Location Highlights Situated in a well-established residential area of Streatham, close to local amenities, schools, leisure facilities and excellent transport links. Affordability Full Market Price: \u00a3350,000 Share Percentage: 40% Equity Price: \u00a3140,000 We will offer you the highest share you can afford, based on your individual financial assessment. Breakdown of Monthly Charges NHG Monthly Leasehold Assured Rent: \u00a3790.72 NHG Monthly Insurance Service Charge: \u00a3176.68 NHG Monthly Ground Rent: \u00a320.83 Read full description Less description Eligibility As a guide you will need to have a household income of at least \u00a371,408 . You will need access to savings of at least \u00a34,000 to cover the cost of buying the home. A minimum 10% deposit approx. \u00a317,400 . Total approximate savings required \u00a321,400 . Lambeth All London applicants will be considered with priority given to Lambeth residents. Applicants must be earning under \u00a390,000 to be eligible for one, two and three bedroom apartments. If you are an existing homeowner we will not be able to allocate you a home unless you have found a buyer for your existing home.",
+"floor": "Ground",
+"floor_area_m2": 64.4,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1792674636_92b6c7_Fuller_House_Floorplan.pdf?download=1",
+"full_value": 350000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzU5YjUxM19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wMy5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzBlOWVjYV9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wNi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1Xzk2ZDU1N19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wOC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzQyNjExY19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2Xzg1NzRmY19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xNS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1X2Y3NWI4OF9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1X2NkNjQzMV9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wOS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2X2EyNmMyZF9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
+"lease_years": 115,
+"min_deposit": 14000.0,
+"rent": 790.72,
+"service_charge": 176.68,
+"share_pct": 40.0,
+"share_price": 140000.0
+},
 "789241:1739.0": {
 "council_tax": "C",
 "description": "We are delighted to offer this modern one bedroom apartment, situated on the fifth floor and benefiting from a private balcony. Upon entering the property, you are welcomed into a spacious open-plan living area that combines the lounge and kitchen, creating a bright and versatile space perfect for both relaxing and entertaining. Large windows allow plenty of natural light to fill the room, while the balcony provides an ideal spot to enjoy some fresh air. The contemporary kitchen offers ample storage and worktop space, making it both practical and stylish for everyday living. The bedroom is generously sized and provides plenty of room for freestanding furniture, creating a comfortable and peaceful retreat. Completing the apartment is a well-presented bathroom, fitted with modern fixtures and designed to offer both comfort and convenience. This fantastic apartment would make an ideal first time purchase, offering modern living in a well connected location. Read full description Less description Eligibility You may be eligible for this property if: You have a gross household income of no more than \u00a390,000 per annum. You are unable to purchase a suitable home to meet your housing needs on the open market. You do not already own a home or you will have sold your current home before you purchase or rent. Features This property is ideally located within easy reach of a range of local amenities, including supermarkets, cafes, restaurants, and leisure facilities, making it well suited to modern-day living. The area benefits from excellent transport connections, with nearby bus routes and rail links providing convenient access to surrounding towns and central London. Residents can also enjoy a variety of green spaces and recreational facilities nearby, perfect for outdoor activities, exercise, or relaxing walks. The location offers a great balance of urban convenience and open space, making it popular with professionals, first-time buyers, and commuters alike. With a selection of shops, schools, healthcare services, and everyday essentials all close at hand, this property is well positioned to meet a wide range of lifestyle needs. Read all features Less features",
@@ -35162,6 +35235,39 @@
 "service_charge": 212.0,
 "share_pct": 25.0,
 "share_price": 148750.0
+},
+"789612:1243.0": {
+"council_tax": "C",
+"description": "A great chance to buy a shared-ownership flat in such a desirable, central London location. The smartly-presented, first-floor property has a twenty-three-foot open-plan kitchen/reception room with windows at one end and double doors, leading out onto a balcony, at the other. There is a fitted wardrobe in the bedroom, a large, built-in storage/utility cupboard has been provided in the hallway and the bathroom is naturally lit and neutrally coloured. Well insulated walls, modern double glazing and gas central heating make for a good energy-efficiency rating. The development has a concierge and an attractive, well-maintained communal garden. Imperial Wharf Station is just minutes away as is the river with Thames Clipper services available from nearby Chelsea Harbour Pier. The flat comes with use of an allocated space in the underground car park. SHARED OWNERSHIP (Advertised price represents 25% share. Full market value \u00a3460,000.) INTERESTED PARTIES ARE REQUIRED TO COMPLETE THE SHARED OWNERSHIP COMMON APPLICATION FORM [http://bit.ly/2JODPKX] (Please note the minimum income and deposit requirements for eligibility. You do not need to request a viewing separately once you have completed the application form.) Housing Association: Clarion. Tenure: Leasehold (125 years from 01/06/2009). Minimum Share: 25% (\u00a3115,000). The housing association will expect that you will purchase the largest share affordable. Shared Ownership Rent: \u00a3378.58 per month (subject to annual review). Service Charge: \u00a3250.85 per month (subject to annual review). Guideline Minimum Income: Dual - \u00a338,000 | Single - \u00a344,200 (based on minimum share and 10% deposit) Council Tax: Band C, London Borough of Hammersmith & Fulham. Priority is given to applicants living and/or working in this local authority. This property is offered for sale in the condition seen. The housing association does not warrant to carry out any remedial or redecoration work of a cosmetic nature unless specifically advised in writing. As a general rule, fitted domestic appliances are included in the sale; non-fitted appliances are not. If you require confirmation, you must request this in writing from Urban Moves. The information in this document supersedes any information given verbally either in person or by telephone. Pets may be permitted but only with prior consent from Clarion (which can only be obtained once you are the property owner). Read full description Less description Features Guideline Minimum Deposit \u00a311,500 Guide Min Income Dual \u00a338k | Single \u00a344.2k First Floor with Balcony Approx. 500 Sqft Gross Internal Area Open Plan Kitchen/Reception Room Fitted Wardrobe in Bedroom Naturally-Lit Bathroom Concierge and Communal Garden Secure Underground Parking Space Minutes from Imperial Wharf Station Read all features Less features",
+"floor": "1st",
+"floor_area_m2": null,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1792760883_34ea56_5dbffa142d1be-546796_-_cropped.jpg?download=1",
+"full_value": 460000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2RlZjE1NF9IYWxsd2F5X1JlY2VwdGlvbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0X2ZhNmQ0Nl9Gcm9udF9leHRlcm5hbF8oMykuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0XzE0MmQwNV9IYWxsd2F5X0JlZHJvb20uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1XzVlYjFjYl9LaXRjaGVuLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2M1ZGJiMV9LaXRjaGVuX1JlY2VwdGlvbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2IyZGJjYV9SZWNlcHRpb24uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2Y0YmM4ZV9SZWNlcHRpb25fS2l0Y2hlbl8xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2XzcwMWNmOV9SZWNlcHRpb25fS2l0Y2hlbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2QxNzgyN19CZWRyb29tLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2XzcyZGQ5Y19CYXRocm9vbS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2EyNTk4ZV9CYWxjb255MS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0XzJhYTY0Y19Gcm9udF9leHRlcm5hbCgyKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0Xzg5Y2RhZl9FbnRyYW5jZS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2U2MTAxZl9Db21tdW5hbF9wbGF5Z3JvdW5kLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1XzkxYmNiYl9Gcm9udF9FeHRlcm5hbC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2YyZWU2N19Db21tdW5hbF9nYXJkZW5fMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2U5NWM5ZV9Db21tdW5hbF9nYXJkZW4uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0="
+],
+"lease_years": 107,
+"min_deposit": 11500.0,
+"rent": 378.58,
+"service_charge": 250.85,
+"share_pct": 25.0,
+"share_price": 115000.0
 }
 },
 "stb_photos": {
@@ -43162,6 +43268,16 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjU3MzExX2I4NTIxYV9BdXR1bW5fUGF0aF90b190aGVfR2FyZGVuX1BhdmlsaW9uLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjU3MzExX2ExOTFkN19Hb2xkZW4tSG91cl9SZWZsZWN0aW9uc19hdF90aGVfUmVzZXJ2b2lyLnBuZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19"
 ],
+"789217": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzU5YjUxM19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wMy5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzBlOWVjYV9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wNi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1Xzk2ZDU1N19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wOC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2XzQyNjExY19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2Xzg1NzRmY19GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xNS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1X2Y3NWI4OF9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU1X2NkNjQzMV9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8wOS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY2NjU2X2EyNmMyZF9GbGF0XzIsX0Z1bGxlcl9Ib3VzZSxfMV9Ccm9hZGFzaF9DbG9zZSxfTG9uZG9uLF9TVzE2XzJESl8xNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
 "789241": [
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY3NzkyXzY1ODhlZV8xMTYxMDJfRmxhdF8yMl9UdWNhbmFfSGVpZ2h0c18xMV9DaGVlcmluZ19MYW5lXygyKV8tX0NvcHlfbG93LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjY3NzkyXzkxOTNkYV8xMTYxMDJfRmxhdF8yMl9UdWNhbmFfSGVpZ2h0c18xMV9DaGVlcmluZ19MYW5lXygxKV8tX0NvcHlfbG93LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
@@ -43251,6 +43367,25 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjg0MDk1X2RhNThhMF92ZXJ0ZXgtZWRnZS1zaG93aG9tZS1sci0zMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjg0MDk2XzE0ODM5NF92ZXJ0ZXgtZWRnZS1zaG93aG9tZS1sci5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNjg0MDk2XzIwZjY2M192ZXJ0ZXgtZWRnZS1zaG93aG9tZS1sci0yOS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
+"789612": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2RlZjE1NF9IYWxsd2F5X1JlY2VwdGlvbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0X2ZhNmQ0Nl9Gcm9udF9leHRlcm5hbF8oMykuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0XzE0MmQwNV9IYWxsd2F5X0JlZHJvb20uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1XzVlYjFjYl9LaXRjaGVuLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2M1ZGJiMV9LaXRjaGVuX1JlY2VwdGlvbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1X2IyZGJjYV9SZWNlcHRpb24uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2Y0YmM4ZV9SZWNlcHRpb25fS2l0Y2hlbl8xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2XzcwMWNmOV9SZWNlcHRpb25fS2l0Y2hlbi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2QxNzgyN19CZWRyb29tLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2XzcyZGQ5Y19CYXRocm9vbS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ2X2EyNTk4ZV9CYWxjb255MS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0XzJhYTY0Y19Gcm9udF9leHRlcm5hbCgyKS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ0Xzg5Y2RhZl9FbnRyYW5jZS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2U2MTAxZl9Db21tdW5hbF9wbGF5Z3JvdW5kLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQ1XzkxYmNiYl9Gcm9udF9FeHRlcm5hbC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2YyZWU2N19Db21tdW5hbF9nYXJkZW5fMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2U5NWM5ZV9Db21tdW5hbF9nYXJkZW4uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0="
 ]
 },
 "zp_detail": {

@@ -677,7 +677,7 @@
   "beds": 1,
   "cost": 1283,
   "first": "2026-10-17T18:02",
-  "last": "2026-10-17",
+  "last": "2026-10-23",
   "lat": 51.595303,
   "lng": -0.248931,
   "price": 88750.0,
@@ -1330,6 +1330,18 @@
   "lng": 0.019049,
   "price": 87500.0,
   "url": "https://www.onthemarket.com/details/20517414/"
+ },
+ "otm:20540896": {
+  "address": "London E14 6UA, London, E14 6UA",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1245,
+  "first": "2026-10-23T18:03",
+  "last": "2026-10-23",
+  "lat": 51.5153643,
+  "lng": -0.0150064,
+  "price": 80000.0,
+  "url": "https://www.onthemarket.com/details/20540896/"
  },
  "otm:20545371": {
   "alerted": false,
@@ -2148,7 +2160,7 @@
   "url": "https://www.sharetobuy.com/properties/607411/"
  },
  "stb:608311": {
-  "address": "Meridia Court, E15 2LG",
+  "address": "ShareToBuy #608311",
   "alerted": true,
   "beds": 1,
   "cost": 1348,
@@ -4002,7 +4014,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-23",
   "lat": 51.586058,
-  "lng": -0.06413899999999995,
+  "lng": -0.064139,
   "price": 112000.0,
   "url": "https://www.sharetobuy.com/properties/782624/"
  },
@@ -4167,7 +4179,7 @@
   "first": "2026-10-15T07:49",
   "last": "2026-10-23",
   "lat": 51.459705,
-  "lng": -0.20963200000000004,
+  "lng": -0.209632,
   "price": 126000.0,
   "url": "https://www.sharetobuy.com/properties/786916/"
  },
@@ -4289,6 +4301,18 @@
   "lng": -0.269161,
   "price": 107500.0,
   "url": "https://www.sharetobuy.com/properties/789297/"
+ },
+ "stb:789612": {
+  "address": "Bagleys Lane, London, SW6 2FW",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1185,
+  "first": "2026-10-23T18:03",
+  "last": "2026-10-23",
+  "lat": 51.473284,
+  "lng": -0.185178,
+  "price": 115000.0,
+  "url": "https://www.sharetobuy.com/properties/789612/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
