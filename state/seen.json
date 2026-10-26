@@ -1366,6 +1366,18 @@
   "price": 99375.0,
   "url": "https://www.onthemarket.com/details/20581971/"
  },
+ "otm:20623795": {
+  "address": "Station Road, London",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1421,
+  "first": "2026-10-26T18:03",
+  "last": "2026-10-26",
+  "lat": 51.58882,
+  "lng": -0.063044,
+  "price": 100000.0,
+  "url": "https://www.onthemarket.com/details/20623795/"
+ },
  "otmr:13592502": {
   "address": "Gee Street EC1V",
   "alerted": true,
@@ -2160,7 +2172,7 @@
   "url": "https://www.sharetobuy.com/properties/607411/"
  },
  "stb:608311": {
-  "address": "ShareToBuy #608311",
+  "address": "Meridia Court, E15 2LG",
   "alerted": true,
   "beds": 1,
   "cost": 1348,
@@ -4265,6 +4277,18 @@
   "lng": -0.05608100000000005,
   "price": 125000.0,
   "url": "https://www.sharetobuy.com/properties/787642/"
+ },
+ "stb:789001": {
+  "address": "Flat 502, Diagoras House, 18, Polydamas Close, E3 2ZA",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1420,
+  "first": "2026-10-26T18:03",
+  "last": "2026-10-26",
+  "lat": 51.530058,
+  "lng": -0.022441,
+  "price": 123000.0,
+  "url": "https://www.sharetobuy.com/properties/789001/"
  },
  "stb:789153": {
   "address": "Quilting Court, Garter Way, SE16 6XF",
