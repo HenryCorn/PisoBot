@@ -3338,7 +3338,7 @@
   "url": "https://www.sharetobuy.com/properties/759898/"
  },
  "stb:760846": {
-  "address": "ShareToBuy #760846",
+  "address": "Courtenay House, New Park Road, SW2 4DN",
   "alerted": true,
   "beds": 1,
   "cost": 1513,
@@ -4337,6 +4337,18 @@
   "lng": -0.185178,
   "price": 115000.0,
   "url": "https://www.sharetobuy.com/properties/789612/"
+ },
+ "stb:789795": {
+  "address": "Eyot House, Sun Passage, SE16 4BP",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1255,
+  "first": "2026-10-28T18:03",
+  "last": "2026-10-28",
+  "lat": 51.496928,
+  "lng": -0.068811,
+  "price": 136500.0,
+  "url": "https://www.sharetobuy.com/properties/789795/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",

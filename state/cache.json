@@ -87,6 +87,7 @@
 "51.496,0.013:2026-08:500": 29,
 "51.496,0.014:2026-08:500": 29,
 "51.497,-0.015:2026-08:500": 65,
+"51.497,-0.069:2026-08:500": 93,
 "51.497,-0.085:2026-08:500": 96,
 "51.498,-0.041:2026-08:500": 29,
 "51.498,0.012:2026-08:500": 30,
@@ -222,6 +223,7 @@
 "51.554,-0.110:2026-08:500": 78,
 "51.554,-0.214:2026-08:500": 64,
 "51.557,-0.108:2026-08:500": 75,
+"51.557,-0.286:2026-08:500": 138,
 "51.557,0.066:2026-08:500": 88,
 "51.558,-0.011:2026-08:500": 48,
 "51.558,-0.012:2026-08:500": 45,
@@ -1846,6 +1848,13 @@
 "station": "Crossharbour",
 "walk": 5
 },
+"51.497,-0.069->51.5152,-0.1419": {
+"changes": 1,
+"minutes": 36,
+"route": "Jubilee line \u2192 Central line",
+"station": "Bermondsey",
+"walk": 11
+},
 "51.497,-0.085": {
 "changes": 3,
 "minutes": 35,
@@ -3449,6 +3458,13 @@
 "station": "Drayton Park",
 "walk": 10
 },
+"51.557,-0.286->51.5152,-0.1419": {
+"changes": 2,
+"minutes": 39,
+"route": "bus 83 \u2192 Jubilee line \u2192 Bakerloo line",
+"station": "Lakeside Way",
+"walk": 1
+},
 "51.557,0.066": {
 "changes": 1,
 "minutes": 31,
@@ -3777,6 +3793,13 @@
 "route": "bus SL10 \u2192 Jubilee line \u2192 Bakerloo line",
 "station": "Hendon Magistrates Court",
 "walk": 3
+},
+"51.584,-0.245->51.5152,-0.1419": {
+"changes": 2,
+"minutes": 49,
+"route": "bus SL10 \u2192 Northern line \u2192 Victoria line",
+"station": "Hendon Magistrates Court",
+"walk": 5
 },
 "51.585,-0.246->51.5152,-0.1419": {
 "changes": 2,
@@ -4994,6 +5017,12 @@
 "rent": 5281.0,
 "share_pct": 25.0
 },
+"19547082": {
+"description": "25% share price. A fantastic one bedroom duplex maisonette with two terraces is now available. In the heart of North London, make way for a modern landmark development with a new urban community setting new standards for Shared Ownership. All crafted with quality materials and creative designs through collaboration and cooperation at every step. Part of an exciting regeneration area aiming to create a new mixed neighbourhood of private and affordable homes. Lfting the quality of Shared Ownership homes to new heights. A spectacular development, wonderful specification and unrivalled customer care, this development is the place to live. What is Shared Ownership? If you can't afford the mortgage on 100% of a home, Shared Ownership offers you the chance to buy a share of your home (between 25% and 75%) and pay rent on the remaining share. Later on, you could buy bigger shares when you can afford to and, if you chose, own the property outright. Monthly costs to purchase via Shared Ownership are generally less than purchasing outright or renting, making it a fantastic option to get onto the housing ladder. Available on the Shared Ownership scheme from 25% \u00a3107,500. Monthly rent \u00a3719.06. Minimum deposit from \u00a35,375.",
+"floorplan": "https://media.onthemarket.com/properties/19547082/1655161825/floor-plan-0-1024x1024.png",
+"rent": 719.06,
+"share_pct": 25.0
+},
 "19554983": {
 "description": "\u00a32000 buying costs contribution Private balconies to all homes Landscaped podium gardens Integrated appliances Cycle storage Adjacent to Wembley Park Underground Station Located in a regeneration hotspot 3 years Car Club membership Plot 87 Guide Pricing Beds: 1 bedroom apartment Size: 51 m\u00b2 Full Price: \u00a3397,500 Share %: 25% Share Price: \u00a399,375 Deposit 5%: \u00a34,969 Monthly Mortgage: \u00a3475.85 Monthly SO Resi Payment: \u00a3621.09 Estimated Service Charge: \u00a3160 Total Monthly Cost: \u00a31,256.95 Reserve a qualifying Shared Ownership property at SO Resi Wembley Park between 23rd September and 18th December 2026 and receive \u00a32000 towards your buying costs. Terms and conditions apply. This brand-new 1-bedroom Shared Ownership apartment is perfectly situated within walking distance of Wembley Park Station, offering unparalleled convenience for commuters and a vibrant lifestyle in one of London\u2019s most exciting neighbourhoods. Designed with sustainability in mind, the apartment features energy-efficient integrated appliances in a contemporary kitchen, helping to reduce utility costs while supporting a greener lifestyle. Double-glazed windows and enhanced insulation contribute to year-round comfort and improved energy performance, keeping your home warm in winter and cool in summer. Step out onto your private balcony to enjoy your morning coffee or unwind after a long day, while the secure cycle storage encourages eco-friendly travel. A private podium garden offers a tranquil retreat for relaxation or social gatherings\u2014bringing nature closer to home without compromising on urban convenience. Inside, the apartment\u2019s modern layout and high-quality finishes create a stylish and comfortable living environment. Plus, with 3 years of car club membership included, you\u2019ll have flexible access to low-emission vehicles without the need to own a car\u2014perfect for reducing your carbon footprint. Living in Wembley Park means being part of a dynamic community with world-class entertainment at Wembley Stadium and SSE Arena, alongside a wide variety of shops, restaurants, and caf\u00e9s. Excellent transport links make exploring the rest of London effortless. This apartment truly combines the best of urban living with the comfort, convenience, and energy-conscious design of a well-thought-out home. Schedule a viewing today and take the next step towards sustainable city living.",
 "floor_area_m2": 51.0,
@@ -5829,6 +5858,30 @@
 "20623795": {
 "description": "25% Shared Ownership Luxury One Bedroom Apartment West Facing Private Balcony 6 Years Left on NHBC Warranty Sold Chain Free Tottenham Hale 0.1 Miles SUMMARY SHARED OWNERSHIP 25% - This luxury flat offers a modern urban lifestyle with standout features including a private balcony with far-reaching views over North London, and ultra-contemporary finishes that blend comfort and design. DESCRIPTION This outstanding one-bedroom, purpose-built apartment, finished to an exceptional standard and perfectly positioned just moments from Tottenham Hale Underground and Overground stations. The apartment is immaculately presented throughout and boasts a bright, spacious open-plan living and dining area, seamlessly extending onto a generous private balcony-ideal for both relaxing and entertaining. The sleek, fully fitted modern kitchen complements the space beautifully, while a well-proportioned double bedroom and a stylish three-piece family bathroom complete this contemporary home. The property is an excellent opportunity for first-time buyers and investors alike. Ideally located within a short walk of Tottenham Hale's train and bus stations, the property benefits from superb transport connections. Stratford and Liverpool Street can be reached in approximately 15 minutes via the Overground, with fast access to Central London on the Victoria Line and direct services to Stansted Airport via the Stansted Express. Set within a vibrant and rapidly developing community, residents enjoy an impressive range of on-site and nearby amenities. The development further benefits from a 24-hour concierge service, lift access, a communal roof garden, and a secure video entry system. Tottenham Retail Park is also just moments away, offering an excellent selection of shops, restaurants, and everyday conveniences. Agents Note: This property is currently under shared ownership with 25% ownership by the seller (with the ability to staircase up to 100% ownership). The property is offered to market in conjunction with Sage Homes, who have criteria for any purchase. Please contact the branch for more details. Your conveyancer will advise with regard to the timescales involved and you should satisfy yourself in regard to lending ability before proceeding. We currently hold lease details as displayed above, should you require further information please contact the branch. Please note additional fees could be incurred for items such as leasehold packs. 1. MONEY LAUNDERING REGULATIONS: Intending purchasers will be asked to produce identification documentation at a later stage and we would ask for your co-operation in order that there will be no delay in agreeing the sale. 2. General: While we endeavour to make our sales particulars fair, accurate and reliable, they are only a general guide to the property and, accordingly, if there is any point which is of particular importance to you, please contact the office and we will be pleased to check the position for you, especially if you are contemplating travelling some distance to view the property. 3. The measurements indicated are supplied for guidance only and as such must be considered incorrect. 4. Services: Please note we have not tested the services or any of the equipment or appliances in this property, accordingly we strongly advise prospective buyers to commission their own survey or service reports before finalising their offer to purchase. 5. THESE PARTICULARS ARE ISSUED IN GOOD FAITH BUT DO NOT CONSTITUTE REPRESENTATIONS OF FACT OR FORM PART OF ANY OFFER OR CONTRACT. THE MATTERS REFERRED TO IN THESE PARTICULARS SHOULD BE INDEPENDENTLY VERIFIED BY PROSPECTIVE BUYERS OR TENANTS. NEITHER SEQUENCE (UK) LIMITED NOR ANY OF ITS EMPLOYEES OR AGENTS HAS ANY AUTHORITY TO MAKE OR GIVE ANY REPRESENTATION OR WARRANTY WHATEVER IN RELATION TO THIS PROPERTY.",
 "floorplan": "https://media.onthemarket.com/properties/20623795/1654606771/floor-plan-0-1024x1024.jpg",
+"share_pct": 25.0
+},
+"20640966": {
+"description": "New Listing Large 1 Bedroom Chain Free Communal Garden Non Restrictive Views Balcony Parking available underground Close to Wembley Park station Shared Ownership No description available.",
+"floor_area_m2": 56.0,
+"floorplan": "https://media.onthemarket.com/properties/20640966/1655095789/floor-plan-0-1024x1024.png"
+},
+"20643075": {
+"description": "25% share price, sought after development in North London. A fantastic studio apartment located on the 1st floor with balcony is now available. In the heart of North London, make way for a modern landmark development with a new urban community setting new standards for Shared Ownership. All crafted with quality materials and creative designs through collaboration and cooperation at every step: Kitchens: Contemporary designed kitchens. Laminate worktop with upstand and coloured glass splashback behind hob. LED strip lighting fitted to underside of wall units. Granite sink with chrome single lever water tap. Integrated single oven. Integrated microwave. Induction hob. Integrated fridge freezer. Integrated dishwasher. Integrated extractor. General specification: Washer/dryer to hall service cupboard. Elka flooring to kitchen/living/hall. Carpet to bedrooms. White painted walls and ceiling throughout. 1 USB port to all habitable rooms. Virgin Media, BT and Hyperoptic connections. Video entry via LCD touchscreen device. Stair and lift access to all residential floors. Apartments have been carefully designed to maximise living space and natural light. Available through the Shared Ownership scheme, this apartment is a place to call home and settle into life and make use of the amenities close by and excellent transport links. Hendon Thameslink Station is a short walk, which provides fast and easy access into London and beyond. Hendon Train station is less than a 15-minute walk away with access to Kings Cross St Pancras in 20 minutes. Contact us today on[use Contact Agent Button] to arrange to view your new home. What is Shared Ownership? If you can't afford the mortgage on 100% of a home, Shared Ownership offers you the chance to buy a share of your home (between 25% and 75%) and pay rent on the remaining share. Later on, you could buy bigger shares when you can afford to and, if you chose, own the property outright. Monthly costs to purchase via Shared Ownership are generally less than purchasing outright or renting, making it a fantastic option to get onto the housing ladder. Available on the Shared Ownership scheme from 25% \u00a373,750. Monthly rent \u00a3507. Minimum deposit from \u00a33688. Please note images are of the show apartment.",
+"floorplan": "https://media.onthemarket.com/properties/20643075/1655159062/floor-plan-0-1024x1024.png",
+"rent": 507.0,
+"share_pct": 25.0
+},
+"20643309": {
+"description": "25% share price, sought after development in North London. A fantastic one apartment located on the second floor with balcony is now available. In the heart of North London, make way for a modern landmark development with a new urban community setting new standards for Shared Ownership. All crafted with quality materials and creative designs through collaboration and cooperation at every step: Kitchens: Contemporary designed kitchens. Laminate worktop with upstand and coloured glass splashback behind hob. LED strip lighting fitted to underside of wall units. Granite sink with chrome single lever water tap. Integrated single oven. Integrated microwave. Induction hob. Integrated fridge freezer. Integrated dishwasher. Integrated extractor. General specification: Washer/dryer to hall service cupboard. Elka flooring to kitchen/living/hall. Carpet to bedrooms. White painted walls and ceiling throughout. 1 USB port to all habitable rooms. Virgin Media, BT and Hyperoptic connections. Video entry via LCD touchscreen device. Stair and lift access to all residential floors. Apartments have been carefully designed to maximise living space and natural light. Available through the Shared Ownership scheme, this apartment is a place to call home and settle into life and make use of the amenities close by and excellent transport links. Hendon Thameslink Station is a short walk, which provides fast and easy access into London and beyond. Hendon Train station is less than a 15-minute walk away with access to Kings Cross St Pancras in 20 minutes. Contact us today on[use Contact Agent Button] to arrange to view your new home. What is Shared Ownership? If you can't afford the mortgage on 100% of a home, Shared Ownership offers you the chance to buy a share of your home (between 25% and 75%) and pay rent on the remaining share. Later on, you could buy bigger shares when you can afford to and, if you chose, own the property outright. Monthly costs to purchase via Shared Ownership are generally less than purchasing outright or renting, making it a fantastic option to get onto the housing ladder. Available on the Shared Ownership scheme from 25% \u00a390,625. Monthly rent \u00a3623. Minimum deposit from \u00a34,531. Please note images are of the duplex one bedroom maisonette within the development.",
+"floorplan": "https://media.onthemarket.com/properties/20643309/1655161253/floor-plan-0-1024x1024.png",
+"rent": 623.0,
+"share_pct": 25.0
+},
+"20645079": {
+"description": "25% share price, sought after development in North London. A fantastic two bedroom apartment located on the third floor with balcony is now available. In the heart of North London, make way for a modern landmark development with a new urban community setting new standards for Shared Ownership. All crafted with quality materials and creative designs through collaboration and cooperation at every step: Kitchens: Contemporary designed kitchens. Laminate worktop with upstand and coloured glass splashback behind hob. LED strip lighting fitted to underside of wall units. Granite sink with chrome single lever water tap. Integrated single oven. Integrated microwave. Induction hob. Integrated fridge freezer. Integrated dishwasher. Integrated extractor. General specification: Washer/dryer to hall service cupboard. Elka flooring to kitchen/living/hall. Carpet to bedrooms. White painted walls and ceiling throughout. 1 USB port to all habitable rooms. Virgin Media, BT and Hyperoptic connections. Video entry via LCD touchscreen device. Stair and lift access to all residential floors. Apartments have been carefully designed to maximise living space and natural light. Available through the Shared Ownership scheme, this apartment is a place to call home and settle into life and make use of the amenities close by and excellent transport links. Hendon Thameslink Station is a short walk, which provides fast and easy access into London and beyond. Hendon Train station is less than a 15-minute walk away with access to Kings Cross St Pancras in 20 minutes. Contact us today on[use Contact Agent Button] to arrange to view your new home. What is Shared Ownership? If you can't afford the mortgage on 100% of a home, Shared Ownership offers you the chance to buy a share of your home (between 25% and 75%) and pay rent on the remaining share. Later on, you could buy bigger shares when you can afford to and, if you chose, own the property outright. Monthly costs to purchase via Shared Ownership are generally less than purchasing outright or renting, making it a fantastic option to get onto the housing ladder. Available on the Shared Ownership scheme from 25% \u00a3103,750. Monthly rent \u00a3713. Minimum deposit from \u00a35,188. Please note images are of a similiar two bedroom apartment within the development.",
+"floor_area_m2": 61.0,
+"floorplan": "https://media.onthemarket.com/properties/20645079/1655186970/floor-plan-0-1024x1024.png",
+"rent": 713.0,
 "share_pct": 25.0
 }
 },
@@ -7264,6 +7317,34 @@
 "https://media.onthemarket.com/properties/19537899/1651445570/image-6-1024x1024.jpg",
 "https://media.onthemarket.com/properties/19537899/1651445570/image-7-1024x1024.jpg",
 "https://media.onthemarket.com/properties/19537899/1651445570/epc-graph-0-1024x1024.png"
+],
+"19547082": [
+"https://media.onthemarket.com/properties/19547082/1655161825/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-7-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-8-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-9-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-10-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-11-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-12-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-13-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-14-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-15-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-16-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-17-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-18-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-19-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-20-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-21-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-22-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-23-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/image-24-1024x1024.jpg",
+"https://media.onthemarket.com/properties/19547082/1655161825/epc-graph-0-1024x1024.png"
 ],
 "19554983": [
 "https://media.onthemarket.com/properties/19554983/1647811020/image-0-1024x1024.jpg",
@@ -9642,6 +9723,46 @@
 "https://media.onthemarket.com/properties/20623795/1654606771/image-10-1024x1024.jpg",
 "https://media.onthemarket.com/properties/20623795/1654606771/image-11-1024x1024.jpg",
 "https://media.onthemarket.com/properties/20623795/1654606771/epc-graph-0-1024x1024.gif"
+],
+"20640966": [
+"https://media.onthemarket.com/properties/20640966/1655095789/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20640966/1655095789/epc-graph-0-1024x1024.png"
+],
+"20643075": [
+"https://media.onthemarket.com/properties/20643075/1655159062/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/image-7-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643075/1655159062/epc-graph-0-1024x1024.png"
+],
+"20643309": [
+"https://media.onthemarket.com/properties/20643309/1655161253/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-6-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/image-7-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20643309/1655161253/epc-graph-0-1024x1024.png"
+],
+"20645079": [
+"https://media.onthemarket.com/properties/20645079/1655186970/image-0-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/image-1-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/image-2-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/image-3-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/image-4-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/image-5-1024x1024.jpg",
+"https://media.onthemarket.com/properties/20645079/1655186970/epc-graph-0-1024x1024.png"
 ]
 },
 "otmr_detail": {
@@ -35657,6 +35778,32 @@
 "share_pct": 25.0,
 "share_price": 115000.0
 },
+"789795:1324.0": {
+"council_tax": "D",
+"description": "A beautifully presented one-bedroom apartment situated on the third floor of the sought-after Eyot House in the heart of Bermondsey. This modern home offers a bright open-plan living, dining and kitchen area, creating the perfect space for relaxing and entertaining. The contemporary kitchen features integrated appliances and attractive oak worktops, while the generous double bedroom benefits from a large, fitted wardrobe. A private balcony provides valuable outdoor space, and additional storage is available throughout, including a useful airing/utility cupboard. The property further benefits from lift access, secure entry, fibre broadband, bicycle storage, a long lease of approximately 109 years remaining, and a low service charge managed by a resident-led Right to Manage company. Chain-free and ready to move into, this home is ideal for first-time buyers looking to enjoy everything Bermondsey has to offer. Located just a short walk from Bermondsey Station, residents enjoy excellent Jubilee Line connections to London Bridge, Canary Wharf and the West End. The property is also within easy reach of Tower Bridge, Bermondsey Street, Maltby Street Market, Spa Terminus and the popular Bermondsey Beer Mile, with Southwark Park and the Thames Path nearby. Read full description Less description Eligibility You may be eligible for this property if: You have a gross household income of no more than \u00a390,000 per annum. You are unable to purchase a suitable home to meet your housing needs on the open market. You do not already own a home or you will have sold your current home before you purchase or rent. Prior to viewing: All applicants must be registered and approved by Hyde New Homes and may be required to carry out a shared ownership affordability assessment. Features \u00b7 Spacious double bedroom with fitted wardrobe \u00b7 Open-plan living, dining and kitchen area \u00b7 Modern kitchen with integrated appliances \u00b7 Private balcony \u00b7 Lift access and secure entry system \u00b7 Long lease remaining (approx. 109 years) \u00b7 Resident-managed building with low service charge \u00b7 Fibre broadband and bicycle storage \u00b7 Chain-free Lease: Commenced 2010 with 125-year term Council Tax Band: Southwark Council \u2013 D Please note the rent and service charge is reviewed annually 01 April. Your home may be at risk if you do not keep up your mortgage and rent repayments. Particulars give an overall description of the property and are not intended to constitute an offer or form part of any contract. Areas, distances or measurements referred to are approximate. For confirmation of property details refer to the terms of the lease and plans from your solicitor. Hyde New Homes Resale properties are sold as seen. Please note that the Resales Team have not visited this property. Read all features Less features",
+"floor": "3rd",
+"floor_area_m2": null,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1793006121_780637_Floorplan.jpg?download=1",
+"full_value": 390000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyX2I0MDIxY18xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyXzc0MTFlZl8yLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzRlNDZkZF8zLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzMzMzg3MF80LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzFhNmM2Nl81LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk0XzM5ZDE3Zl82LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk0XzNiMzAwZl83LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk1XzRiODkxZV84LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkxX2IwODhhMF85LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyXzRjMjlhYV8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
+"lease_years": 109,
+"min_deposit": 13650.0,
+"rent": 438.0,
+"service_charge": 158.0,
+"share_pct": 35.0,
+"share_price": 136500.0
+},
 "789908:1785.0": {
 "council_tax": null,
 "description": "Corner Place - Final release with lower rents and monthly costs. Ready to move in now! A stunning two bedroom apartment that features an open plan kitchen / living / dining area with ample storage space, integrated appliances and leads to a spacious winter garden. The main bedroom benefits from a built in wardrobe and there is a separate bathroom. Benefits of living at Corner Place Monthly costs from only \u00a31,711\u2020 Lower rents at 1.50% Private winter garden Integrated appliances and underfloor heating Energy Performance Certificate (EPC) rating is B Sixth floor rooftop garden with views of the London skyline At Corner Place you'll enjoy open plan layouts, large windows, and a spacious balcony, terrace or winter garden in each home. If you are looking for large open spaces and a sustainable home, you will be able to enjoy the rooftop garden, with views that overlook the London skyline and key landmarks. Shared Ownership What are the benefits? Low deposit - you only pay from 5% of the share you are buying. Flexibility - you choose when you want to purchase extra share of your home. Accessibility - Shared Ownership helps you get a mortgage even with a lower salary. Lower costs - Monthly costs can work our cheaper than renting privately. To be eligible for Shared Ownership: - Your household income must be no more than \u00a390,000. - You cannot own another property at the time of completing your purchase. You must have an offer on your current property to be able to reserve a new home. - You must be over 18 years of age and able to obtain a mortgage. Register your interest and book a viewing to find out more *Images are for illustrative purposes only. Local Area At Corner Place, everything's on your doorstep, with convenient access to central London, and an eclectic mix of upscale bars, restaurants, amenities and nightlife in the local area. Old Spitalfields Market, Brick Lane, Bethnal Green Gardens, Victoria Park and Weavers Fields are all close by, offering residents the very best in city living, but with easy access to facilities and tranquil green spaces. Transport at Corner Place Bethnal Green station is just a 4-minute walk from Corner Place, keeping you well connected throughout London. You can be at: Liverpool Street in 3 minutes Bank in 5 minutes Oxford Circus in 12 minutes Bond Street in 15 minutes All times and distances are taken from Google Maps and should be taken as an estimate. \u2020Total monthly cost includes the estimated monthly mortgage, rent and service charge. Rent increases annually and effective from 1st April each year based on the terms set out in the lease. Mortgage costs are based on a 95% repayment loan over 30 years with interest rate of 5.20% (this assumes you will be paying a 5% deposit). Affordability and eligibility criteria for 5% deposit apply. Please speak to an Independent Mortgage Advisor. Service charges are reviewed annually and are effective from 1st April each year. Service charge will increase year on year. Read full description Less description Eligibility To be able to own a home through Shared Ownership at Corner Place, you'll need to meet the following criteria depending on your situation: Your total household income must be \u00a390,000 a year or less. You are unable to purchase a suitable home to meet your housing needs on the open market. You do not already own a home or you will have sold your current home before you purchase. Priority will be given to those that work or live in the borough. Features Contemporary specification Full height windows Integrated appliances Underfloor heating throughout Main bedroom features built-in wardrobe with sliding doors Private winter garden Sixth floor rooftop garden Local amenities on your doorstep A short walk to Bethnal Green underground station Excellent transport links to central London Read all features Less features Video",
@@ -35715,6 +35862,38 @@
 "service_charge": 409.0,
 "share_pct": 25.0,
 "share_price": 162500.0
+},
+"790786:1270.0": {
+"council_tax": null,
+"description": "Bright and spacious one bedroom apartment in Tooting, South London through Shared Ownership. The property on the first floor comprises an entrance hall with integrated storage, an open-plan living room/kitchen and dining area, one bedroom and a bathroom. Perfect for singles or couples. Outside, the property benefits from an allocated off-street parking space. Available for \u00a3102,000 for 30% share based on the marketing figure of \u00a3340,000. Monthly rent - \u00a3557.39 Monthly Service Charge - \u00a3133.24 Total Monthly Charge - \u00a3690.63 plus mortgage required for 30% share. On certain properties, service charges may be billed in different frequencies. For the purposes of illustration, our advertisement will state the equivalent monthly charge. Where charges are not billed monthly, purchasers will be informed before proceeding. An annual rent increase takes place every April Location The property is situated in a well-established residential area approximately 1 mile west of Tooting High Street and benefits from convenient access to the A24. A wide range of local amenities are available nearby, including supermarkets, independent shops, caf\u00e9s, healthcare facilities and fitness centres, most of which can be reached within a 5-15 minute walk. Several green open spaces and leisure facilities are also close by, and there are six schools within 0.5 miles, making the area particularly appealing to families. The location is well placed for commuters, with local bus services available within a 3-minute walk. Earlsfield railway station is approximately 0.7 miles away, while Tooting Broadway Underground Station is around a 22-minute walk and provides Northern line services into Central London. Waterloo, London Bridge and the West End can typically be reached in around 25-35 minutes, offering excellent connectivity across the capital. EPC rating Energy rating band - B Environmental impact band - B Lease information Years remaining on lease: 110 In certain cases, the remaining length of the lease on a property can impact the availability of mortgages to prospective purchasers and the future saleability of the home. We recommend that you speak to your solicitor and your financial advisor to ensure that the lease length is suitable for your needs. Other information How we allocate Shared Ownership homes We offer homes on a first-come, first-served basis, as long as you meet all the eligibility criteria. Sometimes, we give priority to people who live or work in the same area as the home. This is based on rules set by the local authority. All Shared Ownership providers must publish an allocations policy, which explains how they decide who gets a home. If the home is managed by SO Resi and MTVH You can read the Shared Ownership allocation policy on the MTVH website. SO Resi is the Shared Ownership brand of MTVH, a housing association. If the home is managed by another provider Visit their website to find their allocation policy. Contact us if you have any questions. Read full description Less description Features One bedroom apartment Open-plan living room/kitchen Allocated parking Good transport links Available for 30% share 5% minimum deposit only Read all features Less features",
+"floor": null,
+"floor_area_m2": null,
+"floorplan": "https://d2xokewp4q7xcs.cloudfront.net/properties/1793204856_f9a45c_1527173.jpg?download=1",
+"full_value": 340000.0,
+"images": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUyX2RiMDkzYl8xNTI3MTczLTQuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUyXzAxMDhlNV8xNTI3MTczLTUuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2E5MWE5Ml8xNTI3MTczLTYuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzXzQ1MjA0M18xNTI3MTczLTIuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2NhZmEyNF8xNTI3MTczLTMuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzXzMwYjUwZV8xNTI3MTczLTEyLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2UxYjUxYV8xNTI3MTczLTE2LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzdlZmY2ZF8xNTI3MTczLTE1LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzZhMmVhYl8xNTI3MTczLTE0LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0Xzc3YmRiMF8xNTI3MTczLTEzLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzNmODdmNF8xNTI3MTczLTEuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzE5YWYyZV8xNTI3MTczLTcuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzM5MmFlZF8xNTI3MTczLTguanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1Xzg5YjlmZF8xNTI3MTczLTExLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzY3ZTU3MF8xNTI3MTczLTkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU2X2QzZjY4OV8xNTI3MTczLTEwLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19"
+],
+"lease_years": 110,
+"min_deposit": 5100.0,
+"rent": 557.39,
+"service_charge": 133.24,
+"share_pct": 30.0,
+"share_price": 102000.0
 }
 },
 "stb_photos": {
@@ -43969,6 +44148,18 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2YyZWU2N19Db21tdW5hbF9nYXJkZW5fMi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyNzYwODQzX2U5NWM5ZV9Db21tdW5hbF9nYXJkZW4uanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0="
 ],
+"789795": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyX2I0MDIxY18xLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyXzc0MTFlZl8yLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzRlNDZkZF8zLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzMzMzg3MF80LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkzXzFhNmM2Nl81LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk0XzM5ZDE3Zl82LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk0XzNiMzAwZl83LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDk1XzRiODkxZV84LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkxX2IwODhhMF85LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDA2MDkyXzRjMjlhYV8xMC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ=="
+],
 "789908": [
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyMDc1MDgwX2Q5ZGQ5OF8yLl9LaXRjaGVuLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkyMDc1MDgwXzM3YmIxY18wMjhfTG93UmVzXzJCZWRfU2hvd0FwYXJ0bWVudF9Db3JuZXJQbGFjZV9Tb3V0aGVybkhvdXNpbmcuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
@@ -43999,6 +44190,24 @@
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDkxNTA3XzJhZmI1Y19lZGNpdHktdHdvLWJlZC0tXzk4YTE3MTItLTAwOS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDkxNTA3X2RiZTliMV9lZGNpdHktdHdvLWJlZC0tXzk4YTE3MDEtLTAwOC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJ3aWR0aCI6MjY0MH19fQ==",
 "https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMDkxNTA3X2NmNTljY19yZXNpemVkLXNvMTk5MTg1X2VkY2l0eS1pbWFnZS1yZXRvdWNoZXNfZWRjaXR5LXR3by1iZWRfczIuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0="
+],
+"790786": [
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUyX2RiMDkzYl8xNTI3MTczLTQuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUyXzAxMDhlNV8xNTI3MTczLTUuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2E5MWE5Ml8xNTI3MTczLTYuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzXzQ1MjA0M18xNTI3MTczLTIuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2NhZmEyNF8xNTI3MTczLTMuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzXzMwYjUwZV8xNTI3MTczLTEyLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODUzX2UxYjUxYV8xNTI3MTczLTE2LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzdlZmY2ZF8xNTI3MTczLTE1LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzZhMmVhYl8xNTI3MTczLTE0LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0Xzc3YmRiMF8xNTI3MTczLTEzLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU0XzNmODdmNF8xNTI3MTczLTEuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzE5YWYyZV8xNTI3MTczLTcuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzM5MmFlZF8xNTI3MTczLTguanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1Xzg5YjlmZF8xNTI3MTczLTExLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU1XzY3ZTU3MF8xNTI3MTczLTkuanBnIiwiZWRpdHMiOnsicmVzaXplIjp7ImZpdCI6ImNvdmVyIiwid2lkdGgiOjI2NDB9fX0=",
+"https://sih.cdn.sharetobuy.com/eyJidWNrZXQiOiJzaGFyZXRvYnV5LXByb2QiLCJrZXkiOiJwcm9wZXJ0aWVzXC8xNzkzMjA0ODU2X2QzZjY4OV8xNTI3MTczLTEwLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJmaXQiOiJjb3ZlciIsIndpZHRoIjoyNjQwfX19"
 ]
 },
 "zp_detail": {
