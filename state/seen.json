@@ -1378,6 +1378,30 @@
   "price": 100000.0,
   "url": "https://www.onthemarket.com/details/20623795/"
  },
+ "otm:20649428": {
+  "address": "Victoria Road, London, W3",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1077,
+  "first": "2026-10-29T18:03",
+  "last": "2026-10-29",
+  "lat": 51.522754,
+  "lng": -0.260611,
+  "price": 100000.0,
+  "url": "https://www.onthemarket.com/details/20649428/"
+ },
+ "otm:20651083": {
+  "address": "11 Rainhill Way, London, E3",
+  "alerted": true,
+  "beds": 1,
+  "cost": 673,
+  "first": "2026-10-29T18:03",
+  "last": "2026-10-29",
+  "lat": 51.524696,
+  "lng": -0.016322,
+  "price": 90000.0,
+  "url": "https://www.onthemarket.com/details/20651083/"
+ },
  "otmr:13592502": {
   "address": "Gee Street EC1V",
   "alerted": true,
@@ -1685,7 +1709,7 @@
   "url": "https://www.sharetobuy.com/properties/406920/"
  },
  "stb:407896": {
-  "address": "London E14 6UA, London, E14 6UA",
+  "address": "ShareToBuy #407896",
   "alerted": true,
   "beds": 2,
   "cost": 1306,
@@ -2777,6 +2801,18 @@
   "lng": -0.0246336,
   "price": 124375.0,
   "url": "https://www.sharetobuy.com/properties/688717/"
+ },
+ "stb:693462": {
+  "address": "Flat 32 Coppermill Heights, Ferry Lane, N17 9FG",
+  "alerted": true,
+  "beds": 1,
+  "cost": 795,
+  "first": "2026-10-29T18:03",
+  "last": "2026-10-29",
+  "lat": 51.588353,
+  "lng": -0.057621,
+  "price": 105000.0,
+  "url": "https://www.sharetobuy.com/properties/693462/"
  },
  "stb:699234": {
   "address": "FLAT 63 Elizabeth House, Enterprise Way, SE8 3PY",
@@ -4278,6 +4314,18 @@
   "price": 125000.0,
   "url": "https://www.sharetobuy.com/properties/787642/"
  },
+ "stb:788748": {
+  "address": "Proton Tower, 8 Blackwall Way, E14 9GN",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1433,
+  "first": "2026-10-29T18:03",
+  "last": "2026-10-29",
+  "lat": 51.509741,
+  "lng": -0.0010559999999999,
+  "price": 142500.0,
+  "url": "https://www.sharetobuy.com/properties/788748/"
+ },
  "stb:789001": {
   "address": "Flat 502, Diagoras House, 18, Polydamas Close, E3 2ZA",
   "alerted": true,
@@ -4349,6 +4397,18 @@
   "lng": -0.068811,
   "price": 136500.0,
   "url": "https://www.sharetobuy.com/properties/789795/"
+ },
+ "stb:791038": {
+  "address": "ShareToBuy #791038",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1448,
+  "first": "2026-10-29T18:03",
+  "last": "2026-10-29",
+  "lat": 51.502735200000004,
+  "lng": -0.02545430000000004,
+  "price": 197500.0,
+  "url": "https://www.sharetobuy.com/properties/791038/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
