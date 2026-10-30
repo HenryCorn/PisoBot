@@ -1709,7 +1709,7 @@
   "url": "https://www.sharetobuy.com/properties/406920/"
  },
  "stb:407896": {
-  "address": "ShareToBuy #407896",
+  "address": "London E14 6UA, London, E14 6UA",
   "alerted": true,
   "beds": 2,
   "cost": 1306,
@@ -1772,12 +1772,12 @@
   "address": "Augustus Court, Old Kent Road, London, SE1 4NY",
   "alerted": true,
   "beds": 1,
-  "cost": 1282,
+  "cost": 1173,
   "first": "2026-10-14",
   "last": "2026-10-30",
   "lat": 51.4923727,
   "lng": -0.08372939999999995,
-  "price": 148500.0,
+  "price": 126000.0,
   "url": "https://www.sharetobuy.com/properties/428164/"
  },
  "stb:431438": {
@@ -1909,6 +1909,18 @@
   "lng": -0.007538,
   "price": 80000.0,
   "url": "https://www.sharetobuy.com/properties/488269/"
+ },
+ "stb:503017": {
+  "address": "Meridia Court, E15 2LG",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1428,
+  "first": "2026-10-30T18:03",
+  "last": "2026-10-30",
+  "lat": 51.5366615,
+  "lng": -0.007606800000000025,
+  "price": 70500.0,
+  "url": "https://www.sharetobuy.com/properties/503017/"
  },
  "stb:522841": {
   "alerted": false,
@@ -2484,7 +2496,7 @@
   "url": "https://www.sharetobuy.com/properties/641236/"
  },
  "stb:645937": {
-  "address": "Old School Court, Drapers Road, N17 6LY",
+  "address": "ShareToBuy #645937",
   "alerted": true,
   "beds": 1,
   "cost": 1413,
@@ -2649,7 +2661,7 @@
   "url": "https://www.sharetobuy.com/properties/660777/"
  },
  "stb:664627": {
-  "address": "L&Q at Alexandra Gate, Mary Neuner Road, N8 0FG",
+  "address": "Mary Neuner Road, Haringey, N8 0FG",
   "alerted": true,
   "beds": 2,
   "cost": 1425,
@@ -4409,6 +4421,18 @@
   "lng": -0.02545430000000004,
   "price": 197500.0,
   "url": "https://www.sharetobuy.com/properties/791038/"
+ },
+ "stb:791719": {
+  "address": "Chelsea Botanica, 143 Townmead Road, Fulham, SW6 2WB",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1535,
+  "first": "2026-10-30T18:03",
+  "last": "2026-10-30",
+  "lat": 51.479214,
+  "lng": -0.19823500000000005,
+  "price": 138750.0,
+  "url": "https://www.sharetobuy.com/properties/791719/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
