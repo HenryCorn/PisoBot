@@ -1721,7 +1721,7 @@
   "url": "https://www.sharetobuy.com/properties/406920/"
  },
  "stb:407896": {
-  "address": "ShareToBuy #407896",
+  "address": "London E14 6UA, London, E14 6UA",
   "alerted": true,
   "beds": 2,
   "cost": 1306,
@@ -2998,7 +2998,7 @@
   "beds": 1,
   "cost": 1268,
   "first": "2026-10-15T07:49",
-  "last": "2026-10-27",
+  "last": "2026-11-03",
   "lat": 51.563744,
   "lng": -0.282724,
   "price": 100000.0,
@@ -3833,12 +3833,12 @@
   "address": "Lidcote House, Robsart Street, SW9 0BF",
   "alerted": true,
   "beds": 1,
-  "cost": 1581,
+  "cost": 1540,
   "first": "2026-10-15T07:49",
   "last": "2026-11-03",
   "lat": 51.470152,
-  "lng": -0.11546999999999996,
-  "price": 182500.0,
+  "lng": -0.11547,
+  "price": 175000.0,
   "url": "https://www.sharetobuy.com/properties/779093/"
  },
  "stb:779418": {
@@ -4457,6 +4457,18 @@
   "lng": -0.11343000000000003,
   "price": 187500.0,
   "url": "https://www.sharetobuy.com/properties/791999/"
+ },
+ "stb:792440": {
+  "address": "Carlton Vale, Kilburn, NW6 5HH",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1507,
+  "first": "2026-11-03T18:03",
+  "last": "2026-11-03",
+  "lat": 51.532612,
+  "lng": -0.198713,
+  "price": 121500.0,
+  "url": "https://www.sharetobuy.com/properties/792440/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
