@@ -3582,12 +3582,12 @@
   "address": "Beaumont Court, 5 Streatham Place, SW2 4PY",
   "alerted": true,
   "beds": 1,
-  "cost": 951,
+  "cost": 816,
   "first": "2026-10-15T07:49",
   "last": "2026-11-04",
   "lat": 51.445479,
-  "lng": -0.12573900000000005,
-  "price": 125000.0,
+  "lng": -0.125739,
+  "price": 100000.0,
   "url": "https://www.sharetobuy.com/properties/768843/"
  },
  "stb:769259": {
