@@ -754,6 +754,18 @@
   "price": 125000.0,
   "url": "https://www.onthemarket.com/details/19706088/"
  },
+ "otm:19708393": {
+  "address": "Cendal Crescent, London E1",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1237,
+  "first": "2026-11-05T18:04",
+  "last": "2026-11-05",
+  "lat": 51.5184,
+  "lng": -0.056666,
+  "price": 100000.0,
+  "url": "https://www.onthemarket.com/details/19708393/"
+ },
  "otm:19742972": {
   "alerted": false,
   "beds": 1,
@@ -1401,6 +1413,18 @@
   "lng": -0.063044,
   "price": 100000.0,
   "url": "https://www.onthemarket.com/details/20623795/"
+ },
+ "otm:20640966": {
+  "address": "Quadrant Court, Wembley Park | London HA9",
+  "alerted": true,
+  "beds": 1,
+  "cost": 1210,
+  "first": "2026-11-05T18:04",
+  "last": "2026-11-05",
+  "lat": 51.557212,
+  "lng": -0.285982,
+  "price": 68750.0,
+  "url": "https://www.onthemarket.com/details/20640966/"
  },
  "otm:20649428": {
   "address": "Victoria Road, London, W3",
@@ -3782,6 +3806,18 @@
   "price": 132000.0,
   "url": "https://www.sharetobuy.com/properties/774965/"
  },
+ "stb:775467": {
+  "address": "Tierney Road, SW2 4QL",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1594,
+  "first": "2026-11-05T18:04",
+  "last": "2026-11-05",
+  "lat": 51.443335,
+  "lng": -0.127151,
+  "price": 225000.0,
+  "url": "https://www.sharetobuy.com/properties/775467/"
+ },
  "stb:775471": {
   "address": "Commercial Road, E1 0HJ",
   "alerted": true,
@@ -4482,6 +4518,18 @@
   "lng": -0.198713,
   "price": 121500.0,
   "url": "https://www.sharetobuy.com/properties/792440/"
+ },
+ "stb:792823": {
+  "address": "L&Q at Alexandra Gate, Mary Neuner Road, N8 0FG",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1400,
+  "first": "2026-11-05T18:04",
+  "last": "2026-11-05",
+  "lat": 51.5914565,
+  "lng": -0.11219009999999996,
+  "price": 126875.0,
+  "url": "https://www.sharetobuy.com/properties/792823/"
  },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
