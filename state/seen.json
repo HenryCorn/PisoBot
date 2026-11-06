@@ -4531,6 +4531,30 @@
   "price": 126875.0,
   "url": "https://www.sharetobuy.com/properties/792823/"
  },
+ "stb:793349": {
+  "address": "Amisha Court, 161 Grange Road, SE1 3GH",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1370,
+  "first": "2026-11-06T18:02",
+  "last": "2026-11-06",
+  "lat": 51.495203,
+  "lng": -0.076436,
+  "price": 121250.0,
+  "url": "https://www.sharetobuy.com/properties/793349/"
+ },
+ "stb:793400": {
+  "address": "Mary Neuner Road, Haringey, N8 0FG",
+  "alerted": true,
+  "beds": 2,
+  "cost": 1430,
+  "first": "2026-11-06T18:02",
+  "last": "2026-11-06",
+  "lat": 51.5914565,
+  "lng": -0.11219009999999996,
+  "price": 126875.0,
+  "url": "https://www.sharetobuy.com/properties/793400/"
+ },
  "zp:68359100": {
   "address": "1 Bed Apartment, Cecil Road, London W3",
   "alerted": true,
