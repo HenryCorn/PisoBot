@@ -1,18 +1,25 @@
-"""Cloudflare D1 over its HTTP API. The Telegram Worker (worker/) records button taps and
-commands there instantly; runs read those choices and publish the listings cards refer to."""
+"""Preference storage: Cloudflare D1 by default, SQLite when STORAGE=local.
+
+The Telegram Worker (worker/) records cloud button taps and commands instantly;
+runs read those choices and publish the listings cards refer to.
+"""
 import os
 
-from . import net
+from . import localdb, net
 
 URL = "https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{database}/query"
 NAMES = ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_D1_DATABASE_ID", "CLOUDFLARE_API_TOKEN")
 
 
 def configured():
+    if localdb.storage() == "local":
+        return True
     return all(os.environ.get(name, "").strip() for name in NAMES)
 
 
 def query(sql, *params):
+    if localdb.storage() == "local":
+        return localdb.query(sql, *params)
     if not configured():
         raise RuntimeError(f"{', '.join(NAMES)} must be set (add them as GitHub Actions secrets)")
     account, database, token = (os.environ[name].strip() for name in NAMES)
