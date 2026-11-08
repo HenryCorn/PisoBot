@@ -191,6 +191,19 @@ class OpenRentTests(unittest.TestCase):
         with patch.object(net, "page", return_value=detail_html(rent=1800)):
             self.assertFalse(openrent.refine(openrent._listing(card(), index_row())))
 
+    def test_details_are_reused_beyond_search_ttl_but_changed_price_refreshes(self):
+        with patch.object(net, "page", return_value=detail_html()) as page:
+            openrent.refine(openrent._listing(card(), index_row()))
+            cache._data["orent_detail"]["700001"]["at"] = (
+                dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)).isoformat()
+            openrent.refine(openrent._listing(card(), index_row()))
+        self.assertEqual(page.call_count, 1)
+        with patch.object(net, "page", return_value=detail_html(rent=1250)) as page:
+            changed = openrent._listing(card(rentPerMonth=1250), index_row(prices=1250))
+            self.assertTrue(openrent.refine(changed))
+        page.assert_called_once()
+        self.assertEqual(changed.rent, 1250)
+
     def test_refine_failure_does_not_cache_success_and_bills_are_authoritative(self):
         for html in ("<html>challenge</html>", detail_html(identifier=999), detail_html().replace("descriptionText", "missing"),
                      detail_html().replace("Rent PCM", "Rent changed")):

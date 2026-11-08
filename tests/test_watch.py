@@ -193,11 +193,11 @@ class WatchTests(unittest.TestCase):
         self.assertTrue(run.call_args.args[1])
 
     def test_local_rentals_cli_uses_configured_watch_sources(self):
-        with patch.object(config, "WATCH_SOURCES", "rm,otmr"), \
+        with patch.object(config, "WATCH_SOURCES", "rm,otmr,orent"), \
                 patch("sys.argv", ["pisobot", "--rentals", "--dry-run"]), \
                 patch.object(main, "run") as run:
             main.main()
-        self.assertEqual(run.call_args.args[0], ["rm", "otmr"])
+        self.assertEqual(run.call_args.args[0], ["rm", "otmr", "orent"])
 
     def test_rentals_cli_rejects_non_rental_sources(self):
         with patch("sys.argv", ["pisobot", "--rentals", "--sources", "stb"]), \

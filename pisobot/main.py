@@ -14,10 +14,11 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram
-from .sources import lq, nhg, onthemarket, otm_rent, rightmove, sharetobuy, zoopla
+from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, zoopla
 from .sources import detail_fields
 
-SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove, "otmr": otm_rent, "zp": zoopla}
+SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove,
+           "otmr": otm_rent, "zp": zoopla, "orent": openrent}
 # Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
 RENTAL_SOURCES = ["rm", "otmr", "zp"]
 DEFAULT_SOURCES = [name for name in SOURCES if name not in [*RENTAL_SOURCES, "orent"]]

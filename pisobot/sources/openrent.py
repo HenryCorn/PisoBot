@@ -7,7 +7,8 @@ newest first, then GET /search/propertiesbyid?ids=... in the site's 20-ID batche
 The anonymous site's first-24-hour exclusive-access window is respected.
 RENT_MAX_PAGES bounds metadata batches, not the initial index request; truncation
 is reported, never represented as a complete inventory. Details are read only
-by refine(), after the caller's cheap filters, and cached for the search TTL.
+by refine(), after the caller's cheap filters, and cached for a day unless the
+search card's rent or bills change.
 """
 import datetime as dt
 import json
@@ -276,12 +277,12 @@ def _details(html, identifier):
 
 def refine(listing):
     hit = cache.get("orent_detail", listing.id) or {}
-    minutes = getattr(config, "RENT_REFRESH_MINUTES", config.RENT_REFRESH_HOURS * 60)
     try:
         age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(hit.get("at", ""))
     except ValueError:
         age = None
-    details = hit.get("details") if age is not None and age < dt.timedelta(minutes=minutes) else None
+    details = (hit.get("details") if age is not None and age < dt.timedelta(days=1)
+               and hit.get("search_rent") == listing.rent and hit.get("search_bills") == listing.bills else None)
     if details is None:
         try:
             details = _details(net.page(listing.url), listing.id)
@@ -289,7 +290,8 @@ def refine(listing):
             print(f"OpenRent detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
             return False
         cache.put("orent_detail", listing.id, {
-            "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "details": details})
+            "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "details": details,
+            "search_rent": listing.rent, "search_bills": listing.bills})
     listing.rent = details["rent"]
     if not config.RENT_MIN <= listing.rent <= config.MAX_MONTHLY_COST:
         return False

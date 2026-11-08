@@ -1,4 +1,5 @@
 import os
+import logging
 import math
 import random
 import re
@@ -20,6 +21,7 @@ if not VERIFY:
 
 session = requests.Session()
 session.headers.update({"User-Agent": UA, "Accept-Language": "en-GB,en;q=0.9"})
+log = logging.getLogger(__name__)
 
 
 def get(url, params=None, retries=3, **kw):
@@ -129,9 +131,11 @@ def _plain_request(url, gap):
             time.sleep(wait)
         try:
             response = session.get(url, timeout=30, verify=VERIFY, allow_redirects=False)
+            log.info("portal_fetch host=%s tier=plain status=%s", host, response.status_code)
             if response.status_code in (403, 429, 503) or (
                     response.status_code < 300 and _interstitial(response.text)):
                 state.cooldown = time.monotonic() + _retry_after(response.headers.get("Retry-After"))
+                log.warning("portal_block host=%s status=%s", host, response.status_code)
                 raise FetchBlocked(f"Blocked response ({response.status_code}) from {host}", response=response)
             response.raise_for_status()
             return response

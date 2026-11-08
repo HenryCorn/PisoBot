@@ -85,8 +85,12 @@ that message. Ordinary completed cycles and restarts do not resend it.
 
 `RENT_REFRESH_MINUTES` replaces the cache interval; absent that variable,
 `RENT_REFRESH_HOURS` remains supported. `RENT_MAX_PAGES=3` bounds each source
-scan: at most nine search pages per cycle (about 864 per day before runtime,
-jitter, details and retries). This is **not** a complete crawl. Local scans
+scan: at most ten search/metadata requests per cycle including OpenRent's
+initial index (about 960 per day before runtime, jitter, details and redirects).
+OpenRent details are cached for a day, but refreshed early when the search
+card's rent or bills change. Its anonymous first-24-hour exclusivity window is
+respected: **new OpenRent adverts cannot alert immediately during that window**.
+This is **not** a complete crawl. Local scans
 therefore do not automatically delete saved homes absent from capped results.
 Monitor actual volume before increasing cadence or pagination.
 
