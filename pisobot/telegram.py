@@ -77,7 +77,7 @@ def finance_lines(l):
         bills = "incl." if l.bills == 0 else amount(l.bills, "bills")
         move_in = f" · 📅 from {l.available}" if l.available else ""
         return [f"{total} <i>(R: {rent} · Bills: {bills})</i>",
-                f"🔑 Private rent · 💰 <b>{_money(l.deposit, True)} dep</b>{move_in}"]
+                f"🔑 {e(l.scheme)} · 💰 <b>{_money(l.deposit, True)} dep</b>{move_in}"]
     if l.tenure == "rent":
         return [f"{total} <i>(R: {rent} · SC: {sc})</i>", "🔑 Rent · no mortgage needed"]
     share = f"{'~' if 'share %' in l.estimated else ''}{l.share_pct:g}%" if l.share_pct else "Share TBC"
@@ -95,8 +95,9 @@ def facts_line(l):
     lease = "📜 Lease: TBC" if l.lease_years is None else f"📜 <b>{l.lease_years}y lease</b>"
     if l.lease_years is not None and l.lease_years < config.SHORT_LEASE_YEARS:
         lease += " ⚠️"
-    if l.scheme == PRIVATE_RENT:   # a tenant doesn't take on the lease
-        return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {e(l.scheme)} ({e(l.source)})"
+    if l.tenure == "rent":   # a tenant doesn't take on the lease
+        note = "" if l.scheme == PRIVATE_RENT else " · ℹ️ income caps apply"
+        return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {e(l.scheme)} ({e(l.source)}){note}"
     return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {lease} · {e(l.scheme[:40])} ({e(l.source)})"
 
 
@@ -254,10 +255,11 @@ def report_messages(top, rest, saved, title, flags_of, map_url=None):
         blocks += [_short_line(l, flags_of(l)) + "\n" for l in saved]
     # Private rentals cost more than most shared-ownership homes, so they get their own section
     # instead of never reaching "the cheapest places" below.
-    rentals = sorted((l for l in rest if l.scheme == PRIVATE_RENT), key=ranking.score)
-    rest = [l for l in rest if l.scheme != PRIVATE_RENT]
+    rentals = sorted((l for l in rest if l.tenure == "rent"), key=ranking.score)
+    rest = [l for l in rest if l.tenure != "rent"]
     if rentals:
-        blocks.append(f"🔑 <b>Private rentals · {len(rentals)}</b>\n"
+        kind = "Private rentals" if all(l.scheme == PRIVATE_RENT for l in rentals) else "Rentals"
+        blocks.append(f"🔑 <b>{kind} · {len(rentals)}</b>\n"
                       f"Rent + bills, best {min(RENTALS_SHOWN, len(rentals))} first\n")
         blocks += [_short_line(l, flags_of(l)) + "\n" for l in rentals[:RENTALS_SHOWN]]
     if rest:

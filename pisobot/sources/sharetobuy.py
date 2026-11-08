@@ -9,18 +9,23 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import detail_fields, money, text
+from . import cached_search, detail_fields, money, private_rent_costs, text
 
 BASE = "https://www.sharetobuy.com"
 
 # schemeType ids from the search form
 SCHEMES = {"2": "Shared Ownership", "1": "SO Resale", "13": "London Living Rent", "17": "Rent to Buy"}
-SEARCHES = [
-    # (rentOrBuy, scheme ids, maxMonthlyCost slack - costs are recomputed with our deposit)
-    ("3", ["2", "1"], config.MAX_MONTHLY_COST + 300),
-    ("2", ["13", "17"], config.MAX_MONTHLY_COST),
-]
+RENT_SCHEMES = ("2", ["13", "17"])   # London Living Rent, Rent to Buy
 MAX_PAGES = 15
+# Sub-market rents change slowly; the VPS watch refreshes them a few times a day, not every cycle.
+RENT_REFRESH_MINUTES = 180
+
+
+def _searches(rent_only=False):
+    """(rentOrBuy, scheme ids, maxMonthlyCost), read at call time so per-person budgets apply.
+    Sale costs get slack: they are recomputed with our deposit."""
+    rent = [(*RENT_SCHEMES, config.MAX_MONTHLY_COST)]
+    return rent if rent_only else [("3", ["2", "1"], config.MAX_MONTHLY_COST + 300), *rent]
 
 
 def _params(rent_or_buy, schemes, max_cost):
@@ -123,9 +128,9 @@ def _details(pid, card_cost):
     return d
 
 
-def fetch():
+def fetch(rent_only=False):
     listings = {}
-    for rent_or_buy, schemes, max_cost in SEARCHES:
+    for rent_or_buy, schemes, max_cost in _searches(rent_only):
         params = _params(rent_or_buy, schemes, max_cost)
         coords = {}
         for page in range(1, MAX_PAGES + 1):
@@ -172,3 +177,19 @@ def fetch():
             if f"/properties/page/{page + 1}/" not in html:
                 break
     return list(listings.values())
+
+
+def search_rent():
+    """London Living Rent / Rent to Buy only, costed like private lets: rent + bills
+    estimate and 5 weeks' deposit."""
+    out = []
+    for l in fetch(rent_only=True):
+        l.min_deposit = None   # card "deposits" are holding/reservation fees, not the tenancy deposit
+        out.append(private_rent_costs(l))
+    return out
+
+
+def fetch_rent():
+    # Keyed by the filters applied at fetch time: people with different searches never share it
+    key = f"stbr:{config.MAX_MONTHLY_COST:g}:{config.MIN_BEDROOMS}:{config.SEARCH_RADIUS_KM:g}"
+    return cached_search(key, search_rent, minutes=RENT_REFRESH_MINUTES)

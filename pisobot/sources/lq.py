@@ -9,7 +9,7 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import detail_fields, lease_remaining, money, text
+from . import cached_search, detail_fields, lease_remaining, money, private_rent_costs, text
 
 BASE = "https://lqhomes.com/wp-json/custom"
 PLOT_TYPES = {
@@ -54,7 +54,10 @@ def refine(listing):
     return True
 
 
-def fetch():
+RENT_REFRESH_MINUTES = 180
+
+
+def fetch(rent_only=False):
     out = []
     for dev in net.get(f"{BASE}/developments").json():
         loc = dev.get("development_location") or {}
@@ -69,6 +72,8 @@ def fetch():
         for p in net.get(f"{BASE}/development/{dev['id']}/properties").json():
             a = p.get("acf") or {}
             kind = PLOT_TYPES.get(a.get("plot_type"))
+            if rent_only and kind and kind[1] != "rent":
+                continue
             if not kind or a.get("plot_availability") != "available" or a.get("plot_retirement"):
                 continue
             beds = a.get("plot_bedrooms") or "0"
@@ -108,3 +113,18 @@ def fetch():
                     setattr(l, key, value)
             out.append(l)
     return out
+
+
+def search_rent():
+    """London Living Rent / Rent to Buy plots only, costed like private lets (bills estimate)."""
+    out = []
+    for l in fetch(rent_only=True):
+        l.min_deposit = None   # card "deposits" are holding/reservation fees, not the tenancy deposit
+        out.append(private_rent_costs(l))
+    return out
+
+
+def fetch_rent():
+    # Keyed by the filters applied at fetch time: people with different searches never share it
+    key = f"lqr:{config.MAX_MONTHLY_COST:g}:{config.MIN_BEDROOMS}:{config.SEARCH_RADIUS_KM:g}"
+    return cached_search(key, search_rent, minutes=RENT_REFRESH_MINUTES)

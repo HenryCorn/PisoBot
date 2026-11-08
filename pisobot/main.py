@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import traceback
+from types import SimpleNamespace
 from contextlib import contextmanager
 from zoneinfo import ZoneInfo
 
@@ -19,10 +20,16 @@ from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharet
 from .sources import detail_fields, private_rent_costs
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove,
-           "otmr": otm_rent, "zp": zoopla, "orent": openrent}
+           "otmr": otm_rent, "zp": zoopla, "orent": openrent,
+           # Rental schemes from the housing-association sources (London Living Rent, Rent to Buy)
+           "stbr": SimpleNamespace(fetch=sharetobuy.fetch_rent, photos=sharetobuy.photos,
+                                   RENT_REFRESH_MINUTES=sharetobuy.RENT_REFRESH_MINUTES),
+           "lqr": SimpleNamespace(fetch=lq.fetch_rent, RENT_REFRESH_MINUTES=lq.RENT_REFRESH_MINUTES)}
+# Sources the VPS watcher may scan (all fetched directly, never through Decodo)
+LOCAL_RENTAL_SOURCES = ["rm", "otmr", "orent", "stbr", "lqr"]
 # Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
 RENTAL_SOURCES = ["rm", "otmr", "zp"]
-DEFAULT_SOURCES = [name for name in SOURCES if name not in [*RENTAL_SOURCES, "orent"]]
+DEFAULT_SOURCES = ["stb", "lq", "nhg", "otm"]
 STATE_DIR = os.environ.get("PISOBOT_STATE_DIR") or os.path.join(os.path.dirname(__file__), "..", "state")
 SEEN_PATH = os.path.join(STATE_DIR, "seen.json")
 
@@ -473,7 +480,7 @@ def main():
     if a.rentals:
         if a.restart or a.reset or a.scheduled:
             ap.error("--rentals cannot be combined with --restart, --reset or --scheduled")
-        if any(s not in [*RENTAL_SOURCES, "orent"] for s in selected):
+        if any(s not in {*RENTAL_SOURCES, *LOCAL_RENTAL_SOURCES} for s in selected):
             ap.error("--rentals requires rental sources")
         run(selected, a.dry_run, a.verbose, report=True, preview_dir=a.preview, rentals=True)
     elif a.restart:

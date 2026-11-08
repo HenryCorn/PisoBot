@@ -139,7 +139,7 @@ def apply_rent_details(listing, details):
     return not (listing.floor_area_m2 and listing.floor_area_m2 < config.RENT_MIN_AREA_M2)
 
 
-def cached_search(name, search):
+def cached_search(name, search, minutes=None):
     """Run a portal search at most every RENT_REFRESH_MINUTES; in between,
     the last results are rebuilt from the repo cache so hourly runs cost no proxy requests."""
     hit = cache.get("rent_search", name) or {}
@@ -147,14 +147,15 @@ def cached_search(name, search):
         age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(hit.get("at", ""))
     except ValueError:
         age = None
-    minutes = getattr(config, "RENT_REFRESH_MINUTES", config.RENT_REFRESH_HOURS * 60)
+    if minutes is None:
+        minutes = getattr(config, "RENT_REFRESH_MINUTES", config.RENT_REFRESH_HOURS * 60)
     if age is not None and age < dt.timedelta(minutes=minutes):
         names = {f.name for f in fields(Listing)}
         return [Listing(**{k: v for k, v in d.items() if k in names}) for d in hit["listings"]]
     listings = search()
     keep = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
             "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
-            "floor_area_m2", "description", "estimated")
+            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "listings": [{**{k: v for k, v in asdict(l).items() if k in keep},

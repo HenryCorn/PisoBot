@@ -32,8 +32,8 @@ class Watcher:
         self.sources = sources if sources is not None else config.WATCH_SOURCES.split(",")
         if not self.sources or any(name not in pipeline.SOURCES for name in self.sources):
             raise ValueError("WATCH_SOURCES must contain registered rental sources")
-        if any(name not in ("rm", "otmr", "orent") for name in self.sources):
-            raise ValueError("VPS watch supports rm, otmr and orent only")
+        if any(name not in pipeline.LOCAL_RENTAL_SOURCES for name in self.sources):
+            raise ValueError("VPS watch supports " + ", ".join(pipeline.LOCAL_RENTAL_SOURCES) + " only")
         if config.WATCH_INTERVAL_MIN <= 0 or config.WATCH_FAILURE_LIMIT < 1:
             raise ValueError("Watch interval and failure limit must be positive")
         self.verbose = verbose
@@ -61,7 +61,10 @@ class Watcher:
                 if stop_event is not None and stop_event.is_set():
                     raise InterruptedError("PisoBot is stopping")
                 for source in self.sources:
-                    cache.put("rent_search", source, {})
+                    # Fast portals are re-searched every cycle; slow-changing sources keep
+                    # their own refresh interval (RENT_REFRESH_MINUTES on the source).
+                    if not hasattr(pipeline.SOURCES[source], "RENT_REFRESH_MINUTES"):
+                        cache.put("rent_search", source, {})
                 with users.criteria(params):
                     prefetched = pipeline.fetch_sources(self.sources, stop_event)
                 if len(prefetched[1]) == len(self.sources):
