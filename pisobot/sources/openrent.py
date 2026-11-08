@@ -8,8 +8,9 @@ The anonymous site's first-24-hour exclusive-access window is respected.
 RENT_MAX_PAGES bounds metadata batches, not the initial index request; truncation
 is reported, never represented as a complete inventory. Details are read only
 by refine(), after the caller's cheap filters, and cached for a day unless the
-search card's rent or bills change. An inconsistent index/card snapshot is
-refreshed once; malformed or persistently inconsistent responses still fail.
+search card's rent or bills change. Partial card batches get one targeted retry
+for omitted IDs. An inconsistent index/card snapshot is refreshed once;
+malformed or persistently inconsistent responses still fail.
 """
 import datetime as dt
 import json
@@ -153,6 +154,14 @@ def _listing(card, row):
     return private_rent_costs(listing)
 
 
+def _cards(identifiers):
+    cards = json.loads(net.page(f"{BASE}/search/propertiesbyid",
+                               params=[("ids", identifier) for identifier in identifiers]))
+    if not isinstance(cards, list) or not all(isinstance(card, dict) for card in cards):
+        raise ValueError("OpenRent card endpoint returned an invalid response")
+    return cards
+
+
 def _search_snapshot():
     if config.RENT_MAX_PAGES < 1:
         raise ValueError("RENT_MAX_PAGES must be positive")
@@ -168,12 +177,14 @@ def _search_snapshot():
     out = []
     for start in range(0, min(len(rows), limit), PAGE_SIZE):
         batch = rows[start:start + PAGE_SIZE]
-        cards = json.loads(net.page(f"{BASE}/search/propertiesbyid",
-                                   params=[("ids", row["PROPERTYIDS"]) for row in batch]))
-        if not isinstance(cards, list) or not all(isinstance(card, dict) for card in cards):
-            raise ValueError("OpenRent card endpoint returned an invalid response")
+        cards = _cards([row["PROPERTYIDS"] for row in batch])
         by_id = {str(card.get("id")): card for card in cards}
         wanted = {str(row["PROPERTYIDS"]) for row in batch}
+        if by_id and set(by_id) < wanted and len(by_id) == len(cards):
+            missing = [row["PROPERTYIDS"] for row in batch if str(row["PROPERTYIDS"]) not in by_id]
+            print(f"OpenRent card endpoint omitted {missing}; retrying only those IDs once", file=sys.stderr)
+            cards += _cards(missing)
+            by_id = {str(card.get("id")): card for card in cards}
         if set(by_id) != wanted or len(by_id) != len(cards):
             raise _MetadataMismatch(
                 f"OpenRent card IDs inconsistent in batch {start // PAGE_SIZE + 1}: "

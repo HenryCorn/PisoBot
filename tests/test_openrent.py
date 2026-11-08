@@ -160,6 +160,27 @@ class OpenRentTests(unittest.TestCase):
                 openrent.search()
         self.assertEqual(page.call_count, 2)
 
+    def test_partial_metadata_retries_only_missing_ids_and_requires_the_complete_batch(self):
+        with patch.object(net, "page", side_effect=[
+                index_html([index_row(), index_row(700002)]),
+                json.dumps([card(700002)]), json.dumps([card()])]) as page, \
+                patch("sys.stderr", new_callable=io.StringIO) as error:
+            homes = openrent.search()
+        self.assertEqual({home.id for home in homes}, {"700001", "700002"})
+        self.assertEqual(page.call_count, 3)
+        self.assertEqual(page.call_args.kwargs["params"], [("ids", 700001)])
+        self.assertIn("retrying only those IDs once", error.getvalue())
+
+    def test_missing_id_retry_cannot_accept_incomplete_wrong_duplicate_or_malformed_cards(self):
+        for payload in ([], [card(700003)], [card(), card()], {"error": "invalid"}):
+            responses = [index_html([index_row(), index_row(700002)]),
+                         json.dumps([card(700002)]), json.dumps(payload)] * 2
+            with self.subTest(payload=payload), patch.object(net, "page", side_effect=responses) as page, \
+                    patch("sys.stderr", new_callable=io.StringIO):
+                with self.assertRaises(ValueError):
+                    openrent.search()
+            self.assertEqual(page.call_count, 3 if isinstance(payload, dict) else 6)
+
     def test_integer_valued_index_ids_are_canonicalised_before_metadata_requests(self):
         with patch.object(net, "page", side_effect=[
                 index_html([index_row(700001.0)]), json.dumps([card()])]):

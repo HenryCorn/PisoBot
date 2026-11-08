@@ -91,10 +91,11 @@ initial index (about 960 per day before runtime, jitter, details and redirects).
 OpenRent details are cached for a day, but refreshed early when the search
 card's rent or bills-included flag changes. Its anonymous first-24-hour exclusivity window is
 respected: **new OpenRent adverts cannot alert immediately during that window**.
-If index/card IDs disagree, OpenRent discards the partial snapshot and refreshes
-it once through the same paced fetcher. A persistent mismatch still fails with
-missing/unexpected ID diagnostics; it is never accepted as complete. At a
-three-page cap this can add up to four requests to a search during recovery.
+If a card batch omits some IDs, OpenRent retries only those IDs once. If IDs
+still disagree, it discards the partial snapshot and refreshes it once through
+the same paced fetcher. A persistent mismatch still fails with missing/unexpected
+ID diagnostics; it is never accepted as complete. At a three-page cap this can
+add up to ten requests to a search in the worst recovery case.
 This is **not** a complete crawl. Local scans
 therefore do not automatically delete saved homes absent from capped results.
 Monitor actual volume before increasing cadence or pagination.
