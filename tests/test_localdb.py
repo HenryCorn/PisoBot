@@ -13,9 +13,8 @@ from pisobot import cache, d1, localdb, prefs
 
 class LocalStorageTests(unittest.TestCase):
     def setUp(self):
-        self.directory = self.enterContext(tempfile.TemporaryDirectory(
-            prefix=".test-localdb-", dir=Path(__file__).resolve().parents[1]))
-        self.state = Path(self.directory) / "state"
+        self.directory = self.enterContext(tempfile.TemporaryDirectory(prefix="pisobot-test-localdb-"))
+        self.state = Path(self.directory).resolve() / "state"
         self.enterContext(patch.dict(os.environ, {
             "STORAGE": "local", "PISOBOT_STATE_DIR": str(self.state),
         }, clear=True))
