@@ -275,14 +275,24 @@ def _details(html, identifier):
             "floor_area_m2": detail_fields(description).get("floor_area_m2"), "images": images}
 
 
+def _bills_kind(listing):
+    """Whether the card says bills are included; not the amount, which is a per-person estimate."""
+    return "included" if listing.bills == 0 else "council tax" if "council tax" in listing.estimated else "extra"
+
+
 def refine(listing):
     hit = cache.get("orent_detail", listing.id) or {}
+    if "search_bills_kind" not in hit and "search_bills" in hit:   # entries cached before per-person bills
+        hit["search_bills_kind"] = ("included" if hit["search_bills"] == 0
+                                    else "council tax" if hit["search_bills"] == config.RENT_COUNCIL_TAX_ESTIMATE
+                                    else "extra")
     try:
         age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(hit.get("at", ""))
     except ValueError:
         age = None
     details = (hit.get("details") if age is not None and age < dt.timedelta(days=1)
-               and hit.get("search_rent") == listing.rent and hit.get("search_bills") == listing.bills else None)
+               and hit.get("search_rent") == listing.rent and hit.get("search_bills_kind") == _bills_kind(listing)
+               else None)
     if details is None:
         try:
             details = _details(net.page(listing.url), listing.id)
@@ -291,7 +301,7 @@ def refine(listing):
             return False
         cache.put("orent_detail", listing.id, {
             "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "details": details,
-            "search_rent": listing.rent, "search_bills": listing.bills})
+            "search_rent": listing.rent, "search_bills_kind": _bills_kind(listing)})
     listing.rent = details["rent"]
     if not config.RENT_MIN <= listing.rent <= config.MAX_MONTHLY_COST:
         return False

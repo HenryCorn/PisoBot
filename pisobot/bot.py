@@ -18,10 +18,11 @@ import json
 import logging
 import math
 import os
+import re
 
 import requests
 
-from . import d1, net
+from . import d1, net, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
@@ -60,8 +61,60 @@ HELP = (
     "/unhide – show hidden homes again\n"
     "/restart – clear hidden homes & run a fresh report\n"
     "/reset – clear saved, hidden and feedback preferences (keeps listing history)\n"
+    "/settings – your search parameters\n"
+    "/set &lt;name&gt; &lt;value&gt; – change one, e.g. <code>/set budget 1700</code>, "
+    "<code>/set destination Canary Wharf</code>, <code>/set commute default</code>\n"
     "/help – this message"
 )
+SETTINGS_HELP = (
+    "\n\nChange with <code>/set &lt;name&gt; &lt;value&gt;</code>, e.g. <code>/set budget 1700</code>, "
+    "<code>/set beds 2</code>, <code>/set commute 45</code>, <code>/set destination EC2M 7PY</code> "
+    "(a postcode, station or place). <code>/set &lt;name&gt; default</code> restores one; "
+    "<code>/set all default</code> restores everything.\n"
+    "Each person's search is separate. After a change the next scan quietly re-records your "
+    "current matches (no flood of alerts); /report shows them all."
+)
+WELCOME = (
+    "👋 <b>Welcome to PisoBot</b>\n"
+    "You have your own rental search: its own parameters, saved/hidden homes and alerts. "
+    "Your first scan records current matches without alerting; then you get new homes and "
+    "price drops as they appear. Start by checking /settings."
+)
+GEOCODE_TIMEOUT = 10
+
+
+def _locate(query):
+    """(name, lat, lng) for a London postcode, outcode, 'lat,lng', or station/place name."""
+    query = " ".join(query.split())[:80]
+    point = re.fullmatch(r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)", query)
+    if point:
+        lat, lng = float(point[1]), float(point[2])
+        return f"{lat:.4f}, {lng:.4f}", lat, lng
+    with requests.Session() as session:
+        def get(url, **params):
+            try:
+                response = session.get(url, params=params, timeout=GEOCODE_TIMEOUT, verify=net.VERIFY)
+            except requests.RequestException:
+                raise ValueError("Location lookup is unavailable right now; try again later") from None
+            return response.json() if response.status_code == 200 else {}
+        compact = query.upper().replace(" ", "")
+        if re.fullmatch(r"[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}", compact):
+            result = get(f"https://api.postcodes.io/postcodes/{compact}").get("result") or {}
+            if result:
+                return result["postcode"], result["latitude"], result["longitude"]
+        elif re.fullmatch(r"[A-Z]{1,2}\d[A-Z\d]?", compact):
+            result = get(f"https://api.postcodes.io/outcodes/{compact}").get("result") or {}
+            if result:
+                return result["outcode"], result["latitude"], result["longitude"]
+        params = {"modes": "tube,elizabeth-line,overground,dlr,national-rail", "maxResults": 1}
+        if os.environ.get("TFL_APP_KEY"):
+            params["app_key"] = os.environ["TFL_APP_KEY"]
+        matches = get(f"https://api.tfl.gov.uk/StopPoint/Search/{requests.utils.quote(query)}",
+                      **params).get("matches") or []
+        if matches and "lat" in matches[0] and "lon" in matches[0]:
+            name = re.sub(r" (?:Underground|Rail|DLR) Station$| Station$", "", matches[0].get("name") or query)
+            return name, matches[0]["lat"], matches[0]["lon"]
+    raise ValueError(f"Couldn't find {html.escape(query)}; try a full postcode such as EC2M 7PY")
 
 
 class TelegramError(RuntimeError):
@@ -169,13 +222,45 @@ class Handler:
     """Allowlisted update handler; client.call and request_run are injectable."""
 
     def __init__(self, chat_id, request_run, client):
-        self.chat_id = str(chat_id)
+        self.chat_id = str(chat_id)        # the owner's chat
         self.request_run = request_run
         self.client = client
+        self.user = None                   # who the update being handled belongs to
 
-    def reply(self, text):
-        self.client.call("sendMessage", chat_id=self.chat_id, text=text,
+    @property
+    def chat(self):
+        return self.user.chat_id if self.user is not None and self.user.chat_id else self.chat_id
+
+    def reply(self, text, chat_id=None):
+        self.client.call("sendMessage", chat_id=chat_id or self.chat, text=text,
                          parse_mode="HTML", disable_web_page_preview=True)
+
+    def _person(self, chat, message=None):
+        """Owner, an admitted person, or (for an invited username's first private message) a
+        newly admitted person; None for everyone else."""
+        if _own_chat(chat, self.chat_id):
+            return users.owner() if users.enabled() else users.User(self.chat_id, owner=True)
+        if (not users.enabled() or not isinstance(chat, dict)
+                or type(chat.get("id")) not in (str, int) or not str(chat["id"]).lstrip("-").isdigit()):
+            return None
+        person = users.get(chat["id"])
+        if person is not None or message is None or chat.get("type") != "private":
+            return person
+        sender = message.get("from") if isinstance(message.get("from"), dict) else {}
+        username = sender.get("username") if isinstance(sender.get("username"), str) else ""
+        if not username or username.lower() not in users.invited():
+            return None
+        name = sender.get("first_name") if isinstance(sender.get("first_name"), str) else username
+        person = users.register(chat["id"], name[:40], username)
+        if person is not None:
+            LOG.info("Admitted a new PisoBot user")
+            self.reply(WELCOME, person.chat_id)
+            try:
+                self.reply(f"👥 {html.escape(person.label)} (@{html.escape(username)}) joined PisoBot "
+                           "with their own search.", self.chat_id)
+            except TelegramError:
+                LOG.warning("Owner notification failed")
+        return person
 
     def handle(self, update):
         if not isinstance(update, dict):
@@ -185,19 +270,106 @@ class Handler:
             if not isinstance(query, dict):
                 return
             message = query.get("message")
-            if (not isinstance(message, dict)
-                    or not _own_chat(message.get("chat"), self.chat_id)):
+            if not isinstance(message, dict):
                 return
-            self.callback(query, message)
+            person = self._person(message.get("chat"))
+            if person is None:
+                return
+            with users.use(person):
+                self.user = person
+                try:
+                    self.callback(query, message)
+                finally:
+                    self.user = None
             return
         message = update.get("message")
-        if (isinstance(message, dict) and _own_chat(message.get("chat"), self.chat_id)
-                and isinstance(message.get("text"), str)):
-            self.command(message["text"])
+        if isinstance(message, dict) and isinstance(message.get("text"), str):
+            person = self._person(message.get("chat"), message)
+            if person is None:
+                return
+            with users.use(person):
+                self.user = person
+                try:
+                    self.command(message["text"])
+                finally:
+                    self.user = None
+
+    def _request(self, kind):
+        if self.user is None or self.user.owner:
+            return self.request_run(kind)
+        return self.request_run(kind, self.user.chat_id)
+
+    def settings(self, words):
+        person = self.user or users.User(self.chat_id, owner=True)
+        if not users.enabled():
+            self.reply("Search settings can only be changed on the VPS bot.")
+            return
+        if len(words) < 2:
+            self.reply(f"<b>🔎 Your search</b>\n{users.describe(person)}{SETTINGS_HELP}")
+            return
+        name, raw = words[1].lower(), " ".join(words[2:]).strip()
+        params = dict(person.params)
+        if name == "all" and raw.lower() == "default":
+            params = {}
+        elif name not in (*users.PARAMS, "destination") or not raw:
+            self.reply("Usage: <code>/set &lt;name&gt; &lt;value&gt;</code> with one of "
+                       + ", ".join(f"<code>{n}</code>" for n in (*users.PARAMS, "destination"))
+                       + ". See /settings.")
+            return
+        elif raw.lower() == "default":
+            params.pop(name, None)
+        else:
+            try:
+                if name == "destination":
+                    label, lat, lng = _locate(raw)
+                    if not users.in_london(lat, lng):
+                        raise ValueError(f"{html.escape(label)} is outside London")
+                    params[name] = {"name": label, "lat": round(lat, 5), "lng": round(lng, 5)}
+                else:
+                    params[name] = users.parse(name, raw)
+            except ValueError as error:
+                self.reply(f"⚠️ {error}")
+                return
+        if params == person.params:
+            self.reply("No change.\n" + users.describe(person))
+            return
+        users.save_params(person, params)
+        # The next scan re-records this person's matches under the new criteria instead of
+        # alerting every newly matching home as "new".
+        d1.query("DELETE FROM meta WHERE name = 'watch_initialized'")
+        accepted = self._request("rentals")
+        status = ("A scan has been requested." if accepted
+                  else "It applies from the scan already queued or running, or the next one.")
+        self.reply(f"✅ Search updated. {status}\n\n<b>🔎 Your search</b>\n{users.describe(person)}")
+
+    def people(self, words):
+        if self.user is not None and not self.user.owner:
+            return
+        if not users.enabled():
+            self.reply("Sharing is only available on the VPS bot.")
+            return
+        if words[0] == "/removeuser" and len(words) == 2:
+            users.remove(words[1])
+            self.reply("Removed (their stored history stays on disk).")
+            return
+        lines = [f"• {html.escape(p.label)}{' (you)' if p.owner else ''} · <code>{html.escape(p.chat_id)}</code>"
+                 for p in users.everyone()]
+        invites = ", ".join("@" + html.escape(u) for u in sorted(users.invited())) or "none"
+        self.reply("<b>👥 PisoBot users</b>\n" + "\n".join(lines)
+                   + f"\nInvited usernames: {invites} · max {users.max_users()}"
+                   + "\n<code>/removeuser &lt;chat_id&gt;</code> removes someone.")
 
     def command(self, text):
         words = text.split()
         command = words[0].split("@")[0].lower() if words else ""
+        if words:
+            words[0] = command
+        if command in ("/settings", "/search", "/set"):
+            self.settings(words if command == "/set" else words[:1])
+            return
+        if command in ("/users", "/removeuser"):
+            self.people(words)
+            return
         if command in ("/report", "/rentals", "/restart", "/reset"):
             if command in ("/restart", "/reset"):
                 d1.query("DELETE FROM hidden")
@@ -208,7 +380,7 @@ class Handler:
                 # Reset only preference-owned metadata, never scheduler/transport state.
                 d1.query("DELETE FROM meta WHERE name = 'last_report'")
             kind = "rentals" if command == "/rentals" else "report"
-            accepted = self.request_run(kind)
+            accepted = self._request(kind)
             prefix = {"/restart": "🔄 Hidden homes cleared.\n",
                       "/reset": "💥 Saved homes, hidden homes and taste feedback cleared. "
                                 "Listing history and scheduler state kept.\n"}.get(command, "")

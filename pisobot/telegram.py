@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, net, ranking
+from . import collage, config, net, ranking, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -30,7 +30,7 @@ def quiet_now():
 def _call(method, files=None, **data):
     url = API.format(token=_env("TELEGRAM_BOT_TOKEN"), method=method)
     if method.startswith("send"):
-        data.setdefault("chat_id", _env("TELEGRAM_CHAT_ID"))
+        data.setdefault("chat_id", users.current_chat() or _env("TELEGRAM_CHAT_ID"))
         if quiet_now():
             data["disable_notification"] = "true"
     if isinstance(data.get("reply_markup"), dict):

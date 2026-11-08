@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import copy
 import datetime as dt
 import fcntl
@@ -13,9 +14,9 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram
+from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, zoopla
-from .sources import detail_fields
+from .sources import detail_fields, private_rent_costs
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove,
            "otmr": otm_rent, "zp": zoopla, "orent": openrent}
@@ -42,7 +43,7 @@ def run_lock(name="run"):
 
 def load_seen():
     try:
-        with open(SEEN_PATH, encoding="utf-8") as f:
+        with open(users.seen_path(SEEN_PATH), encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return {}
@@ -53,7 +54,8 @@ def load_seen():
 
 
 def save_seen(seen):
-    directory = os.path.dirname(os.path.abspath(SEEN_PATH))
+    path = users.seen_path(SEEN_PATH)
+    directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, exist_ok=True)
     temporary = None
     try:
@@ -62,7 +64,7 @@ def save_seen(seen):
             json.dump(seen, f, indent=1, sort_keys=True)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(temporary, SEEN_PATH)
+        os.replace(temporary, path)
     finally:
         if temporary and os.path.exists(temporary):
             os.unlink(temporary)
@@ -184,9 +186,31 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
         print(f"report preview written to {preview_dir}")
 
 
+def locked():
+    """The run lock for local storage (one pipeline per state directory), else a no-op."""
+    return run_lock() if os.environ.get("STORAGE") == "local" else contextlib.nullcontext()
+
+
+def fetch_sources(selected, stop_event=None):
+    """Every selected portal once: (listings, failed source names)."""
+    listings, failures = [], []
+    for name in selected:
+        if stop_event is not None and stop_event.is_set():
+            raise InterruptedError("PisoBot is stopping")
+        try:
+            got = SOURCES[name].fetch()
+            print(f"[{name}] {len(got)} listings")
+            listings += got
+        except Exception:
+            failures.append(name)
+            print(f"[{name}] FAILED\n{traceback.format_exc()}", file=sys.stderr)
+    return listings, failures
+
+
 def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
-        watch=False, baseline=False, stop_event=None):
-    args = (selected, dry_run, verbose, report, preview_dir, scheduled, rentals, watch, baseline, stop_event)
+        watch=False, baseline=False, stop_event=None, prefetched=None):
+    args = (selected, dry_run, verbose, report, preview_dir, scheduled, rentals, watch, baseline, stop_event,
+            prefetched)
     if os.environ.get("STORAGE") == "local":
         with run_lock():
             return _run(*args)
@@ -194,7 +218,9 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
 
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
-         watch=False, baseline=False, stop_event=None):
+         watch=False, baseline=False, stop_event=None, prefetched=None):
+    """prefetched: (listings, failures) shared by several people's runs in one cycle; each run
+    works on its own copy so per-person refinement and costs never leak between people."""
     def check_stop():
         if stop_event is not None and stop_event.is_set():
             raise InterruptedError("PisoBot is stopping")
@@ -204,16 +230,18 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     p = prefs.load()
     live = not dry_run and not preview_dir
     alerted = [v for v in seen.values() if v.get("alerted")]
-    listings, failures = [], []
-    for name in selected:
-        check_stop()
-        try:
-            got = SOURCES[name].fetch()
-            print(f"[{name}] {len(got)} listings")
-            listings += got
-        except Exception:
-            failures.append(name)
-            print(f"[{name}] FAILED\n{traceback.format_exc()}", file=sys.stderr)
+    if prefetched is None:
+        listings, failures = fetch_sources(selected, stop_event)
+    else:
+        listings, failures = copy.deepcopy(prefetched[0]), list(prefetched[1])
+        # The shared fetch used everyone's widest radius and lowest minimum rent
+        centre = (users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
+        listings = [l for l in listings if l.tenure != "rent" or (
+            (l.rent or 0) >= config.RENT_MIN
+            and (l.lat is None or _km(l.lat, l.lng, *centre) <= config.RENT_SEARCH_MILES * 1.609344 * 1.15))]
+        for l in listings:
+            if l.tenure == "rent":
+                private_rent_costs(l)   # this person's bills estimate
     if failures and len(failures) == len(selected):
         raise RuntimeError("Every source failed; report delivery is incomplete and will be retried")
 
@@ -313,7 +341,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     # On-demand rentals reports keep their own "last report" so they never stand in for 06:30/18:00.
     if not p.get("last_report") and seen:
         p["last_report"] = max(v.get("first", "") for v in seen.values())[:10] + "T23:59"
-    since = (cache.get("meta", "last_rentals_report") or "") if rentals else p.get("last_report", "")
+    since = (cache.get("meta", users.scoped("last_rentals_report")) or "") if rentals else p.get("last_report", "")
     new_keys = {l.key for l in matches if l.key not in seen or seen[l.key].get("first", "") > since}
     saved_keys = set(p["saved"])
 
@@ -334,7 +362,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
             save_seen(seen)
             telegram.send_text(f"Rental watch is live: {len(matches)} current matches recorded. "
-                               "Only new matches and price drops will alert.")
+                               "Only new matches and price drops will alert; /report shows them all.")
     if watch:
         saved_changes, gone = [], []
 
@@ -381,7 +409,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             for l in matches:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
             if rentals:
-                cache.put("meta", "last_rentals_report", _now())
+                cache.put("meta", users.scoped("last_rentals_report"), _now())
             else:
                 p["last_report"] = _now()
         to_send = []

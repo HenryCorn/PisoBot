@@ -4,6 +4,7 @@ STORAGE=local enables this backend through d1; PISOBOT_STATE_DIR defaults to
 the repository's state directory. Connections commit or roll back and always close.
 """
 from contextlib import closing
+import contextvars
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "worker" / "schema.sql"
 BUSY_TIMEOUT_MS = 30_000
+# Per-person database (see users.use); None selects the primary database.
+DATABASE = contextvars.ContextVar("pisobot_database", default=None)
 _COLUMNS = ("sid", "key", "lat", "lng", "url", "address", "cost")
 _UPDATE = ", ".join(f"{c} = excluded.{c}" for c in _COLUMNS[1:])
 _PUBLISH_SQL = (
@@ -35,7 +38,8 @@ def state_dir():
 
 
 def database_path():
-    return state_dir() / "pisobot.db"
+    override = DATABASE.get()
+    return Path(override) if override else state_dir() / "pisobot.db"
 
 
 def _enable_wal(db):

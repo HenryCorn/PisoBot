@@ -69,7 +69,8 @@ sudo journalctl -u pisobot-watch --since '10 minutes ago' --no-pager
 ```
 
 The poller clears and verifies the Telegram webhook on startup without dropping
-pending updates. Only `TELEGRAM_CHAT_ID` is accepted. Test `/help`, `/saved`,
+pending updates. Only `TELEGRAM_CHAT_ID` (the owner) and admitted people are
+accepted (see *Sharing* below). Test `/help`, `/saved`,
 `/unhide`, Save/Hide/Hide building, `/rentals` and `/report` in that chat.
 `/rentals` requests a fresh new/drop scan; `/report` requests a full rental
 digest. Requests are coalesced while a scan is already pending/running.
@@ -88,7 +89,7 @@ that message. Ordinary completed cycles and restarts do not resend it.
 scan: at most ten search/metadata requests per cycle including OpenRent's
 initial index (about 960 per day before runtime, jitter, details and redirects).
 OpenRent details are cached for a day, but refreshed early when the search
-card's rent or bills change. Its anonymous first-24-hour exclusivity window is
+card's rent or bills-included flag changes. Its anonymous first-24-hour exclusivity window is
 respected: **new OpenRent adverts cannot alert immediately during that window**.
 This is **not** a complete crawl. Local scans
 therefore do not automatically delete saved homes absent from capped results.
@@ -123,3 +124,35 @@ absence of duplicate alerts, and a service restart. Backups and an off-box
 restore drill remain separate operational work. Keep SSH/key/firewall changes
 separate from application rollout; do not close existing unrelated listeners
 on a shared VPS.
+
+## Sharing and per-person searches
+
+`TELEGRAM_INVITE_USERNAMES` (comma-separated Telegram usernames, case-insensitive,
+`@` optional) admits people besides the owner, up to `MAX_USERS` in total
+(default 2, owner included). An invited person opens a **private** chat with the
+bot and sends `/start`; their numeric chat ID is then stored and later username
+changes do not matter. The owner is notified, can list people with `/users` and
+remove one with `/removeuser <chat_id>`; their files stay on disk.
+
+Everyone has an independent search: parameters in the primary database's
+`users` table, and their own SQLite database and `seen.json` under
+`$PISOBOT_STATE_DIR/users/<chat_id>/` (saved/hidden/feedback, card buttons,
+baseline and alerts). The owner keeps the original `pisobot.db`/`seen.json`.
+
+`/settings` shows a person's parameters and `/set <name> <value>` changes one:
+`budget` (rent + bills, £/mo), `beds`, `commute` (minutes), `crime`, `bills`
+(estimate when not included), `minrent`, `area` (m²), `radius` (1/3/5/10/15
+miles round Oxford Circus) and `destination` (postcode, outcode, `lat,lng` or a
+station/place name, resolved with postcodes.io / TfL). `/set <name> default`
+restores one, `/set all default` everything. A change clears only that person's
+baseline: the next scan re-records their matches with one summary instead of
+alerting every newly matching home; `/report` shows them all.
+
+Each cycle fetches the portals **once** with the widest parameters across people
+(highest budget and radius, lowest beds and minimum rent), then filters, enriches
+and alerts per person, so a second person adds TfL/police lookups for new
+locations but no portal requests. Searches stay centred on Oxford Circus; a far
+`destination` only changes the commute target and straight-line pre-filter
+(`SEARCH_RADIUS_KM`), so widen `radius` with it. `/report` goes only to whoever
+asked; one person's delivery failure is logged and counts as a failed cycle but
+does not stop the others' alerts.

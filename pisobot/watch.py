@@ -11,7 +11,7 @@ import time
 
 from requests import RequestException
 
-from . import cache, config, d1, main as pipeline, net, telegram
+from . import cache, config, d1, main as pipeline, net, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -37,31 +37,55 @@ class Watcher:
             raise ValueError("Watch interval and failure limit must be positive")
         self.verbose = verbose
         self.pending = queue.Queue(maxsize=1)
+        self.report_chat = None   # who asked for the pending report (None: the owner)
         self.guard = threading.Lock()
         self.running = False
 
-    def request_run(self, kind):
+    def request_run(self, kind, chat_id=None):
+        """chat_id: who asked for a report; None is the owner. Scans always cover everyone."""
         if kind not in ("rentals", "report"):
             raise ValueError("Unknown run kind")
         with self.guard:
             if self.running or not self.pending.empty():
                 return False
+            self.report_chat = chat_id
             self.pending.put_nowait(kind)
             return True
 
-    def cycle(self, kind="rentals", stop_event=None, dry_run=False):
-        first = not _meta("watch_initialized")
-        for source in self.sources:
-            cache.put("rent_search", source, {})
-        result = pipeline.run(self.sources, dry_run, self.verbose,
-                              report=kind == "report" and not first, rentals=True,
-                              watch=kind != "report" or first, baseline=first,
-                              stop_event=stop_event)
-        if not result["complete"]:
+    def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
+        """One portal fetch, then every person's own filters, alerts and (if asked) report."""
+        people = users.everyone()
+        report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
+        with pipeline.locked():
+            for source in self.sources:
+                cache.put("rent_search", source, {})
+            if stop_event is not None and stop_event.is_set():
+                raise InterruptedError("PisoBot is stopping")
+            with users.criteria(users.fetch_params(people)):
+                prefetched = pipeline.fetch_sources(self.sources, stop_event)
+            if len(prefetched[1]) == len(self.sources):
+                raise RuntimeError("Every source failed; rental cycle incomplete")
+            totals, errors = {"matches": 0, "complete": True, "people": {}}, []
+            for person in people:
+                try:
+                    with users.use(person), users.criteria(person.params):
+                        result = self._person_cycle(kind if person.chat_id == report_chat else "rentals",
+                                                    prefetched, stop_event, dry_run)
+                except InterruptedError:
+                    raise
+                except Exception as ex:
+                    log.error("Rental cycle failed for %s (%s)", person.label, type(ex).__name__)
+                    errors.append(ex)
+                    totals["complete"] = False
+                    continue
+                totals["people"][person.label] = result["matches"]
+                totals["matches"] += result["matches"]
+                totals["complete"] = totals["complete"] and result["complete"]
+        if errors:
+            raise errors[0]
+        if not totals["complete"]:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
-            if first:
-                _put_meta("watch_initialized", "1")
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
             healthcheck = os.environ.get("HEALTHCHECK_URL", "")
             if healthcheck:
@@ -70,6 +94,16 @@ class Watcher:
                     response.raise_for_status()
                 except RequestException as ex:
                     log.error("Healthcheck failed (%s)", type(ex).__name__)
+        return totals
+
+    def _person_cycle(self, kind, prefetched, stop_event, dry_run):
+        first = not _meta("watch_initialized")
+        result = pipeline._run(self.sources, dry_run, self.verbose,
+                               report=kind == "report" and not first, rentals=True,
+                               watch=kind != "report" or first, baseline=first,
+                               stop_event=stop_event, prefetched=prefetched)
+        if result["complete"] and first and not dry_run:
+            _put_meta("watch_initialized", "1")
         return result
 
     def _failed(self):
@@ -113,8 +147,9 @@ class Watcher:
                     break
                 with self.guard:
                     self.running = True
+                    chat_id, self.report_chat = self.report_chat, None
                 try:
-                    result = self.cycle(kind, stop_event)
+                    result = self.cycle(kind, stop_event, chat_id=chat_id if kind == "report" else None)
                 except InterruptedError:
                     if not stop_event.is_set():
                         raise

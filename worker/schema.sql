@@ -20,3 +20,11 @@ CREATE TABLE IF NOT EXISTS feedback (
     created_at TEXT NOT NULL,
     PRIMARY KEY (key, action, reason)
 );
+-- VPS only: people sharing the bot and their search parameters (JSON). The owner is TELEGRAM_CHAT_ID.
+CREATE TABLE IF NOT EXISTS users (
+    chat_id TEXT PRIMARY KEY,
+    name TEXT,
+    username TEXT,
+    params TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT
+);
