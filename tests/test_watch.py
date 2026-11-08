@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 from pathlib import Path
@@ -6,6 +5,8 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
+
+from requests import ConnectionError
 
 from pisobot import cache, config, d1, main, telegram, watch
 from pisobot.models import Listing
@@ -174,6 +175,15 @@ class WatchTests(unittest.TestCase):
         with patch.object(config, "MAP_URL", ""):
             messages = telegram.report_messages([home()], [], [], "Rentals", lambda _: "")
         self.assertNotIn("Browse photos", messages[0][0])
+
+    def test_sender_errors_do_not_expose_bot_token(self):
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "private-token", "TELEGRAM_CHAT_ID": "1"}), \
+                patch.object(telegram.net.session, "post",
+                             side_effect=ConnectionError("https://api.telegram.org/botprivate-token/sendMessage")):
+            with self.assertRaises(RuntimeError) as error:
+                telegram._call("sendMessage", text="test")
+        self.assertNotIn("private-token", str(error.exception))
+        self.assertIn("ConnectionError", str(error.exception))
 
 
 if __name__ == "__main__":

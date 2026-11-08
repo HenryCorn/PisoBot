@@ -5,6 +5,8 @@ import os
 import time
 from zoneinfo import ZoneInfo
 
+from requests import RequestException
+
 from . import collage, config, net, ranking
 from .sources import PRIVATE_RENT
 
@@ -33,7 +35,10 @@ def _call(method, files=None, **data):
             data["disable_notification"] = "true"
     if isinstance(data.get("reply_markup"), dict):
         data["reply_markup"] = json.dumps(data["reply_markup"])
-    r = net.session.post(url, data=data, files=files, timeout=60, verify=net.VERIFY)
+    try:
+        r = net.session.post(url, data=data, files=files, timeout=60, verify=net.VERIFY)
+    except RequestException as ex:
+        raise RuntimeError(f"Telegram {method} request failed ({type(ex).__name__})") from None
     try:
         res = r.json()
     except ValueError:
