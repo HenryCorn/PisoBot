@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     chat_id TEXT PRIMARY KEY,
     name TEXT,
     username TEXT,
+    active INTEGER NOT NULL DEFAULT 1,
     params TEXT NOT NULL DEFAULT '{}',
     created_at TEXT
 );

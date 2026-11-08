@@ -79,7 +79,9 @@ def passes_basic(l):
         return "beds/keywords"
     if l.lat is None or l.lng is None:
         return "no location"
-    if enrich.distance_km(l.lat, l.lng) > config.SEARCH_RADIUS_KM:
+    distance = (_km(l.lat, l.lng, users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
+                if users.current() is not None and l.tenure == "rent" else enrich.distance_km(l.lat, l.lng))
+    if distance > config.SEARCH_RADIUS_KM:
         return "too far"
     refine = getattr(SOURCES[l.source], "refine", None)
     if refine:
@@ -213,6 +215,15 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
             prefetched)
     if os.environ.get("STORAGE") == "local":
         with run_lock():
+            if rentals and users.current() is None:
+                person = users.owner()
+                if prefetched is None:
+                    for source in selected:
+                        cache.put("rent_search", source, {})
+                    with users.criteria(users.fetch_params(person)):
+                        prefetched = fetch_sources(selected, stop_event)
+                with users.use(person), users.criteria(person.params):
+                    return _run(*args[:-1], prefetched=prefetched)
             return _run(*args)
     return _run(*args)
 
@@ -234,11 +245,6 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         listings, failures = fetch_sources(selected, stop_event)
     else:
         listings, failures = copy.deepcopy(prefetched[0]), list(prefetched[1])
-        # The shared fetch used everyone's widest radius and lowest minimum rent
-        centre = (users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
-        listings = [l for l in listings if l.tenure != "rent" or (
-            (l.rent or 0) >= config.RENT_MIN
-            and (l.lat is None or _km(l.lat, l.lng, *centre) <= config.RENT_SEARCH_MILES * 1.609344 * 1.15))]
         for l in listings:
             if l.tenure == "rent":
                 private_rent_costs(l)   # this person's bills estimate

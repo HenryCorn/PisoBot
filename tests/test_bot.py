@@ -151,7 +151,7 @@ class BotTests(unittest.TestCase):
         self.assertIn("no full digest", self.client.call.call_args.kwargs["text"])
         self.trigger.return_value = False
         self.handler.handle(message("/report"))
-        self.assertIn("Full rental digest already queued", self.client.call.call_args.kwargs["text"])
+        self.assertIn("Try /report again", self.client.call.call_args.kwargs["text"])
         self.handler.handle(message("/rentals"))
         self.assertEqual([c.args for c in self.trigger.call_args_list],
                          [("report",), ("rentals",), ("report",), ("rentals",)])

@@ -277,7 +277,8 @@ def _details(html, identifier):
 
 def _bills_kind(listing):
     """Whether the card says bills are included; not the amount, which is a per-person estimate."""
-    return "included" if listing.bills == 0 else "council tax" if "council tax" in listing.estimated else "extra"
+    return ("extra" if "bills" in listing.estimated
+            else "council tax" if "council tax" in listing.estimated else "included")
 
 
 def refine(listing):

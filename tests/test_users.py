@@ -66,12 +66,16 @@ class ParamTests(Base):
             self.assertEqual((config.MAX_MONTHLY_COST, config.TARGET_NAME), (1900.0, "Bank"))
         self.assertEqual((config.MAX_MONTHLY_COST, config.TARGET_NAME), before)
 
-    def test_fetch_params_are_the_union_and_never_move_the_search_centre(self):
+    def test_portal_groups_share_only_identical_queries_and_ignore_destination(self):
         a = users.User(OWNER, owner=True, params={"budget": 1600, "beds": 2})
         b = users.User(FRIEND, params={"budget": 2000, "radius": 10, "minrent": 900,
                                        "destination": {"name": "Bank", "lat": 51.5, "lng": -0.09}})
-        union = users.fetch_params([a, b])
-        self.assertEqual(union, {"budget": 2000, "radius": 10, "beds": 1, "minrent": 900})
+        groups = users.search_groups([a, b])
+        self.assertEqual(len(groups), 2)
+        self.assertEqual(groups[0][0], {"budget": 1600, "radius": 5, "beds": 2, "minrent": 1000})
+        self.assertEqual(groups[1][0], {"budget": 2000, "radius": 10, "beds": 1, "minrent": 900})
+        b.params = {**a.params, "destination": b.params["destination"], "bills": 100}
+        self.assertEqual(users.search_groups([a, b]), [(groups[0][0], [a, b])])
 
     def test_only_invited_usernames_and_max_users_are_admitted(self):
         self.assertIsNone(users.register("300", "Eve", "eve"))
@@ -91,6 +95,47 @@ class ParamTests(Base):
         self.assertTrue((self.state / "users" / FRIEND / "seen.json").exists())
         self.assertTrue((self.state / "users" / FRIEND / "pisobot.db").exists())
 
+    def test_corrupt_settings_are_not_silently_reset(self):
+        self.admit()
+        d1.query("UPDATE users SET params = ? WHERE chat_id = ?", "{broken", FRIEND)
+        with self.assertRaisesRegex(RuntimeError, "Invalid search settings"):
+            users.get(FRIEND)
+
+    def test_radius_and_destination_do_not_create_a_hidden_12km_destination_cutoff(self):
+        before = config.SEARCH_RADIUS_KM, config.TARGET_LAT, config.TARGET_LNG
+        person = self.admit()
+        listing = home()
+        listing.lat, listing.lng = config.TARGET_LAT + 0.125, config.TARGET_LNG
+        with users.use(person), users.criteria({"radius": 10}), \
+                patch.object(main.SOURCES["rm"], "refine", return_value=True):
+            self.assertIsNone(main.passes_basic(listing))
+        listing.lat = config.TARGET_LAT
+        with users.use(person), users.criteria({
+                "destination": {"name": "East London", "lat": 51.5152, "lng": 0.15}}), \
+                patch.object(main.SOURCES["rm"], "refine", return_value=True):
+            self.assertIsNone(main.passes_basic(listing))
+        self.assertEqual((config.SEARCH_RADIUS_KM, config.TARGET_LAT, config.TARGET_LNG), before)
+
+    def test_missing_longitude_is_rejected_without_failing_the_shared_cycle(self):
+        listing = home()
+        listing.lng = None
+        with patch.object(main.SOURCES["rm"], "fetch", return_value=[listing]), \
+                patch.object(main.enrich, "geocode"), patch.object(main.enrich, "assign_crime_percentiles"):
+            result = watch.Watcher(["rm"]).cycle(dry_run=True)
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["matches"], 0)
+
+    def test_telegram_sender_routes_actual_requests_and_restores_owner_context(self):
+        friend = self.admit()
+        response = Mock()
+        response.json.return_value = {"ok": True}
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "test-token"}), \
+                patch.object(telegram.net.session, "post", return_value=response) as post:
+            with users.use(friend):
+                telegram.send_text("Friend")
+            telegram.send_text("Owner")
+        self.assertEqual([call.kwargs["data"]["chat_id"] for call in post.call_args_list], [FRIEND, OWNER])
+
 
 class SharedWatchTests(Base):
     def setUp(self):
@@ -106,7 +151,7 @@ class SharedWatchTests(Base):
             self.addCleanup(target.stop)
         self.enterContext(patch.object(
             main, "passes_basic",
-            side_effect=lambda l: "cost" if l.rent + l.bills > config.MAX_MONTHLY_COST else None))
+            side_effect=lambda l: None if main._cost_ok(l) else "cost"))
         self.fetch = self.enterContext(patch.object(main.SOURCES["rm"], "fetch",
                                                     return_value=[home(1, 1200), home(2, 1500)]))
         self.sent = []
@@ -115,7 +160,7 @@ class SharedWatchTests(Base):
         self.texts = []
         self.enterContext(patch.object(telegram, "send_text", side_effect=lambda text, **_: self.texts.append(
             (users.current_chat(), text))))
-        self.admit({"budget": 2000.0, "bills": 100.0})
+        self.admit({"bills": 100.0})
 
     def test_one_fetch_serves_everyone_with_their_own_criteria_and_alerts(self):
         result = watch.Watcher(["rm"]).cycle()
@@ -131,9 +176,91 @@ class SharedWatchTests(Base):
 
     def test_report_goes_only_to_whoever_asked(self):
         watch.Watcher(["rm"]).cycle()
-        with patch.object(main, "send_report") as report:
+        recipients = []
+        with patch.object(main, "send_report", side_effect=lambda *a, **k: recipients.append(
+                users.current_chat())) as report:
             watch.Watcher(["rm"]).cycle("report", chat_id=FRIEND)
         self.assertEqual(report.call_count, 1)
+        self.assertEqual(recipients, [FRIEND])
+
+    def test_different_queries_preserve_both_peoples_capped_inventory(self):
+        friend = users.get(FRIEND)
+        users.save_params(friend, {**friend.params, "budget": 2000})
+        queries = []
+
+        def fetch():
+            queries.append((config.MAX_MONTHLY_COST, config.TARGET_LAT, config.TARGET_LNG))
+            return [home(1)] if config.MAX_MONTHLY_COST == 1600 else [home(2, 1500)]
+
+        self.fetch.side_effect = fetch
+        result = watch.Watcher(["rm"]).cycle()
+        self.assertEqual(queries, [(1600, 51.5152, -0.1419), (2000, 51.5152, -0.1419)])
+        self.assertEqual(result["people"], {OWNER: 1, "Bea": 1})
+        self.assertEqual(set(main.load_seen()), {"rm:1"})
+        with users.use(friend):
+            self.assertEqual(set(main.load_seen()), {"rm:2"})
+
+    def test_settings_changed_during_baseline_are_baselined_again_without_alert_flood(self):
+        real = main._run
+
+        def change_during_baseline(*args, **kwargs):
+            if users.current_chat() == OWNER:
+                users.save_params(users.owner(), {"budget": 2000})
+                d1.query("DELETE FROM meta WHERE name = 'watch_initialized'")
+            return real(*args, **kwargs)
+
+        with patch.object(main, "_run", side_effect=change_during_baseline):
+            watch.Watcher(["rm"]).cycle()
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self.sent, [])
+        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 2)
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
+
+    def test_legacy_owner_baseline_is_kept_on_upgrade(self):
+        watch.Watcher(["rm"]).cycle()
+        d1.query("DELETE FROM meta WHERE name = 'watch_settings'")
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 1)
+        self.assertEqual(self.sent, [])
+
+    def test_queued_report_keeps_its_recipient_when_another_request_arrives(self):
+        watcher = watch.Watcher(["rm"])
+        self.assertTrue(watcher.request_run("report", OWNER))
+        first = watcher.pending.get_nowait()
+        self.assertTrue(watcher.request_run("report", FRIEND))
+        self.assertEqual(first, ("report", OWNER))
+        self.assertEqual(watcher.pending.get_nowait(), ("report", FRIEND))
+
+    def test_a_failed_search_group_does_not_block_the_other_group(self):
+        friend = users.get(FRIEND)
+        users.save_params(friend, {**friend.params, "budget": 2000})
+
+        def fetch():
+            if config.MAX_MONTHLY_COST == 1600:
+                raise RuntimeError("owner search failed")
+            return [home(2, 1500)]
+
+        self.fetch.side_effect = fetch
+        with self.assertRaisesRegex(RuntimeError, "Every source failed"):
+            watch.Watcher(["rm"]).cycle()
+        self.assertIsNone(watch._meta("watch_initialized"))
+        with users.use(friend):
+            self.assertEqual(watch._meta("watch_initialized"), "1")
+
+    def test_local_cli_uses_owner_settings_but_search_centre_stays_fixed(self):
+        users.save_params(users.owner(), {
+            "budget": 2000, "destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}})
+        queries = []
+
+        def fetch():
+            queries.append((config.MAX_MONTHLY_COST, config.TARGET_NAME))
+            return [home(2, 1500)]
+
+        self.fetch.side_effect = fetch
+        result = main.run(["rm"], True, False, rentals=True)
+        self.assertEqual(queries, [(2000, "Oxford Circus")])
+        self.assertEqual(result["matches"], 1)
+        self.assertEqual(config.TARGET_NAME, "Oxford Circus")
 
     def test_one_persons_failure_does_not_block_the_other(self):
         real = main._run
@@ -163,6 +290,7 @@ class SharedBotTests(Base):
     def test_invited_username_joins_and_strangers_are_ignored(self):
         self.handler.handle(message("/start", "300", "stranger"))
         self.handler.handle(message("/start", FRIEND, "TheBeatifulest", kind="group"))
+        self.handler.handle(message("/settings"))
         self.client.call.assert_not_called()
         self.handler.handle(message("/start", FRIEND, "thebeatifulest"))
         self.assertIn("Welcome", self.texts(FRIEND)[0])
@@ -213,6 +341,21 @@ class SharedBotTests(Base):
         self.assertIn("outside London", self.texts(FRIEND)[-1])
         self.assertEqual(bot._locate("51.5, -0.12")[1:], (51.5, -0.12))
 
+    def test_destination_service_failures_are_not_reported_as_unknown_places(self):
+        with patch.object(bot.requests, "Session") as factory:
+            response = factory.return_value.__enter__.return_value.get.return_value
+            response.status_code = 503
+            response.raise_for_status.side_effect = bot.requests.HTTPError("unavailable")
+            with self.assertRaisesRegex(ValueError, "unavailable"):
+                bot._locate("SW1A 1AA")
+
+    def test_invalid_destination_coordinates_do_not_block_polling(self):
+        self.admit()
+        with patch.object(bot, "_locate", return_value=("Unknown", None, None)):
+            self.handler.handle(message("/set destination Unknown"))
+        self.assertIn("invalid coordinates", self.texts(FRIEND)[-1])
+        self.assertEqual(users.get(FRIEND).params, {})
+
     def test_buttons_record_choices_in_the_tapping_persons_database(self):
         friend = self.admit()
         with users.use(friend):
@@ -232,6 +375,12 @@ class SharedBotTests(Base):
         self.assertIn("Bea", self.texts(OWNER)[-1])
         self.handler.handle(message(f"/removeuser {FRIEND}", OWNER, "quique"))
         self.assertIsNone(users.get(FRIEND))
+        self.client.reset_mock()
+        self.handler.handle(message("/saved"))
+        self.handler.handle(message("/start"))
+        self.client.call.assert_not_called()
+        self.assertIsNone(users.register("300", "Another person", "TheBeatifulest"))
+        self.assertEqual([p.chat_id for p in users.everyone()], [OWNER])
 
 
 if __name__ == "__main__":

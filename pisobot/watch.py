@@ -1,6 +1,7 @@
 """Single-process rental scheduler and Telegram long-polling service."""
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import queue
@@ -37,7 +38,6 @@ class Watcher:
             raise ValueError("Watch interval and failure limit must be positive")
         self.verbose = verbose
         self.pending = queue.Queue(maxsize=1)
-        self.report_chat = None   # who asked for the pending report (None: the owner)
         self.guard = threading.Lock()
         self.running = False
 
@@ -48,39 +48,44 @@ class Watcher:
         with self.guard:
             if self.running or not self.pending.empty():
                 return False
-            self.report_chat = chat_id
-            self.pending.put_nowait(kind)
+            self.pending.put_nowait((kind, chat_id))
             return True
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
-        """One portal fetch, then every person's own filters, alerts and (if asked) report."""
+        """Share identical portal searches, then apply each person's criteria and delivery."""
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
+        totals, errors = {"matches": 0, "complete": True, "people": {}}, []
         with pipeline.locked():
-            for source in self.sources:
-                cache.put("rent_search", source, {})
-            if stop_event is not None and stop_event.is_set():
-                raise InterruptedError("PisoBot is stopping")
-            with users.criteria(users.fetch_params(people)):
-                prefetched = pipeline.fetch_sources(self.sources, stop_event)
-            if len(prefetched[1]) == len(self.sources):
-                raise RuntimeError("Every source failed; rental cycle incomplete")
-            totals, errors = {"matches": 0, "complete": True, "people": {}}, []
-            for person in people:
-                try:
-                    with users.use(person), users.criteria(person.params):
-                        result = self._person_cycle(kind if person.chat_id == report_chat else "rentals",
-                                                    prefetched, stop_event, dry_run)
-                except InterruptedError:
-                    raise
-                except Exception as ex:
-                    log.error("Rental cycle failed for %s (%s)", person.label, type(ex).__name__)
-                    errors.append(ex)
+            for params, group in users.search_groups(people):
+                if stop_event is not None and stop_event.is_set():
+                    raise InterruptedError("PisoBot is stopping")
+                for source in self.sources:
+                    cache.put("rent_search", source, {})
+                with users.criteria(params):
+                    prefetched = pipeline.fetch_sources(self.sources, stop_event)
+                if len(prefetched[1]) == len(self.sources):
+                    log.error("Every source failed for a portal search group")
+                    errors.append(RuntimeError("Every source failed; rental cycle incomplete"))
                     totals["complete"] = False
                     continue
-                totals["people"][person.label] = result["matches"]
-                totals["matches"] += result["matches"]
-                totals["complete"] = totals["complete"] and result["complete"]
+                for person in group:
+                    if not person.owner and users.get(person.chat_id) is None:
+                        continue
+                    try:
+                        with users.use(person), users.criteria(person.params):
+                            result = self._person_cycle(kind if person.chat_id == report_chat else "rentals",
+                                                        prefetched, stop_event, dry_run)
+                    except InterruptedError:
+                        raise
+                    except Exception as ex:
+                        log.error("Rental cycle failed for %s (%s)", person.label, type(ex).__name__)
+                        errors.append(ex)
+                        totals["complete"] = False
+                        continue
+                    totals["people"][person.label] = result["matches"]
+                    totals["matches"] += result["matches"]
+                    totals["complete"] = totals["complete"] and result["complete"]
         if errors:
             raise errors[0]
         if not totals["complete"]:
@@ -97,13 +102,20 @@ class Watcher:
         return totals
 
     def _person_cycle(self, kind, prefetched, stop_event, dry_run):
-        first = not _meta("watch_initialized")
+        person = users.current()
+        settings = json.dumps(person.params if person else {}, sort_keys=True)
+        previous = _meta("watch_settings")
+        # A legacy owner baseline has no settings marker. Keep it when defaults are unchanged.
+        first = (not _meta("watch_initialized")
+                 or (previous != settings and (previous is not None or settings != "{}")))
         result = pipeline._run(self.sources, dry_run, self.verbose,
                                report=kind == "report" and not first, rentals=True,
                                watch=kind != "report" or first, baseline=first,
                                stop_event=stop_event, prefetched=prefetched)
-        if result["complete"] and first and not dry_run:
-            _put_meta("watch_initialized", "1")
+        if result["complete"] and not dry_run:
+            _put_meta("watch_settings", settings)
+            if first:
+                _put_meta("watch_initialized", "1")
         return result
 
     def _failed(self):
@@ -138,16 +150,15 @@ class Watcher:
             while not stop_event.is_set():
                 remaining = max(0, next_cycle - time.monotonic())
                 try:
-                    kind = self.pending.get(timeout=min(remaining, 1))
+                    kind, chat_id = self.pending.get(timeout=min(remaining, 1))
                 except queue.Empty:
                     if time.monotonic() < next_cycle:
                         continue
-                    kind = "rentals"
+                    kind, chat_id = "rentals", None
                 if stop_event.is_set():
                     break
                 with self.guard:
                     self.running = True
-                    chat_id, self.report_chat = self.report_chat, None
                 try:
                     result = self.cycle(kind, stop_event, chat_id=chat_id if kind == "report" else None)
                 except InterruptedError:

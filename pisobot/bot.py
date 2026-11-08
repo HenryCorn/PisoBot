@@ -94,9 +94,15 @@ def _locate(query):
         def get(url, **params):
             try:
                 response = session.get(url, params=params, timeout=GEOCODE_TIMEOUT, verify=net.VERIFY)
-            except requests.RequestException:
+                if response.status_code == 404:
+                    return {}
+                response.raise_for_status()
+                result = response.json()
+            except (requests.RequestException, ValueError):
                 raise ValueError("Location lookup is unavailable right now; try again later") from None
-            return response.json() if response.status_code == 200 else {}
+            if not isinstance(result, dict):
+                raise ValueError("Location lookup returned an invalid response; try again later")
+            return result
         compact = query.upper().replace(" ", "")
         if re.fullmatch(r"[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}", compact):
             result = get(f"https://api.postcodes.io/postcodes/{compact}").get("result") or {}
@@ -236,7 +242,7 @@ class Handler:
                          parse_mode="HTML", disable_web_page_preview=True)
 
     def _person(self, chat, message=None):
-        """Owner, an admitted person, or (for an invited username's first private message) a
+        """Owner, an admitted person, or (for an invited username's first private /start) a
         newly admitted person; None for everyone else."""
         if _own_chat(chat, self.chat_id):
             return users.owner() if users.enabled() else users.User(self.chat_id, owner=True)
@@ -246,6 +252,9 @@ class Handler:
         person = users.get(chat["id"])
         if person is not None or message is None or chat.get("type") != "private":
             return person
+        words = (message.get("text") or "").split()
+        if not words or words[0].split("@")[0].lower() != "/start":
+            return None
         sender = message.get("from") if isinstance(message.get("from"), dict) else {}
         username = sender.get("username") if isinstance(sender.get("username"), str) else ""
         if not username or username.lower() not in users.invited():
@@ -322,6 +331,8 @@ class Handler:
             try:
                 if name == "destination":
                     label, lat, lng = _locate(raw)
+                    if any(type(value) not in (int, float) or not math.isfinite(value) for value in (lat, lng)):
+                        raise ValueError("Location lookup returned invalid coordinates; try again later")
                     if not users.in_london(lat, lng):
                         raise ValueError(f"{html.escape(label)} is outside London")
                     params[name] = {"name": label, "lat": round(lat, 5), "lng": round(lng, 5)}
@@ -339,7 +350,7 @@ class Handler:
         d1.query("DELETE FROM meta WHERE name = 'watch_initialized'")
         accepted = self._request("rentals")
         status = ("A scan has been requested." if accepted
-                  else "It applies from the scan already queued or running, or the next one.")
+                  else "A scan is already queued or running. Your settings apply on the next scan.")
         self.reply(f"✅ Search updated. {status}\n\n<b>🔎 Your search</b>\n{users.describe(person)}")
 
     def people(self, words):
@@ -349,8 +360,12 @@ class Handler:
             self.reply("Sharing is only available on the VPS bot.")
             return
         if words[0] == "/removeuser" and len(words) == 2:
-            users.remove(words[1])
-            self.reply("Removed (their stored history stays on disk).")
+            try:
+                users.remove(words[1])
+            except ValueError as error:
+                self.reply(str(error))
+                return
+            self.reply("Access revoked (their settings and history stay on disk).")
             return
         lines = [f"• {html.escape(p.label)}{' (you)' if p.owner else ''} · <code>{html.escape(p.chat_id)}</code>"
                  for p in users.everyone()]
@@ -390,7 +405,8 @@ class Handler:
                           if accepted else "🔎 Rental scan already queued or running; no full digest.")
             else:
                 status = ("📊 Full rental digest requested · it arrives in a few minutes."
-                          if accepted else "📊 Full rental digest already queued or running.")
+                          if accepted else "📊 Another scan is queued or running. "
+                          "Try /report again after it finishes.")
             self.reply(prefix + status)
         elif command == "/saved":
             lines = []

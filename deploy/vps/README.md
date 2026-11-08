@@ -132,7 +132,10 @@ on a shared VPS.
 (default 2, owner included). An invited person opens a **private** chat with the
 bot and sends `/start`; their numeric chat ID is then stored and later username
 changes do not matter. The owner is notified, can list people with `/users` and
-remove one with `/removeuser <chat_id>`; their files stay on disk.
+revoke access with `/removeuser <chat_id>`; their settings and files stay on disk.
+Removal also prevents the same invitation from admitting them again. To restore
+access deliberately, an administrator can set that registry row's `active` flag
+back to `1`; changing the invitation environment variable alone does not undo removal.
 
 Everyone has an independent search: parameters in the primary database's
 `users` table, and their own SQLite database and `seen.json` under
@@ -148,11 +151,25 @@ restores one, `/set all default` everything. A change clears only that person's
 baseline: the next scan re-records their matches with one summary instead of
 alerting every newly matching home; `/report` shows them all.
 
-Each cycle fetches the portals **once** with the widest parameters across people
-(highest budget and radius, lowest beds and minimum rent), then filters, enriches
-and alerts per person, so a second person adds TfL/police lookups for new
-locations but no portal requests. Searches stay centred on Oxford Circus; a far
-`destination` only changes the commute target and straight-line pre-filter
-(`SEARCH_RADIUS_KM`), so widen `radius` with it. `/report` goes only to whoever
-asked; one person's delivery failure is logged and counts as a failed cycle but
-does not stop the others' alerts.
+Each cycle shares portal searches only when budget, radius, minimum bedrooms and
+minimum rent are identical. Different portal filters receive separate searches,
+each bounded by `RENT_MAX_PAGES`. A single wide union query would let one person's
+newer/expensive listings displace the other's affordable inventory under that cap.
+Details and enrichment caches are shared, but additional qualifying homes can
+still require new detail/TfL/police requests. Two different searches can roughly
+double search-page traffic (up to twenty search/metadata requests per cycle at
+three pages), so measure volume again after enabling sharing.
+
+Searches and the cheap distance pre-filter stay centred on Oxford Circus;
+`destination` changes only the commute target. The pre-filter expands to cover
+a larger configured portal radius; it does not retain a hidden 12 km cap on a
+10/15-mile search. The default owner's search and existing baseline are preserved.
+The local `main --rentals` CLI also uses the owner's saved settings and performs
+a fresh search; `watch --once --dry-run` exercises everyone's searches.
+
+`/report` goes only to whoever asked. If another run is busy, the bot asks them
+to retry rather than claiming their report is queued. One person's delivery or
+search failure counts as a failed cycle but does not stop the others' searches.
+After deployment, keep the old soak observations and start a new 24-hour
+observation window for this version, including a settings change during a scan,
+independent Save/Hide actions, and a service restart without duplicate alerts.

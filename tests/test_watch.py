@@ -130,7 +130,7 @@ class WatchTests(unittest.TestCase):
     def test_run_requests_are_coalesced_and_invalid_commands_rejected(self):
         self.assertTrue(self.watcher.request_run("rentals"))
         self.assertFalse(self.watcher.request_run("report"))
-        self.assertEqual(self.watcher.pending.get_nowait(), "rentals")
+        self.assertEqual(self.watcher.pending.get_nowait(), ("rentals", None))
         self.watcher.running = True
         self.assertFalse(self.watcher.request_run("rentals"))
         with self.assertRaises(ValueError):

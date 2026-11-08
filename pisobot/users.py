@@ -6,9 +6,9 @@ their own SQLite database and seen file under PISOBOT_STATE_DIR/users/<chat_id>/
 hidden, feedback, alerts and baselines are fully separate.
 
 Search parameters live in the primary database's ``users`` table as JSON. A run applies them by
-temporarily overriding the matching ``config`` attributes (``criteria``); portals are fetched
-once per cycle with the union of everyone's parameters (``fetch_params``) and then filtered per
-person, so a second person costs no extra portal requests.
+temporarily overriding ``config`` attributes (``criteria``). Identical portal searches are shared;
+different portal filters get separate capped searches so neither person displaces the other's
+inventory. Detail and enrichment caches remain shared.
 """
 import contextlib
 import contextvars
@@ -132,11 +132,13 @@ def _primary(sql, *params):
 
 def _row_user(row, owner_id):
     try:
-        params = json.loads(row.get("params") or "{}")
-    except ValueError:
-        params = {}
+        params = json.loads(row.get("params", "{}"))
+    except (ValueError, TypeError) as error:
+        raise RuntimeError(f"Invalid search settings for user {row['chat_id']}") from error
+    if not isinstance(params, dict):
+        raise RuntimeError(f"Invalid search settings for user {row['chat_id']}")
     return User(str(row["chat_id"]), row.get("name") or "", str(row["chat_id"]) == owner_id,
-                params if isinstance(params, dict) else {})
+                params)
 
 
 def owner():
@@ -154,7 +156,7 @@ def get(chat_id):
         return owner()
     if not enabled():
         return None
-    rows = _primary("SELECT * FROM users WHERE chat_id = ?", chat_id)
+    rows = _primary("SELECT * FROM users WHERE chat_id = ? AND active = 1", chat_id)
     return _row_user(rows[0], owner_chat()) if rows else None
 
 
@@ -162,7 +164,8 @@ def everyone():
     """Owner first, then admitted people in joining order."""
     people = [owner()]
     if enabled():
-        rows = _primary("SELECT * FROM users WHERE chat_id != ? ORDER BY created_at, chat_id", owner_chat())
+        rows = _primary("SELECT * FROM users WHERE chat_id != ? AND active = 1 "
+                        "ORDER BY created_at, chat_id", owner_chat())
         people += [_row_user(r, owner_chat()) for r in rows][:max(0, max_users() - 1)]
     return people
 
@@ -174,6 +177,9 @@ def register(chat_id, name, username):
         return None
     if (username or "").lower() not in invited() or len(everyone()) >= max_users():
         return None
+    if _primary("SELECT chat_id FROM users WHERE chat_id = ? OR lower(username) = ?",
+                chat_id, username.lower()):
+        return get(chat_id)
     _primary("INSERT INTO users (chat_id, name, username, params, created_at) VALUES (?, ?, ?, '{}', ?) "
              "ON CONFLICT(chat_id) DO NOTHING", chat_id, name or username, username,
              dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
@@ -181,7 +187,11 @@ def register(chat_id, name, username):
 
 
 def remove(chat_id):
-    _primary("DELETE FROM users WHERE chat_id = ? AND chat_id != ?", str(chat_id), owner_chat())
+    if str(chat_id) == owner_chat():
+        raise ValueError("The owner cannot be removed.")
+    if get(chat_id) is None:
+        raise ValueError("That person is not an active user.")
+    _primary("UPDATE users SET active = 0 WHERE chat_id = ?", str(chat_id))
 
 
 def save_params(user, params):
@@ -230,14 +240,18 @@ def overrides(params):
     return out
 
 
-def fetch_params(people):
-    """Widest portal query that covers everyone: highest budget/radius, lowest beds/min rent.
-    Never a destination: portal searches stay centred on Oxford Circus."""
-    values = [effective(u, live=True) for u in people]
-    if not values:
-        return {}
-    return {"budget": max(v["budget"] for v in values), "radius": max(v["radius"] for v in values),
-            "beds": min(v["beds"] for v in values), "minrent": min(v["minrent"] for v in values)}
+def fetch_params(person):
+    """Portal filters only; a commute destination must not move the search centre."""
+    values = effective(person, live=True)
+    return {name: values[name] for name in ("budget", "radius", "beds", "minrent")}
+
+
+def search_groups(people):
+    groups = {}
+    for person in people:
+        params = fetch_params(person)
+        groups.setdefault(tuple(params.items()), (params, []))[1].append(person)
+    return list(groups.values())
 
 
 @contextlib.contextmanager
@@ -245,6 +259,8 @@ def criteria(params):
     """Apply a person's parameters to ``config`` for the duration of their run. Only the
     pipeline thread does this; the Telegram thread reads DEFAULTS, never ``config``."""
     changes = overrides(params or {})
+    changes["SEARCH_RADIUS_KM"] = max(config.SEARCH_RADIUS_KM,
+                                     changes.get("RENT_SEARCH_MILES", config.RENT_SEARCH_MILES) * 1.609344)
     previous = {attr: getattr(config, attr) for attr in changes}
     try:
         for attr, value in changes.items():

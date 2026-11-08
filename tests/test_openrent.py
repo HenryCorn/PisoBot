@@ -204,6 +204,18 @@ class OpenRentTests(unittest.TestCase):
         page.assert_called_once()
         self.assertEqual(changed.rent, 1250)
 
+    def test_zero_and_nonzero_bills_estimates_share_the_same_detail_cache(self):
+        with patch.object(net, "page", return_value=detail_html()) as page:
+            with patch.object(config, "RENT_BILLS_ESTIMATE", 0):
+                first = openrent._listing(card(), index_row())
+                self.assertTrue(openrent.refine(first))
+                self.assertEqual(first.bills, 0)
+            with patch.object(config, "RENT_BILLS_ESTIMATE", 100):
+                second = openrent._listing(card(), index_row())
+                self.assertTrue(openrent.refine(second))
+                self.assertEqual(second.bills, 100)
+        self.assertEqual(page.call_count, 1)
+
     def test_refine_failure_does_not_cache_success_and_bills_are_authoritative(self):
         for html in ("<html>challenge</html>", detail_html(identifier=999), detail_html().replace("descriptionText", "missing"),
                      detail_html().replace("Rent PCM", "Rent changed")):
