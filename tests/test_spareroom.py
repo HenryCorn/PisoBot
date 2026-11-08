@@ -2,7 +2,9 @@ from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import cache, config, main, watch
+from requests import HTTPError
+
+from pisobot import cache, config, main, telegram, watch
 from pisobot.sources import spareroom
 
 FIXTURE = (Path(__file__).parent / "fixtures_spareroom.html").read_text(encoding="utf-8")
@@ -44,6 +46,8 @@ class SpareRoomTests(unittest.TestCase):
         self.assertNotIn("approximate", exact.description)
         self.assertIn(("postcode", "E14 3LH"), [c.args for c in self.coords.call_args_list])
         self.assertIn("approximate", listings["18489813"].description)
+        self.assertIn("commute/crime estimated", telegram.facts_line(listings["18489813"]))
+        self.assertNotIn("commute/crime estimated", telegram.facts_line(exact))
 
     def test_filters_budget_beds_distance_rooms_and_other_types(self):
         card = ('<li class="listing-result" data-listing-id="{id}" data-listing-type="{type}" '
@@ -56,9 +60,10 @@ class SpareRoomTests(unittest.TestCase):
             dict(id=3, type="flatstorent", title="Double room in flat", beds=1, rent="1,100"),
             dict(id=4, type="flatstorent", title="Nice flat", beds=1, rent="3,500"),
             dict(id=5, type="flatstorent", title="Nice flat", beds=0, rent="1,200"),
+            dict(id=6, type="flatstorent", title="Flat with ensuite and living room", beds=2, rent="1,300"),
         ))
         with patch.object(spareroom.net, "page", return_value=cards):
-            self.assertEqual([l.id for l in spareroom.search()], ["1"])
+            self.assertEqual([l.id for l in spareroom.search()], ["1", "6"])
         self.coords.return_value = (51.40, 0.10)   # ~20 km away
         with patch.object(spareroom.net, "page", return_value=cards):
             self.assertEqual(spareroom.search(), [])
@@ -72,6 +77,9 @@ class SpareRoomTests(unittest.TestCase):
         with patch.object(spareroom.net, "page", return_value="<html>blocked</html>"):
             with self.assertRaisesRegex(ValueError, "no listing cards"):
                 spareroom.search()
+        with patch.object(spareroom.net, "page", side_effect=[page(FIXTURE, more=True), "<html>blocked</html>"]):
+            with self.assertRaisesRegex(ValueError, "no listing cards"):
+                spareroom.search()
 
     def test_postcode_lookups_are_cached(self):
         self.coords_patch.stop()
@@ -80,6 +88,27 @@ class SpareRoomTests(unittest.TestCase):
             self.assertEqual(spareroom._coords("outcode", "E14"), (51.5, -0.1))
             self.assertEqual(spareroom._coords("outcode", "E14"), (51.5, -0.1))
         self.assertEqual(get.call_count, 1)
+
+    def test_postcode_outages_and_invalid_coordinates_do_not_become_empty_successes(self):
+        self.coords_patch.stop()
+        for response, error in (
+                (Mock(status_code=503, raise_for_status=Mock(side_effect=HTTPError("unavailable"))), HTTPError),
+                (Mock(status_code=200, json=Mock(return_value={"result": None})), ValueError),
+                (Mock(status_code=200, json=Mock(return_value={
+                    "result": {"latitude": 51.5, "longitude": None}})), ValueError)):
+            with self.subTest(response=response), patch.object(spareroom.net.session, "get", return_value=response):
+                with self.assertRaises(error):
+                    spareroom._coords("outcode", "E14")
+                self.assertIsNone(cache.get("outcode", "E14"))
+
+    def test_changed_filters_do_not_reuse_an_old_search(self):
+        with patch.object(spareroom, "search", return_value=[]) as search:
+            spareroom.fetch()
+            spareroom.fetch()
+            self.assertEqual(search.call_count, 1)
+            with patch.object(config, "RENT_MIN", config.RENT_MIN + 100):
+                spareroom.fetch()
+            self.assertEqual(search.call_count, 2)
 
     def test_registered_for_the_vps_watch(self):
         self.assertIn("sr", main.LOCAL_RENTAL_SOURCES)

@@ -1,6 +1,7 @@
 """sharetobuy.com - server-rendered search results; cards carry data-* attributes and the
 page embeds a JSON map of property coordinates (data-map-properties)."""
 import json
+import math
 import re
 import sys
 from html import unescape
@@ -9,7 +10,7 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import cached_search, detail_fields, money, private_rent_costs, text
+from . import cached_search, detail_fields, money, private_rent_costs, rental_filters, rental_in_scope, text
 
 BASE = "https://www.sharetobuy.com"
 
@@ -77,7 +78,9 @@ def _photo_urls(html, pid):
 def photos(listing):
     urls = cache.get("stb_photos", listing.id)
     if urls is None:
-        urls = _photo_urls(net.get(listing.url).text, listing.id)
+        html = (net.page(listing.url) if listing.tenure == "rent" and listing.bills is not None
+                else net.get(listing.url).text)
+        urls = _photo_urls(html, listing.id)
         cache.put("stb_photos", listing.id, urls)
     return urls
 
@@ -132,12 +135,21 @@ def fetch(rent_only=False):
     listings = {}
     for rent_or_buy, schemes, max_cost in _searches(rent_only):
         params = _params(rent_or_buy, schemes, max_cost)
+        if rent_only:
+            params = [(name, math.ceil(config.RENT_SEARCH_MILES) if name == "radius" else value)
+                      for name, value in params]
         coords = {}
         for page in range(1, MAX_PAGES + 1):
             path = "/properties/" if page == 1 else f"/properties/page/{page}/"
-            html = net.get(BASE + path, params=params).text
+            html = (net.page(BASE + path, params=params) if rent_only
+                    else net.get(BASE + path, params=params).text)
             coords.update(_coords(html))
             cards = list(_cards(html))
+            if rent_only:
+                if cards and "data-map-properties=" not in html:
+                    raise ValueError("ShareToBuy search missing its property map (blocked or layout changed)")
+                if not cards and not ("search-results-list-wrapper" in html and "No results found" in text(html)):
+                    raise ValueError("ShareToBuy search has neither cards nor an explicit empty result")
             if not cards:
                 break
             for c in cards:
@@ -151,6 +163,8 @@ def fetch(rent_only=False):
                 desc = re.search(r'property-details-description[^>]*>(.*?)</div>', c, re.S)
                 img = re.search(r'(?:data-src-original|src)="(https://sih\.cdn\.sharetobuy\.com/[^"]+)"', c)
                 scheme_id = _attr(c, "scheme-type") or ""
+                if rent_only and scheme_id not in RENT_SCHEMES[1]:
+                    continue
                 lat, lng = coords.get(pid, (None, None))
                 l = Listing(
                     source="stb", id=pid, url=f"{BASE}/properties/{pid}/",
@@ -184,6 +198,8 @@ def search_rent():
     estimate and 5 weeks' deposit."""
     out = []
     for l in fetch(rent_only=True):
+        if not rental_in_scope(l):
+            continue
         l.min_deposit = None   # card "deposits" are holding/reservation fees, not the tenancy deposit
         out.append(private_rent_costs(l))
     return out
@@ -191,5 +207,5 @@ def search_rent():
 
 def fetch_rent():
     # Keyed by the filters applied at fetch time: people with different searches never share it
-    key = f"stbr:{config.MAX_MONTHLY_COST:g}:{config.MIN_BEDROOMS}:{config.SEARCH_RADIUS_KM:g}"
+    key = f"stbr:{rental_filters()}"
     return cached_search(key, search_rent, minutes=RENT_REFRESH_MINUTES)

@@ -1,4 +1,5 @@
 import re
+import math
 import datetime as dt
 from dataclasses import asdict, fields
 from html import unescape
@@ -137,6 +138,21 @@ def apply_rent_details(listing, details):
     if ROOM_LET.search(listing.description):
         return False
     return not (listing.floor_area_m2 and listing.floor_area_m2 < config.RENT_MIN_AREA_M2)
+
+
+def rental_filters():
+    return (config.TARGET_NAME, config.TARGET_LAT, config.TARGET_LNG, config.RENT_SEARCH_MILES,
+            config.RENT_MIN, config.MAX_MONTHLY_COST, config.MIN_BEDROOMS)
+
+
+def rental_in_scope(listing):
+    if (listing.rent is None or not config.RENT_MIN <= listing.rent <= config.MAX_MONTHLY_COST
+            or listing.bedrooms < max(1, config.MIN_BEDROOMS)
+            or listing.lat is None or listing.lng is None):
+        return False
+    distance = math.hypot((listing.lat - config.TARGET_LAT) * 111.2,
+                          (listing.lng - config.TARGET_LNG) * 111.2 * math.cos(math.radians(listing.lat)))
+    return distance <= config.RENT_SEARCH_MILES * 1.609344
 
 
 def cached_search(name, search, minutes=None):

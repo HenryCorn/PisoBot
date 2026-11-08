@@ -8,13 +8,15 @@ refine(): coordinates come from a full postcode quoted in the card text when the
 the outcode centroid (postcodes.io) and the card says the location is approximate, as are its
 commute and crime figures (an outcode spans roughly 1-3 km)."""
 import datetime as dt
+import math
 import re
 from html import unescape
 from urllib.parse import urljoin
 
 from .. import cache, config, net
 from ..models import Listing
-from . import PRIVATE_RENT, ROOM_LET, cached_search, money, monthly_rent, private_rent_costs, text
+from . import (PRIVATE_RENT, ROOM_LET, cached_search, money, monthly_rent, private_rent_costs,
+               rental_filters, text)
 
 BASE = "https://www.spareroom.co.uk"
 LIST = f"{BASE}/flats-to-rent/london"
@@ -34,10 +36,18 @@ def _coords(namespace, code):
     if hit is None:
         path = "postcodes" if namespace == "postcode" else "outcodes"
         r = net.session.get(f"https://api.postcodes.io/{path}/{code}", timeout=20, verify=net.VERIFY)
-        result = r.json().get("result") if r.status_code == 200 else None
-        hit = [result["latitude"], result["longitude"]] if result and result.get("latitude") else []
-        if r.status_code in (200, 404):
-            cache.put(namespace, code, hit)
+        if r.status_code == 404:
+            hit = []
+        else:
+            r.raise_for_status()
+            result = r.json().get("result")
+            if not isinstance(result, dict):
+                raise ValueError("postcodes.io returned no coordinate result")
+            hit = [result.get("latitude"), result.get("longitude")]
+            if (not all(type(v) in (int, float) and math.isfinite(v) for v in hit)
+                    or not -90 <= hit[0] <= 90 or not -180 <= hit[1] <= 180):
+                raise ValueError("postcodes.io returned invalid coordinates")
+        cache.put(namespace, code, hit)
     return tuple(hit) if hit else (None, None)
 
 
@@ -73,7 +83,8 @@ def _listing(attrs, block):
     outcode = attrs.get("postcode", "").upper().replace(" ", "")
     if (kind == "studio" or beds < max(1, config.MIN_BEDROOMS) or not rent
             or not config.RENT_MIN <= rent <= config.MAX_MONTHLY_COST or not OUTCODE.match(outcode)
-            or re.search(r"\b(?:room|studio|en[\s-]?suite|bedsit)\b", title, re.I)):
+            or re.search(r"\b(?:studio|bedsit)\b|\broom\s+(?:in|to\s+(?:rent|let))\b"
+                         r"|\b(?:double|single)\s+room\b", title, re.I)):
         return None
     snippet = re.search(r'class="listing-card__short_description"[^>]*>(.*?)</', block, re.S)
     description = text(f"{title}. {kind} {beds} bed. {snippet[1] if snippet else ''} "
@@ -101,18 +112,19 @@ def _listing(attrs, block):
         bedrooms=beds, scheme=PRIVATE_RENT, tenure="rent", rent=rent, lat=lat, lng=lng,
         image=images[0] if images else None, images=images,
         available=_available(available[1]) if available else None,
+        estimated=[] if exact else ["location"],
         description=description if exact else f"{description} {APPROXIMATE}"))
 
 
 def search():
+    if config.RENT_MAX_PAGES < 1:
+        raise ValueError("RENT_MAX_PAGES must be positive")
     out, seen = [], set()
     for page in range(1, config.RENT_MAX_PAGES + 1):
         html = net.page(LIST if page == 1 else f"{LIST}/page{page}")
         cards = list(_cards(html))
         if not cards:
-            if page == 1:
-                raise ValueError("SpareRoom list has no listing cards (blocked or layout changed)")
-            break
+            raise ValueError("SpareRoom list has no listing cards (blocked or layout changed)")
         for attrs, block in cards:
             if attrs.get("id") in seen:
                 continue
@@ -126,4 +138,10 @@ def search():
 
 
 def fetch():
-    return cached_search("sr", search)
+    filters = [*rental_filters(), config.RENT_MAX_PAGES]
+    hit = cache.get("rent_search", "sr") or {}
+    if hit.get("filters") != filters:
+        cache.put("rent_search", "sr", {**hit, "at": ""})
+    listings = cached_search("sr", search)
+    cache.put("rent_search", "sr", {**cache.get("rent_search", "sr"), "filters": filters})
+    return listings

@@ -184,7 +184,12 @@ independent Save/Hide actions, and a service restart without duplicate alerts.
 `WATCH_SOURCES` may contain `rm` (Rightmove), `otmr` (OnTheMarket), `orent`
 (OpenRent), `sr` (SpareRoom whole-property lets), `stbr` (ShareToBuy London Living
 Rent / Rent to Buy) and `lqr` (L&Q London Living Rent / Rent to Buy). All are
-fetched directly (never Decodo); Zoopla stays cloud-only because it needs Decodo.
+fetched directly when `FETCH_CHAIN=plain`; Zoopla stays cloud-only because it needs Decodo.
+Probe each source from the deployment host before enabling it. On 2026-11-08,
+the Hostinger VPS received HTTP 200 from SpareRoom and L&Q but HTTP 403 from
+ShareToBuy's search: leave `stbr` disabled there until direct access is available
+or a separately approved egress is configured. A blocked source makes cycles
+incomplete; it must not be treated as an empty successful result.
 
 - `sr` reads up to `RENT_MAX_PAGES` pages of `/flats-to-rent/london` (about 11
   cards each, London-wide) every cycle; SpareRoom's filter parameters are
@@ -195,7 +200,9 @@ fetched directly (never Decodo); Zoopla stays cloud-only because it needs Decodo
 - `stbr`/`lqr` change slowly: they refresh every 3 hours, cached per filter set,
   instead of being re-searched every cycle. They are costed like private lets
   (rent + bills estimate, 5 weeks' deposit) and cards say income caps apply
-  (London Living Rent: household income under about £60k, currently renting).
+  (check each advert's income, residency and other eligibility rules; the bot
+  does not verify eligibility). Search and optional detail/gallery requests
+  use the same paced fetcher and `portal_fetch` logging as the other VPS sources.
 - Not built: Gumtree (listings only render with JavaScript; robots allows only
   the first page), build-to-rent operators (cheapest London 1-bed found was
   about £2,370/mo; most have no machine-readable unit data), Facebook.

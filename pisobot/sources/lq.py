@@ -1,6 +1,7 @@
 """lqhomes.com - public WordPress JSON: /wp-json/custom/developments and
 /wp-json/custom/development/{id}/properties."""
 import math
+import json
 import re
 import sys
 from html import unescape
@@ -9,7 +10,8 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import cached_search, detail_fields, lease_remaining, money, private_rent_costs, text
+from . import (cached_search, detail_fields, lease_remaining, money, private_rent_costs,
+               rental_filters, rental_in_scope, text)
 
 BASE = "https://lqhomes.com/wp-json/custom"
 PLOT_TYPES = {
@@ -38,10 +40,11 @@ def _page_details(html):
 
 
 def refine(listing):
+    rental = listing.tenure == "rent" and listing.bills is not None
     d = cache.get("lq_detail", listing.url)
     if d is None:
         try:
-            d = _page_details(net.get(listing.url).text)
+            d = _page_details(net.page(listing.url) if rental else net.get(listing.url).text)
         except (RequestException, ValueError) as ex:
             print(f"L&Q optional details unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
             return not (isinstance(ex, RequestException) and ex.response is not None
@@ -51,6 +54,8 @@ def refine(listing):
     for key, value in d.items():
         if key != "description" and getattr(listing, key) is None:
             setattr(listing, key, value)
+    if rental:
+        private_rent_costs(listing)
     return True
 
 
@@ -59,17 +64,22 @@ RENT_REFRESH_MINUTES = 180
 
 def fetch(rent_only=False):
     out = []
-    for dev in net.get(f"{BASE}/developments").json():
+    developments = (json.loads(net.page(f"{BASE}/developments")) if rent_only
+                    else net.get(f"{BASE}/developments").json())
+    radius = config.RENT_SEARCH_MILES * 1.609344 if rent_only else config.SEARCH_RADIUS_KM
+    for dev in developments:
         loc = dev.get("development_location") or {}
         try:
             lat, lng = float(loc["lat"]), float(loc["lng"])
         except (KeyError, TypeError, ValueError):
             continue
-        if not dev.get("site_live") or not dev.get("plots_available") or _km(lat, lng) > config.SEARCH_RADIUS_KM:
+        if not dev.get("site_live") or not dev.get("plots_available") or _km(lat, lng) > radius:
             continue
         dev_name = unescape(dev["name"]).strip()
         dev_url = dev["url"].rstrip("/")
-        for p in net.get(f"{BASE}/development/{dev['id']}/properties").json():
+        plots = (json.loads(net.page(f"{BASE}/development/{dev['id']}/properties")) if rent_only
+                 else net.get(f"{BASE}/development/{dev['id']}/properties").json())
+        for p in plots:
             a = p.get("acf") or {}
             kind = PLOT_TYPES.get(a.get("plot_type"))
             if rent_only and kind and kind[1] != "rent":
@@ -119,6 +129,8 @@ def search_rent():
     """London Living Rent / Rent to Buy plots only, costed like private lets (bills estimate)."""
     out = []
     for l in fetch(rent_only=True):
+        if not rental_in_scope(l):
+            continue
         l.min_deposit = None   # card "deposits" are holding/reservation fees, not the tenancy deposit
         out.append(private_rent_costs(l))
     return out
@@ -126,5 +138,5 @@ def search_rent():
 
 def fetch_rent():
     # Keyed by the filters applied at fetch time: people with different searches never share it
-    key = f"lqr:{config.MAX_MONTHLY_COST:g}:{config.MIN_BEDROOMS}:{config.SEARCH_RADIUS_KM:g}"
+    key = f"lqr:{rental_filters()}"
     return cached_search(key, search_rent, minutes=RENT_REFRESH_MINUTES)
