@@ -20,7 +20,7 @@ from .sources import detail_fields
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove, "otmr": otm_rent, "zp": zoopla}
 # Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
 RENTAL_SOURCES = ["rm", "otmr", "zp"]
-DEFAULT_SOURCES = [name for name in SOURCES if name not in RENTAL_SOURCES]
+DEFAULT_SOURCES = [name for name in SOURCES if name not in [*RENTAL_SOURCES, "orent"]]
 STATE_DIR = os.environ.get("PISOBOT_STATE_DIR") or os.path.join(os.path.dirname(__file__), "..", "state")
 SEEN_PATH = os.path.join(STATE_DIR, "seen.json")
 
@@ -419,7 +419,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
 
 def main():
     ap = argparse.ArgumentParser(description="London shared-ownership alert bot")
-    ap.add_argument("--sources", default=",".join(DEFAULT_SOURCES), help="comma list: " + ",".join(SOURCES))
+    ap.add_argument("--sources", help="comma list: " + ",".join(SOURCES))
     ap.add_argument("--rentals", action="store_true",
                     help="search private rentals only (" + ",".join(RENTAL_SOURCES) + ") and send their report")
     ap.add_argument("--dry-run", action="store_true", help="print matches, don't send or update state")
@@ -430,11 +430,17 @@ def main():
     ap.add_argument("--preview", metavar="DIR", help="write the report to DIR instead of sending it")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
-    selected = [s for s in a.sources.split(",") if s]
+    rental_defaults = config.WATCH_SOURCES.split(",") if os.environ.get("STORAGE") == "local" else RENTAL_SOURCES
+    selected = ([s.strip() for s in a.sources.split(",") if s.strip()] if a.sources is not None
+                else rental_defaults if a.rentals else DEFAULT_SOURCES)
+    if not selected or any(s not in SOURCES for s in selected):
+        ap.error("Select at least one registered source")
     if a.rentals:
         if a.restart or a.reset or a.scheduled:
             ap.error("--rentals cannot be combined with --restart, --reset or --scheduled")
-        run(RENTAL_SOURCES, a.dry_run, a.verbose, report=True, preview_dir=a.preview, rentals=True)
+        if any(s not in [*RENTAL_SOURCES, "orent"] for s in selected):
+            ap.error("--rentals requires rental sources")
+        run(selected, a.dry_run, a.verbose, report=True, preview_dir=a.preview, rentals=True)
     elif a.restart:
         prefs.restart(full=False)
         save_seen({})

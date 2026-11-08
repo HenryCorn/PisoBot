@@ -185,6 +185,26 @@ class WatchTests(unittest.TestCase):
         self.assertNotIn("private-token", str(error.exception))
         self.assertIn("ConnectionError", str(error.exception))
 
+    def test_rentals_cli_honors_explicit_sources(self):
+        with patch("sys.argv", ["pisobot", "--rentals", "--sources", "rm,otmr", "--dry-run"]), \
+                patch.object(main, "run") as run:
+            main.main()
+        self.assertEqual(run.call_args.args[0], ["rm", "otmr"])
+        self.assertTrue(run.call_args.args[1])
+
+    def test_local_rentals_cli_uses_configured_watch_sources(self):
+        with patch.object(config, "WATCH_SOURCES", "rm,otmr"), \
+                patch("sys.argv", ["pisobot", "--rentals", "--dry-run"]), \
+                patch.object(main, "run") as run:
+            main.main()
+        self.assertEqual(run.call_args.args[0], ["rm", "otmr"])
+
+    def test_rentals_cli_rejects_non_rental_sources(self):
+        with patch("sys.argv", ["pisobot", "--rentals", "--sources", "stb"]), \
+                self.assertRaises(SystemExit) as error:
+            main.main()
+        self.assertEqual(error.exception.code, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
