@@ -1,6 +1,12 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+state/
 .venv/
 .cache/
 worker/.wrangler/

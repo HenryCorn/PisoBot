@@ -201,10 +201,11 @@ def _group_line(group, flags_of, map_url=None):
     first = min(group, key=lambda l: l.monthly_cost)
     flags = " ".join(sorted({f for l in group for f in flags_of(l).split()}))
     est = " · includes estimates" if any(l.estimated for l in group) else ""
+    compare = (f' · <a href="{e(map_url or config.MAP_URL)}">Compare all on map</a>'
+               if map_url or config.MAP_URL else "")
     return (f"<b>{e(first.address[:70])}</b> · {len(group)} homes {flags}\n"
             f"💷 £{costs[0]:,.0f}–£{costs[-1]:,.0f}/mo · 🛏 {bed_txt}{est}\n"
-            f'<a href="{e(first.url)}">Open cheapest home</a> · '
-            f'<a href="{e(map_url or config.MAP_URL)}">Compare all on map</a>').rstrip()
+            f'<a href="{e(first.url)}">Open cheapest home</a>{compare}').rstrip()
 
 
 def _chunk(blocks, limit=3800):
@@ -233,7 +234,8 @@ def report_messages(top, rest, saved, title, flags_of, map_url=None):
                   f"⏱ Fastest <b>{fastest.travel_minutes} min</b>")
     else:
         title += "\nNo homes matched your filters this time."
-    title += f'\n\n<a href="{e(map_url)}">🗺 Browse photos, filter and compare all homes</a>'
+    if map_url:
+        title += f'\n\n<a href="{e(map_url)}">🗺 Browse photos, filter and compare all homes</a>'
     out = [(title, None)]
     saved_keys = {l.key for l in saved}
     for rank, l in enumerate(top, 1):

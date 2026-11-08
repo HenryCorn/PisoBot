@@ -1,0 +1,31 @@
+[Unit]
+Description=PisoBot rental watch and Telegram polling
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pisobot
+Group=pisobot
+WorkingDirectory=/opt/pisobot/app
+EnvironmentFile=/etc/pisobot/pisobot.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=STORAGE=local
+Environment=PISOBOT_STATE_DIR=/var/lib/pisobot
+StateDirectory=pisobot
+StateDirectoryMode=0700
+ExecStart=/opt/pisobot/venv/bin/python -m pisobot.watch
+Restart=always
+RestartSec=30
+TimeoutStopSec=180
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

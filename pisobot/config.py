@@ -62,7 +62,11 @@ RENT_MIN_AREA_M2 = _env("RENT_MIN_AREA_M2", 30)  # London Plan 1-bed minimum is 
 RENT_DEPOSIT_WEEKS = 5                                  # Tenant Fees Act cap below £50k/yr rent
 RENT_SEARCH_MILES = _env("RENT_SEARCH_MILES", 5)       # portals accept 1/3/5/10/15 miles
 RENT_REFRESH_HOURS = _env("RENT_REFRESH_HOURS", 2)
+RENT_REFRESH_MINUTES = _env("RENT_REFRESH_MINUTES", RENT_REFRESH_HOURS * 60)
 RENT_MAX_PAGES = _env("RENT_MAX_PAGES", 20, int)
+WATCH_INTERVAL_MIN = _env("WATCH_INTERVAL_MIN", 15)
+WATCH_FAILURE_LIMIT = _env("WATCH_FAILURE_LIMIT", 3, int)
+WATCH_SOURCES = os.environ.get("WATCH_SOURCES", "rm,otmr,orent")
 
 # "Best" ranking for the report: each term is scaled 0-1 against its cap, lower is better
 RANK_WEIGHTS = {"cost": 0.45, "travel": 0.30, "crime": 0.25}
@@ -83,7 +87,8 @@ SHORT_LEASE_YEARS = 90
 QUIET_HOURS = (22, 7)
 
 # Interactive map published with GitHub Pages from /docs
-MAP_URL = os.environ.get("MAP_URL", "https://henrycorn.github.io/PisoBot/")
+MAP_URL = os.environ.get("MAP_URL", "" if os.environ.get("STORAGE") == "local"
+                        else "https://henrycorn.github.io/PisoBot/")
 
 EXCLUDE_KEYWORDS = [
     "studio", "over 55", "over-55", "over 55s", "older person", "retirement",

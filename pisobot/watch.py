@@ -1,0 +1,164 @@
+"""Single-process rental scheduler and Telegram long-polling service."""
+import argparse
+import datetime as dt
+import logging
+import os
+import queue
+import random
+import signal
+import threading
+import time
+
+from requests import RequestException
+
+from . import cache, config, d1, main as pipeline, net, telegram
+
+log = logging.getLogger(__name__)
+
+
+def _meta(name):
+    rows = d1.query("SELECT value FROM meta WHERE name = ?", name)
+    return rows[0]["value"] if rows else None
+
+
+def _put_meta(name, value):
+    d1.query("INSERT INTO meta (name, value) VALUES (?, ?) "
+             "ON CONFLICT(name) DO UPDATE SET value = excluded.value", name, str(value))
+
+
+class Watcher:
+    def __init__(self, sources=None, verbose=False):
+        self.sources = sources if sources is not None else config.WATCH_SOURCES.split(",")
+        if not self.sources or any(name not in pipeline.SOURCES for name in self.sources):
+            raise ValueError("WATCH_SOURCES must contain registered rental sources")
+        if any(name not in ("rm", "otmr", "orent") for name in self.sources):
+            raise ValueError("VPS watch supports rm, otmr and orent only")
+        if config.WATCH_INTERVAL_MIN <= 0 or config.WATCH_FAILURE_LIMIT < 1:
+            raise ValueError("Watch interval and failure limit must be positive")
+        self.verbose = verbose
+        self.pending = queue.Queue(maxsize=1)
+        self.guard = threading.Lock()
+        self.running = False
+
+    def request_run(self, kind):
+        if kind not in ("rentals", "report"):
+            raise ValueError("Unknown run kind")
+        with self.guard:
+            if self.running or not self.pending.empty():
+                return False
+            self.pending.put_nowait(kind)
+            return True
+
+    def cycle(self, kind="rentals", stop_event=None, dry_run=False):
+        first = not _meta("watch_initialized")
+        for source in self.sources:
+            cache.put("rent_search", source, {})
+        result = pipeline.run(self.sources, dry_run, self.verbose,
+                              report=kind == "report" and not first, rentals=True,
+                              watch=kind != "report" or first, baseline=first,
+                              stop_event=stop_event)
+        if not result["complete"]:
+            raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
+        if not dry_run:
+            if first:
+                _put_meta("watch_initialized", "1")
+            _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
+            healthcheck = os.environ.get("HEALTHCHECK_URL", "")
+            if healthcheck:
+                try:
+                    response = net.session.get(healthcheck, timeout=10, verify=net.VERIFY)
+                    response.raise_for_status()
+                except RequestException as ex:
+                    log.error("Healthcheck failed (%s)", type(ex).__name__)
+        return result
+
+    def _failed(self):
+        failures = int(_meta("watch_failures") or 0) + 1
+        _put_meta("watch_failures", failures)
+        if failures >= config.WATCH_FAILURE_LIMIT and _meta("watch_warned") != "1":
+            try:
+                telegram.send_text(f"Rental watch has had {failures} consecutive incomplete cycles. "
+                                   "It will keep retrying; check the VPS journal.")
+            except Exception as ex:
+                log.error("Failure notification could not be delivered (%s)", type(ex).__name__)
+            else:
+                _put_meta("watch_warned", "1")
+
+    def serve(self, stop_event, poll):
+        poll_errors = []
+
+        def listen():
+            try:
+                poll(self.request_run, stop_event)
+                if not stop_event.is_set():
+                    raise RuntimeError("Telegram polling stopped unexpectedly")
+            except Exception as ex:
+                log.error("Telegram polling stopped (%s)", type(ex).__name__)
+                poll_errors.append(type(ex).__name__)
+                stop_event.set()
+
+        listener = threading.Thread(target=listen, name="telegram", daemon=True)
+        listener.start()
+        next_cycle = time.monotonic()
+        try:
+            while not stop_event.is_set():
+                remaining = max(0, next_cycle - time.monotonic())
+                try:
+                    kind = self.pending.get(timeout=min(remaining, 1))
+                except queue.Empty:
+                    if time.monotonic() < next_cycle:
+                        continue
+                    kind = "rentals"
+                if stop_event.is_set():
+                    break
+                with self.guard:
+                    self.running = True
+                try:
+                    result = self.cycle(kind, stop_event)
+                except InterruptedError:
+                    if not stop_event.is_set():
+                        raise
+                    break
+                except Exception as ex:
+                    log.error("Rental cycle failed (%s)", type(ex).__name__)
+                    self._failed()
+                else:
+                    _put_meta("watch_failures", "0")
+                    _put_meta("watch_warned", "0")
+                    log.info("Rental cycle complete: %s matches", result["matches"])
+                finally:
+                    with self.guard:
+                        self.running = False
+                next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
+        finally:
+            stop_event.set()
+            listener.join(timeout=40)
+        if poll_errors:
+            raise RuntimeError("Telegram listener failed; service restart required")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--once", action="store_true", help="one scan without starting Telegram polling")
+    parser.add_argument("--dry-run", action="store_true", help="with --once: no Telegram sends or seen updates")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args()
+    if args.dry_run and not args.once:
+        parser.error("--dry-run requires --once")
+    if os.environ.get("STORAGE") != "local":
+        parser.error("The VPS watcher requires STORAGE=local")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    stop = threading.Event()
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, lambda *_: stop.set())
+    with pipeline.run_lock("watch"):
+        watcher = Watcher(verbose=args.verbose)
+        if args.once:
+            watcher.cycle(stop_event=stop, dry_run=args.dry_run)
+        else:
+            from . import bot
+            watcher.serve(stop, bot.poll)
+
+
+if __name__ == "__main__":
+    main()

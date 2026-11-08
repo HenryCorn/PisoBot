@@ -18,7 +18,8 @@ WIDTH, HEIGHT, MAP_W = 1200, 500, 480
 PHOTO_W = WIDTH - MAP_W
 GALLERY_H = 280
 DIVIDER = 4
-TILE_CACHE = Path(__file__).resolve().parents[1] / ".cache" / "map-tiles"
+TILE_CACHE = (Path(os.environ["PISOBOT_STATE_DIR"]) if os.environ.get("PISOBOT_STATE_DIR")
+              else Path(__file__).resolve().parents[1] / ".cache") / "map-tiles"
 
 
 def small_url(url, floorplan=False, width=PHOTO_W, height=HEIGHT):

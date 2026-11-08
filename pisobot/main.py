@@ -1,11 +1,14 @@
 import argparse
 import copy
 import datetime as dt
+import fcntl
 import json
 import math
 import os
 import sys
+import tempfile
 import traceback
+from contextlib import contextmanager
 from zoneinfo import ZoneInfo
 
 from requests import RequestException
@@ -18,21 +21,50 @@ SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": ri
 # Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
 RENTAL_SOURCES = ["rm", "otmr", "zp"]
 DEFAULT_SOURCES = [name for name in SOURCES if name not in RENTAL_SOURCES]
-SEEN_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "seen.json")
+STATE_DIR = os.environ.get("PISOBOT_STATE_DIR") or os.path.join(os.path.dirname(__file__), "..", "state")
+SEEN_PATH = os.path.join(STATE_DIR, "seen.json")
+
+
+@contextmanager
+def run_lock(name="run"):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(os.path.join(STATE_DIR, f"{name}.lock"), "a", encoding="utf-8") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError(f"Another PisoBot {name} is already running") from None
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def load_seen():
     try:
         with open(SEEN_PATH, encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        if os.environ.get("STORAGE") == "local":
+            raise
         return {}
 
 
 def save_seen(seen):
-    os.makedirs(os.path.dirname(SEEN_PATH), exist_ok=True)
-    with open(SEEN_PATH, "w", encoding="utf-8") as f:
-        json.dump(seen, f, indent=1, sort_keys=True)
+    directory = os.path.dirname(os.path.abspath(SEEN_PATH))
+    os.makedirs(directory, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory, delete=False) as f:
+            temporary = f.name
+            json.dump(seen, f, indent=1, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, SEEN_PATH)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def _cost_ok(l):
@@ -151,13 +183,29 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
         print(f"report preview written to {preview_dir}")
 
 
-def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False):
+def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
+        watch=False, baseline=False, stop_event=None):
+    args = (selected, dry_run, verbose, report, preview_dir, scheduled, rentals, watch, baseline, stop_event)
+    if os.environ.get("STORAGE") == "local":
+        with run_lock():
+            return _run(*args)
+    return _run(*args)
+
+
+def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
+         watch=False, baseline=False, stop_event=None):
+    def check_stop():
+        if stop_event is not None and stop_event.is_set():
+            raise InterruptedError("PisoBot is stopping")
+
+    check_stop()
     seen = load_seen()
     p = prefs.load()
     live = not dry_run and not preview_dir
     alerted = [v for v in seen.values() if v.get("alerted")]
     listings, failures = [], []
     for name in selected:
+        check_stop()
         try:
             got = SOURCES[name].fetch()
             print(f"[{name}] {len(got)} listings")
@@ -174,14 +222,16 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         print(f"geocoding failed: {ex}", file=sys.stderr)
 
     # 1. everything that currently fits the criteria, one entry per physical flat
-    matches, kept, rejected = [], [], {}
+    matches, kept, rejected, enrich_failures = [], [], {}, 0
     for l in listings:
+        check_stop()
         why = passes_basic(l)
         if not why:
             try:
                 why = passes_area(l)
             except Exception as ex:  # API hiccup: try again next run
-                print(f"enrich failed for {l.key}: {ex}", file=sys.stderr)
+                print(f"enrich failed for {l.key}: {type(ex).__name__}", file=sys.stderr)
+                enrich_failures += 1
                 continue
         if why:
             rejected[why] = rejected.get(why, 0) + 1
@@ -195,6 +245,8 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         kept.append(rec)
         matches.append(l)
     print(f"rejected: {rejected}")
+    if baseline and (failures or enrich_failures):
+        raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
 
     # 2. Saved/hidden choices (recorded instantly by the Worker) apply to these matches
@@ -234,7 +286,8 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
                 info["cost"] = round(l.monthly_cost)
         elif key in fetched_keys:
             info["missing"] = 0   # still advertised, just outside the filters now
-        elif key.split(":")[0] in selected and key.split(":")[0] not in failures:  # skipped sources prove nothing
+        elif not watch and os.environ.get("STORAGE") != "local" and key.split(":")[0] in selected \
+                and key.split(":")[0] not in failures:
             info["missing"] = info.get("missing", 0) + 1
             if info["missing"] >= 2:
                 gone.append(info)
@@ -244,7 +297,7 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     to_send = []
     for l in matches:
         prev = seen.get(l.key)
-        if l.key in p["saved"]:
+        if l.key in p["saved"] and not watch:
             pass
         elif prev is None:
             if not is_duplicate(l, alerted):
@@ -267,14 +320,26 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
         return " ".join(f for f, on in (("🆕", l.key in new_keys), ("❤️", l.key in saved_keys)) if on)
 
     top = ranking.best(matches)
-    try:
-        mapgen.write(matches, top, saved_keys, new_keys, rentals=rentals)
-    except Exception:
-        print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
+    if os.environ.get("STORAGE") != "local":
+        try:
+            mapgen.write(matches, top, saved_keys, new_keys, rentals=rentals)
+        except Exception:
+            print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
+
+    if baseline:
+        to_send = []
+        if live:
+            for l in matches:
+                seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+            save_seen(seen)
+            telegram.send_text(f"Rental watch is live: {len(matches)} current matches recorded. "
+                               "Only new matches and price drops will alert.")
+    if watch:
+        saved_changes, gone = [], []
 
     # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
     first_run = not seen and not rentals
-    if first_run or report or rentals or preview_dir:
+    if not watch and (first_run or report or rentals or preview_dir):
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
         rest = [l for l in matches if l not in top and l.key not in saved_keys]
         n_new = len([l for l in matches if l.key in new_keys])
@@ -308,7 +373,7 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
                 print("Sent silent no-new summary; unchanged listing cards suppressed")
             else:
                 send_report(report_top, report_saved, report_rest, title, flags_of, preview_dir,
-                            map_url=mapgen.url(rentals))
+                            map_url=mapgen.url(rentals) if config.MAP_URL else None)
         reported_keys = {l.key for l in report_top}
         saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
@@ -323,14 +388,17 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     # 6. ... otherwise individual alerts
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     for l, reason in to_send[: config.MAX_ALERTS_PER_RUN]:
+        check_stop()
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
               f"{l.bedrooms}b {l.address[:60]} {l.url}")
         if not live:
             continue
         _ensure_photos(l)
         telegram.send_listing(l, reason)
-        telegram.throttle()
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+        if watch:
+            save_seen(seen)
+        telegram.throttle()
     if live:
         for l in saved_changes:
             _ensure_photos(l)
@@ -345,6 +413,8 @@ def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=Fa
     if live:
         save_seen(seen)
         prefs.save(p)
+    return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
+            "complete": not failures and not enrich_failures}
 
 
 def main():
