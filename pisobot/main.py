@@ -16,17 +16,17 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
-from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, zoopla
+from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
 SOURCES = {"stb": sharetobuy, "lq": lq, "nhg": nhg, "otm": onthemarket, "rm": rightmove,
-           "otmr": otm_rent, "zp": zoopla, "orent": openrent,
+           "otmr": otm_rent, "zp": zoopla, "orent": openrent, "sr": spareroom,
            # Rental schemes from the housing-association sources (London Living Rent, Rent to Buy)
            "stbr": SimpleNamespace(fetch=sharetobuy.fetch_rent, photos=sharetobuy.photos,
                                    RENT_REFRESH_MINUTES=sharetobuy.RENT_REFRESH_MINUTES),
            "lqr": SimpleNamespace(fetch=lq.fetch_rent, RENT_REFRESH_MINUTES=lq.RENT_REFRESH_MINUTES)}
 # Sources the VPS watcher may scan (all fetched directly, never through Decodo)
-LOCAL_RENTAL_SOURCES = ["rm", "otmr", "orent", "stbr", "lqr"]
+LOCAL_RENTAL_SOURCES = ["rm", "otmr", "orent", "stbr", "lqr", "sr"]
 # Private rentals cost Decodo requests, so they only run on demand (/rentals in Telegram -> --rentals)
 RENTAL_SOURCES = ["rm", "otmr", "zp"]
 DEFAULT_SOURCES = ["stb", "lq", "nhg", "otm"]

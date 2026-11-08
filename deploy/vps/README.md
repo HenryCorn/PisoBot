@@ -178,3 +178,24 @@ search failure counts as a failed cycle but does not stop the others' searches.
 After deployment, keep the old soak observations and start a new 24-hour
 observation window for this version, including a settings change during a scan,
 independent Save/Hide actions, and a service restart without duplicate alerts.
+
+## Sources
+
+`WATCH_SOURCES` may contain `rm` (Rightmove), `otmr` (OnTheMarket), `orent`
+(OpenRent), `sr` (SpareRoom whole-property lets), `stbr` (ShareToBuy London Living
+Rent / Rent to Buy) and `lqr` (L&Q London Living Rent / Rent to Buy). All are
+fetched directly (never Decodo); Zoopla stays cloud-only because it needs Decodo.
+
+- `sr` reads up to `RENT_MAX_PAGES` pages of `/flats-to-rent/london` (about 11
+  cards each, London-wide) every cycle; SpareRoom's filter parameters are
+  disallowed by its robots.txt, so filtering is local. Advert pages need
+  JavaScript, so locations come from a full postcode quoted in the card text or
+  else the postcode-district centre; the card then says the location (and so
+  commute and crime) is approximate.
+- `stbr`/`lqr` change slowly: they refresh every 3 hours, cached per filter set,
+  instead of being re-searched every cycle. They are costed like private lets
+  (rent + bills estimate, 5 weeks' deposit) and cards say income caps apply
+  (London Living Rent: household income under about £60k, currently renting).
+- Not built: Gumtree (listings only render with JavaScript; robots allows only
+  the first page), build-to-rent operators (cheapest London 1-bed found was
+  about £2,370/mo; most have no machine-readable unit data), Facebook.
