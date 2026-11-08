@@ -111,7 +111,10 @@ as part of an upgrade.
 
 To roll back to the cloud, stop and disable `pisobot-watch` first, restore the
 previous Telegram webhook using your private token, then re-enable the old
-PisoBot workflow. Local preference changes will need to be exported back to D1
+PisoBot workflow. The Worker also requires its `TELEGRAM_WEBHOOK_SECRET` when
+setting the webhook: `getWebhookInfo` does not reveal that secret. If it is
+unavailable, rotate the Worker's secret and set the matching value on the
+webhook before resuming the cloud bot. Local preference changes will need to be exported back to D1
 if they must survive rollback. Never run both schedulers or pollers together.
 
 Observe a 24-hour soak before considering the rollout fully validated:
