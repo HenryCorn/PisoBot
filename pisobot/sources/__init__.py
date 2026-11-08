@@ -140,14 +140,15 @@ def apply_rent_details(listing, details):
 
 
 def cached_search(name, search):
-    """Run an expensive (proxied) portal search at most every RENT_REFRESH_HOURS; in between,
+    """Run a portal search at most every RENT_REFRESH_MINUTES; in between,
     the last results are rebuilt from the repo cache so hourly runs cost no proxy requests."""
     hit = cache.get("rent_search", name) or {}
     try:
         age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(hit.get("at", ""))
     except ValueError:
         age = None
-    if age is not None and age < dt.timedelta(hours=config.RENT_REFRESH_HOURS):
+    minutes = getattr(config, "RENT_REFRESH_MINUTES", config.RENT_REFRESH_HOURS * 60)
+    if age is not None and age < dt.timedelta(minutes=minutes):
         names = {f.name for f in fields(Listing)}
         return [Listing(**{k: v for k, v in d.items() if k in names}) for d in hit["listings"]]
     listings = search()

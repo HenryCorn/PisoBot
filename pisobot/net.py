@@ -1,5 +1,11 @@
 import os
+import math
+import random
+import re
+import threading
 import time
+from email.utils import parsedate_to_datetime
+from urllib.parse import urljoin, urlsplit
 
 import requests
 import urllib3
@@ -39,7 +45,7 @@ def post(url, **kw):
 DECODO_URL = "https://data.decodo.com/v1/scrape"
 
 
-def page(url, params=None, retries=3):
+def _legacy_page(url, params=None, retries=3):
     """HTML of a portal that blocks cloud runners: fetched by Decodo's web data API from UK
     residential IPs when DECODO_AUTH_TOKEN is set, directly otherwise (local runs, tests).
     Each call is one Decodo request (the free plan has 2,000), so callers cache results."""
@@ -65,3 +71,117 @@ def page(url, params=None, retries=3):
             if attempt == retries - 1 or "rejected DECODO_AUTH_TOKEN" in str(ex):
                 raise
             time.sleep(5 * (attempt + 1))
+
+
+class FetchBlocked(requests.HTTPError):
+    """A portal block, including a host still in its cooldown period."""
+
+
+class _Host:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.next_request = 0
+        self.cooldown = 0
+
+
+_hosts = {}
+_hosts_lock = threading.Lock()
+
+
+def _interstitial(html):
+    if not html.strip():
+        return True
+    title = re.search(r"<title\b[^>]*>(.*?)</title>", html, re.I | re.S)
+    if title and re.search(r"^\s*(?:just a moment[.!…]*|attention required!?\s*\|?\s*cloudflare|"
+                           r"checking your browser[.!…]*|access denied|robot check)\s*$",
+                           title[1], re.I):
+        return True
+    # Background /cdn-cgi/challenge-platform/scripts/jsd/main.js is also present
+    # on valid Foxtons pages; only an actual challenge form is a block signal.
+    return bool(re.search(r'<form\b[^>]*\bid=["\']challenge-form["\']', html, re.I))
+
+
+def _retry_after(value):
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            seconds = parsedate_to_datetime(value).timestamp() - time.time()
+        except (TypeError, ValueError, OverflowError):
+            seconds = 300
+    if not math.isfinite(seconds):
+        seconds = 300
+    return max(1, min(seconds, 3600))
+
+
+def _plain_request(url, gap):
+    host = urlsplit(url).hostname
+    if urlsplit(url).scheme not in ("http", "https") or not host:
+        raise ValueError("FETCH_CHAIN requires an absolute HTTP(S) URL")
+    with _hosts_lock:
+        state = _hosts.setdefault(host.lower(), _Host())
+    with state.lock:
+        now = time.monotonic()
+        if state.cooldown > now:
+            raise FetchBlocked(f"{host} cooling down; try again in {math.ceil(state.cooldown - now)}s")
+        wait = state.next_request - now
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            response = session.get(url, timeout=30, verify=VERIFY, allow_redirects=False)
+            if response.status_code in (403, 429, 503) or (
+                    response.status_code < 300 and _interstitial(response.text)):
+                state.cooldown = time.monotonic() + _retry_after(response.headers.get("Retry-After"))
+                raise FetchBlocked(f"Blocked response ({response.status_code}) from {host}", response=response)
+            response.raise_for_status()
+            return response
+        finally:
+            state.next_request = time.monotonic() + random.uniform(gap * 0.5, gap * 1.5)
+
+
+def _plain_page(url, params, gap):
+    url = requests.Request("GET", url, params=params).prepare().url
+    for _ in range(6):
+        response = _plain_request(url, gap)
+        if response.status_code not in (301, 302, 303, 307, 308):
+            return response.text
+        if not response.headers.get("Location"):
+            raise requests.HTTPError("Redirect without Location", response=response)
+        url = urljoin(url, response.headers["Location"])
+    raise requests.TooManyRedirects("Too many redirects fetching page", response=response)
+
+
+def page(url, params=None, retries=3):
+    """Unset FETCH_CHAIN preserves the original cloud/Decodo behavior exactly.
+
+    Explicit plain[,decodo] makes one attempt per tier, serializes each host and
+    waits FETCH_MIN_GAP_S (default 4, jitter ±50%) after a request. Blocks put the
+    host in a process-local cooldown (Retry-After, capped at one hour; default
+    five minutes); later calls fail fast. Only real blocks may use the next tier.
+    Redirects also respect host pacing. No browser/challenge bypass is attempted.
+    """
+    chain = os.environ.get("FETCH_CHAIN")
+    if chain is None:
+        return _legacy_page(url, params=params, retries=retries)
+    tiers = [tier.strip() for tier in chain.split(",")]
+    if tiers not in (["plain"], ["decodo"], ["plain", "decodo"]):
+        raise ValueError("FETCH_CHAIN must be plain, decodo, or plain,decodo")
+    if "decodo" in tiers and not os.environ.get("DECODO_AUTH_TOKEN"):
+        raise ValueError("FETCH_CHAIN includes decodo but DECODO_AUTH_TOKEN is empty")
+    try:
+        gap = float(os.environ.get("FETCH_MIN_GAP_S", "4"))
+    except ValueError as ex:
+        raise ValueError("FETCH_MIN_GAP_S must be a finite number between 0 and 3600") from ex
+    if not math.isfinite(gap) or not 0 <= gap <= 3600:
+        raise ValueError("FETCH_MIN_GAP_S must be a finite number between 0 and 3600")
+    for index, tier in enumerate(tiers):
+        try:
+            if tier == "plain":
+                return _plain_page(url, params, gap)
+            html = _legacy_page(url, params=params, retries=1)
+            if _interstitial(html):
+                raise FetchBlocked("Decodo returned an empty page or challenge interstitial")
+            return html
+        except FetchBlocked:
+            if index == len(tiers) - 1:
+                raise
