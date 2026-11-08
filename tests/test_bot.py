@@ -257,7 +257,16 @@ class BotTests(unittest.TestCase):
         self.assertEqual(self.query("SELECT * FROM hidden_dev"), [])
         self.assertEqual(len(self.query("SELECT * FROM saved")), 1)
 
-    def test_restart_and_reset_keep_transport_checkpoint(self):
+    def test_restart_and_reset_keep_transport_and_scheduler_state(self):
+        scheduler_state = {
+            "watch_initialized": "1",
+            "watch_failures": "2",
+            "watch_warned": "1",
+            "watch_last_success": "2026-11-08T19:00:00+00:00",
+            "future_scheduler_key": "preserve",
+        }
+        for name, value in scheduler_state.items():
+            self.query("INSERT INTO meta VALUES (?, ?)", name, value)
         for command in ("/restart", "/reset"):
             self.handler.handle(callback(f"s:{SID}"))
             self.query("INSERT OR IGNORE INTO hidden VALUES ('other')")
@@ -267,12 +276,22 @@ class BotTests(unittest.TestCase):
             self.query("INSERT OR REPLACE INTO feedback VALUES (?, 's', 'area', 'today')", KEY)
             self.handler.handle(message(command))
             self.assertEqual(self.checkpoint(), "50")
+            self.assertEqual(
+                {row["name"]: row["value"] for row in self.query(
+                    "SELECT name, value FROM meta WHERE name != ?", bot.OFFSET_KEY)},
+                scheduler_state,
+            )
             self.assertEqual(self.query("SELECT * FROM meta WHERE name='last_report'"), [])
             self.assertEqual(self.query("SELECT * FROM hidden"), [])
             self.assertEqual(self.query("SELECT * FROM hidden_dev"), [])
             self.assertEqual(len(self.query("SELECT * FROM saved")), int(command == "/restart"))
             self.assertEqual(len(self.query("SELECT * FROM feedback")), int(command == "/restart"))
             self.trigger.assert_called_with("report")
+            if command == "/reset":
+                self.assertIn("Listing history and scheduler state kept",
+                              self.client.call.call_args.kwargs["text"])
+        self.assertIn("keeps listing history", bot.HELP)
+        self.assertNotIn("factory reset", bot.HELP)
 
     def test_expired_acknowledgements_do_not_poison_updates(self):
         def call(method, **kwargs):

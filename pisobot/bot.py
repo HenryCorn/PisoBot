@@ -9,6 +9,7 @@ Only one poller may run for a bot. Startup removes and verifies the webhook,
 without dropping pending updates. D1 meta stores the next update offset.
 Delivery is at least once: a failed handler/checkpoint is retried, so Telegram
 replies and run requests may repeat after a failure (the trigger must coalesce).
+Preference resets preserve listing history and watch scheduler metadata.
 """
 import copy
 import datetime as dt
@@ -57,7 +58,7 @@ HELP = (
     "/saved – list saved homes\n"
     "/unhide – show hidden homes again\n"
     "/restart – clear hidden homes & run a fresh report\n"
-    "/reset – factory reset (clears saved, hidden, feedback)\n"
+    "/reset – clear saved, hidden and feedback preferences (keeps listing history)\n"
     "/help – this message"
 )
 
@@ -203,14 +204,13 @@ class Handler:
                 if command == "/reset":
                     d1.query("DELETE FROM saved")
                     d1.query("DELETE FROM feedback")
-                    # The transport checkpoint must survive a factory reset.
-                    d1.query("DELETE FROM meta WHERE name != ?", OFFSET_KEY)
-                else:
-                    d1.query("DELETE FROM meta WHERE name = 'last_report'")
+                # Reset only preference-owned metadata, never scheduler/transport state.
+                d1.query("DELETE FROM meta WHERE name = 'last_report'")
             kind = "rentals" if command == "/rentals" else "report"
             accepted = self.request_run(kind)
             prefix = {"/restart": "🔄 Hidden homes cleared.\n",
-                      "/reset": "💥 Saved homes, hidden homes and taste feedback cleared.\n"}.get(command, "")
+                      "/reset": "💥 Saved homes, hidden homes and taste feedback cleared. "
+                                "Listing history and scheduler state kept.\n"}.get(command, "")
             self.reply(prefix + ("📊 Report requested · it arrives in a few minutes."
                                  if accepted else "📊 Report already queued or running."))
         elif command == "/saved":
