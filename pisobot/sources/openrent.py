@@ -8,7 +8,8 @@ The anonymous site's first-24-hour exclusive-access window is respected.
 RENT_MAX_PAGES bounds metadata batches, not the initial index request; truncation
 is reported, never represented as a complete inventory. Details are read only
 by refine(), after the caller's cheap filters, and cached for a day unless the
-search card's rent or bills change.
+search card's rent or bills change. An inconsistent index/card snapshot is
+refreshed once; malformed or persistently inconsistent responses still fail.
 """
 import datetime as dt
 import json
@@ -38,6 +39,10 @@ EXCLUDED = re.compile(
 ARRAYS = ("PROPERTYIDS", "PROPERTYLISTLATITUDES", "PROPERTYLISTLONGITUDES", "prices",
           "bedrooms", "isshared", "isstudio", "nonStudents", "islivelistBool",
           "dateFirstListedMs", "propertyTypes", "bills")
+
+
+class _MetadataMismatch(ValueError):
+    pass
 
 
 def _array(html, name):
@@ -88,6 +93,7 @@ def _index(html):
         row = {name: values[i] for name, values in arrays.items()}
         if identifier <= 0 or int(identifier) != identifier:
             raise ValueError("OpenRent invalid property ID")
+        row["PROPERTYIDS"] = int(identifier)
         if not -90 <= row["PROPERTYLISTLATITUDES"] <= 90 or not -180 <= row["PROPERTYLISTLONGITUDES"] <= 180:
             raise ValueError("OpenRent invalid coordinates")
         if any(row[key] not in (0, 1) for key in ("isshared", "isstudio", "nonStudents", "islivelistBool", "bills")):
@@ -147,7 +153,7 @@ def _listing(card, row):
     return private_rent_costs(listing)
 
 
-def search():
+def _search_snapshot():
     if config.RENT_MAX_PAGES < 1:
         raise ValueError("RENT_MAX_PAGES must be positive")
     params = {"term": "Oxford Circus", "latn": config.TARGET_LAT, "lngn": config.TARGET_LNG,
@@ -169,12 +175,26 @@ def search():
         by_id = {str(card.get("id")): card for card in cards}
         wanted = {str(row["PROPERTYIDS"]) for row in batch}
         if set(by_id) != wanted or len(by_id) != len(cards):
-            raise ValueError("OpenRent card endpoint returned missing, duplicate or unexpected IDs")
+            raise _MetadataMismatch(
+                f"OpenRent card IDs inconsistent in batch {start // PAGE_SIZE + 1}: "
+                f"missing={sorted(wanted - set(by_id))}, unexpected={sorted(set(by_id) - wanted)}, "
+                f"duplicates={len(cards) - len(by_id)}")
         for row in batch:
             listing = _listing(by_id[str(row["PROPERTYIDS"])], row)
             if listing:
                 out.append(listing)
     return out
+
+
+def search():
+    for attempt in range(2):
+        try:
+            return _search_snapshot()
+        except _MetadataMismatch as error:
+            if attempt:
+                raise
+            print(f"{error}; refreshing the search snapshot once (partial results discarded)",
+                  file=sys.stderr)
 
 
 def fetch():

@@ -127,9 +127,43 @@ class OpenRentTests(unittest.TestCase):
     def test_missing_or_wrong_metadata_id_fails_explicitly(self):
         for payload in ([], [card(700002)], [card(), card()], {"error": "blocked"},
                         [card(rentPerMonth=None)], [card(title="")]):
-            with self.subTest(payload=payload), patch.object(net, "page", side_effect=[index_html(), json.dumps(payload)]):
+            with self.subTest(payload=payload), patch.object(
+                    net, "page", side_effect=[index_html(), json.dumps(payload)] * 2):
                 with self.assertRaises(ValueError):
                     openrent.search()
+
+    def test_metadata_mismatch_refreshes_the_snapshot_without_keeping_partial_results(self):
+        rows = [index_row(700001 + i) for i in range(21)]
+        fresh = index_row(800001)
+        responses = [
+            index_html(rows), json.dumps([card(700001 + i) for i in range(1, 21)]), "[]",
+            index_html([fresh]), json.dumps([card(800001)]),
+        ]
+        with patch.object(net, "page", side_effect=responses) as page, \
+                patch.object(config, "RENT_MAX_PAGES", 2), patch("sys.stderr", new_callable=io.StringIO) as error:
+            homes = openrent.search()
+        self.assertEqual([home.id for home in homes], ["800001"])
+        self.assertEqual(page.call_count, 5)
+        self.assertIn("missing=['700001']", error.getvalue())
+        self.assertIn("partial results discarded", error.getvalue())
+
+    def test_persistent_metadata_mismatch_fails_after_one_refresh_with_diagnostics(self):
+        with patch.object(net, "page", side_effect=[index_html(), json.dumps([card(700002)])] * 2) as page, \
+                patch("sys.stderr", new_callable=io.StringIO):
+            with self.assertRaisesRegex(ValueError, "missing=.*700001.*unexpected=.*700002"):
+                openrent.search()
+        self.assertEqual(page.call_count, 4)
+
+    def test_malformed_metadata_is_not_retried_as_a_snapshot_race(self):
+        with patch.object(net, "page", side_effect=[index_html(), '{"error":"invalid"}']) as page:
+            with self.assertRaisesRegex(ValueError, "invalid response"):
+                openrent.search()
+        self.assertEqual(page.call_count, 2)
+
+    def test_integer_valued_index_ids_are_canonicalised_before_metadata_requests(self):
+        with patch.object(net, "page", side_effect=[
+                index_html([index_row(700001.0)]), json.dumps([card()])]):
+            self.assertEqual(openrent.search()[0].key, "orent:700001")
 
     def test_ignored_location_parameters_fail_instead_of_claiming_complete_results(self):
         html = index_html().replace("SEARCHRADIUS = 9", "SEARCHRADIUS = 1")
