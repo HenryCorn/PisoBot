@@ -1,11 +1,101 @@
 # VPS rollout and soak
 
 Status: **deployed; 24-hour soak is still pending**.
-Initial service start: 2026-11-08 19:33 UTC.
-Earliest 24-hour observation point: 2026-11-09 19:33 UTC.
-Application code at rollout: `e837682`, branch `vps-rentals`.
+Current application: `219349e`, branch `vps-rentals` (multi-user support and additional sources).
+Current version first started: 2026-11-08 23:10:32 UTC.
+Restart-persistence check started: 2026-11-08 23:11:57 UTC.
+Earliest uninterrupted 24-hour observation point: 2026-11-09 23:11:57 UTC.
 
-## Confirmed during deployment
+## Multi-user upgrade
+
+- Reviewed and merged `f2da3b5`, then fixed integration issues in `c991598`.
+  All 185 tests passed locally and under the VPS's Python 3.12 as `pisobot`.
+- Identical portal filters share a search; different filters have separate
+  three-page caps. This preserves independent coverage instead of letting a
+  wider union query displace the owner's inventory. Two different searches
+  can roughly double search-page traffic; detail/enrichment caches are shared.
+- Fixed concurrent settings/baseline and report-recipient races, durable access
+  revocation, the zero-bills detail-cache case, and radius/destination handling.
+  The local rental CLI also honours the owner's persisted settings.
+- Before stopping the original service, validated the new code in a temporary
+  VPS worktree. That checkout was removed after validation.
+- Private pre-upgrade backup:
+  `/var/backups/pisobot/pre-multiuser-20261108T215236Z/`.
+  It contains state, the environment file, test output and a revision manifest;
+  it is root-only and is not an off-box backup.
+- Verified the cutover preserved eight saved homes, fourteen hidden homes,
+  one hidden building, six feedback records, 392 card references and four seen
+  records. No owner preferences were reset for the upgrade.
+- First upgraded cycle succeeded at 21:53:15 UTC: one visible match plus three
+  hidden matches, zero new/drop alerts, zero failures. The old owner baseline
+  was retained, not replayed.
+- Telegram command menus were registered, the webhook remains cleared, and
+  live `/settings` output was delivered. The owner confirmed `/settings`,
+  `/set` and Save work through Telegram.
+- Service is enabled at boot; environment/database/seen files remain mode 600.
+  A deliberate restart at 22:07 UTC left the service running with no automatic
+  restarts, but its scan hit the previously observed OpenRent metadata-ID
+  mismatch. The pending baseline for changed owner settings was correctly
+  withheld rather than treating an incomplete scan as success.
+- OpenRent recovery was added in `f6f2541` and `5ab6968` (191 tests passed).
+  Diagnostics identified an intermittently omitted card whose anonymous detail
+  page was available and whose advert was older than the exclusive-access
+  window. A partial batch now gets one targeted retry for missing IDs; a
+  remaining mismatch refreshes the entire snapshot once, discarding partial
+  results. Malformed, duplicate, unexpected or persistently missing IDs still
+  fail explicitly. No anonymous-access restriction was bypassed.
+- The changed-settings baseline completed at 22:42:15 UTC. The first recovery
+  version failed again after a restart; the subsequent version completed scans
+  at 22:53:56 and, after restart, 22:55:20 UTC. Both latter scans had nine
+  visible matches plus two hidden, zero new/drop alerts and zero failures.
+- At initial verification only the owner was active; real invited-user
+  onboarding and independent feedback still need observation after `/start`.
+
+## Additional rental sources
+
+- Reviewed `41c5002` and `3c6aea5`, then integrated fixes as `219349e`.
+  All 207 tests passed locally and under VPS Python 3.12 as `pisobot`.
+  Temporary validation worktrees were removed.
+- Corrected scheme radius/minimum-rent filtering and cache isolation, retained
+  three-hour caches across watcher cycles/restarts, paced rental HTTP requests,
+  made postcode/layout failures explicit, and exposed approximate SpareRoom
+  location/commute/crime estimates in Telegram.
+- Direct VPS probes: SpareRoom and L&Q returned HTTP 200; ShareToBuy search
+  returned HTTP 403. With approval, enabled
+  `WATCH_SOURCES=rm,otmr,orent,sr,lqr`. **ShareToBuy (`stbr`) remains disabled**;
+  no Decodo or alternative egress was enabled.
+- The read-only staged source probe returned one SpareRoom candidate and zero
+  L&Q candidates under the owner's settings. Immediate cached repeats made no
+  requests. These are source candidates, not additional final matches.
+- Private pre-upgrade backup:
+  `/var/backups/pisobot/pre-more-sources-20261108T231011Z/`.
+  The cutover preserved eight saved homes, fourteen hidden homes, one hidden
+  building, six feedback records, 401 card references, thirteen seen records
+  and all registered users' parameters.
+- First complete cycle: 23:11:11 UTC. Restart check completed: 23:12:28 UTC.
+  Both had nine visible matches plus two hidden, zero listing alerts and zero
+  failures; the baseline was retained. No automatic restarts occurred.
+- `portal_fetch` counts for those two cycles (all direct, HTTP 200):
+
+  | Host | First cycle | After restart |
+  | --- | ---: | ---: |
+  | Rightmove | 3 | 3 |
+  | OnTheMarket | 3 | 3 |
+  | OpenRent | 4 | 4 |
+  | SpareRoom | 2 | 2 |
+  | L&Q | 1 | 0 (cached) |
+  | **Total** | **13** | **12** |
+
+- These counts exclude API enrichment/image requests. The staged SpareRoom
+  probe additionally needed two postcode lookups. Service cgroup memory was
+  about 31-34 MiB at the two checks. State remains owned by `pisobot`, directory
+  mode 700, database/cache/seen mode 600; the environment file is root-owned
+  mode 600 and the service is enabled at boot.
+
+## Original single-user rollout
+
+Initial service start: 2026-11-08 19:33 UTC.
+Application code at original rollout: `e837682`.
 
 - 157 unit tests passed on both the development host and VPS Python 3.12,
   including the original cloud-path tests.
@@ -37,18 +127,21 @@ Application code at rollout: `e837682`, branch `vps-rentals`.
 
 ## Observed limitations and events
 
-- One OpenRent response failed the strict metadata-ID completeness check during
-  the initial observation period. It was recorded as a source/cycle failure,
-  not silently treated as an empty successful result. A later bounded probe and
-  full service scan succeeded, retaining saved/seen state. Watch this during
-  the soak; repeated occurrences need further response diagnostics.
+- OpenRent has intermittently omitted a requested card despite HTTP 200.
+  Bounded recovery now logs omissions and preserves strict completeness checks.
+  Watch both recovery frequency and persistent failures during the soak;
+  healthy initial cycles do not establish long-term reliability.
 - A manual report coincided with a scheduled cycle and the single-run lock
   rejected the competing run. This was reported as a failed cycle. Prefer the
   bot's `/report` trigger over launching an independent live CLI process.
 - OpenRent's anonymous first-24-hour exclusive window is respected. Its new
   adverts are therefore delayed; they are not near-real-time during that window.
-- Scans are capped at three pages/metadata batches per source. OpenRent also
-  needs an initial index request: up to ten search/metadata requests per cycle.
+- Fast scans are capped at three pages/metadata batches per source. OpenRent
+  also needs an index request: the four enabled fast sources can use up to
+  thirteen search/metadata requests per search group before detail requests.
+  OpenRent's bounded recovery can add up to ten requests in its worst case.
+  L&Q refreshes every three hours per filter set; its development/plot requests
+  are additional. Different users' portal filters produce separate searches.
   Actual daily traffic has **not** yet been measured. Detail caching and
   sequential requests limit repeated work; redirects also count as requests.
 - Only seven crime reference locations were cached at the observation point.
