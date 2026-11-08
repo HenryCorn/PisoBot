@@ -145,17 +145,29 @@ class BotTests(unittest.TestCase):
 
     def test_commands_inject_run_trigger_and_coalesce(self):
         self.handler.handle(message("/REPORT@PisoBot more"))
+        self.assertIn("Full rental digest requested", self.client.call.call_args.kwargs["text"])
         self.handler.handle(message("/rentals"))
+        self.assertIn("Rental scan requested", self.client.call.call_args.kwargs["text"])
+        self.assertIn("no full digest", self.client.call.call_args.kwargs["text"])
         self.trigger.return_value = False
         self.handler.handle(message("/report"))
+        self.assertIn("Full rental digest already queued", self.client.call.call_args.kwargs["text"])
+        self.handler.handle(message("/rentals"))
         self.assertEqual([c.args for c in self.trigger.call_args_list],
-                         [("report",), ("rentals",), ("report",)])
-        self.assertIn("already queued", self.client.call.call_args.kwargs["text"])
+                         [("report",), ("rentals",), ("report",), ("rentals",)])
+        self.assertIn("Rental scan already queued", self.client.call.call_args.kwargs["text"])
+        self.assertIn("no full digest", self.client.call.call_args.kwargs["text"])
         for command in ("/help", "/start"):
             self.handler.handle(message(command))
             self.assertEqual(self.client.call.call_args.kwargs["text"], bot.HELP)
         self.assertIn("/unhide", bot.HELP)
         self.assertIn("/reset", bot.HELP)
+        self.assertIn("first scan establishes a baseline without alerts", bot.HELP)
+        self.assertIn("no scheduled digests", bot.HELP)
+        self.assertIn("/report – full rental digest", bot.HELP)
+        self.assertIn("/rentals – fresh rental scan", bot.HELP)
+        self.assertNotIn("06:30", bot.HELP)
+        self.assertNotIn("18:00", bot.HELP)
         before = self.client.call.call_count
         self.handler.handle(message("/unknown"))
         self.assertEqual(self.client.call.call_count, before)

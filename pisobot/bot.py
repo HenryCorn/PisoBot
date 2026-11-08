@@ -52,9 +52,10 @@ HELP = (
     "or population-adjusted risk. Unrated means there is insufficient reference data.\n"
     "Header: A = Oxford Circus; B = source listing pin (may be approximate). "
     "North-up straight line, not a transit route. Map: © OpenStreetMap contributors.\n"
-    "Reports arrive at 06:30 and 18:00 UK time; zero-new reports are a silent summary.\n\n"
-    "/report – full report now\n"
-    "/rentals – private rentals report\n"
+    "The first scan establishes a baseline without alerts. Later scans send only "
+    "new-home and price-drop alerts; there are no scheduled digests.\n\n"
+    "/report – full rental digest now\n"
+    "/rentals – fresh rental scan (new-home and price-drop alerts only)\n"
     "/saved – list saved homes\n"
     "/unhide – show hidden homes again\n"
     "/restart – clear hidden homes & run a fresh report\n"
@@ -211,8 +212,14 @@ class Handler:
             prefix = {"/restart": "🔄 Hidden homes cleared.\n",
                       "/reset": "💥 Saved homes, hidden homes and taste feedback cleared. "
                                 "Listing history and scheduler state kept.\n"}.get(command, "")
-            self.reply(prefix + ("📊 Report requested · it arrives in a few minutes."
-                                 if accepted else "📊 Report already queued or running."))
+            if kind == "rentals":
+                status = ("🔎 Rental scan requested · only new-home and price-drop alerts "
+                          "will be sent; no full digest."
+                          if accepted else "🔎 Rental scan already queued or running; no full digest.")
+            else:
+                status = ("📊 Full rental digest requested · it arrives in a few minutes."
+                          if accepted else "📊 Full rental digest already queued or running.")
+            self.reply(prefix + status)
         elif command == "/saved":
             lines = []
             for row in d1.query("SELECT info FROM saved"):
