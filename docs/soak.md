@@ -4,7 +4,17 @@ Status: **deployed; 24-hour soak is still pending**.
 Current application: `65a223f`, branch `vps-rentals` (rental filtering and diagnostics).
 Current version first started: 2026-11-09 07:26:21 UTC.
 Restart-persistence check started: 2026-11-09 07:28:11 UTC.
-Earliest uninterrupted 24-hour observation point: 2026-11-10 07:28:11 UTC.
+Latest configuration restart: 2026-11-09 07:42:33 UTC (guest invitations disabled).
+Earliest uninterrupted 24-hour observation point: 2026-11-10 07:42:33 UTC.
+
+## Invitation correction
+
+The configured invitation was a nickname, not the intended person's Telegram
+username. With approval, cleared `TELEGRAM_INVITE_USERNAMES` and restarted the
+service at the time above. No account had registered under that invitation.
+Owner access remains configured; new guest admission is disabled until the
+correct username is supplied. The previous environment was backed up privately
+at `/var/backups/pisobot/pre-invitation-clear-20261109.env`.
 
 ## Rental filtering and diagnostics
 
