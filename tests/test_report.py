@@ -41,8 +41,8 @@ class ReportTests(unittest.TestCase):
         messages = telegram.report_messages(top, rest, saved, "Report", lambda l: "")
         text = "\n".join(t for t, _ in messages)
         self.assertEqual(text.count("Home 0 &amp; &lt;Court&gt;"), 1)
-        self.assertIn("100 homes", text)
-        self.assertIn("Compare all on map", text)
+        self.assertIn("100 more homes in 1 place", text)
+        self.assertIn("compare on map", text)
         self.assertIn("More saved homes (1)", text)
         for t, keyboard in messages:
             self.assertLessEqual(len(t.encode("utf-16-le")) // 2, 4096)
@@ -56,23 +56,27 @@ class ReportTests(unittest.TestCase):
     def test_rent_estimates_and_empty_report(self):
         rented = home(1, tenure="rent", deposit=None, share_price=None, estimated=["rent"])
         text = "\n".join(t for t, _ in telegram.report_messages([rented], [], [], "Report", lambda l: ""))
-        self.assertIn("no mortgage needed", text)
-        self.assertIn("est. rent", text)
+        self.assertIn("Rent TBC", text)
+        self.assertNotIn("Mortgage", text)
+        rented.rent = 1200
+        text = "\n".join(t for t, _ in telegram.report_messages([rented], [], [], "Report", lambda l: ""))
+        self.assertIn("Rent ~£1,200", text)   # "~" marks an estimate (explained in /help)
         empty = telegram.report_messages([], [], [], "Report", lambda l: "")
         self.assertEqual(len(empty), 1)
-        self.assertIn("No homes matched", empty[0][0])
+        self.assertIn("Nothing matches your search", empty[0][0])
+        self.assertIn("/settings", empty[0][0])
 
     def test_alternatives_are_bounded_and_cheapest_first(self):
         rest = [home(i, lat=51.5 + i * 0.01) for i in reversed(range(100))]
         messages = telegram.report_messages([], rest, [], "Report", lambda l: "")
         self.assertEqual(len(messages), 2)
         text = messages[1][0]
-        self.assertIn("100 homes", text)
-        self.assertIn("Showing the 5 cheapest places", text)
+        self.assertIn("100 more homes in 100 places", text)
+        self.assertIn("The 5 cheapest", text)
         self.assertIn("Home 0 &amp;", text)
         self.assertIn("Home 4 &amp;", text)
         self.assertNotIn("Home 5 &amp;", text)
-        self.assertIn("Browse all 100", text)
+        self.assertIn("See all 100 on the map", text)
 
     def test_prefs_round_trip_through_d1_without_overwriting_worker_taps(self):
         db = sqlite3.connect(":memory:")

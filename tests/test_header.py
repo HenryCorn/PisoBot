@@ -45,8 +45,8 @@ class MapTests(unittest.TestCase):
             for x, y in points:
                 self.assertGreaterEqual(x, 63)
                 self.assertLessEqual(x, 417)
-                self.assertGreaterEqual(y, 63)
-                self.assertLessEqual(y, 365)
+                self.assertGreaterEqual(y, 58 + 20)          # below the legend bar
+                self.assertLessEqual(y, collage.HEIGHT - 32 - 20)   # above the attribution
             a, b = points
             self.assertEqual(b[0] >= a[0], lng >= -0.1419)
             self.assertEqual(b[1] >= a[1], lat <= 51.5152)
@@ -55,7 +55,8 @@ class MapTests(unittest.TestCase):
         with patch.object(collage, "_tile", return_value=Image.new("RGB", (256, 256), "lightgrey")):
             result = collage._map(listing())
         self.assertEqual(result.size, (480, 500))
-        self.assertNotEqual(result.getpixel((20, 480)), result.getpixel((20, 400)))
+        self.assertEqual(result.getpixel((470, 490)), (255, 255, 255))   # attribution plate
+        self.assertNotEqual(result.getpixel((20, 490)), (255, 255, 255))  # map runs to the edge
         with patch.object(collage, "_tile", side_effect=OSError("offline")), \
                 patch("sys.stderr", new=io.StringIO()) as errors:
             self.assertIsNone(collage._map(listing()))

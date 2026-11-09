@@ -19,13 +19,23 @@ def home():
 class CardTests(unittest.TestCase):
     def test_target_card_exposes_financials_location_walk_area_and_risks(self):
         text = telegram.format_listing(home(), rank=1)
-        for part in ("#1 · Canning Town / Custom House (E16)", "Chaseway Lodge", "£1,021/mo",
-                     "M: £310 · R: £481 · SC: £230", "25% of £270k", "£67.5k", "£10k dep",
-                     "51 m²", "£5,294/m²", "112y lease", "🚶12m Custom House", "Oxford Circus",
-                     "🟡 Med (41)", "🌿 Balcony", "✅ EWS1", "⚠️ Pets not allowed"):
+        for part in ("#1 · ", "Chaseway Lodge", "Canning Town / Custom House E16", "<b>£1,021/mo</b>",
+                     "Mortgage £310 + rent £481 + service £230", "25% of £270k", "£67.5k", "£10k deposit",
+                     "51 m²", "£5,294/m²", "112-year lease", "from Custom House, 12 min walk",
+                     "<b>31 min</b> to Oxford Circus", "🟡 Med crime", "Balcony", "EWS1",
+                     "⚠️ Pets not allowed"):
             self.assertIn(part, text)
         self.assertLessEqual(len(text.encode("utf-16-le")) // 2, 1024)
-        self.assertEqual(len(text.splitlines()), 6)
+        lines = text.splitlines()
+        self.assertEqual(len(lines), 8)
+        # Reading order: where, all-in cost, commute, money, tenure, signals, warnings
+        self.assertIn("Chaseway Lodge", lines[0])
+        self.assertTrue(lines[1].startswith("<b>£1,021/mo</b>"))
+        self.assertTrue(lines[2].startswith("🚇"))
+        self.assertTrue(lines[-1].startswith("⚠️"))
+        # one marker emoji at most per line: features read as words
+        self.assertNotIn("🌿", text)
+        self.assertNotIn("✅", text)
 
     def test_unknown_facts_and_negative_features_are_not_invented(self):
         l = home()
@@ -38,11 +48,11 @@ class CardTests(unittest.TestCase):
         self.assertIn("⚠️ EWS1 B2", l.feature_tags)
         l.lease_years = None
         l.crime_percentile = None
-        self.assertIn("📜 Lease: TBC", telegram.format_listing(l))
-        self.assertIn("⚪ Unrated (41)", telegram.format_listing(l))
+        self.assertIn("Lease TBC", telegram.format_listing(l))
+        self.assertIn("⚪ 41 crimes/mo nearby", telegram.format_listing(l))
         l.lease_years, l.service_charge = 89, 251
-        self.assertIn("89y lease</b> ⚠️", telegram.format_listing(l))
-        self.assertIn("⚠️ High SC", telegram.format_listing(l))
+        self.assertIn("⚠️ Short lease: 89 years", telegram.format_listing(l))
+        self.assertIn("High service charge", telegram.format_listing(l))
 
     def test_crime_colours_use_current_month_reference_not_only_accepted_homes(self):
         data = {f"51.{500+i},-0.100:2026-08:500": i for i in range(30)}
@@ -53,7 +63,7 @@ class CardTests(unittest.TestCase):
         with patch.object(cache, "_data", {"crime": data}), \
                 patch.object(enrich, "_crime_month", return_value="2026-08"):
             enrich.assign_crime_percentiles(listings)
-        self.assertTrue(telegram.crime_label(listings[0]).startswith("🟢 Low"))
+        self.assertEqual(telegram.crime_label(listings[0]), "🟢 Low crime")
         self.assertTrue(telegram.crime_label(listings[1]).startswith("🟡 Med"))
         self.assertTrue(telegram.crime_label(listings[2]).startswith("🔴 High"))
         with patch.object(cache, "_data", {}), patch.object(enrich, "_crime_month", return_value="2026-08"):
@@ -68,17 +78,18 @@ class CardTests(unittest.TestCase):
         l.rent_savings = 580
         l.vibes = ["☀️ Bright & Airy"]
         text = telegram.format_listing(l, rank=1)
-        self.assertIn("✨ <b>88% Match</b> (near saved home (0.8km))", text)
-        self.assertIn("⏳ 52d on market", text)
-        self.assertIn("💡 Saves ~£580/mo vs rent", text)
-        self.assertIn("☀️ Bright & Airy", text)
+        self.assertIn("✨ 88% match · near saved home (0.8km)", text)
+        self.assertIn("52d on market", text)
+        self.assertIn("saves ~£580/mo vs renting", text)
+        self.assertIn("Bright &amp; Airy", text)
 
     def test_individual_alerts_use_the_same_composite_and_card_template(self):
         with patch.object(telegram.collage, "build", return_value=b"jpeg") as build, \
                 patch.object(telegram, "send_photo_bytes") as photo:
             telegram.send_listing(home())
         build.assert_called_once()
-        self.assertIn("M: £310", photo.call_args.args[1])
+        self.assertIn("Mortgage £310", photo.call_args.args[1])
+        self.assertTrue(photo.call_args.args[1].startswith("🆕 <b>New match</b>"))
         self.assertEqual(photo.call_args.args[2], telegram.listing_keyboard(home()))
 
     def test_summary_legend_moves_to_help_and_silence_is_sent_to_telegram(self):

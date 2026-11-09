@@ -108,10 +108,9 @@ class SchemeRentalTests(unittest.TestCase):
         l = llr()
         sharetobuy.private_rent_costs(l)
         l.monthly_cost, l.deposit = 1380, l.min_deposit
-        self.assertIn("London Living Rent", telegram.finance_lines(l)[1])
-        self.assertIn("income caps apply", telegram.facts_line(l))
-        private = Listing("rm", "1", "u", "a", 1, "Private rent", tenure="rent", rent=1200)
-        self.assertNotIn("income caps", telegram.facts_line(private))
+        self.assertIn("London Living Rent, income caps apply", telegram.headline(l))
+        private = Listing("rm", "1", "u", "a", 1, "Private rent", tenure="rent", rent=1200, monthly_cost=1480)
+        self.assertNotIn("income caps", telegram.headline(private))
 
 
 if __name__ == "__main__":

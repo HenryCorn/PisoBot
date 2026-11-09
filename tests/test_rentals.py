@@ -185,9 +185,9 @@ class RentalTests(unittest.TestCase):
         rented = home(50, source="rm", scheme=PRIVATE_RENT, tenure="rent", monthly_cost=1500,
                       rent=1220, bills=280, url="https://www.rightmove.co.uk/properties/50", address="Rental flat")
         text = "\n".join(t for t, _ in telegram.report_messages([], cheap + [rented], [], "Report", lambda l: ""))
-        self.assertIn("Private rentals · 1", text)
+        self.assertIn("1 more private rental</b>", text)
         self.assertIn('href="https://www.rightmove.co.uk/properties/50"', text)
-        self.assertIn("Other 8 homes", text)
+        self.assertIn("8 more homes in 8 places", text)
 
     def test_map_cards_link_straight_to_the_original_listing(self):
         self.assertIn('<a class="open" href="${esc(d.url)}" target="_blank"', mapgen.TEMPLATE)
@@ -234,10 +234,10 @@ class RentalTests(unittest.TestCase):
                                        available="2026-10-19"))
         costs.compute(l)
         lines = telegram.finance_lines(l)
-        self.assertIn("Bills: ~£280", lines[0])
-        self.assertIn("£1.5k dep", lines[1])
-        self.assertIn("from 2026-10-19", lines[1])
-        self.assertNotIn("Lease", telegram.facts_line(l))
+        self.assertEqual(lines, ["Rent £1,300 + ~£280 bills · £1,500 deposit · available now"])
+        l.available = "2999-12-01"
+        self.assertIn("available 1\u00a0Dec", telegram.finance_lines(l)[0])
+        self.assertIsNone(telegram.facts_line(l))   # no lease for a tenant
 
 
 if __name__ == "__main__":

@@ -176,8 +176,6 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
             _ensure_photos(l)
             jpeg = collage.build(l)
             print(f"card #{i}: {l.key}")
-            if not jpeg:
-                text += "\n📷 Header unavailable · use Open listing to view the media"
         if preview_dir:
             image = ""
             if jpeg:
@@ -436,6 +434,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if not live:
             continue
         _ensure_photos(l)
+        if reason == "drop":
+            l.previous_cost = (seen.get(l.key) or {}).get("cost")
         telegram.send_listing(l, reason)
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if watch:

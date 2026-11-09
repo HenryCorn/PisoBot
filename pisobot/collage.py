@@ -18,6 +18,8 @@ WIDTH, HEIGHT, MAP_W = 1200, 500, 480
 PHOTO_W = WIDTH - MAP_W
 GALLERY_H = 280
 DIVIDER = 4
+PIN_A, PIN_B = (35, 80, 170), (197, 46, 65)   # destination, home
+INK, MUTED = (25, 35, 55), (70, 80, 95)
 TILE_CACHE = (Path(os.environ["PISOBOT_STATE_DIR"]) if os.environ.get("PISOBOT_STATE_DIR")
               else Path(__file__).resolve().parents[1] / ".cache") / "map-tiles"
 
@@ -108,7 +110,8 @@ def _map_view(listing):
         xs, ys = [[p[i] * scale for p in points] for i in (0, 1)]
         if max(xs) - min(xs) <= MAP_W - 128 and max(ys) - min(ys) <= HEIGHT - 200:
             break
-    origin = (math.floor(sum(xs) / 2 - MAP_W / 2), math.floor(sum(ys) / 2 - (HEIGHT - 72) / 2))
+    # Centred in the map area between the legend bar (58 px) and the attribution (32 px)
+    origin = (math.floor(sum(xs) / 2 - MAP_W / 2), math.floor(sum(ys) / 2 - (58 + HEIGHT - 32) / 2))
     return zoom, origin, [(x - origin[0], y - origin[1]) for x, y in zip(xs, ys)]
 
 
@@ -142,25 +145,29 @@ def _map(listing):
         print(f"Map unavailable for {listing.key}: {type(ex).__name__}", file=sys.stderr)
         return None
     draw = ImageDraw.Draw(image)
-    draw.line(points, fill="white", width=10)
-    draw.line(points, fill=(74, 82, 102), width=5)
+    draw.line(points, fill="white", width=12)
+    draw.line(points, fill=INK, width=6)
     pin_points = points
     if math.dist(*points) < 44:
         pin_points = [(points[0][0] - 24, points[0][1]), (points[1][0] + 24, points[1][1])]
         for point, pin in zip(points, pin_points):
-            draw.line([point, pin], fill=(74, 82, 102), width=3)
-    for (x, y), label, color in zip(pin_points, ("A", "B"), ((35, 80, 170), (197, 46, 65))):
-        draw.ellipse((x - 20, y - 20, x + 20, y + 20), fill=color, outline="white", width=3)
-        draw.text((x, y), label, fill="white", font=_font(22), anchor="mm")
-    draw.rectangle((0, 0, MAP_W, 35), fill="white")
-    draw.text((12, 17), f"A {config.TARGET_NAME}  /  B Listing", fill=(25, 35, 55), font=_font(19), anchor="lm")
-    if getattr(listing, "travel_minutes", None) is not None:
-        draw.text((MAP_W - 14, 17), f"{listing.travel_minutes} min commute", fill=(25, 35, 55),
-                  font=_font(17), anchor="rm")
-    draw.rectangle((0, HEIGHT - 61, MAP_W, HEIGHT), fill="white")
-    draw.text((12, HEIGHT - 43), "North up / straight line, not a route", fill=(55, 65, 80),
-              font=_font(17), anchor="lm")
-    draw.text((12, HEIGHT - 18), "© OpenStreetMap contributors", fill=(55, 65, 80), font=_font(17), anchor="lm")
+            draw.line([point, pin], fill=INK, width=4)
+    for (x, y), color in zip(pin_points, (PIN_A, PIN_B)):
+        draw.ellipse((x - 18, y - 18, x + 18, y + 18), fill=color, outline="white", width=5)
+    # The header is shown about a third of its size on a phone: legends are set at 30 px+ so they
+    # stay readable (~10 pt). The pins' colours carry the legend; the route is in the card text.
+    bar = 58
+    draw.rectangle((0, 0, MAP_W, bar), fill="white")
+    x = 14
+    for label, color in ((config.TARGET_NAME, PIN_A), ("Home", PIN_B)):
+        draw.ellipse((x, bar // 2 - 11, x + 22, bar // 2 + 11), fill=color)
+        draw.text((x + 32, bar // 2), label, fill=INK, font=_font(30), anchor="lm")
+        x += 32 + draw.textlength(label, font=_font(30)) + 28
+    attribution = "© OpenStreetMap"
+    font = _font(20)
+    width = draw.textlength(attribution, font=font)
+    draw.rectangle((MAP_W - width - 16, HEIGHT - 32, MAP_W, HEIGHT), fill="white")
+    draw.text((MAP_W - 8, HEIGHT - 16), attribution, fill=MUTED, font=font, anchor="rm")
     return image
 
 
@@ -220,19 +227,16 @@ def build(listing):
         if panel is not None:
             sheet.paste(panel, (x, 0))
         else:
-            draw.text((x + width // 2, HEIGHT // 2), label, fill=(85, 95, 110), font=_font(24), anchor="mm")
+            draw.text((x + width // 2, HEIGHT // 2), label, fill=MUTED, font=_font(32), anchor="mm")
 
-    if photo is not None:
-        label = kind.upper()
-        font = _font(16)
-        bbox = draw.textbbox((0, 0), label, font=font)
-        tw = bbox[2] - bbox[0]
-        th = bbox[3] - bbox[1]
-        bx, by = MAP_W + 14, 12
-        bw, bh = tw + 24, max(th + 14, 28)
-        draw.rounded_rectangle((bx, by, bx + bw, by + bh), radius=bh // 2,
-                               fill="white", outline=(203, 213, 225), width=1)
-        draw.text((bx + 12, by + bh // 2), label, fill=(30, 41, 59), font=font, anchor="lm")
+    if kind == "floorplan":   # a photo needs no label; a floorplan on white does
+        font = _font(28)
+        label = "Floorplan"
+        tw = draw.textlength(label, font=font)
+        bx, by, bh = MAP_W + 16, 14, 44
+        draw.rounded_rectangle((bx, by, bx + tw + 32, by + bh), radius=bh // 2,
+                               fill=(241, 245, 249), outline=(203, 213, 225), width=2)
+        draw.text((bx + 16, by + bh // 2), label, fill=INK, font=font, anchor="lm")
 
     draw.line((MAP_W, 0, MAP_W, HEIGHT), fill="white", width=4)
 

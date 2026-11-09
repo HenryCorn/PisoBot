@@ -46,8 +46,8 @@ class SpareRoomTests(unittest.TestCase):
         self.assertNotIn("approximate", exact.description)
         self.assertIn(("postcode", "E14 3LH"), [c.args for c in self.coords.call_args_list])
         self.assertIn("approximate", listings["18489813"].description)
-        self.assertIn("commute/crime estimated", telegram.facts_line(listings["18489813"]))
-        self.assertNotIn("commute/crime estimated", telegram.facts_line(exact))
+        self.assertIn("commute and crime are estimates", telegram.facts_line(listings["18489813"]))
+        self.assertIsNone(telegram.facts_line(exact))
 
     def test_filters_budget_beds_distance_rooms_and_other_types(self):
         card = ('<li class="listing-result" data-listing-id="{id}" data-listing-type="{type}" '
