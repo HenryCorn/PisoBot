@@ -1,10 +1,51 @@
 # VPS rollout and soak
 
 Status: **deployed; 24-hour soak is still pending**.
-Current application: `219349e`, branch `vps-rentals` (multi-user support and additional sources).
-Current version first started: 2026-11-08 23:10:32 UTC.
-Restart-persistence check started: 2026-11-08 23:11:57 UTC.
-Earliest uninterrupted 24-hour observation point: 2026-11-09 23:11:57 UTC.
+Current application: `65a223f`, branch `vps-rentals` (rental filtering and diagnostics).
+Current version first started: 2026-11-09 07:26:21 UTC.
+Restart-persistence check started: 2026-11-09 07:28:11 UTC.
+Earliest uninterrupted 24-hour observation point: 2026-11-10 07:28:11 UTC.
+
+## Rental filtering and diagnostics
+
+- Deployed the approved first batch as `65a223f`: contextual text exclusions
+  and visible ambiguity warnings, rental deduplication by exact `source:id`,
+  accurate zero-estimated-bills labels, and per-profile/source filtering
+  diagnostics persisted even for incomplete baselines.
+- Budget semantics, search settings, source selection, baseline policy and
+  notification timing are unchanged. Cross-portal copies may now appear rather
+  than risking suppression of distinct homes with similar prices/map pins.
+- All 218 tests passed locally and under VPS Python 3.12 as `pisobot`.
+  The temporary validation worktree was removed.
+- Private pre-upgrade backup:
+  `/var/backups/pisobot/pre-funnel-20261109T072606Z/`.
+  State and environment files were byte-for-byte unchanged before startup.
+  Settings, saved/hidden choices, feedback and baseline fingerprints remained
+  unchanged after both observed cycles; all previously seen IDs were retained.
+- First filtering diagnostic persisted at 07:27:20 UTC: **11 visible matches
+  plus 2 hidden**, compared with the previous version's latest 9 visible.
+  Two new alerts were delivered and checkpointed. Restart filtering completed
+  at 07:28:50 UTC with the same matches and **zero new/drop alerts**.
+  Both cycles completed without source failures, logged errors, block signals
+  or automatic restarts. Memory cgroup readings were approximately 32 MiB.
+- The first scan's persisted pipeline counts were:
+
+  | Source | Candidates | Cost rejected | Other rejected | Matched before hiding | Hidden |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | Rightmove | 74 | 65 | 5 | 4 | 0 |
+  | OnTheMarket | 63 | 54 | 8 | 1 | 0 |
+  | OpenRent | 56 | 43 | 5 | 8 | 2 |
+  | SpareRoom | 0 | 0 | 0 | 0 | 0 |
+  | L&Q | 0 | 0 | 0 | 0 | 0 |
+  | **Total** | **193** | **162** | **18** | **13** | **2** |
+
+  Cost remains the largest measured pipeline gate. These counts exclude
+  portal/adapter exclusions and inventory beyond the page cap; they do not
+  measure the entire available market.
+- `portal_fetch` counts were 18 on the first scan (Rightmove 4, OnTheMarket 3,
+  OpenRent 9, SpareRoom 2) and 12 after restart (3, 3, 4, 2 respectively).
+  L&Q used its persisted cache. Enrichment/images are not all covered by this
+  counter. A full daily request-volume measurement remains pending.
 
 ## Multi-user upgrade
 
