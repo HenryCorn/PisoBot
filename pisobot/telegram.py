@@ -74,7 +74,8 @@ def finance_lines(l):
     sc = amount(l.service_charge, "service charge")
     rent = amount(l.rent, "rent")
     if l.tenure == "rent" and l.bills is not None:
-        bills = "incl." if l.bills == 0 else amount(l.bills, "bills")
+        estimated_bills = "bills" in l.estimated or "council tax" in l.estimated
+        bills = ("~£0 (estimate)" if estimated_bills else "incl.") if l.bills == 0 else amount(l.bills, "bills")
         move_in = f" · 📅 from {l.available}" if l.available else ""
         return [f"{total} <i>(R: {rent} · Bills: {bills})</i>",
                 f"🔑 {e(l.scheme)} · 💰 <b>{_money(l.deposit, True)} dep</b>{move_in}"]

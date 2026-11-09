@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-from . import config
+from . import config, rental_text
 
 LONDON_AREAS = {
     "E1": "Whitechapel / Stepney", "E2": "Bethnal Green", "E3": "Bow", "E4": "Chingford",
@@ -171,6 +171,8 @@ class Listing:
         for lt in self.livability_tags:
             if lt not in tags:
                 tags.append(lt)
+        if self.tenure == "rent":
+            tags.extend(f"⚠️ Check advert: {word}" for word in self._rental_keywords()[1])
         return tags
 
     @property
@@ -193,8 +195,16 @@ class Listing:
         return LONDON_AREAS.get(self.outcode) or LONDON_AREAS.get(re.sub(r"[A-Z]$", "", self.outcode), "")
 
     def excluded_by_keywords(self):
+        if self.tenure == "rent":
+            return bool(self._rental_keywords()[0])
         text = f"{self.address} {self.scheme} {self.description}".lower()
         return any(k in text for k in config.EXCLUDE_KEYWORDS)
+
+    def _rental_keywords(self):
+        decisions = [rental_text.classify(value, config.EXCLUDE_KEYWORDS)
+                     for value in (self.address, self.scheme, self.description)]
+        return tuple(list(dict.fromkeys(word for decision in decisions for word in decision[i]))
+                     for i in (0, 1))
 
     def to_dict(self):
         """Plain data for the map page."""

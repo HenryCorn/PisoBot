@@ -7,17 +7,19 @@ import sys
 
 from requests import RequestException
 
-from .. import cache, config, net
+from .. import cache, config, net, rental_text
 from ..models import Listing
 from . import PRIVATE_RENT, apply_rent_details, cached_search, money, private_rent_costs, rent_from_text, text
 from .onthemarket import BASE, _photo_urls, _property_data
 
-SHARED = re.compile(r"\b(?:room|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
+SHARED = re.compile(r"\b(?:room|studio|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
 
 
 def _listing(x):
     title = x.get("property-title", "")
-    if x.get("ad?") or not x.get("id") or SHARED.search(f"{title} {x.get('humanised-property-type', '')}"):
+    if (x.get("ad?") or not x.get("id") or SHARED.search(x.get("humanised-property-type") or "")
+            or rental_text.classify(title, config.EXCLUDE_KEYWORDS)[0]
+            or re.match(r"^(?:(?:double|single|en[- ]suite)\s+)?room\b", title, re.I)):
         return None
     rent = rent_from_text(x.get("price"))
     if not rent or rent < config.RENT_MIN:

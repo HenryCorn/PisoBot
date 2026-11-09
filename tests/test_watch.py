@@ -62,6 +62,65 @@ class WatchTests(unittest.TestCase):
         self.text.assert_called_once()
         self.assertEqual(main.load_seen()["rm:1"]["cost"], 1450)
 
+    def test_nearby_equal_price_rentals_keep_distinct_ids_but_not_repeated_ids(self):
+        first, second, other_portal = home(), home(2), home(3)
+        second.lat = other_portal.lat = first.lat
+        other_portal.source = "otmr"
+        self.fetch.return_value = [first, second, second]
+        with patch.object(main.SOURCES["otmr"], "fetch", return_value=[other_portal]):
+            watcher = watch.Watcher(["rm", "otmr"])
+            self.assertEqual(watcher.cycle()["matches"], 3)
+            self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2", "otmr:3"})
+            watcher.cycle()
+        self.send.assert_not_called()
+        self.text.assert_called_once()
+
+    def test_old_similar_history_does_not_suppress_a_new_rental_id(self):
+        self.watcher.cycle()
+        seen = main.load_seen()
+        seen["rm:1"]["last"] = "2020-01-01"
+        main.save_seen(seen)
+        new = home(2)
+        new.lat = home().lat
+        self.fetch.return_value = [new]
+        self.watcher.cycle()
+        self.assertEqual(self.send.call_args.args[0].key, "rm:2")
+        self.send.reset_mock()
+        watch.Watcher(["rm"]).cycle()
+        self.send.assert_not_called()
+
+    def test_funnel_counts_survive_reopening_and_include_hidden_and_duplicate_ids(self):
+        first = home()
+        self.fetch.return_value = [first, home(2), home(3), first]
+        d1.query("INSERT INTO hidden (key) VALUES (?)", first.key)
+        scheme = home(4)
+        scheme.source = "lq"
+        with patch.object(main, "passes_basic", side_effect=lambda l: {"2": "keywords", "3": "cost"}.get(l.id)), \
+                patch.object(main.SOURCES["lqr"], "fetch", return_value=[scheme]):
+            watch.Watcher(["rm", "lqr"]).cycle()
+        rows = d1.query("SELECT stats FROM rental_funnel")
+        self.assertEqual(len(rows), 1)
+        funnel = json.loads(rows[0]["stats"])
+        self.assertTrue(funnel["filtering_finished"])
+        self.assertEqual(funnel["sources"]["rm"], {
+            "fetched": 4, "matched": 1, "hidden": 1,
+            "rejected": {"keywords": 1, "cost": 1, "duplicate_id": 1}})
+        self.assertEqual(funnel["sources"]["lqr"]["fetched"], 1)
+        self.assertEqual(funnel["sources"]["lqr"]["matched"], 1)
+        self.assertNotIn("lq", funnel["sources"])
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(len(d1.query("SELECT stats FROM rental_funnel")), 2)
+
+    def test_funnel_records_failed_sources_without_initializing_the_baseline(self):
+        self.fetch.side_effect = RuntimeError("portal unavailable")
+        with self.assertRaisesRegex(RuntimeError, "Every source failed"):
+            self.watcher.cycle()
+        funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])
+        self.assertEqual(funnel["source_failures"], ["rm"])
+        self.assertEqual(funnel["sources"]["rm"]["fetched"], 0)
+        self.assertFalse(funnel["filtering_finished"])
+        self.assertIsNone(watch._meta("watch_initialized"))
+
     def test_failed_initial_enrichment_does_not_initialize_or_send(self):
         with patch.object(main, "passes_area", side_effect=RuntimeError("unavailable")):
             with self.assertRaisesRegex(RuntimeError, "baseline incomplete"):
@@ -70,6 +129,8 @@ class WatchTests(unittest.TestCase):
         self.assertFalse((self.state / "seen.json").exists())
         self.send.assert_not_called()
         self.text.assert_not_called()
+        funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])
+        self.assertEqual(funnel["sources"]["rm"]["rejected"], {"enrichment": 1})
         self.watcher.cycle()
         self.text.assert_called_once()
 
@@ -85,6 +146,26 @@ class WatchTests(unittest.TestCase):
         self.send.assert_not_called()
         self.text.assert_not_called()
         self.assertIsNone(watch._meta("watch_initialized"))
+        self.assertFalse((self.state / "seen.json").exists())
+        self.assertEqual(d1.query("SELECT stats FROM rental_funnel"), [])
+
+    def test_cloud_rental_scan_does_not_write_local_funnel(self):
+        with patch.dict(os.environ, {"STORAGE": ""}), patch.object(d1, "configured", return_value=False), \
+                patch.object(d1, "query") as query, patch.object(main.mapgen, "write"), \
+                patch.object(main.prefs, "save"):
+            main._run(["rm"], False, False, rentals=True, watch=True, baseline=True,
+                      prefetched=([home()], []))
+        query.assert_not_called()
+
+    def test_funnel_retains_partial_counts_when_filtering_is_interrupted(self):
+        self.fetch.return_value = [home(), home(2)]
+        with patch.object(main, "passes_basic", side_effect=[None, InterruptedError("stopping")]):
+            with self.assertRaises(InterruptedError):
+                self.watcher.cycle()
+        funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])
+        self.assertFalse(funnel["filtering_finished"])
+        self.assertEqual(funnel["sources"]["rm"]["matched"], 1)
+        self.assertEqual(funnel["sources"]["rm"]["fetched"], 2)
         self.assertFalse((self.state / "seen.json").exists())
 
     def test_saved_price_increase_does_not_alert_but_drop_does(self):

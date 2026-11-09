@@ -24,19 +24,13 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from .. import cache, config, net
+from .. import cache, config, net, rental_text
 from ..models import Listing
-from . import (PRIVATE_RENT, ROOM_LET, apply_rent_details, cached_search, detail_fields,
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, detail_fields,
                money, private_rent_costs, text)
 
 BASE = "https://www.openrent.co.uk"
 PAGE_SIZE = 20
-EXCLUDED = re.compile(
-    r"\bstudio\b|\b(?:room|bedsit)\s+(?:in|to\s+(?:rent|let))\b"
-    r"|\b(?:house|flat)[ -]?share\b|\bshared\s+(?:house|flat|accommodation)\b"
-    r"|\b(?:students?[\s-]+only|only\s+(?:for\s+)?students?|student\s+accommodation)\b"
-    r"|\bretirement\b|\bsheltered\s+(?:housing|accommodation)\b"
-    r"|\b(?:over[\s-]+|aged\s+)(?:55|60)\b", re.I)
 ARRAYS = ("PROPERTYIDS", "PROPERTYLISTLATITUDES", "PROPERTYLISTLONGITUDES", "prices",
           "bedrooms", "isshared", "isstudio", "nonStudents", "islivelistBool",
           "dateFirstListedMs", "propertyTypes", "bills")
@@ -133,7 +127,8 @@ def _listing(card, row):
         raise ValueError("OpenRent card missing required listing data")
     beds = re.match(r"(\d+)\s+Bed\b", title, re.I)
     description = text(f"{title}. {card['description']}")
-    if (card["letAgreed"] or card["isMultiRoom"] or EXCLUDED.search(description) or ROOM_LET.search(description)
+    if (card["letAgreed"] or card["isMultiRoom"]
+            or rental_text.classify(description, config.EXCLUDE_KEYWORDS)[0]
             or not config.RENT_MIN <= rent <= config.MAX_MONTHLY_COST):
         return None
     if not beds:
@@ -339,4 +334,4 @@ def refine(listing):
         return False
     if details["images"]:
         listing.images, listing.image = details["images"], details["images"][0]
-    return apply_rent_details(listing, details) and not EXCLUDED.search(listing.description)
+    return apply_rent_details(listing, details) and not listing.excluded_by_keywords()

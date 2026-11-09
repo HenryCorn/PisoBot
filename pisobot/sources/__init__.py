@@ -6,6 +6,7 @@ from html import unescape
 
 from .. import cache, config
 from ..models import Listing
+from ..rental_text import ROOM_LET, is_room_let
 
 
 def money(s):
@@ -121,11 +122,6 @@ def private_rent_costs(listing):
     return listing
 
 
-# A room in someone's flat or house, even when the portal files it as "1 bedroom flat"
-ROOM_LET = re.compile(r"\bshar(?:e|ed|ing)\b[^.!?]{0,40}\b(?:kitchen|bathroom|house|flat|accommodation|living|lounge)"
-                      r"|\ben[\s-]?suite\s+room\b|\bco-?living\b", re.I)
-
-
 def apply_rent_details(listing, details):
     """Merge a lettings details page (see the sources' refine); False drops rooms and bedsits."""
     listing.description = f"{listing.description} {details['description']}"
@@ -135,7 +131,7 @@ def apply_rent_details(listing, details):
     private_rent_costs(listing)
     if details.get("deposit"):
         listing.min_deposit = details["deposit"]
-    if ROOM_LET.search(listing.description):
+    if is_room_let(listing.description):
         return False
     return not (listing.floor_area_m2 and listing.floor_area_m2 < config.RENT_MIN_AREA_M2)
 

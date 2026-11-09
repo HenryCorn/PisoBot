@@ -92,6 +92,14 @@ class OpenRentTests(unittest.TestCase):
         self.assertIsNone(openrent._listing(card(isMultiRoom=True), index_row()))
         self.assertIsNone(openrent._listing(card(letAgreed=True), index_row()))
 
+    def test_card_mentions_do_not_override_whole_flat_fields(self):
+        for description in ("Near Culinary Studio", "Shared entrance hall leading to the flat",
+                            "A double room, living room", "Beautifully preserved; reserved parking"):
+            with self.subTest(description=description):
+                home = openrent._listing(card(description=description), index_row())
+                self.assertIsNotNone(home)
+                self.assertFalse(home.excluded_by_keywords())
+
     def test_batches_are_twenty_newest_first_and_bound_is_reported(self):
         rows = [index_row(700001 + i) for i in range(23)]
         calls = []

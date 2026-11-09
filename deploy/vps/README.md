@@ -109,6 +109,55 @@ network outage.
 No public map is published in local mode. Unless you separately configure a
 valid `MAP_URL`, rental digests omit the old GitHub Pages map link.
 
+## Rental filtering and diagnostics
+
+Rental text exclusions use word boundaries and context: "bedroom in", "over
+600 sq ft", "reserved parking" and a shared entrance do not mean a room,
+age-restricted home or unavailable flat. Explicit restrictions and structured
+room/studio fields still exclude a listing; ambiguous mentions show a
+`Check advert` warning. A zero bills **estimate** is displayed as an estimate,
+not as evidence that bills are included. Budgets remain rent plus bills.
+
+Rental identity is `source:id`. Repeated IDs and previously alerted IDs remain
+suppressed, with price-drop alerts preserved. Different IDs are no longer
+merged solely because they share a map pin, bedroom count and similar rent.
+Cross-portal copies may therefore appear; this is preferable to silently
+hiding distinct homes. Sale deduplication is unchanged.
+
+Every live local rental scan appends aggregate JSON to `rental_funnel` in that
+person's SQLite database. Inspect the owner's latest records without loading
+the secret environment:
+
+```sh
+sudo -u pisobot /opt/pisobot/venv/bin/python - <<'PY'
+import json
+import sqlite3
+db = sqlite3.connect("file:/var/lib/pisobot/pisobot.db?mode=ro", uri=True)
+try:
+    for at, stats in db.execute(
+        "SELECT created_at, stats FROM rental_funnel ORDER BY id DESC LIMIT 5"
+    ):
+        print(at, json.dumps(json.loads(stats), indent=2))
+finally:
+    db.close()
+PY
+```
+
+Guest records live in their own `users/<chat_id>/pisobot.db`. Counts include
+fetched candidates, the first rejection reason, matches before hiding, hidden
+matches, source failures and whether filtering finished. `lqr`/`stbr` are
+reported under their selected source names. These are **pipeline** counts:
+portal-side filters, adapter exclusions and capped-away pages are not measured.
+Detail/refinement refusals appear as `details`; transport/layout failures at
+that stage may also contribute to that bucket.
+
+Failed initial baselines, all-source failures and interrupted filtering retain
+diagnostics; the existing complete-baseline requirement is unchanged. A row is
+written before Telegram delivery, so it does not prove a successful whole
+cycle. Dry runs, previews and cloud runs do not write these records. Records
+contain no search preferences or listing descriptions and currently have no
+automatic retention policy.
+
 ## Upgrade, rollback and remaining checks
 
 Stop the service before changing the checkout, install changed requirements,

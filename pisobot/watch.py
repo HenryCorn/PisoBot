@@ -67,11 +67,6 @@ class Watcher:
                         cache.put("rent_search", source, {})
                 with users.criteria(params):
                     prefetched = pipeline.fetch_sources(self.sources, stop_event)
-                if len(prefetched[1]) == len(self.sources):
-                    log.error("Every source failed for a portal search group")
-                    errors.append(RuntimeError("Every source failed; rental cycle incomplete"))
-                    totals["complete"] = False
-                    continue
                 for person in group:
                     if not person.owner and users.get(person.chat_id) is None:
                         continue

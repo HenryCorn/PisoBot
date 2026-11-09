@@ -29,3 +29,9 @@ CREATE TABLE IF NOT EXISTS users (
     params TEXT NOT NULL DEFAULT '{}',
     created_at TEXT
 );
+-- VPS only: one filtering-stage diagnostic per profile/run, including incomplete scans.
+CREATE TABLE IF NOT EXISTS rental_funnel (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    stats TEXT NOT NULL
+);

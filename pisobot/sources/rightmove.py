@@ -16,7 +16,7 @@ from . import PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, pri
 BASE = "https://www.rightmove.co.uk"
 LOCATION = "STATION^6953"          # Oxford Circus Station
 PAGE_SIZE = 24                     # plus one promoted slot that may repeat or be out of area
-SHARED = {"flat share", "house share", "room"}
+SHARED = {"flat share", "house share", "room", "studio", "studio flat", "studio apartment"}
 
 
 def _listing(x):

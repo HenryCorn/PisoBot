@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, config, costs, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -82,8 +82,10 @@ def _cost_ok(l):
 
 
 def passes_basic(l):
-    if l.bedrooms < config.MIN_BEDROOMS or l.excluded_by_keywords():
-        return "beds/keywords"
+    if l.bedrooms < config.MIN_BEDROOMS:
+        return "beds"
+    if l.excluded_by_keywords():
+        return "keywords"
     if l.lat is None or l.lng is None:
         return "no location"
     distance = (_km(l.lat, l.lng, users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
@@ -98,7 +100,7 @@ def passes_basic(l):
         if not refine(l):
             return "details"
         if l.excluded_by_keywords():
-            return "beds/keywords"
+            return "keywords"
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
@@ -120,7 +122,9 @@ def passes_area(l):
 
 
 def is_duplicate(l, records):
-    """Same flat on another portal: same beds, price within 2%, within ~300 m."""
+    """Legacy sale heuristic only; rental price/location cannot establish listing identity."""
+    if l.tenure == "rent":
+        return False
     price = l.share_price or l.rent or 0
     for a in records:
         if a.get("beds") != l.bedrooms or not a.get("lat") or not price:
@@ -216,6 +220,12 @@ def fetch_sources(selected, stop_event=None):
     return listings, failures
 
 
+def _save_funnel(funnel, live, rentals):
+    if live and rentals and os.environ.get("STORAGE") == "local":
+        d1.query("INSERT INTO rental_funnel (created_at, stats) VALUES (?, ?)",
+                 dt.datetime.now(dt.timezone.utc).isoformat(), json.dumps(funnel, sort_keys=True))
+
+
 def run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
         watch=False, baseline=False, stop_event=None, prefetched=None):
     args = (selected, dry_run, verbose, report, preview_dir, scheduled, rentals, watch, baseline, stop_event,
@@ -255,38 +265,74 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         for l in listings:
             if l.tenure == "rent":
                 private_rent_costs(l)   # this person's bills estimate
+    funnel = {"mode": "baseline" if baseline else "watch" if watch else "report",
+              "filtering_finished": False, "source_failures": failures, "sources": {}}
+
+    def source_stats(source):
+        alias = f"{source}r" if source in ("stb", "lq") else source
+        name = alias if alias in selected else source
+        return funnel["sources"].setdefault(name, {
+            "fetched": 0, "rejected": {}, "matched": 0, "hidden": 0})
+
+    def reject(source, reason):
+        counts = source_stats(source)["rejected"]
+        counts[reason] = counts.get(reason, 0) + 1
+        rejected[reason] = rejected.get(reason, 0) + 1
+
+    for source in selected:
+        source_stats(source)
+    for listing in listings:
+        source_stats(listing.source)["fetched"] += 1
     if failures and len(failures) == len(selected):
+        _save_funnel(funnel, live, rentals)
         raise RuntimeError("Every source failed; report delivery is incomplete and will be retried")
 
     try:
         enrich.geocode(listings)
     except Exception as ex:
         print(f"geocoding failed: {ex}", file=sys.stderr)
+        funnel["geocoding_error"] = type(ex).__name__
 
-    # 1. everything that currently fits the criteria, one entry per physical flat
+    # Distinct rental IDs are not proof of the same flat, even at identical map pins/prices.
     matches, kept, rejected, enrich_failures = [], [], {}, 0
-    for l in listings:
-        check_stop()
-        why = passes_basic(l)
-        if not why:
-            try:
-                why = passes_area(l)
-            except Exception as ex:  # API hiccup: try again next run
-                print(f"enrich failed for {l.key}: {type(ex).__name__}", file=sys.stderr)
-                enrich_failures += 1
+    rental_keys = set()
+    try:
+        for l in listings:
+            check_stop()
+            if l.tenure == "rent" and l.key in rental_keys:
+                reject(l.source, "duplicate_id")
                 continue
-        if why:
-            rejected[why] = rejected.get(why, 0) + 1
-            if verbose:
-                cost = round(l.monthly_cost) if l.monthly_cost else None
-                print(f"  - {why:13} {l.key} {l.address[:60]} {cost}")
-            continue
-        rec = _record(l, "", alerted=True)
-        if is_duplicate(l, kept):
-            continue
-        kept.append(rec)
-        matches.append(l)
+            if l.tenure == "rent":
+                rental_keys.add(l.key)
+            why = passes_basic(l)
+            if not why:
+                try:
+                    why = passes_area(l)
+                except Exception as ex:  # API hiccup: try again next run
+                    print(f"enrich failed for {l.key}: {type(ex).__name__}", file=sys.stderr)
+                    enrich_failures += 1
+                    reject(l.source, "enrichment")
+                    continue
+            if why:
+                reject(l.source, why)
+                if verbose:
+                    cost = round(l.monthly_cost) if l.monthly_cost else None
+                    print(f"  - {why:13} {l.key} {l.address[:60]} {cost}")
+                continue
+            if l.tenure != "rent" and is_duplicate(l, kept):
+                reject(l.source, "duplicate")
+                continue
+            if l.tenure != "rent":
+                kept.append(_record(l, "", alerted=True))
+            matches.append(l)
+            stats = source_stats(l.source)
+            stats["matched"] += 1
+            stats["hidden"] += int(prefs.is_hidden(p, l))
+        funnel["filtering_finished"] = True
+    finally:
+        _save_funnel(funnel, live, rentals)
     print(f"rejected: {rejected}")
+    print(f"funnel: {json.dumps(funnel, sort_keys=True)}")
     if baseline and (failures or enrich_failures):
         raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
@@ -342,7 +388,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if l.key in p["saved"] and not watch:
             pass
         elif prev is None:
-            if not is_duplicate(l, alerted):
+            if l.tenure == "rent" or not is_duplicate(l, alerted):
                 to_send.append((l, "new"))
         elif prev.get("alerted") and prev.get("cost", 0) - l.monthly_cost >= config.PRICE_DROP_ALERT:
             to_send.append((l, "drop"))

@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 from .. import cache, config, net
 from ..models import Listing
-from . import (PRIVATE_RENT, ROOM_LET, cached_search, money, monthly_rent, private_rent_costs,
+from . import (PRIVATE_RENT, is_room_let, cached_search, money, monthly_rent, private_rent_costs,
                rental_filters, text)
 
 BASE = "https://www.spareroom.co.uk"
@@ -89,7 +89,7 @@ def _listing(attrs, block):
     snippet = re.search(r'class="listing-card__short_description"[^>]*>(.*?)</', block, re.S)
     description = text(f"{title}. {kind} {beds} bed. {snippet[1] if snippet else ''} "
                        f"Advertiser: {attrs.get('advertiser-role', '')}.")
-    if ROOM_LET.search(description):
+    if is_room_let(description):
         return None
     # Landlords often quote the full postcode in the text; otherwise use the district centre
     full = re.search(rf"\b{outcode}\s*(\d[A-Z]{{2}})\b", description.upper())

@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import cache, costs, enrich, main, mapgen, net, prefs, telegram
+from pisobot import cache, config, costs, enrich, main, mapgen, net, prefs, telegram
 from pisobot.models import Listing
 from pisobot.sources import (PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, otm_rent,
                              private_rent_costs, rent_from_text, rightmove, zoopla)
@@ -69,6 +69,14 @@ class RentalTests(unittest.TestCase):
         with patch.object(net, "page", return_value=html):
             homes = otm_rent.search()
         self.assertEqual([(h.source, h.id, h.rent, h.tenure) for h in homes], [("otmr", "1", 1400, "rent")])
+
+    def test_onthemarket_keeps_flat_titles_mentioning_reception_rooms(self):
+        card = {"id": "1", "property-title": "1 bedroom flat with reception room",
+                "humanised-property-type": "Flat", "price": "£1,400 pcm", "bedrooms": 1}
+        self.assertIsNotNone(otm_rent._listing(card))
+        for kind in ("Room", "Studio", "House share"):
+            with self.subTest(kind=kind):
+                self.assertIsNone(otm_rent._listing({**card, "humanised-property-type": kind}))
 
     def test_zoopla_reads_the_server_components_stream(self):
         rows = [{"listingId": "7", "price": "£1,300 pcm", "title": "1 bed flat to rent", "address": "Home W6",
@@ -156,6 +164,49 @@ class RentalTests(unittest.TestCase):
         for words, keep in [(w, False) for w in rooms] + [(w, True) for w in flats]:
             home = Listing("otmr", "1", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1300)
             self.assertEqual(apply_rent_details(home, {"description": words}), keep, words)
+
+    def test_whole_flat_descriptions_are_not_rejected_by_substrings_or_shared_access(self):
+        descriptions = (
+            "A bedroom in an attractive flat", "Bathroom including a shower",
+            "Reception room including a dining area", "Over 600 sq ft", "Over 60 sqm",
+            "Beautifully preserved interiors", "Near Culinary Studio", "Reserved parking space",
+            "A double room, living room", "Shared entrance hall leading to the flat",
+            "Shared lift serving the flat", "No shared kitchen or bathroom",
+            "This is not a studio flat", "A reception room in the flat",
+            "The building is over 60 years old",
+        )
+        for description in descriptions:
+            with self.subTest(description=description):
+                home = Listing("rm", "1", "u", "London", 1, PRIVATE_RENT, tenure="rent", rent=1300)
+                self.assertTrue(apply_rent_details(home, {"description": description}))
+                self.assertFalse(home.excluded_by_keywords())
+        self.assertIn("Check advert: studio", " ".join(
+            Listing("rm", "1", "u", "London", 1, PRIVATE_RENT, tenure="rent",
+                    description="Near Culinary Studio").feature_tags))
+
+    def test_explicit_restrictions_and_structured_studios_remain_excluded(self):
+        for description in ("Room in a shared house", "Double room to rent", "Studio flat",
+                            "Sharing a spacious kitchen and bathroom", "Students only",
+                            "Only for students", "Retirement flat", "For tenants aged 60",
+                            "Property is now reserved", "Short term let", "Bedsit to rent",
+                            "For over 60s", "For over-55 residents", "Restricted to over 60"):
+            with self.subTest(description=description):
+                home = Listing("rm", "1", "u", "London", 1, PRIVATE_RENT, tenure="rent",
+                               description=description)
+                self.assertTrue(home.excluded_by_keywords())
+        self.assertIsNone(rightmove._listing(rm_property(1, propertySubType="Studio")))
+        self.assertIsNotNone(rightmove._listing(rm_property(2, summary="Near a yoga studio")))
+
+    def test_zero_bill_estimates_are_not_presented_as_included(self):
+        for description, field in (("Bills not included", "RENT_BILLS_ESTIMATE"),
+                                   ("Bills included except council tax", "RENT_COUNCIL_TAX_ESTIMATE")):
+            with self.subTest(description=description), patch.object(config, field, 0):
+                home = private_rent_costs(Listing("rm", "1", "u", "London", 1, PRIVATE_RENT,
+                                                 tenure="rent", rent=1300, description=description))
+                self.assertIn("Bills: ~£0 (estimate)", telegram.finance_lines(home)[0])
+        included = private_rent_costs(Listing("rm", "2", "u", "London", 1, PRIVATE_RENT,
+                                              tenure="rent", rent=1300, description="All bills included"))
+        self.assertIn("Bills: incl.", telegram.finance_lines(included)[0])
 
     def test_onthemarket_rental_details_read_the_published_deposit(self):
         p = {"id": "5", "lettingDetails": {"items": ["Furnished", "Deposit: £1172.00", "Long term let"]},

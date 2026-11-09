@@ -173,6 +173,11 @@ class SharedWatchTests(Base):
         self.assertEqual(sorted(self.sent), [(OWNER, "rm:3", "new"), (FRIEND, "rm:3", "new")])
         self.assertEqual(self.fetch.call_count, 2)
         self.assertEqual(config.MAX_MONTHLY_COST, users.DEFAULTS["MAX_MONTHLY_COST"])
+        owner_stats = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
+        with users.use(users.get(FRIEND)):
+            friend_stats = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
+        self.assertEqual(owner_stats["sources"]["rm"]["rejected"], {"cost": 1})
+        self.assertEqual(friend_stats["sources"]["rm"]["rejected"], {})
 
     def test_report_goes_only_to_whoever_asked(self):
         watch.Watcher(["rm"]).cycle()
