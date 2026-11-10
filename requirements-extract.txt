@@ -1,0 +1,2 @@
+# Optional: language-model reading of rental adverts (pisobot/extract.py). Not needed unless ANTHROPIC_API_KEY is set.
+anthropic

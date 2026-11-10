@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import cache, collage, extract, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -101,8 +101,9 @@ def _cost_reject(l, early=False):
 def passes_basic(l):
     if l.bedrooms < config.MIN_BEDROOMS:
         return "beds"
-    if l.excluded_by_keywords():
-        return "keywords"
+    by_rules = l.excluded_by_keywords()
+    if by_rules and not (extract.enabled() or extract._default is not None):
+        return "keywords"          # no language-model layer: the rules decide, exactly as before
     if l.lat is None or l.lng is None:
         return "no location"
     distance = (_km(l.lat, l.lng, users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
@@ -115,10 +116,15 @@ def passes_basic(l):
         why = _cost_reject(copy.deepcopy(l), early=True)
         if why:
             return why
+        # Optional model layer: a rules-rejected advert is only put to it once the free checks passed
+        if by_rules and extract.keyword_verdict(l, True):
+            return "keywords"
         if not refine(l):
             return "details"
-        if l.excluded_by_keywords():
+        if extract.keyword_verdict(l, l.excluded_by_keywords()):
             return "keywords"
+    elif extract.keyword_verdict(l, by_rules):
+        return "keywords"
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)

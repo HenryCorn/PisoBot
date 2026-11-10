@@ -154,3 +154,21 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
+
+## Optional: language-model reading of rental adverts
+
+`pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a
+rental advert is really a whole flat, and to extract furnished state, floor and lift, heating, bills,
+pets, outdoor space, minimum term, condition, red flags (each with the quoted phrase) and a one-line
+summary. It is **off** unless `ANTHROPIC_API_KEY` is set (VPS, `STORAGE=local`; `pip install -r
+requirements-extract.txt`). With no key, or on any error, timeout or when `EXTRACT_DAILY_LIMIT` requests
+have been used that day, the keyword rules decide exactly as before.
+
+The model may rescue a rules-rejected advert only when it says `whole_flat` with high confidence, and may
+reject a kept advert only for `room_in_shared`, `short_let`, `student_only` or `age_restricted` with high
+confidence and a phrase that really occurs in the advert; anything in between keeps the rules' verdict and
+adds a "Check advert" note. Results are cached in the local SQLite database by a hash of the input and
+the prompt version (an advert is sent once) and every disagreement is stored in
+`extraction_disagreements`. Only advert text and public listing fields are sent: never an address,
+a name, a chat id or a setting. Measure it on your own cache with
+`python scripts/eval_extract.py --cache state/cache.json`.

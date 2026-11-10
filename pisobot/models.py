@@ -67,6 +67,10 @@ class Listing:
     council_tax_monthly: Optional[float] = None  # private rent: part of bills (derived per person)
     utilities_monthly: Optional[float] = None    # private rent: other part of bills
     council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
+    # Optional language-model reading of the advert (extract.py); empty when the layer is off
+    check_notes: list = field(default_factory=list)   # "check advert" reasons the model raised
+    ai_summary: Optional[str] = None                  # its one-line summary
+    ai_facts: dict = field(default_factory=dict)      # furnished, lift, heating, pets, ... or "unknown"
     # Facts the portals already publish (private rent)
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
@@ -187,6 +191,7 @@ class Listing:
                 tags.append(lt)
         if self.tenure == "rent":
             tags.extend(f"⚠️ Check advert: {word}" for word in self._rental_keywords()[1])
+            tags.extend(f"⚠️ Check advert: {note}" for note in self.check_notes)
         return tags
 
     @property
