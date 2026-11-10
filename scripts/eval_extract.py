@@ -134,7 +134,7 @@ def model_report(sample, rejected_keys, extractor, db_path, out=print):
         drop = ex.kind in extract.REJECT_KINDS or ex.kind == "studio"
         if (rules and ex.kind == "whole_flat") or (not rules and drop):
             count += 1
-            decision = extract.adjust(ex, rules)
+            decision = extract.adjust(ex, rules, extract.build_input(l))
             out(f"  {l.key:12} rules={'reject' if rules else 'keep':6} model={ex.kind}/{ex.confidence} "
                 f"-> {decision.outcome} (final: {'reject' if decision.reject else 'keep'})")
             out(f"      quote: {ex.evidence or '(none)'}")
@@ -150,10 +150,14 @@ def model_report(sample, rejected_keys, extractor, db_path, out=print):
     if measured:
         n = len(measured)
         mean = {k: sum(u[k] or 0 for u in measured) / n for k in ("input", "output", "cache_read", "cache_write")}
-        per = [extract.cost_usd(u["input"] or 0, u["output"] or 0, u["cache_read"] or 0, u["cache_write"] or 0)
-               for u in measured]
         out(f"\nMeasured over {n} adverts (tokens per advert, mean): input {mean['input']:.0f} uncached, "
             f"cache read {mean['cache_read']:.0f}, cache write {mean['cache_write']:.0f}, output {mean['output']:.0f}")
+        try:
+            per = [extract.cost_usd(u["input"] or 0, u["output"] or 0, u["cache_read"] or 0, u["cache_write"] or 0,
+                                   model=extractor.model) for u in measured]
+        except ValueError as error:
+            out(f"Cost unavailable: {error}; no dollar projection was made.")
+            return rows
         out(f"Cost per advert: mean ${sum(per) / n:.5f}, max ${max(per):.5f}; total ${sum(per):.4f}")
         out(f"Projected at {DAILY_ADVERTS} new adverts a day: ${sum(per) / n * DAILY_ADVERTS:.3f} a day, "
             f"${sum(per) / n * DAILY_ADVERTS * 30:.2f} a month")

@@ -147,6 +147,14 @@ class EvalTests(unittest.TestCase):
         self.run_eval("--sample", "10", client=client)
         self.assertEqual(len(client.calls), first)
 
+    def test_an_unknown_models_usage_is_reported_without_inventing_a_price(self):
+        with patch.object(eval_extract.extract.config, "EXTRACT_MODEL", "undocumented-model"):
+            code, out = self.run_eval("--sample", "5", client=FakeClient())
+        self.assertEqual(code, 0)
+        self.assertIn("Measured over 5 adverts", out)
+        self.assertIn("Cost unavailable: No documented extraction pricing for undocumented-model", out)
+        self.assertNotIn("Projected at", out)
+
     def test_sample_always_contains_every_rejected_advert_even_when_bigger_than_the_sample(self):
         listings = eval_extract.load_listings(str(self.cache))
         rejected = {l.key for l in listings if eval_extract.rules_verdict(l)[0]}

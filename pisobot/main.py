@@ -98,7 +98,7 @@ def _cost_reject(l, early=False):
     return None
 
 
-def passes_basic(l):
+def passes_basic(l, defer_model=False):
     if l.bedrooms < config.MIN_BEDROOMS:
         return "beds"
     by_rules = l.excluded_by_keywords()
@@ -116,19 +116,17 @@ def passes_basic(l):
         why = _cost_reject(copy.deepcopy(l), early=True)
         if why:
             return why
-        # Optional model layer: a rules-rejected advert is only put to it once the free checks passed
-        if by_rules and extract.keyword_verdict(l, True):
-            return "keywords"
         if not refine(l):
             return "details"
-        if extract.keyword_verdict(l, l.excluded_by_keywords()):
-            return "keywords"
-    elif extract.keyword_verdict(l, by_rules):
-        return "keywords"
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
-    return _cost_reject(l)
+    why = _cost_reject(l)
+    if why:
+        return why
+    if not defer_model and extract.keyword_verdict(l, l.excluded_by_keywords()):
+        return "keywords"
+    return None
 
 
 def passes_area(l):
@@ -338,7 +336,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 continue
             if l.tenure == "rent":
                 rental_keys.add(l.key)
-            why = passes_basic(l)
+            why = passes_basic(l, defer_model=True)
             if not why:
                 try:
                     why = passes_area(l)
@@ -347,6 +345,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     enrich_failures += 1
                     reject(l.source, "enrichment")
                     continue
+            if not why and extract.keyword_verdict(l, l.excluded_by_keywords()):
+                why = "keywords"
             if why:
                 reject(l.source, why)
                 if verbose:
