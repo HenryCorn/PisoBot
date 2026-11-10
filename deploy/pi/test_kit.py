@@ -39,6 +39,8 @@ class KitTests(unittest.TestCase):
                           self.root / "venv/bin", self.source / "users/123", self.source / "tiles"):
             directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         (self.root / "venv/bin/python").symlink_to(sys.executable)
+        for name in ("watch.lock", "run.lock"):
+            (self.source / name).touch()
         self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1",
                         PISOBOT_TEST_ROOT=str(self.root),
                         PISOBOT_EXPECT_HOST=subprocess.check_output(["hostname", "-s"], text=True).strip(),
@@ -48,6 +50,7 @@ class KitTests(unittest.TestCase):
                         PISOBOT_APP_DIR=str(self.app),
                         PISOBOT_VENV_DIR=str(self.root / "venv"),
                         PISOBOT_TMP_DIR=str(self.root / "scratch"),
+                        PISOBOT_PREVIOUS_DIR=str(self.root / "previous"),
                         PISOBOT_AGE_RECIPIENTS=str(self.root / "recipient"),
                         PISOBOT_AGE_IDENTITY=str(self.root / "identity"))
         subprocess.run(["age-keygen", "-o", str(self.root / "identity")], check=True, capture_output=True)
@@ -123,6 +126,19 @@ class KitTests(unittest.TestCase):
     def acknowledge(self):
         return ("--source-stopped", self.env["PISOBOT_EXPECT_HOST"])
 
+    def replaced_copies(self):
+        return sorted((self.root / "previous").glob("replaced-*.age"))
+
+    def copy_members(self, copy):
+        # Decrypt a stored copy of replaced state and return {archive member name: bytes}.
+        result = subprocess.run(["age", "--decrypt", "-i", str(self.root / "identity"), str(copy)],
+                                capture_output=True, check=True)
+        with tarfile.open(fileobj=io.BytesIO(result.stdout), mode="r:gz") as archive:
+            return {member.name: archive.extractfile(member).read() for member in archive.getmembers()}
+
+    def restore_test(self, archive):
+        return self.invoke("pi-import.sh", "--archive", str(archive), "--restore-test", importing=True)
+
     def test_live_wal_roundtrip_permissions_and_repeat_import(self):
         output = self.export("--final")
         self.assertIn("2 SQLite databases", output)
@@ -143,18 +159,84 @@ class KitTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o700 if path.is_dir() else 0o600)
             self.assertEqual(path.stat().st_uid, os.getuid())
         (self.target / "stale").write_text("must not survive")
-        self.import_archive(*self.acknowledge)
+        self.assertIn("already holds data", self.import_archive(*self.acknowledge, success=False))
+        self.assertTrue((self.target / "stale").exists())
+        self.import_archive(*self.acknowledge, "--replace-state")
         self.assertFalse((self.target / "stale").exists())
         self.assertEqual(list((self.root / "scratch").iterdir()), [])
+        (copy,) = self.replaced_copies()
+        self.assertEqual(self.copy_members(copy)["state/stale"], b"must not survive")
+
+    def test_occupied_destination_needs_replace_state_and_leaves_a_restorable_encrypted_copy(self):
+        self.export("--final")
+        self.import_archive(*self.acknowledge)
+        (self.target / "newer-note").write_text("written after the first import")
+        refusals = (
+            ((), {}, "already holds data"),
+            (("--replace-state",), {"PISOBOT_AGE_RECIPIENTS": ""}, "PISOBOT_AGE_RECIPIENTS"),
+            (("--replace-state",), {"PISOBOT_PREVIOUS_DIR": str(self.root / "scratch/previous")}, "must be separate"),
+            (("--replace-state",), {"PISOBOT_PREVIOUS_DIR": str(self.target / "previous")}, "must be separate"),
+        )
+        for flags, extra, message in refusals:
+            with self.subTest(flags=flags, extra=extra):
+                output = self.invoke("pi-import.sh", "--archive", str(self.archive), *self.acknowledge, *flags,
+                                     importing=True, success=False, extra_env=extra)
+                self.assertIn(message, output)
+                self.assertTrue((self.target / "newer-note").is_file())
+                self.assertFalse((self.target / ".import-in-progress").exists())
+                self.assertFalse(self.replaced_copies())
+                self.assertEqual(list((self.root / "scratch").iterdir()), [])
+        self.assertIn("IMPORT OK", self.import_archive(*self.acknowledge, "--replace-state"))
+        self.assertFalse((self.target / "newer-note").exists())
+        (copy,) = self.replaced_copies()
+        self.assertTrue(copy.with_name(copy.name + ".sha256").is_file())
+        self.assertEqual(stat.S_IMODE(copy.stat().st_mode), 0o600)
+        self.assertNotIn(b"FAKE-NOT-A-REAL-SECRET", copy.read_bytes())
+        self.assertIn("RESTORE TEST OK", self.restore_test(copy))
+        members = self.copy_members(copy)
+        self.assertEqual(members["state/newer-note"], b"written after the first import")
+        self.assertIn(b"FAKE-NOT-A-REAL-SECRET", members["env/pisobot.env"])
+
+    def test_replacing_newer_state_with_an_older_archive_needs_an_explicit_flag(self):
+        self.export("--final")
+        self.import_archive(*self.acknowledge)
+        newer = "2999-01-01T00:00:00+00:00"
+        with contextlib.closing(sqlite3.connect(self.target / "pisobot.db")) as db:
+            db.execute("CREATE TABLE meta (name TEXT PRIMARY KEY, value TEXT)")
+            db.execute("INSERT INTO meta VALUES ('watch_last_success', ?)", (newer,))
+            db.commit()
+        output = self.import_archive(*self.acknowledge, "--replace-state", success=False)
+        self.assertIn("newer than the archive", output)
+        self.assertFalse((self.target / ".import-in-progress").exists())
+        self.assertFalse((self.root / "previous").exists())
+        self.assertEqual(list((self.root / "scratch").iterdir()), [])
+        with contextlib.closing(sqlite3.connect(self.target / "pisobot.db")) as db:
+            self.assertEqual(db.execute("SELECT value FROM meta").fetchall(), [(newer,)])
+        output = self.import_archive(*self.acknowledge, "--replace-state", "--allow-older-archive")
+        self.assertIn("IMPORT OK", output)
+        self.assertIn("WARNING: replacing newer state", output)
+        (copy,) = self.replaced_copies()
+        kept = self.root / "kept.db"
+        kept.write_bytes(self.copy_members(copy)["state/pisobot.db"])
+        with contextlib.closing(sqlite3.connect(kept)) as db:
+            self.assertEqual(db.execute("SELECT value FROM meta").fetchall(), [(newer,)])
+
+    def test_replace_flags_are_only_accepted_where_they_apply(self):
+        self.export("--final")
+        self.import_archive(*self.acknowledge, "--allow-older-archive", success=False)
+        self.import_archive("--restore-test", "--replace-state", success=False)
+        self.assertEqual(list(self.target.iterdir()), [])
 
     def test_online_export_only_allows_restore_drill(self):
         self.export()
+        self.assertFalse((self.source / "HANDED-OFF-TO-PI").exists())
         self.assertIn("RESTORE TEST OK", self.import_archive("--restore-test"))
         self.assertIn("quiesced", self.import_archive(*self.acknowledge, success=False))
         self.assertEqual(list(self.target.iterdir()), [])
 
     def test_quiesced_backup_requires_explicit_recovery(self):
         self.export("--quiesced")
+        self.assertFalse((self.source / "HANDED-OFF-TO-PI").exists())
         self.import_archive(*self.acknowledge, success=False)
         self.assertIn("IMPORT OK", self.import_archive("--recovery", *self.acknowledge))
 
@@ -195,10 +277,53 @@ class KitTests(unittest.TestCase):
         with (self.source / "watch.lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.invoke("vps-export.sh", "--archive", str(self.archive), "--final", success=False)
+        self.assertFalse((self.source / "HANDED-OFF-TO-PI").exists())
         self.export("--final")
         original = self.archive.read_bytes()
         self.invoke("vps-export.sh", "--archive", str(self.archive), "--final", success=False)
         self.assertEqual(self.archive.read_bytes(), original)
+
+    def test_final_handoff_and_verified_rollback(self):
+        self.export("--final")
+        marker = self.source / "HANDED-OFF-TO-PI"
+        self.assertTrue(marker.is_file())
+        self.assertNotIn("state/HANDED-OFF-TO-PI", self.copy_members(self.archive))
+        target_marker = self.target / "HANDED-OFF-TO-PI"
+        target_marker.write_text("Old host must stay fenced\n")
+        (self.app / "fail-scan").touch()
+        self.invoke("pi-import.sh", "--archive", str(self.archive), *self.acknowledge,
+                    importing=True, success=False, extra_env={"PISOBOT_HOST_ROLE": "vps"})
+        self.assertTrue(target_marker.is_file())
+        self.assertTrue((self.target / ".import-in-progress").is_file())
+        (self.app / "fail-scan").unlink()
+        (self.target / ".import-in-progress").unlink()
+        self.invoke("pi-import.sh", "--archive", str(self.archive), *self.acknowledge, "--replace-state",
+                    importing=True, extra_env={"PISOBOT_HOST_ROLE": "vps"})
+        self.assertFalse(target_marker.exists())
+        self.assertFalse((self.target / ".import-in-progress").exists())
+        self.assertTrue(marker.is_file())
+        target_marker.write_text("Pi previously handed state back\n")
+        self.invoke("pi-import.sh", "--archive", str(self.archive), *self.acknowledge, "--replace-state",
+                    importing=True, extra_env={"PISOBOT_HOST_ROLE": "pi"})
+        self.assertFalse(target_marker.exists())
+
+    def test_missing_export_lock_is_not_created(self):
+        (self.source / "run.lock").unlink()
+        output = self.invoke("vps-export.sh", "--archive", str(self.archive), "--final", success=False)
+        self.assertIn("run.lock is missing", output)
+        self.assertFalse((self.source / "run.lock").exists())
+        self.assertFalse(self.archive.exists())
+        self.assertFalse((self.source / "HANDED-OFF-TO-PI").exists())
+
+    def test_unsafe_environment_is_rejected_before_install(self):
+        with (self.root / "source.env").open("a") as stream:
+            stream.write("PYTHONPATH=/synthetic/injected-code\n")
+        self.export("--final")
+        output = self.import_archive(*self.acknowledge, success=False)
+        self.assertIn("Environment variable PYTHONPATH", output)
+        self.assertNotIn("/synthetic/injected-code", output)
+        self.assertEqual([], list(self.target.iterdir()))
+        self.assertEqual([], list((self.root / "scratch").iterdir()))
 
     def test_wrong_source_and_commit_rejected(self):
         self.export("--final")
@@ -210,20 +335,49 @@ class KitTests(unittest.TestCase):
         self.import_archive(*self.acknowledge, success=False)
         self.assertEqual(list(self.target.iterdir()), [])
 
-    def test_failed_tests_or_scan_keep_recovery_state_and_marker(self):
+    def test_failed_tests_or_scan_keep_the_marker_and_scrub_plaintext_but_not_the_prior_state(self):
         self.export("--final")
-        for failure in ("fail-unit", "fail-scan"):
+        self.import_archive(*self.acknowledge)
+        scratch = self.root / "scratch"
+        for count, failure in enumerate(("fail-unit", "fail-scan"), start=1):
             with self.subTest(failure=failure):
+                (self.target / "prior-only").write_text(f"only in the state before attempt {count}")
                 (self.app / failure).touch()
-                output = self.import_archive(*self.acknowledge, success=False)
+                known = set(self.replaced_copies())
+                output = self.import_archive(*self.acknowledge, "--replace-state", success=False)
                 self.assertIn("IMPORT FAILED", output)
                 self.assertTrue((self.target / ".import-in-progress").exists())
-                jobs = list((self.root / "scratch").glob("job.*"))
-                self.assertTrue(any((job / "restored/previous").is_dir() for job in jobs))
+                self.assertFalse((self.target / "prior-only").exists())
+                jobs = list(scratch.glob("job.*"))
+                self.assertEqual(len(jobs), count)
+                for job in jobs:
+                    self.assertLessEqual({path.name for path in job.iterdir()}, {"unit-tests.log", "dry-run.log"})
+                self.assertTrue(any((job / "unit-tests.log").is_file() for job in jobs))
+                for path in scratch.rglob("*"):
+                    self.assertFalse(path.is_file() and b"FAKE-NOT-A-REAL-SECRET" in path.read_bytes(), path)
+                self.assertEqual(list(scratch.rglob("prior-only")), [])
+                # The replaced state survives only as the encrypted copy.
+                copy, = set(self.replaced_copies()) - known
+                self.assertIn("RESTORE TEST OK", self.restore_test(copy))
+                self.assertEqual(self.copy_members(copy)["state/prior-only"].decode(),
+                                 f"only in the state before attempt {count}")
+                self.assertIn(str(copy), output)
                 (self.app / failure).unlink()
                 # Exercise the documented acknowledgement after inspecting a failed job.
                 (self.target / ".import-in-progress").unlink()
-        self.import_archive(*self.acknowledge)
+        self.import_archive(*self.acknowledge, "--replace-state")
+        self.assertEqual(len(self.replaced_copies()), 3)
+
+    def test_failure_without_replacing_anything_leaves_no_plaintext(self):
+        self.export("--final")
+        (self.app / "fail-scan").touch()
+        self.import_archive(*self.acknowledge, success=False)
+        scratch = self.root / "scratch"
+        for path in scratch.rglob("*"):
+            self.assertFalse(path.is_file() and b"FAKE-NOT-A-REAL-SECRET" in path.read_bytes(), path)
+        self.assertEqual({path.name for job in scratch.glob("job.*") for path in job.iterdir()},
+                         {"unit-tests.log", "dry-run.log"})
+        self.assertFalse((self.root / "previous").exists())
 
     def test_archive_traversal_and_links_rejected(self):
         for name, kind in (("../escaped", tarfile.REGTYPE), ("state/link", tarfile.SYMTYPE)):
@@ -234,10 +388,11 @@ class KitTests(unittest.TestCase):
                     member.type = kind
                     member.linkname = "/etc/passwd" if kind == tarfile.SYMTYPE else ""
                     archive.addfile(member, io.BytesIO())
-                result = subprocess.run(["age", "-R", str(self.root / "recipient")],
-                                        input=stream.getvalue(), capture_output=True, check=True)
-                self.archive.write_bytes(result.stdout)
-                Path(str(self.archive) + ".sha256").write_text(hashlib.sha256(result.stdout).hexdigest() + "\n")
+                subprocess.run(["age", "--encrypt", "-R", str(self.root / "recipient"), "-o", str(self.archive)],
+                               input=stream.getvalue(), capture_output=True, check=True)
+                self.archive.chmod(0o600)
+                Path(str(self.archive) + ".sha256").write_text(
+                    hashlib.sha256(self.archive.read_bytes()).hexdigest() + "\n")
                 self.import_archive("--restore-test", success=False)
                 self.assertFalse((self.root / "escaped").exists())
 

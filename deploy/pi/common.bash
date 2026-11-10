@@ -18,6 +18,9 @@ ENV_FILE="${PISOBOT_ENV_FILE:-/etc/pisobot/pisobot.env}"
 APP="${PISOBOT_APP_DIR:-/opt/pisobot/app}"
 VENV="${PISOBOT_VENV_DIR:-/opt/pisobot/venv}"
 SCRATCH="${PISOBOT_TMP_DIR:-/run/pisobot-transfer}"
+# Durable (never tmpfs) home for encrypted copies of state that an import replaced.
+# shellcheck disable=SC2034
+PREVIOUS_DIR="${PISOBOT_PREVIOUS_DIR:-/var/backups/pisobot}"
 if [[ -x "$VENV/bin/python" ]]; then
     PYTHON="${PISOBOT_PYTHON:-$VENV/bin/python}"
 else
@@ -71,14 +74,19 @@ guard_maintenance() {
 
 guard_stopped() {
     [[ -n "$TEST_ROOT" ]] && return
-    local active
-    [[ "$(systemctl show pisobot-watch.service -p LoadState --value)" == loaded ]] ||
+    local active loaded unit_state
+    loaded="$(systemctl show pisobot-watch.service -p LoadState --value)"
+    [[ "$loaded" == loaded || ( "${1:-}" == fenced && "$loaded" == masked ) ]] ||
         die "pisobot-watch.service is not installed."
     active="$(systemctl show pisobot-watch.service -p ActiveState --value)"
     [[ "$active" == inactive || "$active" == failed ]] || die "Stop pisobot-watch first (including any manual runs)."
     if [[ "${1:-}" == disabled ]]; then
         [[ "$(systemctl show pisobot-watch.service -p UnitFileState --value)" == disabled ]] ||
             die "Disable pisobot-watch first; enabled/masked/static/unknown are not accepted."
+    elif [[ "${1:-}" == fenced ]]; then
+        unit_state="$(systemctl show pisobot-watch.service -p UnitFileState --value)"
+        [[ "$unit_state" == disabled || "$unit_state" == masked ]] ||
+            die "Disable or mask pisobot-watch first; enabled/static/unknown are not accepted."
     fi
 }
 

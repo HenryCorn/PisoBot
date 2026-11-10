@@ -16,6 +16,7 @@ while (( $# )); do
         --help)
             note "Usage: vps-export.sh --archive /absolute/file.age [--final|--quiesced] [--dry-run]"
             note "Required: PISOBOT_EXPECT_HOST, PISOBOT_EXPECT_ARCH (VPS), PISOBOT_AGE_RECIPIENTS."
+            note "--final leaves HANDED-OFF-TO-PI in source state; install the handoff drop-in first."
             exit 0 ;;
         *) die "Unknown option: $1" ;;
     esac
@@ -26,7 +27,8 @@ guard_host
 guard_test_paths "$ARCHIVE" "$PISOBOT_AGE_RECIPIENTS"
 if (( DRY_RUN )); then
     note "Would verify host/storage and source commit; stop/disable NOTHING."
-    note "Would require inactive source for --quiesced, and disabled source for --final."
+    note "Would require inactive source for --quiesced, and disabled/masked source for --final."
+    note "After a successful --final export, would leave the HANDED-OFF-TO-PI startup fence."
     note "Would snapshot ALL SQLite databases via online backup, copy JSON/users/tiles and private env."
     note "Would encrypt to $ARCHIVE using the recipients file; publish a digest-only .sha256 sidecar."
     note "Would omit WAL/SHM/journal/lock/pending files. No credentials read in --dry-run."
@@ -41,7 +43,7 @@ guard_storage
 [[ -f "$PISOBOT_AGE_RECIPIENTS" ]] || die "Recipients file is missing."
 [[ ! -e "$STATE/.import-in-progress" ]] || die "State has an incomplete import; resolve it first."
 if (( FINAL )); then
-    guard_stopped disabled
+    guard_stopped fenced
 elif (( QUIESCED )); then
     guard_stopped
 else
@@ -56,4 +58,8 @@ make_work
 # noclobber also protects a simultaneous export to the same filename.
 (set -C; cat "$WORK/export.age" > "$ARCHIVE")
 "$PYTHON" "$KIT_DIR/state.py" checksum-write "$ARCHIVE"
+if (( FINAL )); then
+    "$PYTHON" "$KIT_DIR/state.py" handoff "$STATE" set
+    note "Source marked HANDED-OFF-TO-PI; keep its handoff drop-in installed until deliberate rollback."
+fi
 note "Encrypted export complete. Transfer only the .age archive and .sha256 sidecar."

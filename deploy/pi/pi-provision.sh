@@ -145,9 +145,11 @@ Wants=time-sync.target systemd-time-wait-sync.service
 After=time-sync.target
 RequiresMountsFor=/var/lib/pisobot
 ConditionPathExists=!/var/lib/pisobot/.import-in-progress
+ConditionPathExists=!/var/lib/pisobot/HANDED-OFF-TO-PI
 
 [Service]
 ExecStartPre=/usr/bin/test ! -e /var/lib/pisobot/.import-in-progress
+ExecStartPre=/usr/bin/test ! -e /var/lib/pisobot/HANDED-OFF-TO-PI
 UNIT
 if [[ "$STORAGE_CHOICE" != root-disk ]]; then
     cat >> /etc/systemd/system/pisobot-watch.service.d/pi.conf <<'UNIT'
@@ -161,7 +163,7 @@ fi
 chmod 644 /etc/systemd/system/pisobot-watch.service.d/pi.conf
 install -d -m 755 /opt/pisobot/migration
 if [[ "$KIT_DIR" != /opt/pisobot/migration ]]; then
-    for file in common.bash state.py pi-provision.sh vps-export.sh pi-import.sh nightly-backup.sh README.md cutover.md pisobot-backup.service pisobot-backup.timer; do
+    for file in common.bash state.py pi-provision.sh vps-export.sh pi-import.sh nightly-backup.sh README.md cutover.md pisobot-backup.service pisobot-backup.timer pisobot-vps-handoff.conf; do
         install -m 644 "$KIT_DIR/$file" "/opt/pisobot/migration/$file"
     done
 fi

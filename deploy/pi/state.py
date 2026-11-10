@@ -1,6 +1,7 @@
 """Private implementation helpers for the guarded shell commands; stdlib only."""
 
 import contextlib
+import datetime as dt
 import fcntl
 import hashlib
 import json
@@ -50,8 +51,20 @@ def test_paths(root, paths):
         require(path != root and root in path.parents, "Test paths must be strictly inside the fake-state root")
 
 
+HANDOFF = "HANDED-OFF-TO-PI"
+
+
 def ignored(path):
-    return path.name.endswith((".lock", ".pending", "-wal", "-shm", "-journal"))
+    # Never part of a snapshot: locks, SQLite sidecars, the handoff marker and the half-written
+    # temp files of pisobot.main.save_seen (NamedTemporaryFile: "tmp" + 8 random characters).
+    return (path.name.endswith((".lock", ".pending", "-wal", "-shm", "-journal")) or path.name == HANDOFF
+            or re.fullmatch(r"tmp[a-z0-9_]{8}", path.name) is not None)
+
+
+# Entries that do not make a state directory "occupied": any run creates the lock files,
+# lost+found belongs to the filesystem and the handoff marker is managed by the kit.
+# Everything else is live data that must not be lost.
+KEEP = ("watch.lock", "run.lock", ".import-in-progress", HANDOFF, "lost+found")
 
 
 def files(root):
@@ -86,13 +99,21 @@ def check_state(root):
 
 
 @contextlib.contextmanager
-def stopped_locks(root):
-    # These are the same locks used by pisobot.main.run_lock, not PID files.
+def stopped_locks(root, create=False):
+    # These are the same locks used by pisobot.main.run_lock, not PID files. Only an import into a
+    # fresh state may create them: an exporter running as root would otherwise leave root-owned
+    # lock files that the service user cannot lock.
     with contextlib.ExitStack() as stack:
         for name in ("watch.lock", "run.lock"):
             path = root / name
             require(not path.is_symlink(), "Lock must not be a symlink")
-            stream = stack.enter_context(path.open("a"))
+            flags = (os.O_RDWR | os.O_CREAT) if create else os.O_RDONLY
+            try:
+                descriptor = os.open(path, flags | os.O_NOFOLLOW, 0o600)
+            except FileNotFoundError:
+                raise ValueError(f"{name} is missing from the state directory and is never created here "
+                                 "(it could get the wrong owner). Create it as the service user, then retry.") from None
+            stream = stack.enter_context(os.fdopen(descriptor, "r"))
             fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
         yield
 
@@ -118,14 +139,25 @@ def snapshot(state, env, dest, revision, host, quiesced, final):
             target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             if src.suffix == ".db":
                 deadline = time.monotonic() + 120
+                sidecars = [src.with_name(src.name + suffix) for suffix in ("-wal", "-shm")]
+                absent_before = [not os.path.lexists(p) for p in sidecars]
 
                 def progress(_status, _remaining, _total):
                     require(time.monotonic() < deadline, "SQLite online backup timed out")
 
-                with contextlib.closing(sqlite3.connect(src.as_uri() + "?mode=ro", uri=True)) as source:
-                    with contextlib.closing(sqlite3.connect(target)) as backup:
-                        source.backup(backup, pages=256, progress=progress, sleep=0.1)
-                        backup.execute("PRAGMA journal_mode=DELETE")
+                try:
+                    with contextlib.closing(sqlite3.connect(src.as_uri() + "?mode=ro", uri=True)) as source:
+                        with contextlib.closing(sqlite3.connect(target)) as backup:
+                            source.backup(backup, pages=256, progress=progress, sleep=0.1)
+                            backup.execute("PRAGMA journal_mode=DELETE")
+                finally:
+                    # The read-only open can leave empty -wal/-shm files behind (root-owned on the Pi).
+                    # With the service stopped and locked nobody else uses them, so remove only the
+                    # ones this open created. A live export never deletes: the service may be using them.
+                    if quiesced:
+                        for sidecar, absent in zip(sidecars, absent_before):
+                            if absent:
+                                sidecar.unlink(missing_ok=True)
             else:
                 # Open once: cache/seen writers publish complete JSON by atomic rename.
                 with src.open("rb") as source, target.open("xb") as output:
@@ -195,15 +227,137 @@ def verify(root, mode="", host="", revision=""):
     print(f"RESTORE TEST OK: {count} SQLite databases; all file hashes and JSON verified.")
 
 
-def install_state(root, state, env):
+def occupied(state):
+    return any(item.name not in KEEP for item in state.iterdir())
+
+
+def durable_path(directory, *others):
+    plain_path(directory)
+    for other in others:
+        plain_path(other)
+        require(directory != other and other not in directory.parents and directory not in other.parents,
+                "The encrypted-copy directory must be separate from the state and scratch directories")
+
+
+def fingerprint(state):
+    # Same names, sizes and mtimes mean nothing was written since the encrypted copy was taken.
+    # WAL commits need not touch the main DB; include the WAL even though snapshots omit it.
+    plain_path(state)
+    lines = [f"{p.relative_to(state).as_posix()} {p.stat().st_size} {p.stat().st_mtime_ns}"
+             for p in files(state) if not ignored(p) or p.name.endswith("-wal")]
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()
+
+
+def job_dir(work):
+    plain_path(work)
+    require(work.is_dir() and work.name.startswith("job."), "Unsafe cleanup target")
+    return work
+
+
+def remove_entry(path):
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
+def plain_names(names):
+    for name in names:
+        require(name and "/" not in name and name not in (".", ".."), "Unsafe cleanup name")
+
+
+def discard(work, names):
+    # Delete named plaintext copies from a private job directory.
+    work = job_dir(work)
+    plain_names(names)
+    for name in names:
+        if (work / name).is_symlink() or (work / name).exists():
+            remove_entry(work / name)
+
+
+def retain(work, names):
+    # After a failed import keep only the named diagnostic logs; everything else may hold secrets.
+    work = job_dir(work)
+    plain_names(names)
+    for path in list(work.iterdir()):
+        if path.name not in names:
+            remove_entry(path)
+
+
+def state_status(state):
+    plain_path(state)
+    require(state.is_dir(), "State directory is missing")
+    require(not (state / ".import-in-progress").exists(),
+            "Interrupted import: follow recovery instructions before retrying")
+    return "occupied" if occupied(state) else "empty"
+
+
+def handoff(state, action):
+    # The marker tells the old host's systemd drop-in (pisobot-vps-handoff.conf) never to start the
+    # watcher again; only a rollback import or a deliberate operator step removes it.
+    plain_path(state)
+    require(state.is_dir(), "State directory is missing")
+    require(action in ("set", "clear"), "Unknown handoff action")
+    marker = state / HANDOFF
+    require(not marker.is_symlink(), "Handoff marker must not be a symlink")
+    if action == "clear":
+        marker.unlink(missing_ok=True)
+    elif not marker.exists():
+        with marker.open("x") as output:
+            output.write(f"State handed off to the Raspberry Pi at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}.\n"
+                         "Do not start pisobot-watch on this host; see cutover.md (Rollback).\n")
+
+
+def utc(text):
+    try:
+        moment = dt.datetime.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=dt.timezone.utc)
+    return moment.astimezone(dt.timezone.utc)
+
+
+def last_success(snapshot_root):
+    # pisobot.watch records each completed scan in the primary database's meta table.
+    database = snapshot_root / "state/pisobot.db"
+    with contextlib.closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as db:
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'").fetchone() is None:
+            return None
+        row = db.execute("SELECT value FROM meta WHERE name = 'watch_last_success'").fetchone()
+    return utc(row[0]) if row else None
+
+
+def replace_check(existing, restored, allow_older):
+    # Refuse to move the live state back in time unless the operator says so explicitly.
+    created = utc(json.loads((restored / "manifest.json").read_text())["created_utc"])
+    require(created is not None, "Archive manifest has no valid creation time")
+    last = last_success(existing)
+    if last is None:
+        print("WARNING: the existing state records no successful scan time, so it cannot be compared "
+              "with the archive.", file=sys.stderr)
+    elif last.replace(microsecond=0) > created:
+        require(allow_older,
+                f"Existing state is newer than the archive (last successful scan {last:%Y-%m-%d %H:%M}Z, "
+                f"archive created {created:%Y-%m-%d %H:%M}Z); importing would lose those changes from the "
+                "live state. Re-run with --allow-older-archive only if that is intended.")
+        print("WARNING: replacing newer state with an older archive (--allow-older-archive).", file=sys.stderr)
+
+
+def install_state(root, state, env, replace=False, expect=""):
     # Keep prior state until BOTH validation commands succeed. Re-imports replace,
     # never merge: a stale WAL or deleted user's files cannot survive the restore.
+    # Replacing non-empty state needs the caller to have stored a verified durable copy
+    # (expect = fingerprint of the state that copy was taken from).
     plain_path(state)
     plain_path(env)
     require(state.is_dir() and env.parent.is_dir(), "Provision state/config directories first")
     require(state not in root.parents and root not in state.parents, "Scratch and state must be separate trees")
-    with stopped_locks(state):
+    with stopped_locks(state, create=True):
         require(not (state / ".import-in-progress").exists(), "Interrupted import: follow recovery instructions before retrying")
+        require(replace or not occupied(state), "Destination state is not empty; refusing to replace it")
+        require(not expect or fingerprint(state) == expect,
+                "Existing state changed after its encrypted copy was taken; nothing replaced")
         old_size = sum(path.stat().st_size for path in files(state))
         new_size = sum(path.stat().st_size for path in files(root / "state"))
         require(shutil.disk_usage(root).free > old_size + 16 * 1024**2, "Insufficient space to retain previous state")
@@ -212,7 +366,7 @@ def install_state(root, state, env):
         old = root / "previous"
         old.mkdir(mode=0o700)
         for item in state.iterdir():
-            if item.name in ("watch.lock", "run.lock", ".import-in-progress"):
+            if item.name in KEEP:
                 continue
             require(not item.is_symlink(), "Existing state must not contain symlinks")
             shutil.move(str(item), str(old / item.name))
@@ -241,6 +395,19 @@ def permissions(state, env, uid, gid):
     os.chown(env, os.geteuid(), os.getegid())
 
 
+# Every variable the application reads (pisobot/config.py and the modules calling os.environ),
+# except INSECURE_SSL, which disables TLS verification. A restored env file may set nothing else:
+# PYTHONPATH, LD_PRELOAD and the like would change what code the service runs.
+ALLOWED_ENV = frozenset("""
+    CRIME_RADIUS_M DECODO_AUTH_TOKEN DEFAULT_SERVICE_CHARGE FETCH_CHAIN FETCH_MIN_GAP_S HEALTHCHECK_URL
+    MAP_TILE_URL MAP_URL MAX_ALERTS_PER_RUN MAX_CRIME_SCORE MAX_DEPOSIT MAX_MONTHLY_COST MAX_TRAVEL_MINUTES
+    MAX_USERS MIN_BEDROOMS MORTGAGE_RATE MORTGAGE_YEARS PISOBOT_STATE_DIR PREFERRED_DEPOSIT PRICE_DROP_ALERT
+    RENT_BILLS_ESTIMATE RENT_COUNCIL_TAX_ESTIMATE RENT_MAX_PAGES RENT_MIN RENT_MIN_AREA_M2 RENT_REFRESH_HOURS
+    RENT_REFRESH_MINUTES RENT_SEARCH_MILES REPORT_TOP_N SEARCH_RADIUS_KM SO_RENT_RATE STORAGE TELEGRAM_BOT_TOKEN
+    TELEGRAM_CHAT_ID TELEGRAM_INVITE_USERNAMES TFL_APP_KEY WATCH_FAILURE_LIMIT WATCH_INTERVAL_MIN WATCH_SOURCES
+""".split())
+
+
 def env_check(env, state):
     # Deliberately accept only the documented single-line EnvironmentFile syntax.
     # Never source credentials as shell code.
@@ -253,6 +420,9 @@ def env_check(env, state):
             continue
         name, sep, raw = line.partition("=")
         require(sep and re.fullmatch(r"[A-Z_][A-Z_0-9]*", name), "Unsupported environment file syntax")
+        # Only the validated name is ever printed, never a value.
+        require(name in ALLOWED_ENV, f"Environment variable {name} is not one the application reads; "
+                "remove it from the environment file and export again")
         parts = shlex.split(raw)
         require(len(parts) <= 1, "Unsupported environment file quoting")
         values[name] = parts[0] if parts else ""
@@ -283,7 +453,21 @@ def main(args):
     elif command == "verify":
         verify(Path(args[0]), *args[1:])
     elif command == "install":
-        install_state(*map(Path, args))
+        install_state(*map(Path, args[:3]), replace=args[3:4] == ["1"], expect=(args[4:5] or [""])[0])
+    elif command == "state-status":
+        print(state_status(Path(args[0])))
+    elif command == "handoff":
+        handoff(Path(args[0]), args[1])
+    elif command == "fingerprint":
+        print(fingerprint(Path(args[0])))
+    elif command == "durable-path":
+        durable_path(*map(Path, args))
+    elif command == "discard":
+        discard(Path(args[0]), args[1:])
+    elif command == "retain":
+        retain(Path(args[0]), args[1:])
+    elif command == "replace-check":
+        replace_check(Path(args[0]), Path(args[1]), args[2] == "1")
     elif command == "permissions":
         permissions(*map(Path, args[:2]), *map(int, args[2:]))
     elif command == "env-check":

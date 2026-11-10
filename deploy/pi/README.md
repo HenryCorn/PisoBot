@@ -18,8 +18,10 @@ until the VPS has stopped. Follow [cutover.md](cutover.md) for the actual switch
 None of these scripts enables the bot.
 
 This kit has not been run on a Pi or against the VPS. The Pi is not available
-yet. Local tests use real encryption and live SQLite WAL files but a fake
-application and no systemd/network services. Hardware, packages, mount behavior,
+yet. The integration suite is designed for real age encryption and live SQLite
+WAL files, but a fake application and no systemd/network services. The review-fix
+run used an age plumbing shim because age was unavailable: it does **not**
+validate encryption or multi-recipient decryption. Hardware, packages, mount behavior,
 real unit tests, portal access and the first live cycle still need validation
 on the eventual Pi.
 
@@ -255,7 +257,7 @@ can also be added as another public recipient.
 
 Transfer only the **public** `backup.recipients` file to
 `/root/pisobot.recipients` on the VPS, using your established SSH access.
-The VPS does not need the private key. Do not display, source, email or commit
+The VPS must never receive this master private key. Do not display, source, email or commit
 `pisobot.env`, an identity, or a decrypted state directory.
 
 On the **VPS**, install `age` if absent using its OS package manager (e.g.
@@ -263,6 +265,33 @@ On the **VPS**, install `age` if absent using its OS package manager (e.g.
 
 ```sh
 sudo install -d -m 700 /var/backups/pisobot
+```
+
+Prepare a **dedicated rollback identity on the VPS**, without overwriting an
+existing one:
+
+```sh
+sudo sh -c 'umask 077; age-keygen -o /root/pisobot-rollback.agekey'
+sudo sh -c 'umask 077; age-keygen -y /root/pisobot-rollback.agekey > /root/pisobot-rollback.recipient'
+```
+
+Transfer only `pisobot-rollback.recipient` to the Pi through your approved
+administrator transfer procedure. Add its public recipient line to
+`/etc/pisobot/backup.recipients` using `sudoedit`, retaining the Pi's recipient.
+Copy that combined **public** recipients file back to `/root/pisobot.recipients`
+on the VPS. Keep the rollback private key root-owned 600 on the VPS and a copy
+in the offline vault. Never move `/etc/pisobot/backup.agekey` to the VPS.
+
+Before cutover, use synthetic data to verify that **both identities separately**
+decrypt an archive encrypted to the combined recipients file. This was not
+validated locally with real age. A compromised VPS can still decrypt any
+archive addressed to its rollback key; separate keys avoid moving the master,
+not this trust risk. Prefer a separate ciphertext-only backup host. A backup
+account must never be able to read the VPS root-only rollback identity.
+
+Then take the rehearsal export:
+
+```sh
 sudo env PISOBOT_EXPECT_HOST=REPLACE_WITH_VPS_HOSTNAME PISOBOT_EXPECT_ARCH=x86_64 \
   PISOBOT_AGE_RECIPIENTS=/root/pisobot.recipients \
   bash /opt/pisobot/migration/vps-export.sh \
@@ -274,8 +303,17 @@ Use the architecture actually inventoried, not `x86_64` if it differs.
 By default **nothing is stopped**. Every SQLite database, including every
 `users/<chat_id>/pisobot.db`, uses SQLite's online backup API and an integrity
 check. JSON, user directories, tile files and the environment are included.
-WAL/SHM/journal sidecars, `.pending` files and locks are excluded. There is
+WAL/SHM/journal sidecars, `.pending` files, locks, handoff markers and the
+`tmp` + eight-character files used for atomic seen writes are excluded. There is
 never a raw copy of a live SQLite database.
+
+Quiesced exports require existing `watch.lock` and `run.lock`; they never create
+root-owned replacements. If missing, stop all scanners and have the operator
+recreate them as `pisobot`, mode 600, before retrying. Never unlink a held lock.
+With both locks held, the exporter removes only SQLite sidecars its read-only
+open created; live exports never remove them. On the actual Pi, check
+`ls -l /var/lib/pisobot` after a quiesced export (remaining sidecars must be
+`pisobot`-owned), restart the watcher and verify it is active.
 
 A live export is individually SQLite-consistent, **not an atomic transaction
 across different databases, cache and seen files**. It is for rehearsal only.
@@ -314,9 +352,23 @@ export, import, actual unit tests/dry scan and enabling the Pi.
 The provided implementation targets another **Linux machine over SSH**; it can
 be the retained Hostinger VPS. Set up a dedicated unprivileged backup account,
 a mode-700 destination directory owned by it, key-only SSH and a verified host
-key in root's `known_hosts` on the Pi. Restrict that account/key to backup access
-as appropriate to your SSH configuration. Do not share the age identity with
-the backup server. Do not disable SSH host-key checking.
+key in root's `known_hosts` on the Pi. This implementation requires a **plain
+shell account**, not SFTP-only, `rrsync` or a forced-command key: it invokes
+`test`, GNU `stat -c`, `cat /etc/machine-id`, `umask`, `mkdir`, `touch`, and
+bidirectional `scp` (including SFTP support for modern scp). Keep it
+unprivileged, without sudo, and limit forwarding/access as appropriate without
+blocking those operations. An SFTP-only transport is deferred. Do not share the
+Pi's age identity with the backup server. Do not disable SSH host-key checking.
+
+Before cutover, check the read-only part from the Pi as the same SSH user:
+
+```sh
+sudo ssh -o BatchMode=yes -o StrictHostKeyChecking=yes pisobot-backup@YOUR_BACKUP_HOST \
+  'test -d /srv/pisobot-backups && stat -c %a /srv/pisobot-backups && cat /etc/machine-id'
+```
+
+Expect mode `700` and an ID different from the Pi. The first manual backup must
+also prove write, upload, download and restore access; this probe alone cannot.
 
 The target's machine ID must differ from the Pi's. This catches accidental
 backups to itself; it does not prove a separate physical failure domain. A NAS
@@ -339,6 +391,9 @@ PISOBOT_BACKUP_DIR=/srv/pisobot-backups
 These are systemd environment assignments, **not a shell script to source**.
 For a nonstandard SSH port/key, put an SSH host alias in root's SSH config and
 use that alias for `PISOBOT_BACKUP_TARGET`. No secrets belong in command arguments.
+
+Take the first manual backup **immediately after the first clean live cycle**,
+before the 24-hour soak. Have the account/configuration ready before cutover.
 
 ```sh
 sudo chmod 600 /etc/pisobot/backup.env
@@ -402,6 +457,27 @@ watcher. The backup script restarts only the previously active Pi watcher.
 Exports never overwrite existing archive names. Use a new timestamped name.
 Successful imports may be repeated while both hosts remain stopped: they
 replace state instead of merging, so stale WAL/user files cannot survive.
+An occupied destination is refused without **`--replace-state`**. That flag
+requires `PISOBOT_AGE_RECIPIENTS` and first writes, decrypts and verifies an
+encrypted safety copy at `PISOBOT_PREVIOUS_DIR` (default `/var/backups/pisobot`,
+root-only 700, not tmpfs/ramfs or inside state/scratch). The selected identity
+must decrypt this copy as well as the incoming archive. Keep the copy and
+checksum until the next verified off-box nightly backup; the **first** copy
+holds the original state, later retries copy the state left by earlier attempts.
+
+If existing `watch_last_success` is later than the incoming archive's creation
+time, import refuses unless **`--allow-older-archive`** accompanies
+`--replace-state`. That is deliberate acceptance of lost/replayed changes,
+not a routine retry flag. An unknown scan timestamp warns; it cannot prove the
+archive is newer or compare every intervening button action.
+
+Restored env files accept only application variable names, with `STORAGE=local`,
+`FETCH_CHAIN=plain` and the matching state path. `PYTHONPATH`, `LD_PRELOAD`,
+`INSECURE_SSL` and unknown names are refused without logging values.
+The installed `pisobot-vps-handoff.conf` fences the old VPS after final export;
+see cutover.md for installation, masking and rollback. The Pi drop-in also
+honours the marker when exporting back. Successful import clears a handoff
+marker only after validation; failed import keeps it.
 Re-provisioning refuses an active watcher. Stop the backup timer/service before
 maintenance; never run provisioning/import and backup concurrently.
 
@@ -415,31 +491,43 @@ archive. Normal cleanup unlinks it; this is not guaranteed secure erasure on
 flash, and tmpfs can be swapped. Use encrypted local storage if that threat
 matters.
 
-On import failure, the service stays disabled and `.import-in-progress` blocks
-Pi startup. The printed private job directory contains validation logs,
-`restored/previous/` (old state) and `restored/previous.env` when an old env
-existed. Do not paste these files into issues. After inspecting the failure:
+### Failure procedure
+
+On import failure after installation begins, the service stays disabled and
+`.import-in-progress` blocks startup. The cleanup removes plaintext scratch
+state/env copies and retains only validation logs. The replaced state survives
+in the printed durable `replaced-*.age` copy, **not in `/run`**. Pre-install
+failures normally remove the entire job. SIGKILL/power loss cannot run cleanup:
+inspect and remove residual plaintext privately after recovery. Logs can also
+contain sensitive application output; do not paste them into issues.
 
 1. Confirm both hosts are still stopped. If import was interrupted, inspect
    `systemctl status pisobot-migration-check.service --no-pager`; if that
    transient scan is still running, stop it with
    `sudo systemctl stop pisobot-migration-check.service` before doing anything
-   else. A completed/collected unit may no longer exist. Preserve the failed job privately
-   if it is needed for recovery. `/run` does not survive reboot.
+   else. A completed/collected unit may no longer exist. Verify the retained
+   encrypted copy/checksum with `--restore-test`; `/run` does not survive reboot.
 2. Fix the cause (NTP, code commit, dependencies, portal access, storage).
    Do not "fix" a failed source by treating it as an empty successful scan.
 3. If retrying from the known encrypted final archive, remove **only**
-   `/var/lib/pisobot/.import-in-progress` after that review, then re-run import.
+   `/var/lib/pisobot/.import-in-progress` after that review, then re-run import
+   with `--replace-state` and the recipients file. To return to the original
+   state instead, select the first encrypted safety copy, add `--recovery`,
+   and acknowledge its recorded source hostname. Use `--allow-older-archive`
+   only after accepting the loss of later changes.
    If a crash left `/etc/pisobot/.pisobot.env.import`, inspect and remove only
    that stale staging file too. Never remove state or WAL files from a running
    service.
 4. Use the rollback checklist instead if returning to the VPS. Keep retained
    recovery jobs until success; then remove only their exact `job.*` directory,
-   not the scratch root. Do not reboot until needed recovery data is safe.
+   not the scratch root. Keep the encrypted original until the next verified
+   off-box backup. If incomplete state cannot itself be snapshotted, stop and
+   arrange operator-assisted recovery; do not erase it to bypass the guard.
 
 Export/import paths are overridable for testing and controlled recovery:
 `PISOBOT_STATE_DIR`, `PISOBOT_ENV_FILE`, `PISOBOT_APP_DIR`,
-`PISOBOT_VENV_DIR`, `PISOBOT_TMP_DIR`, `PISOBOT_ARCHIVE`, `PISOBOT_PYTHON`.
+`PISOBOT_VENV_DIR`, `PISOBOT_TMP_DIR`, `PISOBOT_PREVIOUS_DIR`,
+`PISOBOT_ARCHIVE`, `PISOBOT_PYTHON`.
 Helpers default to the service venv's Python when present, otherwise `python3`
 (3.11+ required; the service itself still requires 3.12).
 Production provisioning deliberately fixes the canonical VPS paths. A custom
@@ -455,6 +543,17 @@ if command -v shellcheck >/dev/null; then shellcheck -x -P . deploy/pi/*.sh depl
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/pi -p 'test_*.py' -v
 ```
 
+Without age, run the stdlib-only helper/guard regressions:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/pi -p test_state.py -v
+```
+
+`test_state.py` covers replacement/fingerprints, cleanup, allowlisted env,
+WAL/sidecar handling, absent/held locks and stubbed systemctl states.
+`test_kit.py` requires age/age-keygen for encryption validation; a plumbing shim
+is not an encryption test. No test contacts Telegram, portals or a live host.
+
 The suite creates/deletes dedicated `pisobot-kit-test-*` folders under this
 directory, keeps SQLite WAL connections open during export, preserves fake
 saved/hidden and per-user state, exercises actual age encryption/import,
@@ -463,3 +562,20 @@ hosts/commits, held locks, unsafe archive paths/links and failed validation.
 Its `PISOBOT_TEST_ROOT` escape hatch is confined to a marked private directory,
 still checks hostname/architecture, never calls systemd/SSH, and labels archives
 test-only. Production import rejects them. Do not use this mode with real data.
+
+### Verify on the actual hosts (still untested)
+
+OS/image dates and package availability above are planning assumptions, not a
+provisioning result. Verify Ubuntu 24.04 arm64 on Pi 4/5, Python 3.12/venv,
+age `-R`/`-i` and both recipients, ARM64 Pillow wheels/codecs, NTP, unattended
+updates, device-tree detection (Pi 400/CM4 are not accepted), USB boot and Imager
+cloud-init. Confirm the application commit is reachable and scratch has room.
+The write-rate estimate excludes filesystem amplification and extra users.
+
+Exercise SSD missing-mount/reboot guards, ext4 `lost+found`, sidecar ownership,
+the handoff/import conditions and `systemctl is-active` after every start.
+Masking an `/etc/systemd/system` regular unit may fail; never replace/delete
+the unit to force it. Verify the installed drop-in and marker fence instead.
+Check the durable encrypted copy survives reboot and memory-backed paths are
+refused. Remote shell/scp/readback, real application tests/dry scan, Telegram
+takeover, rollback, disaster recovery and the 24-hour soak all remain untested.
