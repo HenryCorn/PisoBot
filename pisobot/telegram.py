@@ -2,6 +2,7 @@ import datetime as dt
 import html
 import json
 import os
+import re
 import time
 from zoneinfo import ZoneInfo
 
@@ -52,6 +53,24 @@ def _call(method, files=None, loud=False, **data):
         error.permanent = (res.get("error_code") or r.status_code) in (400, 403)
         raise error from None
     return res
+
+
+def delivery_failure_label(error):
+    """Allowlisted diagnostics only: never log raw exceptions, API URLs or descriptions."""
+    text = str(error)
+    match = re.match(r"Telegram (sendPhoto|sendMessage) failed \((\d{3})\):", text)
+    if match:
+        description = text[match.end():].lower()
+        categories = (("too long", "text_too_long"), ("parse entities", "invalid_html"),
+                      ("too many requests", "rate_limited"), ("photo", "photo_rejected"),
+                      ("image", "photo_rejected"), ("button", "invalid_button"),
+                      ("url", "invalid_url"), ("unauthorized", "unauthorized"),
+                      ("forbidden", "forbidden"))
+        kind = next((label for phrase, label in categories if phrase in description), "api_rejected")
+        return f"{match[1]} HTTP {match[2]} {kind}"
+    if re.match(r"Telegram (sendPhoto|sendMessage) request failed", text):
+        return "Telegram transport failure"
+    return "listing sender RuntimeError"
 
 
 def throttle():
@@ -137,7 +156,8 @@ def age_text(l, today=None):
 
 def portal_line(l, today=None):
     """Age, letting agent and the agent's published number (plain text, never a call button)."""
-    parts = [f"🕒 {age_text(l, today)}" if age_text(l, today) else "", f"🏢 {e(l.agent[:60])}" if l.agent else "",
+    age = age_text(l, today)
+    parts = [f"🕒 {e(age)}" if age else "", f"🏢 {e(l.agent[:60])}" if l.agent else "",
              f"☎️ {e(l.agent_phone[:24])}" if l.agent_phone else ""]
     return " · ".join(p for p in parts if p)
 
