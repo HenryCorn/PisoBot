@@ -11,8 +11,8 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, monthly_rent, private_rent_costs, text,
-               update_kind)
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, monthly_rent, phone_number,
+               private_rent_costs, text, update_kind)
 
 BASE = "https://www.rightmove.co.uk"
 LOCATION = "STATION^6953"          # Oxford Circus Station
@@ -42,6 +42,7 @@ def _listing(x):
         available=(x.get("letAvailableDate") or "")[:10] or None,
     )
     l.first_listed = iso_date(x.get("firstVisibleDate"))
+    l.first_listed_at = _timestamp(x.get("firstVisibleDate"))
     update = x.get("listingUpdate") or {}
     l.update_reason = update_kind(update.get("listingUpdateReason") or update.get("reason"))
     l.update_date = iso_date(update.get("listingUpdateDate") or update.get("date")) if l.update_reason else None
@@ -49,6 +50,34 @@ def _listing(x):
     branch = re.sub(r"^\s*by\s+", "", str(x.get("formattedBranchName") or ""), flags=re.I).strip()
     l.agent = branch or None
     return private_rent_costs(l)
+
+
+def _timestamp(value):
+    """'2026-11-09T14:03:12Z' -> '2026-11-09T14:03:12+00:00' (UTC); a bare date or junk -> None."""
+    value = str(value or "")
+    if "T" not in value:
+        return None
+    try:
+        when = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        return None
+    return when.astimezone(dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def _contact_phone(p):
+    """The branch number from propertyData.contactInfo.telephoneNumbers, when published. The shape
+    comes from the spec, not a stored page, so every level is checked and anything odd is dropped."""
+    contact = p.get("contactInfo")
+    numbers = contact.get("telephoneNumbers") if isinstance(contact, dict) else None
+    if not isinstance(numbers, dict):
+        return None
+    for name in ("localNumber", "internationalNumber"):
+        number = phone_number(numbers.get(name))
+        if number:
+            return number
+    return None
 
 
 def _params(index, **extra):
@@ -156,6 +185,7 @@ def _details(p):
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
             "deposit": lettings.get("deposit") or None, "available": available,
             "council_tax_band": band if band in "ABCDEFGH" and len(band) == 1 else None,
+            "agent_phone": _contact_phone(p),
             "council_tax_included": living["councilTaxIncluded"]
             if isinstance(living.get("councilTaxIncluded"), bool) else None}
 

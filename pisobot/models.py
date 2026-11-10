@@ -69,12 +69,14 @@ class Listing:
     council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
     # Facts the portals already publish (private rent)
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
+    first_listed_at: Optional[str] = None        # full ISO timestamp of that, when the portal gives one
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
     update_date: Optional[str] = None            # ISO date of that update
     update_text: Optional[str] = None            # portal's own phrase when it gives no exact date
     update_text_on: Optional[str] = None         # ISO date that phrase was read (it ages)
     bathrooms: Optional[int] = None
     agent: Optional[str] = None                  # letting agent / branch name
+    agent_phone: Optional[str] = None            # agent's number, when the details page publishes one
     advert_deposit: Optional[float] = None       # deposit stated on the search card
     available: Optional[str] = None   # private rent: ISO move-in date, when published
     min_deposit: Optional[float] = None
@@ -110,6 +112,7 @@ class Listing:
     red_flags: list = field(default_factory=list)
     vibes: list = field(default_factory=list)
     livability_tags: list = field(default_factory=list)
+    urgency: Optional[str] = None     # "top" for a top-tier new match (renter.tier), else None
 
     @property
     def key(self):

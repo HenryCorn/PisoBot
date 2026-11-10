@@ -228,6 +228,44 @@ rejected flats.
    one summary with the count, pointing to `/report`; later sweeps alert normally, within
    `MAX_ALERTS_PER_RUN`.
 
+## Work package 3 (act fast and keep track)
+
+Goal: the bot stops at a card with Save and Hide. In London a good flat is often let within days,
+and people lose flats because they enquired late or lost track. Help the two users act quickly and
+follow each home from first sight to signed tenancy. Intent: section 7. VPS only (`STORAGE=local`);
+the cloud path is untouched.
+
+1. **Pipeline.** Per person and advert a stage: new, saved, enquired, viewing booked (date and
+   time), viewed (rating 1-5 and a free-text note), offer made, won, lost (optional reason). Cards
+   gain an Enquired button; a saved or enquired home's card and `/pipeline` move a home along with
+   buttons, and a viewing time and notes are set by replying in text. `/pipeline` lists homes by
+   stage with rent, commute and the next action. Viewing reminders: the evening before and two
+   hours before. When an archived advert in someone's pipeline changes rent or becomes `unseen`
+   (work package 2), tell them once.
+2. **Urgency tiers.** A new match is `top` when its ranking score is in the best fifth of that
+   person's matches over the last 14 days of verdicts, or the portal first listed it within the
+   last 3 hours. Top matches carry a visible marker and notify with sound even in quiet hours only
+   if the person turned that on (`/set urgent on`, default off). Ordinary matches behave as today.
+3. **Renter profile and enquiry draft.** `/profile` stores a few facts per person: name to sign
+   with, move-in date or window, occupation, household, pets, smoker, references ready, anything
+   else. An Enquiry text button replies with a short message built from the profile and the advert
+   (address, the advert's available date against the move-in window, a request for the earliest
+   viewing slots). The bot never sends anything to agents or portals; it only drafts text.
+4. **Contact.** Where a portal's details page publishes the agent's phone number (Rightmove
+   `contactInfo`), store it and show agent name and number on the card as plain text. Telegram
+   inline URL buttons do not accept `tel:` links, so there is no call button; a plain number in
+   message text is tappable.
+5. **More photos.** A button sends the advert's remaining photos as an album on demand (media
+   groups take 2-10 items and cannot carry inline buttons, hence on demand).
+6. **Move-in fit.** With a move-in window in the profile and an available date on the advert, the
+   card says whether it fits and by how many days it misses.
+7. **Onboarding.** A new person's `/start` (and `/onboard`) asks destination, rent cap, commute
+   limit, bedrooms, move-in window and profile facts one question at a time, with buttons where
+   the answer is a choice, writing the same settings `/set` does. Resumable and skippable.
+
+Constraints: `callback_data` stays within Telegram's 64 bytes; the durable update offset and the
+allowlist in `bot.py` are unchanged.
+
 ## Probe results (2026-11-10, this Mac, plain HTTP, paced, no challenge solving)
 
 Egress for the "home" column was a UK consumer ISP; the "VPN" column is an earlier run through
