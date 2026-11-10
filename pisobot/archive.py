@@ -100,6 +100,7 @@ RETRY = "('enrichment', 'unsent', 'deferred', 'enrichment_failed')"
 RETRY_BACKOFF_SECONDS = 300  # even the first failure waits: head + sweep share this clock
 MAX_RETRY_BACKOFF_SECONDS = 3600  # transient failures never permanently retire an active advert
 UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
+ARCHIVE_IMAGES = 16   # photos kept per advert: the card's header plus a "More photos" album (2-10)
 
 
 def enabled():
@@ -153,7 +154,7 @@ def upsert(listings, via, sweep_id=None, at=None):
             if l.rent is None:
                 continue
             old = (_rows(db, "SELECT * FROM adverts WHERE key = ?", l.key) or [None])[0]
-            data = json.dumps(snapshot(l), sort_keys=True)
+            data = json.dumps(snapshot(l, max_images=ARCHIVE_IMAGES), sort_keys=True)
             if old is None:
                 db.execute("INSERT INTO adverts (key, source, url, address, bedrooms, rent, lat, lng, first_seen,"
                            " last_seen, portal_first_listed, status, head_seen, last_sweep_id, missed, data)"
@@ -198,6 +199,25 @@ def upsert(listings, via, sweep_id=None, at=None):
 def history(key):
     with _db() as db:
         return _rows(db, "SELECT at, rent, status FROM observations WHERE key = ? ORDER BY id", key)
+
+
+def change_id(key, kind, value):
+    """The id of the observation that started the advert's current ``kind`` ("rent" or "status")
+    episode, if its current value is ``value``; None otherwise. Every path that tells a person about
+    a change names it by this id, so they can share one acknowledgement: the same rent cut seen by
+    the watcher and by the pipeline is the same event, and a later cut is a new one."""
+    column = {"rent": "rent", "status": "status"}[kind]
+    with _db() as db:
+        found = db.execute(f"SELECT id, {column} AS v FROM observations WHERE key = ? ORDER BY id DESC LIMIT 500",
+                           (key,)).fetchall()
+    if not found or found[0]["v"] != value:
+        return None
+    event = None
+    for row in found:
+        if row["v"] != value:
+            break
+        event = row["id"]
+    return event
 
 
 def advert(key):

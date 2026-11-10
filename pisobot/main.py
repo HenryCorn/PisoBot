@@ -17,7 +17,8 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import archive, cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import (archive, cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, renter, taste,
+               telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -237,11 +238,11 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
         os.makedirs(preview_dir, exist_ok=True)
     preview = []
     for i, (text, kb) in enumerate(messages):
-        jpeg = None
+        jpeg, l, shown = None, None, []
         if 1 <= i <= len(top):
             l = top[i - 1]
             _ensure_photos(l)
-            jpeg = collage.build(l)
+            jpeg = collage.build(l, sources=shown)
             print(f"card #{i}: {l.key}")
             if not jpeg:
                 text += "\n📷 Header unavailable · use Open listing to view the media"
@@ -254,7 +255,9 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
                 image = f'<img src="{filename}" alt="Listing {i} map and property" style="max-width:100%"><br>\n'
             preview.append(image + text.replace("\n", "<br>\n"))
         else:
-            telegram.send_card(jpeg, text, kb, f"🏠 Listing #{i}")
+            result = telegram.send_card(jpeg, text, kb, f"🏠 Listing #{i}")
+            if l is not None:
+                telegram.remember_photos(l.key, result, shown if jpeg else [])
             telegram.throttle()
     if preview_dir:
         with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
@@ -337,6 +340,25 @@ def _verdict_row(l, why):
     all_in = l.monthly_cost if l.monthly_cost is not None else (
         l.rent + l.bills if l.rent is not None and l.bills is not None else None)
     return (l.key, why or "matched", l.rent, all_in, l.travel_minutes, l.crime_score)
+
+
+def _set_urgency(l):
+    """WP3: mark a new rental "top" (⚡ on the card; loud at night only with /set urgent on). Best
+    effort: a failure only means no marker, never a lost alert."""
+    try:
+        l.urgency = renter.tier(l, users.current_chat() or users.owner_chat() or "owner")
+    except Exception as ex:
+        print(f"urgency tier failed: {type(ex).__name__}", file=sys.stderr)
+
+
+def _send_change(l, reason):
+    """Send a price-drop or saved-home change card unless this person was already told about the same
+    archived rent change by another path (a /pipeline notice). Returns "sent", "told" (record it as
+    seen, send nothing) or "busy" (another path is sending it now: leave it for the next run)."""
+    if l.tenure == "rent" and l.rent is not None and users.enabled() and archive.enabled():
+        return tracker.once(l.key, "rent", l.rent, lambda: telegram.send_listing(l, reason))
+    telegram.send_listing(l, reason)
+    return "sent"
 
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
@@ -674,6 +696,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     # 6. ... otherwise individual alerts
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
+    delivery_errors = []
     for l, reason in to_send[:max(0, alert_budget["remaining"])]:
         check_stop()
         if deadline is not None and clock() >= deadline:
@@ -683,7 +706,24 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if not live:
             continue
         _ensure_photos(l)
-        telegram.send_listing(l, reason)
+        if reason == "new" and archive.enabled():
+            _set_urgency(l)
+        try:
+            if reason == "new":
+                telegram.send_listing(l, reason)
+                send_state = "sent"
+            else:
+                send_state = _send_change(l, reason)
+                if send_state == "busy":
+                    continue
+        except RuntimeError as ex:
+            if not (watch and rentals and os.environ.get("STORAGE") == "local"):
+                raise
+            print(f"Listing delivery failed for {l.key}: {telegram.delivery_failure_label(ex)}",
+                  file=sys.stderr)
+            delivery_errors.append(ex)
+            telegram.throttle()
+            continue
         alert_budget["remaining"] -= 1
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
@@ -695,12 +735,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if local_rentals:
             archive.record_verdicts(person_id, [_verdict_row(l, None)], settings, acknowledged=True)
         delivered.add(l.key)
-        telegram.throttle()
+        if send_state == "sent":
+            telegram.throttle()
     if live:
         for l in saved_changes:
             _ensure_photos(l)
-            telegram.send_listing(l, "saved")
-            telegram.throttle()
+            if _send_change(l, "saved") == "sent":
+                telegram.throttle()
         for info in gone:
             telegram.send_text(f'❤️ <b>Saved home no longer listed</b>\n<a href="{info.get("url")}">'
                                f'{telegram.e(info.get("address") or "listing")}</a>')
@@ -726,6 +767,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    if delivery_errors:
+        raise delivery_errors[0] from None
     return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
             "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
             "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,

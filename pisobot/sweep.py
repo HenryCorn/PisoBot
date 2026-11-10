@@ -17,7 +17,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, config, d1, main as pipeline, prefs, telegram, users
+from . import archive, config, d1, main as pipeline, prefs, telegram, tracker, users
 from .sources import otm_rent, rightmove
 
 log = logging.getLogger(__name__)
@@ -199,6 +199,8 @@ def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=Non
     """Drain durable, per-person transition events; one failed chat must not block another.
 
     At least once: a crash after Telegram accepts but before the DB ack may duplicate a message.
+    Shares one acknowledgement with the /pipeline change notice for the same archived transition
+    (tracker.once), whichever path gets there first.
     """
     if deadline is not None and clock() >= deadline:
         return
@@ -209,22 +211,38 @@ def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=Non
         try:
             with users.use(person):
                 p = prefs.load()
-                for event in archive.pending_unseen(person.chat_id):
-                    if stop_event is not None and stop_event.is_set():
-                        raise InterruptedError("PisoBot is stopping")
-                    if person_deadline is not None and clock() >= person_deadline:
-                        break
-                    if keys is not None and event["key"] not in keys:
-                        continue
-                    info = p["saved"].get(event["key"])
-                    if info is not None and event["status"] == "unseen":
-                        telegram.send_text(f'❤️ <b>Saved home no longer found in the search</b>\n'
-                                           f'<a href="{info.get("url")}">{telegram.e(info.get("address") or "listing")}</a>\n'
-                                           "<i>It may have been let, withdrawn or re-priced above your range.</i>")
-                        info["unseen"] = True
+                changed = False
+                try:
+                    for event in archive.pending_unseen(person.chat_id):
+                        if stop_event is not None and stop_event.is_set():
+                            raise InterruptedError("PisoBot is stopping")
+                        if person_deadline is not None and clock() >= person_deadline:
+                            break
+                        if keys is not None and event["key"] not in keys:
+                            continue
+                        info = p["saved"].get(event["key"])
+                        if info is not None and event["status"] == "unseen":
+                            if not info.get("unseen"):
+                                text = (f'❤️ <b>Saved home no longer found in the search</b>\n'
+                                        f'<a href="{info.get("url")}">{telegram.e(info.get("address") or "listing")}</a>\n'
+                                        "<i>It may have been let, withdrawn or re-priced above your range.</i>")
+                                if users.enabled() and archive.enabled():
+                                    state = tracker.once(event["key"], "status", "unseen", lambda: telegram.send_text(text))
+                                else:
+                                    telegram.send_text(text)
+                                    state = "sent"
+                                if state == "busy":
+                                    continue
+                                info["unseen"] = True
+                                changed = True
+                                if state == "sent":
+                                    telegram.throttle()
+                            archive.acknowledge_unseen(person.chat_id, event["id"])
+                        elif info is None:
+                            archive.acknowledge_unseen(person.chat_id, event["id"])
+                finally:
+                    if changed:
                         prefs.save(p)
-                        telegram.throttle()
-                    archive.acknowledge_unseen(person.chat_id, event["id"])
         except InterruptedError:
             raise
         except Exception as ex:
