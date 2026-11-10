@@ -288,10 +288,10 @@ def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock
             while clock() < source_deadline:
                 if stop_event is not None and stop_event.is_set():
                     raise InterruptedError("PisoBot is stopping")
-                if not quiet and alert_budget["remaining"] <= 0:
+                if not quiet and (alert_budget.get("attempts", 1) <= 0 or alert_budget["remaining"] <= 0):
                     break
                 batch = archive.pending(person.chat_id, [source], settings, EVALUATE_BATCH, skip,
-                                        exclude_intents=quiet and alert_budget["remaining"] <= 0)
+                                        exclude_intents=quiet and (alert_budget.get("attempts", 1) <= 0 or alert_budget["remaining"] <= 0))
                 if not batch:
                     # Classified retries/intents have their OWN silence/delivery lifecycle.
                     # Only unattempted inventory blocks this source generation from going live.
@@ -350,6 +350,7 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
     # Reserve time for old durable notices BEFORE judgement can consume the whole slice.
     notify_unseen(deadline=min(deadline, clock() + config.DEEP_SWEEP_STEP_SECONDS * 0.1),
                   clock=clock, stop_event=stop_event)
+    errors = []
     for person in _people_turn(people, "sweep_people_turn"):
         if not person.owner and users.get(person.chat_id) is None:
             continue
@@ -362,5 +363,7 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
             raise
         except Exception as ex:
             log.error("Deep sweep judging failed for %s (%s)", person.label, type(ex).__name__)
+            errors.append(ex)
     # Retry durable events even when no new sweep finished; never let a backlog hold the poll.
     notify_unseen(deadline=deadline, clock=clock, stop_event=stop_event)
+    return {"complete": not errors, "errors": errors}

@@ -323,14 +323,44 @@ def failed_work(chat_id, limit=5):
                      "ORDER BY w.updated_at DESC, w.key LIMIT ?", str(chat_id), limit)
 
 
+def delivery_failures(chat_id, keys):
+    if not keys:
+        return {}
+    marks = ",".join("?" for _ in keys)
+    with _db() as db:
+        rows = _rows(db, f"SELECT key, failures FROM advert_work WHERE chat_id = ? AND key IN ({marks})",
+                     str(chat_id), *keys)
+    return {r["key"]: r["failures"] for r in rows}
+
+
 def lookup_degraded(chat_id, settings):
     """Current active lookup retries only; stale contexts/removed inventory cannot hold an alarm."""
     with _db() as db:
-        rows = _rows(db, "SELECT w.context, a.data FROM advert_work w JOIN adverts a ON a.key=w.key "
+        rows = _rows(db, "SELECT w.context, a.data FROM advert_work w "
+                     "JOIN adverts a ON a.key=w.key "
+                     "JOIN verdicts v ON v.key=w.key AND v.chat_id=w.chat_id "
                      "WHERE w.chat_id=? AND a.status='active' AND w.state IN ('backoff','failed') "
-                     "AND (w.failures > 0 OR w.state='failed')",
+                     "AND (w.failures > 0 OR w.state='failed') "
+                     "AND v.outcome IN ('enrichment', 'enrichment_failed')",
                      str(chat_id))
     return sum(row['context'] == _context(settings, row['data']) for row in rows)
+
+
+def record_delivery_failure(chat_id, key, settings, at=None):
+    """Record failed delivery attempt so poisoned cards rotate behind unattempted inventory."""
+    at = at or now()
+    with _db() as db:
+        context = _context_for(db, key, settings)
+        job = _job(db, chat_id, key)
+        same = job is not None and job["context"] == context
+        failures = (job["failures"] + 1) if same else 1
+        intent_id = (job.get("intent_id") if same else None) or uuid.uuid4().hex
+        db.execute("INSERT INTO advert_work (chat_id, key, context, settings, notify, silent, failures, next_retry, "
+                   "state, updated_at, intent_id) VALUES (?, ?, ?, ?, 1, 0, ?, NULL, 'pending', ?, ?) "
+                   "ON CONFLICT(chat_id, key) DO UPDATE SET failures = excluded.failures, "
+                   "next_retry = NULL, state = 'pending', updated_at = excluded.updated_at, "
+                   "intent_id = excluded.intent_id, notify = 1",
+                   (str(chat_id), key, context, settings, failures, at, intent_id))
 
 
 def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_keys=None, acknowledged=False,
@@ -385,7 +415,7 @@ def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_k
             elif retryable:
                 state = "pending"
                 if outcome == "unsent":
-                    failures = 0  # lookup recovered; delivery quota is not a lookup failure
+                    failures = old["failures"] if same and old["failures"] > 0 else 0
             elif outcome == "matched":
                 failures = 0  # a successful judgement ends the consecutive lookup failure streak
                 if notify and not acknowledged:

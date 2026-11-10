@@ -336,7 +336,10 @@ class Handler:
         except TelegramError as error:
             if item.get("fallback") and (error.unavailable_message or error.permanent):
                 return self._deliver(item["fallback"])
-            if error.unavailable_message or error.permanent or item.get("best_effort"):
+            if error.unavailable_message or item.get("best_effort"):
+                LOG.warning("Telegram %s was not accepted; skipped", item["method"])
+                return None
+            if getattr(self, "_flushing", False) and error.permanent:
                 LOG.warning("Telegram %s was not accepted; skipped", item["method"])
                 return None
             raise
@@ -345,16 +348,20 @@ class Handler:
         return result
 
     def _flush(self, update_id, outbox):
-        while outbox:
-            try:
-                self._deliver(outbox[0])
-            except TelegramError:
+        self._flushing = True
+        try:
+            while outbox:
+                try:
+                    self._deliver(outbox[0])
+                except TelegramError:
+                    if update_id is not None:
+                        tracker.record(update_id, outbox)
+                    raise
+                outbox.pop(0)
                 if update_id is not None:
                     tracker.record(update_id, outbox)
-                raise
-            outbox.pop(0)
-            if update_id is not None:
-                tracker.record(update_id, outbox)
+        finally:
+            self._flushing = False
 
     def _apply(self, update_id, work):
         if not users.enabled():

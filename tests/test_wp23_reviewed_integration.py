@@ -173,7 +173,7 @@ class DeliveryAndCardIsolationSeams(Repro):
             err = self.cycle(HEAD + [item1, item2])
             self.assertIsInstance(err, RuntimeError)
 
-        # In cycle 1, both cards were attempted under the allowance (head attempt + sweep judge retry for item1)
+        # In cycle 1, both cards were attempted under the allowance (head attempt + sweep retry)
         self.assertEqual(calls, [item1.key, item2.key, item1.key])
         seen = self.seen()
         # Failed card is NOT marked seen

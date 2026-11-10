@@ -24,8 +24,10 @@ import contextlib
 import datetime as dt
 import html
 import json
+import os
 import re
 import sqlite3
+import uuid
 from zoneinfo import ZoneInfo
 
 from . import archive, localdb, tgtext, users
@@ -58,6 +60,8 @@ CREATE TABLE IF NOT EXISTS notices (
     event INTEGER NOT NULL,
     state TEXT NOT NULL,
     until TEXT NOT NULL,
+    token TEXT,
+    claims INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (key, kind, event)
 );
 CREATE TABLE IF NOT EXISTS shown (
@@ -571,35 +575,72 @@ def shown_urls(key, message_id=None):
     return json.loads(found[0]["urls"]) if found else None
 
 
+class DeliveryRejected(Exception):
+    permanent = True
+
+
 # ---------- one acknowledgement per change, shared by every path that tells it ----------
 
-def claim(key, kind, event, at=None):
+class ClaimResult(str):
+    token = None
+
+
+def claim(key, kind, event, at=None, token=None):
     """Take the right to tell the person about archive event ``event`` (archive.change_id):
     "claimed" (send it, then ack or release), "told" (someone already did) or "busy" (another path
     is sending it right now; leave it to that path). A claim not acknowledged within NOTICE_LEASE
     (the sender crashed) can be taken again, so a notice is never lost, at worst sent twice."""
     at = at or now()
+    token = token or os.urandom(8).hex()
     with transaction() as db:
-        found = db.execute("SELECT state, until FROM notices WHERE key = ? AND kind = ? AND event = ?",
+        found = db.execute("SELECT state, until, token, claims FROM notices WHERE key = ? AND kind = ? AND event = ?",
                            (key, kind, event)).fetchone()
         if found and found["state"] == "sent":
             return "told"
-        if found and found["until"] > _iso(at):
+        if found and found["state"] == "pending" and found["until"] > _iso(at):
             return "busy"
-        db.execute("INSERT INTO notices (key, kind, event, state, until) VALUES (?, ?, ?, 'pending', ?) "
-                   "ON CONFLICT(key, kind, event) DO UPDATE SET state = 'pending', until = excluded.until",
-                   (key, kind, event, _iso(at + NOTICE_LEASE)))
-    return "claimed"
+        claims = (found["claims"] + 1) if found else 1
+        db.execute("INSERT INTO notices (key, kind, event, state, until, token, claims) VALUES (?, ?, ?, 'pending', ?, ?, ?) "
+                   "ON CONFLICT(key, kind, event) DO UPDATE SET state = 'pending', until = excluded.until, token = excluded.token, claims = excluded.claims",
+                   (key, kind, event, _iso(at + NOTICE_LEASE), token, claims))
+    res = ClaimResult("claimed")
+    res.token = token
+    return res
 
 
-def ack(key, kind, event, at=None):
-    query("INSERT INTO notices (key, kind, event, state, until) VALUES (?, ?, ?, 'sent', ?) "
-          "ON CONFLICT(key, kind, event) DO UPDATE SET state = 'sent', until = excluded.until",
-          key, kind, event, _iso(at or now()))
+def ack(key, kind, event, token=None, at=None):
+    at = at or now()
+    if token is not None:
+        query("UPDATE notices SET state = 'sent', until = ? WHERE key = ? AND kind = ? AND event = ? "
+              "AND (token = ? OR token IS NULL)", _iso(at), key, kind, event, token)
+    else:
+        query("INSERT INTO notices (key, kind, event, state, until) VALUES (?, ?, ?, 'sent', ?) "
+              "ON CONFLICT(key, kind, event) DO UPDATE SET state = 'sent', until = excluded.until",
+              key, kind, event, _iso(at))
 
 
-def release(key, kind, event):
-    query("DELETE FROM notices WHERE key = ? AND kind = ? AND event = ? AND state = 'pending'", key, kind, event)
+def reject(key, kind, event, token=None, at=None):
+    at = at or now()
+    if token is not None:
+        query("UPDATE notices SET state = 'rejected', until = ? WHERE key = ? AND kind = ? AND event = ? "
+              "AND (token = ? OR token IS NULL)", _iso(at), key, kind, event, token)
+    else:
+        query("INSERT INTO notices (key, kind, event, state, until) VALUES (?, ?, ?, 'rejected', ?) "
+              "ON CONFLICT(key, kind, event) DO UPDATE SET state = 'rejected', until = excluded.until",
+              key, kind, event, _iso(at))
+
+
+def release(key, kind, event, token=None, at=None):
+    with transaction() as db:
+        found = db.execute("SELECT state, until, token, claims FROM notices WHERE key = ? AND kind = ? AND event = ?",
+                           (key, kind, event)).fetchone()
+        if not found or found["state"] != "pending":
+            return
+        if token is not None:
+            if found["token"] == token or found["token"] is None:
+                db.execute("DELETE FROM notices WHERE key = ? AND kind = ? AND event = ?", (key, kind, event))
+        elif found["claims"] == 1:
+            db.execute("DELETE FROM notices WHERE key = ? AND kind = ? AND event = ?", (key, kind, event))
 
 
 def once(key, kind, value, send):
@@ -613,14 +654,15 @@ def once(key, kind, value, send):
         send()
         return "sent"
     state = claim(key, kind, event)
+    token = getattr(state, "token", None)
     if state != "claimed":
         return state
     try:
         send()
     except Exception as ex:
-        (ack if getattr(ex, "permanent", False) else release)(key, kind, event)
+        (reject if getattr(ex, "permanent", False) else release)(key, kind, event, token=token)
         raise
-    ack(key, kind, event)
+    ack(key, kind, event, token=token)
     return "sent"
 
 
@@ -639,28 +681,30 @@ def notify_changes(send, limit=10):
             if state == "busy":
                 busy = True
             elif state == "claimed":
-                claimed.append((kind, event))
+                claimed.append((kind, event, getattr(state, "token", None)))
                 lines.append(line)
         if busy:
-            for kind, event in claimed:
+            for kind, event, token in claimed:
                 if event is not None:
-                    release(key, kind, event)
+                    release(key, kind, event, token=token)
             continue
         if lines:
             try:
                 send(_change_text(get(key), lines), None)
             except Exception as ex:
-                for kind, event in claimed:
+                for kind, event, token in claimed:
                     if event is not None:
-                        (ack if getattr(ex, "permanent", False) else release)(key, kind, event)
+                        (reject if getattr(ex, "permanent", False) else release)(key, kind, event, token=token)
                 if not getattr(ex, "permanent", False):
                     raise
             else:
-                for kind, event in claimed:
+                for kind, event, token in claimed:
                     if event is not None:
-                        ack(key, kind, event)
+                        ack(key, kind, event, token=token)
                 sent += 1
-        told(key, rent, status)
+                told(key, rent, status)
+        elif not busy:
+            told(key, rent, status)
     return sent
 
 

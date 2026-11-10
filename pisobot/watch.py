@@ -92,11 +92,17 @@ class Watcher:
             if not dry_run and sweep.enabled(self.sources):
                 # After the head poll has alerted: a short, resumable slice of the deep sweep
                 try:
-                    sweep.step(self.sources, people, stop_event, self.verbose, alert_budgets=alert_budgets)
+                    res = sweep.step(self.sources, people, stop_event, self.verbose, alert_budgets=alert_budgets)
+                    if res and not res.get("complete", True):
+                        totals["complete"] = False
+                        if res.get("errors"):
+                            errors.extend(res["errors"])
                 except InterruptedError:
                     raise
                 except Exception as ex:
                     log.error("Deep sweep step failed (%s)", type(ex).__name__)
+                    errors.append(ex)
+                    totals["complete"] = False
         if errors:
             raise errors[0]
         if not totals["complete"]:

@@ -333,7 +333,7 @@ def settings_key(person=None):
 
 def new_alert_budget():
     """One mutable allowance per person per watcher cycle, shared with every sweep batch."""
-    return {"remaining": config.MAX_ALERTS_PER_RUN}
+    return {"remaining": config.MAX_ALERTS_PER_RUN, "attempts": config.MAX_ALERTS_PER_RUN}
 
 
 def _verdict_row(l, why):
@@ -559,6 +559,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         l = by_key.get(key)
         if l:
             info["missing"] = 0
+            info.pop("unseen", None)
             if l.tenure == "rent":
                 # advertised rent, not all-in: an unchanged advert must not alert when bills move
                 if info.get("rent") is None:
@@ -593,7 +594,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             prev["last"] = today
             if l.tenure == "rent" and l.rent is not None and (prev.get("rent") is None or l.rent > prev["rent"]):
                 prev["rent"] = l.rent   # first sight of this record's rent, or the advert went up
-    to_send.sort(key=lambda x: ranking.score(x[0]))
+    f_map = archive.delivery_failures(person_id, [x[0].key for x in to_send]) if (local_rentals and live) else {}
+    to_send.sort(key=lambda x: (f_map.get(x[0].key, 0) > 0, ranking.score(x[0])))
 
     # 🆕 = first seen since the last report (older records only have a date: treat as reported).
     # On-demand rentals reports keep their own "last report" so they never stand in for 06:30/18:00.
@@ -697,7 +699,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
-    for l, reason in to_send[:max(0, alert_budget["remaining"])]:
+    for l, reason in to_send:
+        attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
+        if attempts_left <= 0:
+            break
         check_stop()
         if deadline is not None and clock() >= deadline:
             break
@@ -708,13 +713,14 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         _ensure_photos(l)
         if reason == "new" and archive.enabled():
             _set_urgency(l)
+        alert_budget["attempts"] = attempts_left - 1
         try:
             if reason == "new":
                 telegram.send_listing(l, reason)
                 send_state = "sent"
             else:
                 send_state = _send_change(l, reason)
-                if send_state == "busy":
+                if send_state in ("busy", "rejected"):
                     continue
         except RuntimeError as ex:
             if not (watch and rentals and os.environ.get("STORAGE") == "local"):
@@ -722,9 +728,12 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             print(f"Listing delivery failed for {l.key}: {telegram.delivery_failure_label(ex)}",
                   file=sys.stderr)
             delivery_errors.append(ex)
+            if local_rentals:
+                archive.record_delivery_failure(person_id, l.key, settings)
             telegram.throttle()
             continue
-        alert_budget["remaining"] -= 1
+        if send_state == "sent":
+            alert_budget["remaining"] -= 1
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)
