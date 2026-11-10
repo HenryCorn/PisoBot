@@ -72,8 +72,8 @@ class ParamTests(Base):
                                        "destination": {"name": "Bank", "lat": 51.5, "lng": -0.09}})
         groups = users.search_groups([a, b])
         self.assertEqual(len(groups), 2)
-        self.assertEqual(groups[0][0], {"rent": 1600, "radius": 5, "beds": 2, "minrent": 1000})
-        self.assertEqual(groups[1][0], {"rent": 2000, "radius": 10, "beds": 1, "minrent": 900})
+        self.assertEqual(groups[0][0], {"rent": 1600, "radius": 5, "beds": 2, "minrent": 1000, "studios": None})
+        self.assertEqual(groups[1][0], {"rent": 2000, "radius": 10, "beds": 1, "minrent": 900, "studios": None})
         b.params = {**a.params, "destination": b.params["destination"], "bills": 100}
         self.assertEqual(users.search_groups([a, b]), [(groups[0][0], [a, b])])
 

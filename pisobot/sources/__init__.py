@@ -6,6 +6,7 @@ from html import unescape
 
 from .. import cache, config, council_tax
 from ..models import Listing
+from .. import rental_text
 from ..rental_text import ROOM_LET, is_room_let
 
 
@@ -155,7 +156,7 @@ def update_kind(reason):
 def apply_rent_details(listing, details):
     """Merge a lettings details page (see the sources' refine); False drops rooms and bedsits."""
     listing.description = f"{listing.description} {details['description']}"
-    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band"):
+    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing"):
         if details.get(key):
             setattr(listing, key, details[key])
     if details.get("council_tax_included") is not None:
@@ -165,12 +166,26 @@ def apply_rent_details(listing, details):
         listing.min_deposit = details["deposit"]
     if is_room_let(listing.description):
         return False
+    if studios_wanted() and (listing.studio or rental_text.is_studio(listing.description)):
+        return True      # a studio is small by nature: the person's studio setting sets its minimum area
     return not (listing.floor_area_m2 and listing.floor_area_m2 < config.RENT_MIN_AREA_M2)
+
+
+def studios_wanted():
+    """Does the search being fetched include studios? (config.STUDIO_MIN_AREA is None: no.) Shared
+    fetches are grouped by this, so a group either always keeps studios or never sees them."""
+    return config.STUDIO_MIN_AREA is not None
+
+
+def min_bedrooms():
+    """Fewest bedrooms to ask a portal for: 1 normally, 0 when studios are wanted (a studio is listed as
+    0 bedrooms) and no larger flat is required."""
+    return 0 if studios_wanted() and config.MIN_BEDROOMS <= 1 else max(1, config.MIN_BEDROOMS)
 
 
 def rental_filters():
     return (config.TARGET_NAME, config.TARGET_LAT, config.TARGET_LNG, config.RENT_SEARCH_MILES,
-            config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS)
+            config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS, studios_wanted())
 
 
 def rental_in_scope(listing):
@@ -203,7 +218,7 @@ def cached_search(name, search, minutes=None):
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
             "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
             "bathrooms", "agent",
-            "advert_deposit")
+            "advert_deposit", "studio", "furnishing")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "listings": [{**{k: v for k, v in asdict(l).items() if k in keep},

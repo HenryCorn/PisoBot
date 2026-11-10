@@ -85,6 +85,15 @@ RANK_EXTRA_BED_BONUS = 0.05     # per bedroom above MIN_BEDROOMS
 REPORT_TOP_N = _env("REPORT_TOP_N", 10, int)
 REPORT_MAX_PER_DEVELOPMENT = 2  # keep the top 10 varied (no 10 plots of one building)
 
+# Per-person search preferences (users.py PARAMS; a person's /set values override these during their run).
+# The defaults are today's behaviour.
+STUDIO_MIN_AREA = None      # None: no studios; 0: studios of any size; >0: only with a published area >= this (m2)
+FURNISHED = "any"           # any | furnished | unfurnished (applied only when the advert states it)
+MAX_WALK_MINUTES = None     # max walk to the first station or stop; None: no limit
+MAX_CHANGES = None          # max changes on the commute; None: no limit
+AREAS_EXCLUDE = ()          # postcode districts that never match, e.g. ("N7", "SE15")
+AREAS_INCLUDE = ()          # if non-empty, only these districts match
+
 MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much
 

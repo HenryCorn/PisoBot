@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import cache, collage, models, rental_text, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -98,13 +98,45 @@ def _cost_reject(l, early=False):
     return None
 
 
+def _post_details_reject(l):
+    """Rental preferences that need the details page (a published area, furnishing)."""
+    if l.tenure != "rent":
+        return None
+    if l.studio and config.STUDIO_MIN_AREA:      # >0: studios only with a published area at least this big
+        if not l.floor_area_m2 or l.floor_area_m2 < config.STUDIO_MIN_AREA:
+            return "studio_area"
+    if config.FURNISHED != "any":
+        state = l.furnishing or rental_text.furnishing(l.description)
+        if (config.FURNISHED, state) in (("furnished", "unfurnished"), ("unfurnished", "furnished")):
+            return "furnishing"      # only a stated opposite rejects; not stated keeps the advert
+    return None
+
+
+def _district_reject(l):
+    if l.tenure != "rent" or not (config.AREAS_EXCLUDE or config.AREAS_INCLUDE):
+        return None
+    if models.in_districts(l.outcode, config.AREAS_EXCLUDE):
+        return "area_excluded"
+    if config.AREAS_INCLUDE and not models.in_districts(l.outcode, config.AREAS_INCLUDE):
+        return "area_outside"
+    return None
+
+
 def passes_basic(l):
-    if l.bedrooms < config.MIN_BEDROOMS:
+    studio = l.tenure == "rent" and (l.studio or rental_text.is_studio(f"{l.address}. {l.description}"))
+    if studio:
+        l.studio = True
+        if config.STUDIO_MIN_AREA is None:
+            return "studio"
+    if (max(l.bedrooms, 1) if studio else l.bedrooms) < config.MIN_BEDROOMS:
         return "beds"
     if l.excluded_by_keywords():
         return "keywords"
     if l.lat is None or l.lng is None:
         return "no location"
+    why = _district_reject(l)
+    if why:
+        return why
     distance = (_km(l.lat, l.lng, users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"])
                 if users.current() is not None and l.tenure == "rent" else enrich.distance_km(l.lat, l.lng))
     if distance > config.SEARCH_RADIUS_KM:
@@ -122,7 +154,7 @@ def passes_basic(l):
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
-    return _cost_reject(l)
+    return _post_details_reject(l) or _cost_reject(l)
 
 
 def passes_area(l):
@@ -131,6 +163,11 @@ def passes_area(l):
         return "travel"
     l.travel_minutes, l.route, l.station, l.walk_minutes = j["minutes"], j["route"], j["station"], j["walk"]
     l.changes = j.get("changes", 0)
+    # Personal limits on the same journey, before the crime lookup (a further request) is spent
+    if config.MAX_WALK_MINUTES is not None and (l.walk_minutes or 0) > config.MAX_WALK_MINUTES:
+        return "walk"
+    if config.MAX_CHANGES is not None and l.changes > config.MAX_CHANGES:
+        return "changes"
     l.crime_score = enrich.crime_score(l.lat, l.lng)
     if l.crime_score > config.MAX_CRIME_SCORE:
         return "crime"

@@ -9,20 +9,23 @@ import sys
 
 from requests import RequestException
 
-from .. import cache, config, net
+from .. import cache, config, net, rental_text
 from ..models import Listing
-from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, monthly_rent, private_rent_costs, text,
-               update_kind)
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, min_bedrooms, monthly_rent,
+               private_rent_costs, studios_wanted, text, update_kind)
 
 BASE = "https://www.rightmove.co.uk"
 LOCATION = "STATION^6953"          # Oxford Circus Station
 PAGE_SIZE = 24                     # plus one promoted slot that may repeat or be out of area
 MAX_INDEX = 1008                   # 42 pages: from this index on Rightmove answers 200 without results
-SHARED = {"flat share", "house share", "room", "studio", "studio flat", "studio apartment"}
+SHARED = {"flat share", "house share", "room"}
+STUDIO_TYPES = {"studio", "studio flat", "studio apartment"}
 
 
 def _listing(x):
-    if x.get("students") or x.get("auction") or str(x.get("propertySubType", "")).lower() in SHARED:
+    subtype = str(x.get("propertySubType", "")).lower()
+    studio = subtype in STUDIO_TYPES
+    if x.get("students") or x.get("auction") or subtype in SHARED or (studio and not studios_wanted()):
         return None
     price = x.get("price") or {}
     rent = monthly_rent(price.get("amount"), price.get("frequency"))
@@ -41,6 +44,7 @@ def _listing(x):
         description=text(f"{x.get('propertySubType', '')}. {x.get('summary', '')}"),
         available=(x.get("letAvailableDate") or "")[:10] or None,
     )
+    l.studio = studio
     l.first_listed = iso_date(x.get("firstVisibleDate"))
     update = x.get("listingUpdate") or {}
     l.update_reason = update_kind(update.get("listingUpdateReason") or update.get("reason"))
@@ -56,7 +60,7 @@ def search():
     for page in range(config.RENT_MAX_PAGES):
         html = net.page(f"{BASE}/property-to-rent/find.html", params={
             "locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
-            "minBedrooms": config.MIN_BEDROOMS, "maxPrice": int(config.MAX_RENT),
+            "minBedrooms": min_bedrooms(), "maxPrice": int(config.MAX_RENT),
             "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
             "sortType": 6, "index": page * PAGE_SIZE})
         m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
@@ -122,6 +126,7 @@ def _details(p):
                                 f"{features} {(p.get('text') or {}).get('description', '')}"),
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
             "deposit": lettings.get("deposit") or None, "available": available,
+            "furnishing": rental_text.furnishing(lettings.get("furnishType") or ""),
             "council_tax_band": band if band in "ABCDEFGH" and len(band) == 1 else None,
             "council_tax_included": living["councilTaxIncluded"]
             if isinstance(living.get("councilTaxIncluded"), bool) else None}
