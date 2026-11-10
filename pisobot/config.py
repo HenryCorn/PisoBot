@@ -106,6 +106,7 @@ EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "claude-haiku-5-5")
 EXTRACT_DAILY_LIMIT = _env("EXTRACT_DAILY_LIMIT", 400, int)   # API requests per UTC day, cached results are free
 EXTRACT_TIMEOUT_S = _env("EXTRACT_TIMEOUT_S", 20)
 EXTRACT_MAX_TOKENS = _env("EXTRACT_MAX_TOKENS", 2500, int)    # includes any thinking at low effort
+PLACE_FACTS_ENABLED = os.environ.get("PLACE_FACTS_ENABLED", "").lower() in ("1", "true", "yes")
 
 MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, net, ranking, tgtext, users
+from . import collage, config, net, place, ranking, tgtext, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -223,6 +223,11 @@ def format_listing(l, reason="new", rank=None, flags=""):
         lines.append(portal_line(l))
     if move_in_line(l):
         lines.append(move_in_line(l))
+    place_facts = getattr(l, "place_facts", None)
+    if place_facts:
+        line = place.card_line(place_facts)
+        if line:
+            lines.append(e(line))
     lines.append(commute_line(l))
     if getattr(l, "ai_summary", None):
         lines.append(f"ℹ️ <i>{e(l.ai_summary)}</i>")

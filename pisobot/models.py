@@ -124,6 +124,7 @@ class Listing:
     walk_minutes: Optional[int] = None
     crime_score: Optional[int] = None
     crime_percentile: Optional[float] = None
+    place_facts: dict = field(default_factory=dict)
 
     # filled by intelligence / taste
     changes: int = 0
