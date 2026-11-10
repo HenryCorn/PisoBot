@@ -72,6 +72,13 @@ SETTINGS_HELP = (
     "from the advert's band and the borough's 2026-27 rate (London average, band C, when unknown). "
     "Cards show rent first, then the all-in figure (rent + bills). <b>budget</b> is an optional "
     "cap on that all-in figure: off unless you set it (<code>/set budget off</code> turns it off).\n"
+    "<b>Preferences</b>: <b>studios</b> <code>on</code> or a minimum area in m² (<code>/set studios 28</code>: only "
+    "studios whose advert publishes at least that; they are labelled Studio; <code>off</code> by default; lower "
+    "<b>minrent</b> if you want cheaper ones). <b>furnished</b> <code>any</code>/<code>furnished</code>/"
+    "<code>unfurnished</code> (only applied when the advert says; otherwise the card says furnishing not stated). "
+    "<b>maxwalk</b> minutes to the first station and <b>maxchanges</b> on the commute (<code>off</code> by default). "
+    "<b>areas</b>: <code>/set areas exclude N7 SE15</code>, <code>/set areas include E5 E8</code> "
+    "(<code>/set areas default</code> clears both).\n"
     "Change with <code>/set &lt;name&gt; &lt;value&gt;</code>, e.g. <code>/set rent 1500</code>, "
     "<code>/set beds 2</code>, <code>/set commute 45</code>, <code>/set destination EC2M 7PY</code> "
     "(a postcode, station or place). <code>/set &lt;name&gt; default</code> restores one; "
@@ -325,13 +332,13 @@ class Handler:
         params = dict(person.params)
         if name == "all" and raw.lower() == "default":
             params = {}
-        elif name not in (*users.PARAMS, "destination") or not raw:
+        elif name not in (*users.PARAMS, "destination", "areas") or not raw:
             self.reply("Usage: <code>/set &lt;name&gt; &lt;value&gt;</code> with one of "
-                       + ", ".join(f"<code>{n}</code>" for n in (*users.PARAMS, "destination"))
+                       + ", ".join(f"<code>{n}</code>" for n in (*users.PARAMS, "destination", "areas"))
                        + ". See /settings.")
             return
-        elif raw.lower() == "default" or (name == "budget" and raw.lower() in ("off", "none", "no")):
-            params.pop(name, None)   # budget's default is off: no all-in cap
+        elif raw.lower() == "default" or (name in users.OFF_BY_DEFAULT and raw.lower() in ("off", "none", "no")):
+            params.pop(name, None)   # these default to "no limit" (budget: no all-in cap; studios: none)
         else:
             try:
                 if name == "destination":
@@ -341,6 +348,12 @@ class Handler:
                     if not users.in_london(lat, lng):
                         raise ValueError(f"{html.escape(label)} is outside London")
                     params[name] = {"name": label, "lat": round(lat, 5), "lng": round(lng, 5)}
+                elif name == "areas":
+                    areas = users.parse_areas(raw, params.get("areas"))
+                    if areas:
+                        params["areas"] = areas
+                    else:
+                        params.pop("areas", None)
                 else:
                     params[name] = users.parse(name, raw)
             except ValueError as error:

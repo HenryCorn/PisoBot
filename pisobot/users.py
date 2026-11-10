@@ -20,7 +20,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import config, localdb
+from . import config, localdb, models
 
 CURRENT = contextvars.ContextVar("pisobot_user", default=None)
 
@@ -49,10 +49,21 @@ PARAMS = {
     "area": Param("RENT_MIN_AREA_M2", float, 0, 300, "Min floor area, when published", "m²"),
     "radius": Param("RENT_SEARCH_MILES", float, 1, 15, "Portal search radius round Oxford Circus", "miles",
                     choices=(1, 3, 5, 10, 15)),
+    "studios": Param("STUDIO_MIN_AREA", float, 10, 200,
+                     "Studios: off, on (any size), or a minimum published floor area", "m²"),
+    "furnished": Param("FURNISHED", str, 0, 0, "Furnishing, applied only when the advert states it", "",
+                       choices=("any", "furnished", "unfurnished")),
+    "maxwalk": Param("MAX_WALK_MINUTES", int, 1, 60, "Max walk to the first station or stop (off by default)", "min"),
+    "maxchanges": Param("MAX_CHANGES", int, 0, 5, "Max changes on the commute (off by default; 0 = direct)"),
 }
+# /set <name> off restores these, whose default is "no limit"
+OFF_BY_DEFAULT = ("budget", "studios", "maxwalk", "maxchanges")
+AREA_LISTS = ("exclude", "include")
+AREAS = {"exclude": "AREAS_EXCLUDE", "include": "AREAS_INCLUDE"}
 DESTINATION = ("TARGET_NAME", "TARGET_LAT", "TARGET_LNG")
 DEFAULTS = {p.attr: getattr(config, p.attr) for p in PARAMS.values()}
 DEFAULTS.update({attr: getattr(config, attr) for attr in DESTINATION})
+DEFAULTS.update({attr: getattr(config, attr) for attr in AREAS.values()})
 LONDON = (51.25, 51.75, -0.55, 0.35)   # lat/lng box for destinations
 
 
@@ -207,9 +218,45 @@ def save_params(user, params):
 
 # ---------- parameters ----------
 
+def parse_areas(raw, current=None):
+    """New {"exclude": [...], "include": [...]} from `/set areas exclude N7 SE15` or `... include E5, E8`
+    (`... exclude none` empties that list). Districts are checked against the London district table; a
+    district may not be in both lists. Returns {} when both lists end up empty."""
+    words = re.split(r"[\s,;]+", raw.strip())
+    which = words[0].lower() if words and words[0] else ""
+    if which not in AREA_LISTS:
+        raise ValueError("Areas: use <code>/set areas exclude N7 SE15</code> or <code>/set areas include E5 E8</code> "
+                         "(<code>none</code> empties a list; <code>/set areas default</code> clears both)")
+    codes, bad = [], []
+    for word in words[1:]:
+        if not word or word.lower() in ("none", "off", "clear"):
+            continue
+        code = models.normalise_district(word)
+        (codes if code else bad).append(code or word)
+    if bad:
+        raise ValueError(f"Areas: not a London postcode district I know: {', '.join(html.escape(b) for b in bad)} "
+                         "(examples: N7, SE15, E8, NW10)")
+    if len(words) < 2:
+        raise ValueError(f"Areas: give at least one district, or <code>none</code>, after {which}")
+    out = {k: list((current or {}).get(k) or []) for k in AREA_LISTS}
+    out[which] = sorted(set(codes))
+    both = set(out["exclude"]) & set(out["include"])
+    if both:
+        raise ValueError(f"Areas: {', '.join(sorted(both))} cannot be in both the exclude and the include list")
+    out = {k: v for k, v in out.items() if v}
+    return out
+
+
 def parse(name, raw):
     """Validated value for /set <name> <raw>; raises ValueError with a user-facing message."""
     spec = PARAMS[name]
+    if name == "furnished":
+        value = raw.strip().lower()
+        if value not in spec.choices:
+            raise ValueError(f"{spec.label}: one of {', '.join(spec.choices)}")
+        return value
+    if name == "studios" and raw.strip().lower() in ("on", "yes", "any", "true"):
+        return 0.0
     cleaned = re.sub(r"[£,\s]|(?:mins?|minutes|miles?|m2|m²|sqm|pcm|/mo)$", "", raw.strip().lower())
     try:
         value = float(cleaned)
@@ -231,6 +278,8 @@ def effective(user, live=False):
     out["destination"] = {"name": dest.get("name", DEFAULTS["TARGET_NAME"]),
                           "lat": dest.get("lat", DEFAULTS["TARGET_LAT"]),
                           "lng": dest.get("lng", DEFAULTS["TARGET_LNG"])}
+    areas = user.params.get("areas") if isinstance(user.params.get("areas"), dict) else {}
+    out["areas"] = {k: list(areas.get(k) or []) for k in AREA_LISTS}
     return out
 
 
@@ -240,6 +289,9 @@ def overrides(params):
     dest = params.get("destination")
     if isinstance(dest, dict) and all(k in dest for k in ("name", "lat", "lng")):
         out.update(TARGET_NAME=dest["name"], TARGET_LAT=dest["lat"], TARGET_LNG=dest["lng"])
+    areas = params.get("areas")
+    if isinstance(areas, dict):
+        out.update({attr: tuple(areas.get(which) or ()) for which, attr in AREAS.items()})
     return out
 
 
@@ -247,7 +299,12 @@ def fetch_params(person):
     """Portal filters only; a commute destination must not move the search centre."""
     values = effective(person, live=True)
     # The all-in cap ("budget") is applied locally, so it never splits a shared portal search.
-    return {name: values[name] for name in ("rent", "radius", "beds", "minrent")}
+    out = {name: values[name] for name in ("rent", "radius", "beds", "minrent")}
+    # Whether studios are wanted changes what a portal is asked for (0-bedroom flats) and what the
+    # adapters keep, so it splits a shared search; the minimum area and every other studio detail
+    # are per-person and applied afterwards. 0 stands for "any studios", whatever the person's minimum.
+    out["studios"] = None if values["studios"] is None else 0
+    return out
 
 
 def search_groups(people):
@@ -282,14 +339,25 @@ def describe(user):
         value = values[name]
         if value is None:
             shown = "off"
+        elif name == "studios":
+            shown = "on (any size)" if value == 0 else f"on, at least {value:g}"
+        elif name == "furnished":
+            shown = value
         else:
             shown = f"£{value:,.0f}" if spec.unit.startswith("£") else f"{value:g}"
-        unit = "" if spec.unit.startswith("£") or value is None else f" {spec.unit}".rstrip()
+        unit = ("" if spec.unit.startswith("£") or value is None or name in ("studios", "furnished")
+                else f" {spec.unit}".rstrip())
+        if name == "studios" and value:
+            unit = " m²"
         mark = "" if name in user.params else " <i>(default)</i>"
         lines.append(f"• <b>{name}</b> {shown}{unit}{mark} — {spec.label}")
     dest = values["destination"]
     mark = "" if user.params.get("destination") else " <i>(default)</i>"
     lines.append(f"• <b>destination</b> {html.escape(str(dest['name']))}{mark} — commute target")
+    areas = values["areas"]
+    mark = "" if user.params.get("areas") else " <i>(default)</i>"
+    shown = "; ".join(f"{which} {' '.join(areas[which])}" for which in AREA_LISTS if areas[which]) or "all of London"
+    lines.append(f"• <b>areas</b> {shown}{mark} — postcode districts to exclude / only include")
     return "\n".join(lines)
 
 

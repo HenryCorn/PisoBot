@@ -10,10 +10,12 @@ from requests import RequestException
 
 from .. import cache, config, net, rental_text
 from ..models import Listing
-from . import PRIVATE_RENT, apply_rent_details, cached_search, money, private_rent_costs, rent_from_text, text
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, min_bedrooms, money, private_rent_costs,
+               rent_from_text, studios_wanted, text)
 from .onthemarket import BASE, _photo_urls, _property_data
 
-SHARED = re.compile(r"\b(?:room|studio|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
+SHARED = re.compile(r"\b(?:room|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
+STUDIO = re.compile(r"\bstudio\b", re.I)
 
 
 def _today():
@@ -44,8 +46,11 @@ def _apply_age(l, value):
 
 def _listing(x):
     title = x.get("property-title", "")
+    studio = bool(STUDIO.search(x.get("humanised-property-type") or "") or rental_text.is_studio(title))
+    if studio and not studios_wanted():
+        return None
     if (x.get("ad?") or not x.get("id") or SHARED.search(x.get("humanised-property-type") or "")
-            or rental_text.classify(title, config.EXCLUDE_KEYWORDS)[0]
+            or rental_text.classify(title, rental_text.exclude_keywords())[0]
             or re.match(r"^(?:(?:double|single|en[- ]suite)\s+)?room\b", title, re.I)):
         return None
     rent = rent_from_text(x.get("price"))
@@ -62,6 +67,7 @@ def _listing(x):
         image=images[0] if images else None, images=images,
         description=text(f"{title}. {feats} {x.get('summary', '')}"),
     )
+    l.studio = studio
     _apply_age(l, x.get("days-since-added-reduced"))
     l.bathrooms = int(x["bathrooms"]) if str(x.get("bathrooms") or "").isdigit() else None
     agent = x.get("agent")
@@ -77,7 +83,7 @@ def search():
     out, seen = [], set()
     for page in range(1, config.RENT_MAX_PAGES + 1):
         # newest first (listing update date): the default "recommended" order hid new adverts behind page 3
-        params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
+        params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": min_bedrooms(),
                   "max-price": int(config.MAX_RENT), "sort-field": "update_date"}
         if page > 1:
             params["page"] = page

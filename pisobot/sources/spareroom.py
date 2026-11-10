@@ -15,8 +15,8 @@ from urllib.parse import urljoin
 
 from .. import cache, config, net
 from ..models import Listing
-from . import (PRIVATE_RENT, is_room_let, cached_search, money, monthly_rent, private_rent_costs,
-               rental_filters, text)
+from . import (PRIVATE_RENT, is_room_let, cached_search, min_bedrooms, money, monthly_rent, private_rent_costs,
+               rental_filters, studios_wanted, text)
 
 BASE = "https://www.spareroom.co.uk"
 LIST = f"{BASE}/flats-to-rent/london"
@@ -81,9 +81,11 @@ def _listing(attrs, block):
     period = attrs.get("ad-headline-rate-period", "pcm").lower()
     rent = monthly_rent(money(attrs.get("ad-headline-rate")), "weekly" if period == "pw" else "monthly")
     outcode = attrs.get("postcode", "").upper().replace(" ", "")
-    if (kind == "studio" or beds < max(1, config.MIN_BEDROOMS) or not rent
+    studio = kind == "studio" or bool(re.search(r"\bstudio\b", title, re.I))
+    if (studio and not studios_wanted()) or (
+            beds < min_bedrooms() or not rent
             or not config.RENT_MIN <= rent <= config.MAX_RENT or not OUTCODE.match(outcode)
-            or re.search(r"\b(?:studio|bedsit)\b|\broom\s+(?:in|to\s+(?:rent|let))\b"
+            or re.search(r"\bbedsit\b|\broom\s+(?:in|to\s+(?:rent|let))\b"
                          r"|\b(?:double|single)\s+room\b", title, re.I)):
         return None
     snippet = re.search(r'class="listing-card__short_description"[^>]*>(.*?)</', block, re.S)
@@ -109,7 +111,7 @@ def _listing(attrs, block):
     return private_rent_costs(Listing(
         source="sr", id=attrs["id"], url=url, address=(f"{neighbourhood}, " if neighbourhood and outcode not in neighbourhood else "")
         + f"London {postcode or outcode}",
-        bedrooms=beds, scheme=PRIVATE_RENT, tenure="rent", rent=rent, lat=lat, lng=lng,
+        bedrooms=beds, scheme=PRIVATE_RENT, tenure="rent", rent=rent, lat=lat, lng=lng, studio=studio,
         image=images[0] if images else None, images=images,
         available=_available(available[1]) if available else None,
         estimated=[] if exact else ["location"],

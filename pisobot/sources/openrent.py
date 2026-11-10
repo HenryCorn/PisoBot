@@ -26,8 +26,8 @@ from requests import RequestException
 
 from .. import cache, config, net, rental_text
 from ..models import Listing
-from . import (PRIVATE_RENT, apply_rent_details, cached_search, detail_fields,
-               money, private_rent_costs, text)
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, detail_fields, min_bedrooms,
+               money, private_rent_costs, studios_wanted, text)
 
 BASE = "https://www.openrent.co.uk"
 PAGE_SIZE = 20
@@ -93,9 +93,9 @@ def _index(html):
             raise ValueError("OpenRent invalid coordinates")
         if any(row[key] not in (0, 1) for key in ("isshared", "isstudio", "nonStudents", "islivelistBool", "bills")):
             raise ValueError("OpenRent invalid property flags")
-        if (identifier in seen or not row["islivelistBool"] or row["isshared"] or row["isstudio"]
+        if (identifier in seen or not row["islivelistBool"] or row["isshared"] or (row["isstudio"] and not studios_wanted())
                 or not row["nonStudents"] or row["propertyTypes"] == 3
-                or row["bedrooms"] < max(1, config.MIN_BEDROOMS)
+                or row["bedrooms"] < min_bedrooms()
                 or not config.RENT_MIN <= row["prices"] <= config.MAX_RENT
                 or now_ms - row["dateFirstListedMs"] < locked_hours * 3600000
                 or _km(row["PROPERTYLISTLATITUDES"], row["PROPERTYLISTLONGITUDES"],
@@ -128,12 +128,14 @@ def _listing(card, row):
     beds = re.match(r"(\d+)\s+Bed\b", title, re.I)
     description = text(f"{title}. {card['description']}")
     if (card["letAgreed"] or card["isMultiRoom"]
-            or rental_text.classify(description, config.EXCLUDE_KEYWORDS)[0]
+            or rental_text.classify(description, rental_text.exclude_keywords())[0]
             or not config.RENT_MIN <= rent <= config.MAX_RENT):
         return None
-    if not beds:
+    studio = bool(row.get("isstudio"))
+    if not beds and not studio:
         raise ValueError("OpenRent card has no bedroom count")
-    if int(beds[1]) < max(1, config.MIN_BEDROOMS):
+    bedrooms = int(beds[1]) if beds else 0       # a studio card may carry no "N Bed"
+    if bedrooms < min_bedrooms():
         return None
     photos = [card.get("imageUrl")] + (card.get("featuredPhotoUrls") or [])
     images = list(dict.fromkeys(url for value in photos if (url := _photo(value))))
@@ -141,7 +143,7 @@ def _listing(card, row):
         description += " Bills included."
     listing = Listing(
         source="orent", id=str(card["id"]), url=f"{BASE}/{card['id']}",
-        address=title.split(",", 1)[-1].strip(), bedrooms=int(beds[1]),
+        address=title.split(",", 1)[-1].strip(), bedrooms=bedrooms, studio=studio,
         scheme=PRIVATE_RENT, tenure="rent", rent=float(rent),
         lat=row["PROPERTYLISTLATITUDES"], lng=row["PROPERTYLISTLONGITUDES"],
         image=images[0] if images else None, images=images, description=description,
@@ -162,7 +164,7 @@ def _search_snapshot():
         raise ValueError("RENT_MAX_PAGES must be positive")
     params = {"term": "Oxford Circus", "latn": config.TARGET_LAT, "lngn": config.TARGET_LNG,
               "area": math.ceil(config.RENT_SEARCH_MILES * 1.609344), "searchType": "km",
-              "prices_max": int(config.MAX_RENT), "bedrooms_min": max(1, config.MIN_BEDROOMS)}
+              "prices_max": int(config.MAX_RENT), "bedrooms_min": min_bedrooms()}
     html = net.page(f"{BASE}/properties-to-rent/oxford-circus", params=params)
     rows = _index(html)
     limit = config.RENT_MAX_PAGES * PAGE_SIZE
@@ -206,7 +208,7 @@ def search():
 def fetch():
     # Reusing a search after expanding its radius/budget would hide new matches.
     filters = [config.TARGET_LAT, config.TARGET_LNG, config.RENT_SEARCH_MILES,
-               config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS, config.RENT_MAX_PAGES]
+               config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS, config.RENT_MAX_PAGES, studios_wanted()]
     hit = cache.get("rent_search", "orent") or {}
     if hit.get("filters") != filters:
         cache.put("rent_search", "orent", {**hit, "at": ""})

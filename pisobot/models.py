@@ -47,6 +47,22 @@ LONDON_AREAS = {
 }
 
 
+def in_districts(outcode, districts):
+    """Is this outcode one of the listed postcode districts? An exact match, or - for a sub-district
+    that is not itself in the district table (W1K) - its parent district (W1)."""
+    if not outcode or not districts:
+        return False
+    if outcode in districts:
+        return True
+    return outcode not in LONDON_AREAS and outcode[:-1] in districts and outcode[-1].isalpha()
+
+
+def normalise_district(value):
+    """'n7' / 'SE 15' -> 'N7' / 'SE15' if it is a district in LONDON_AREAS, else None."""
+    code = re.sub(r"\s+", "", str(value)).upper()
+    return code if code in LONDON_AREAS else None
+
+
 @dataclass
 class Listing:
     source: str
@@ -67,6 +83,8 @@ class Listing:
     council_tax_monthly: Optional[float] = None  # private rent: part of bills (derived per person)
     utilities_monthly: Optional[float] = None    # private rent: other part of bills
     council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
+    studio: bool = False                         # private rent: the advert is a studio (portal type or explicit text)
+    furnishing: Optional[str] = None             # private rent: furnished, unfurnished, part, flexible (as stated)
     # Facts the portals already publish (private rent)
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
@@ -187,6 +205,8 @@ class Listing:
                 tags.append(lt)
         if self.tenure == "rent":
             tags.extend(f"⚠️ Check advert: {word}" for word in self._rental_keywords()[1])
+            if config.FURNISHED != "any" and not (self.furnishing or rental_text.furnishing(self.description)):
+                tags.append("ℹ️ Furnishing not stated")
         return tags
 
     @property
@@ -215,7 +235,7 @@ class Listing:
         return any(k in text for k in config.EXCLUDE_KEYWORDS)
 
     def _rental_keywords(self):
-        decisions = [rental_text.classify(value, config.EXCLUDE_KEYWORDS)
+        decisions = [rental_text.classify(value, rental_text.exclude_keywords())
                      for value in (self.address, self.scheme, self.description)]
         return tuple(list(dict.fromkeys(word for decision in decisions for word in decision[i]))
                      for i in (0, 1))

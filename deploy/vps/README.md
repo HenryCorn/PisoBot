@@ -203,7 +203,18 @@ it; a `budget` stored before this split keeps meaning that all-in cap), `beds`,
 `commute` (minutes), `crime`, `bills` (utilities estimate when not included;
 council tax is estimated separately from the advert's band), `minrent`, `area` (m²), `radius` (1/3/5/10/15
 miles round Oxford Circus) and `destination` (postcode, outcode, `lat,lng` or a
-station/place name, resolved with postcodes.io / TfL). `/set <name> default`
+station/place name, resolved with postcodes.io / TfL).
+
+Further per-person preferences, all off by default and applied only to that person's matches:
+`studios` (`on`, or a minimum published floor area in m², e.g. `28`; studios are labelled on the
+card; a person who wants studios gets their own portal search, asking for 0-bedroom flats, because
+adapters otherwise filter studios before personal rules run), `furnished` (`any`, `furnished`,
+`unfurnished`; applied only when the advert states it, otherwise the card says furnishing is not
+stated), `maxwalk` (minutes to the first station or stop), `maxchanges` (changes on the commute, 0 =
+direct) and `areas` (`/set areas exclude N7 SE15`, `/set areas include E5 E8`; districts must be in
+the London district table). Each has its own funnel rejection reason (`studio`, `studio_area`,
+`furnishing`, `walk`, `changes`, `area_excluded`, `area_outside`) and, like any search setting,
+triggers the quiet re-baseline. `/set <name> default`
 restores one, `/set all default` everything. A change clears only that person's
 baseline: the next scan re-records their matches with one summary instead of
 alerting every newly matching home; `/report` shows them all.

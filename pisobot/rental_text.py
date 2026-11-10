@@ -1,6 +1,8 @@
 """Conservative rental exclusions: explicit restrictions reject; ambiguous mentions warn."""
 import re
 
+from . import config
+
 ROOM_LET = re.compile(
     r"\bshar(?:e|ed|ing)\s+(?:(?:a|an|the|one|spacious|large|modern|fitted|communal|"
     r"open[- ]plan|fully[- ]fitted|well[- ]equipped)\s+){0,3}"
@@ -72,3 +74,30 @@ def classify(value, keywords):
     if is_room_let(value):
         rejected.append("shared accommodation")
     return list(dict.fromkeys(rejected)), list(dict.fromkeys(warnings))
+
+
+def exclude_keywords():
+    """config.EXCLUDE_KEYWORDS for private rentals, without "studio" when this person allows studios."""
+    if config.STUDIO_MIN_AREA is None:
+        return config.EXCLUDE_KEYWORDS
+    return [k for k in config.EXCLUDE_KEYWORDS if k != "studio"]
+
+
+def is_studio(value):
+    """True when the text explicitly describes a studio (the same test the keyword rule uses)."""
+    return bool(classify(value or "", ["studio"])[0])
+
+
+def furnishing(value):
+    """What an advert says about furniture: furnished, unfurnished, part, flexible, or None (not stated)."""
+    text = str(value or "").lower()
+    kinds = set()
+    for m in re.finditer(r"\b(un[- ]?|part(?:ly)?[- ]?)?furnished\b", text):
+        prefix = (m[1] or "").strip(" -")
+        kinds.add("unfurnished" if prefix.startswith("un") else "part" if prefix else "furnished")
+    if not kinds:
+        return None
+    if re.search(r"\blandlord is flexible\b|\bfurnished\s*(?:or|/)\s*un[- ]?furnished\b"
+                 r"|\bun[- ]?furnished\s*(?:or|/)\s*furnished\b", text) or {"furnished", "unfurnished"} <= kinds:
+        return "flexible"
+    return "unfurnished" if "unfurnished" in kinds else "part" if "part" in kinds else "furnished"

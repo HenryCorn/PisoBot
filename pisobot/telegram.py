@@ -167,7 +167,8 @@ def facts_line(l):
         note = "" if l.scheme == PRIVATE_RENT else " · ℹ️ income caps apply"
         if "location" in l.estimated:
             note += " · Approx. location; commute/crime estimated"
-        return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {e(l.scheme)} ({e(l.source)}){note}"
+        beds = "Studio" if l.studio else f"{l.bedrooms} bed"
+        return f"🛏️ <b>{beds}</b>{area} · {e(l.scheme)} ({e(l.source)}){note}"
     return f"🛏️ <b>{l.bedrooms} bed</b>{area} · {lease} · {e(l.scheme[:40])} ({e(l.source)})"
 
 
