@@ -164,7 +164,12 @@ def portal_line(l, today=None):
 
 def move_in_line(l):
     """WP3 move-in fit against the person's /profile movein window (VPS only; "" otherwise)."""
-    if l.tenure != "rent" or not users.enabled():
+    if l.tenure != "rent":
+        return ""
+    try:
+        if not users.enabled():
+            return ""
+    except Exception:
         return ""
     from . import renter
     return renter.fit_line(l.available)
@@ -247,8 +252,12 @@ def listing_keyboard(l, saved=False):
          {"text": "👎 Hide", "callback_data": f"h:{sid}"},
          {"text": "🔕 Hide building", "callback_data": f"d:{sid}"}],
     ]
-    if users.enabled() and l.tenure == "rent":
-        rows += action_rows(l.key, sid)
+    if l.tenure == "rent":
+        try:
+            if users.enabled():
+                rows += action_rows(l.key, sid)
+        except Exception:
+            pass
     rows.append([{"text": "🔗 Open listing", "url": l.url}])
     return {"inline_keyboard": rows}
 
@@ -270,7 +279,12 @@ def action_rows(key, sid):
 
 def _loud(l):
     """A top match is loud during quiet hours only when its person turned /set urgent on."""
-    if getattr(l, "urgency", None) != "top" or not users.enabled():
+    if getattr(l, "urgency", None) != "top":
+        return False
+    try:
+        if not users.enabled():
+            return False
+    except Exception:
         return False
     from . import renter
     try:

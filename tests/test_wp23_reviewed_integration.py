@@ -268,5 +268,40 @@ class RealProcessExitSeams(BotBase):
         self.assertEqual(tracker.handled(9999), [])
 
 
+class ReleaseSeamTests(JudgingBase):
+    def test_staged_archive_judging_enforces_furnishing_and_studio_area_before_ai_extraction(self):
+        """Preferences dealbreakers reject in staged details pass before any AI extraction call."""
+        from pisobot import extract
+        client = Mock()
+        extract.set_default(extract.Extractor(client=client))
+        self.addCleanup(lambda: extract.set_default(None))
+
+        # Staged rental listing
+        item = home(50, rent=1300)
+        item.description = "Compact studio flat. Studio apartment."
+        item.floor_area_m2 = 20
+
+        with patch.object(config, "STUDIO_MIN_AREA", 25):
+            # stage="cheap" passes through because studio area requires details page
+            self.assertIsNone(main.passes_basic(item, stage="cheap", defer_model=True))
+            # stage="details" rejects for studio_area without invoking AI
+            self.assertEqual(main.passes_basic(item, stage="details", defer_model=True), "studio_area")
+            self.assertEqual(client.call_count, 0)
+
+    def test_card_formatting_reconciles_urgency_portal_age_escaping_and_agent_phone(self):
+        """Card formatting preserves WP3 urgency, escaped age with comparison operators, and agent phone."""
+        item = home(51)
+        item.urgency = "top"
+        item.agent_phone = "020 7946 0999"
+        item.update_text = "Reduced < 14 days"
+        item.update_text_on = dt.date.today().isoformat()
+        with patch.object(telegram, "_today", return_value=dt.date.today()):
+            card = telegram.format_listing(item)
+        self.assertIn("⚡ <b>Top match</b>", card)
+        self.assertIn("🕒 Reduced &lt; 14 days", card)
+        self.assertNotIn("Reduced < 14 days", card)
+        self.assertIn("☎️ 020 7946 0999", card)
+
+
 if __name__ == "__main__":
     unittest.main()

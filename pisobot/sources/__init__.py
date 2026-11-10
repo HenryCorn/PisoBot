@@ -244,7 +244,6 @@ def cached_search(name, search, minutes=None):
     if age is not None and age < dt.timedelta(minutes=minutes):
         return [restore(d) for d in hit["listings"]]
     listings = search()
-    listings = search()
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "listings": [snapshot(l) for l in listings],

@@ -175,9 +175,6 @@ def passes_basic(l, sweep=False, stage=None, defer_model=False):
         if not refine(l):
             return ("enrichment" if archive.enabled() and getattr(l, "detail_unavailable", False)
                     else "details")
-        if l.excluded_by_keywords():
-            if not (extract.enabled() or extract._default is not None):
-                return "keywords"
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
