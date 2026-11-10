@@ -462,13 +462,13 @@ class Judging(JudgingBase):
         self.assertEqual(main.passes_basic(advert(2, 1700)), "rent_cap")
         refine.assert_called_once()                                # still the cheap rent gate before details
 
-    def test_enrichment_failures_are_retried_next_time_not_baselined_away(self):
+    def test_failed_members_retry_silently_without_blocking_global_go_live(self):
         self.archive_sweep([advert(1, 1200)])
         with patch.object(enrich, "journey", side_effect=ConnectionError("tfl down")):
-            self.assertEqual(self.judge(), {})                  # retries are NOT a drained baseline
+            self.assertEqual(self.judge(), {"rm": 0})            # member stays silent; source can go live
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "enrichment")
-        self.assertIsNone(sweep._meta("sweep_base:rm"))
-        self.assertEqual(self.judge(), {"rm": 1})
+        self.assertEqual(sweep._meta("sweep_base:rm"), main.settings_key(self.owner))
+        self.assertEqual(self.judge(), {})
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "matched")
         self.assertEqual(self.alerts, [])                           # recovery remains silent
 

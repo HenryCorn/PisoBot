@@ -68,7 +68,7 @@ class Hardening(JudgingBase):
             os._exit(0)
         self.assertEqual(os.waitpid(pid, 0)[1] >> 8, 73)
         self.assertEqual(self.seen(), {'rm:1'})
-        self.assertEqual(len(self.pending()), 1)  # DB ack not reached, but seen is durable
+        self.assertEqual(len(self.pending()), 0)  # per-advert receipt precedes throttle/batch completion
         self.judge()
         self.assertEqual(self.alerts, [])
         self.assertEqual(accepted.read_text(), 'accepted\n')
@@ -262,10 +262,10 @@ class Hardening(JudgingBase):
     def test_first_baseline_stays_silent_across_enrichment_failure_and_recovery(self):
         self.archive_sweep([advert(i) for i in range(1, 51)])
         with patch.object(enrich, 'journey', side_effect=RuntimeError('TfL outage')):
-            self.assertEqual(self.judge(), {})
-        self.assertIsNone(sweep._meta('sweep_base:rm'))
-        self.assertEqual(len(self.pending()), 50)
-        self.assertEqual(self.judge(), {'rm': 50})
+            self.assertEqual(self.judge(), {'rm': 0})
+        self.assertEqual(sweep._meta('sweep_base:rm'), main.settings_key(self.owner))
+        self.assertEqual(len(self.pending()), 50)  # first retry due, but SILENT membership is durable
+        self.assertEqual(self.judge(), {})
         self.assertEqual(self.alerts, [])
         self.assertEqual(len(self.seen()), 50)
         archive.upsert([advert(99)], 'sweep')
@@ -492,7 +492,8 @@ class Hardening(JudgingBase):
                         patch.object(net, 'page', side_effect=ConnectionError('temporary details outage')):
                     result = main._run([source], False, False, rentals=True, watch=True, baseline=True,
                                        sweep=True, prefetched=([item], []))
-                self.assertFalse(result['complete'])
+                self.assertTrue(result['complete'])  # one advert degrades, not the source/person
+                self.assertEqual(result['degraded'], 1)
                 self.assertEqual(len(self.pending(sources=(source,))), 1)
                 with patch.object(module, 'refine', return_value=True):
                     sweep.judge(self.owner, [source], 1000, clock=lambda: 0)

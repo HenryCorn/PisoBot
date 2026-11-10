@@ -55,7 +55,7 @@ class Watcher:
         """Share identical portal searches, then apply each person's criteria and delivery."""
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
-        totals, errors = {"matches": 0, "complete": True, "people": {}}, []
+        totals, errors = {"matches": 0, "complete": True, "people": {}, "degraded": 0}, []
         alert_budgets = {p.chat_id: pipeline.new_alert_budget() for p in people}
         with pipeline.locked():
             for params, group in users.search_groups(people):
@@ -87,6 +87,7 @@ class Watcher:
                         continue
                     totals["people"][person.label] = result["matches"]
                     totals["matches"] += result["matches"]
+                    totals["degraded"] += result.get("degraded", 0)
                     totals["complete"] = totals["complete"] and result["complete"]
             if not dry_run and sweep.enabled(self.sources):
                 # After the head poll has alerted: a short, resumable slice of the deep sweep
@@ -102,6 +103,7 @@ class Watcher:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
+            _put_meta("watch_degraded_adverts", totals["degraded"])
             healthcheck = os.environ.get("HEALTHCHECK_URL", "")
             if healthcheck:
                 try:

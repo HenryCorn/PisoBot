@@ -1,6 +1,7 @@
 """Text for the /status and /whatif Telegram commands (VPS). Reads the archive and the watcher's
 own records; makes no requests."""
 import datetime as dt
+import html
 import json
 
 from . import archive, config, users
@@ -28,7 +29,7 @@ def _when(iso, now):
 def status_text(now=None):
     now = now or dt.datetime.now(dt.timezone.utc)
     meta = {r["name"]: r["value"] for r in _primary(
-        "SELECT name, value FROM meta WHERE name IN ('watch_last_success', 'watch_failures')")}
+        "SELECT name, value FROM meta WHERE name IN ('watch_last_success', 'watch_failures', 'watch_degraded_adverts')")}
     lines = ["<b>📡 PisoBot status</b>"]
     if meta.get("watch_last_success"):
         lines.append(f"Last complete scan: {_when(meta['watch_last_success'], now)}")
@@ -46,6 +47,23 @@ def status_text(now=None):
         for name, row in sorted((stats.get("sources") or {}).items()):
             lines.append(f"• {name}: ⚠️ failed" if name in down
                          else f"• {name}: {row.get('fetched', 0)} fetched · {row.get('matched', 0)} matched")
+
+    degraded = int(meta.get("watch_degraded_adverts") or 0)
+    if degraded:
+        lines.append(f"⚠️ Last head scan: {degraded} per-advert lookup(s) degraded; source scan is live.")
+    chat_id = users.current_chat() or users.owner_chat() or "owner"
+    work = archive.work_counts(chat_id)
+    if work.get("intent") or work.get("backoff") or work.get("failed"):
+        lines.append(f"\n<b>Your advert work</b>: {work.get('intent', 0)} pending notification intent(s), "
+                     f"{work.get('backoff', 0)} lookup(s) in backoff, {work.get('failed', 0)} exhausted, "
+                     f"{work.get('blocked', 0)} intent(s) blocked by current criteria.")
+        if work.get("failed"):
+            lines.append("Exhausted lookups stop retrying until the advert facts or your search settings change:")
+            for row in archive.failed_work(chat_id):
+                label = html.escape(str(row.get("address") or row["key"])[:60])
+                url = html.escape(str(row.get("url") or ""), quote=True)
+                home = f'<a href="{url}">{label}</a>' if url else label
+                lines.append(f"• {home} — {row['failures']} attempts; enrichment_failed")
 
     lines.append("\n<b>Deep sweep</b>")
     if config.DEEP_SWEEP_HOURS <= 0:

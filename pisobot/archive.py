@@ -14,10 +14,12 @@ Nothing here makes a network request.
 """
 import contextlib
 import datetime as dt
+import hashlib
 import json
 import math
 import os
 import sqlite3
+import uuid
 
 from . import config, localdb
 from .sources import restore, snapshot
@@ -77,6 +79,13 @@ CREATE TABLE IF NOT EXISTS sweeps (
     state TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS sweeps_source ON sweeps (source, id);
+CREATE TABLE IF NOT EXISTS advert_work (
+    chat_id TEXT NOT NULL, key TEXT NOT NULL, context TEXT NOT NULL, settings TEXT NOT NULL,
+    notify INTEGER NOT NULL DEFAULT 0, silent INTEGER NOT NULL DEFAULT 0,
+    failures INTEGER NOT NULL DEFAULT 0, next_retry TEXT, state TEXT NOT NULL,
+    updated_at TEXT NOT NULL, intent_id TEXT, PRIMARY KEY(chat_id, key)
+);
+CREATE INDEX IF NOT EXISTS advert_work_state ON advert_work(chat_id, state);
 CREATE TABLE IF NOT EXISTS unseen_events (
     id INTEGER PRIMARY KEY, sweep_id INTEGER NOT NULL, key TEXT NOT NULL,
     UNIQUE(sweep_id, key)
@@ -88,6 +97,8 @@ CREATE TABLE IF NOT EXISTS unseen_deliveries (
 );
 """
 RETRY = "('enrichment', 'unsent', 'deferred')"  # failed lookup, durable delivery intent, or deadline yield
+LOOKUP_ATTEMPTS = 3  # total attempts per person + facts + effective settings
+RETRY_BACKOFF_SECONDS = 300  # first retry immediate; further retry after five minutes
 UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
 
 
@@ -151,6 +162,9 @@ def upsert(listings, via, sweep_id=None, at=None):
                             l.first_listed, int(via == "head"), sweep_id if via == "sweep" else None, data))
                 db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'active')",
                            (l.key, at, l.rent))
+                # A newly materialised advert cannot inherit a verdict made without its facts.
+                db.execute("DELETE FROM verdicts WHERE key = ?", (l.key,))
+                db.execute("UPDATE advert_work SET context = '' WHERE key = ?", (l.key,))
                 stats["new"] += 1
                 counted, was_head = via == "sweep", False
             else:
@@ -166,6 +180,9 @@ def upsert(listings, via, sweep_id=None, at=None):
                 if _facts(old["data"]) != _facts(data) or old["status"] != "active":
                     # Invalidate every person's judgement, never their delivery/seen history.
                     db.execute("DELETE FROM verdicts WHERE key = ?", (l.key,))
+                    # Reset retry admission on every actual revision, including reactivation
+                    # with identical text/rent. Preserve the sticky notification promise.
+                    db.execute("UPDATE advert_work SET context = '' WHERE key = ?", (l.key,))
                 if old["rent"] != l.rent or old["status"] != "active":
                     db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'active')",
                                (l.key, at, l.rent))
@@ -191,18 +208,165 @@ def advert(key):
 
 # ---------- verdicts ----------
 
-def record_verdicts(chat_id, rows, settings, at=None):
-    """rows: (key, outcome, rent, all_in, travel_minutes, crime_score). Latest outcome wins."""
-    at = at or now()
+def _context(settings, data):
+    return hashlib.sha256(json.dumps([settings, _facts(data)], sort_keys=True).encode()).hexdigest()
+
+
+def _job(db, chat_id, key):
+    rows = _rows(db, "SELECT * FROM advert_work WHERE chat_id = ? AND key = ?", str(chat_id), key)
+    return rows[0] if rows else None
+
+
+def _context_for(db, key, settings):
+    row = db.execute("SELECT data FROM adverts WHERE key = ?", (key,)).fetchone()
+    return _context(settings, row["data"] if row else "{}")
+
+
+def _waiting(job, context, at):
+    if not job or job["context"] != context:
+        return None
+    if job["state"] == "failed":
+        return "enrichment_failed"
+    if job["next_retry"] and dt.datetime.fromisoformat(job["next_retry"]) > dt.datetime.fromisoformat(at):
+        return "retry_backoff"
+    return None
+
+
+def begin_lookup(chat_id, key, settings, baseline=False):
+    """Persist evaluation provenance BEFORE external I/O, including an interrupted lookup.
+
+    Evaluating is not yet a promise that a home fits; a final rejection may resolve it.
+    But a later quiet evaluator cannot reinterpret a live-origin lookup as baseline inventory.
+    """
     with _db() as db:
-        db.executemany(
-            "INSERT INTO verdicts (chat_id, key, outcome, rent, all_in, travel_minutes, crime_score, settings,"
-            " updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-            " ON CONFLICT(chat_id, key) DO UPDATE SET outcome = excluded.outcome, rent = excluded.rent,"
-            " all_in = excluded.all_in, travel_minutes = excluded.travel_minutes,"
-            " crime_score = excluded.crime_score, settings = excluded.settings, updated_at = excluded.updated_at",
-            [(str(chat_id), key, outcome, rent, all_in, travel, crime, settings, at)
-             for key, outcome, rent, all_in, travel, crime in rows])
+        context = _context_for(db, key, settings)
+        old = _job(db, chat_id, key)
+        same = old is not None and old["context"] == context
+        legacy = db.execute("SELECT outcome FROM verdicts WHERE chat_id=? AND key=?",
+                            (str(chat_id), key)).fetchone() if old is None else None
+        notify = bool(old and old["notify"]) or bool(legacy and legacy["outcome"] in
+                                                    ("unsent", "enrichment", "deferred"))
+        live_lookup = old is not None and old["state"] == "evaluating" and not old["silent"]
+        silent = ((bool(old["silent"]) if same else False) or bool(baseline)) and not (notify or live_lookup)
+        intent_id = (old.get("intent_id") if old and old["notify"] else None)
+        if notify and intent_id is None:
+            intent_id = uuid.uuid4().hex
+        db.execute("INSERT INTO advert_work (chat_id,key,context,settings,notify,silent,failures,next_retry,"
+                   "state,updated_at,intent_id) VALUES (?,?,?,?,?,?,?,NULL,'evaluating',?,?) "
+                   "ON CONFLICT(chat_id,key) DO UPDATE SET context=excluded.context,settings=excluded.settings,"
+                   "notify=excluded.notify,silent=excluded.silent,failures=excluded.failures,"
+                   "next_retry=NULL,state='evaluating',updated_at=excluded.updated_at,intent_id=excluded.intent_id",
+                   (str(chat_id), key, context, settings, int(notify), int(silent),
+                    old["failures"] if same else 0, now(), intent_id))
+
+
+def retry_block(chat_id, key, settings, at=None):
+    """Head and sweep obey the SAME per-advert retry clock. New facts/settings reset it."""
+    with _db() as db:
+        return _waiting(_job(db, chat_id, key), _context_for(db, key, settings), at or now())
+
+
+def intent_token(chat_id, key):
+    """Receipt identity for the outstanding obligation, not just a price/seen coincidence."""
+    with _db() as db:
+        job = _job(db, chat_id, key)
+    return job.get("intent_id") if job and job["notify"] else None
+
+
+def silent_keys(chat_id, keys, baseline=False):
+    """Sticky live intents win over EVERY quiet path; failed baseline members stay silent later."""
+    if not keys:
+        return set()
+    with _db() as db:
+        jobs = {key: _job(db, chat_id, key) for key in keys}
+    return {key for key, job in jobs.items()
+            if job and not job["notify"] and (baseline or job["silent"])}
+
+
+def work_counts(chat_id):
+    with _db() as db:
+        counts = {r["state"]: r["n"] for r in _rows(
+            db, "SELECT state, COUNT(*) n FROM advert_work WHERE chat_id = ? GROUP BY state", str(chat_id))}
+        counts["intent"] = db.execute("SELECT COUNT(*) FROM advert_work WHERE chat_id = ? AND notify = 1",
+                                     (str(chat_id),)).fetchone()[0]
+        return counts
+
+
+def failed_work(chat_id, limit=5):
+    with _db() as db:
+        return _rows(db, "SELECT w.key, w.failures, a.url, a.address FROM advert_work w "
+                     "LEFT JOIN adverts a ON a.key = w.key WHERE w.chat_id = ? AND w.state = 'failed' "
+                     "ORDER BY w.updated_at DESC, w.key LIMIT ?", str(chat_id), limit)
+
+
+def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_keys=None, acknowledged=False):
+    """Atomically persist verdict AND durable work provenance; a verdict is NOT a delivery receipt.
+
+    notify is sticky across quiet runs, settings and fact revisions until explicit acknowledgement.
+    Silent membership survives baseline completion for retries of that same context. A retryable
+    lookup failure is isolated, backed off and eventually visible as enrichment_failed.
+    """
+    if acknowledged and baseline is True:
+        raise ValueError("A silent baseline is not a delivery receipt")
+    at = at or now()
+    chat_id = str(chat_id)
+    with _db() as db:
+        for key, outcome, rent, all_in, travel, crime in rows:
+            context = _context_for(db, key, settings)
+            old = _job(db, chat_id, key)
+            same = old is not None and old["context"] == context
+            legacy = db.execute("SELECT outcome FROM verdicts WHERE chat_id = ? AND key = ?",
+                                (chat_id, key)).fetchone() if old is None else None
+            # Unknown old retry provenance is never silently acknowledged during migration.
+            inherited = bool(old and old["notify"]) or bool(legacy and legacy["outcome"] in
+                                                            ("unsent", "enrichment", "deferred"))
+            live_lookup = same and old["state"] == "evaluating" and not old["silent"]
+            silent = (bool(old["silent"]) if same and old["state"] == "evaluating"
+                      else (bool(old["silent"]) if same else False) or baseline is True)
+            candidate = notice_keys is None or key in notice_keys
+            retryable = outcome in ("unsent", "enrichment", "deferred")
+            notify = inherited or (retryable and candidate and (baseline is not True or live_lookup) and not silent)
+            intent_id = old.get("intent_id") if old and old["notify"] else None
+            if notify:
+                silent = False
+                intent_id = intent_id or uuid.uuid4().hex
+            failures = old["failures"] if same else 0
+            next_retry = None
+            if outcome in ("enrichment", "deferred"):
+                failures += 1
+                if failures >= LOOKUP_ATTEMPTS:
+                    state, outcome = "failed", "enrichment_failed"
+                else:
+                    state = "backoff"
+                    delay = 0 if failures == 1 else RETRY_BACKOFF_SECONDS * 2 ** (failures - 2)
+                    next_retry = (dt.datetime.fromisoformat(at) + dt.timedelta(seconds=delay)).isoformat(
+                        timespec="seconds")
+            elif retryable:
+                state = "pending"
+                if outcome == "unsent":
+                    failures = 0  # lookup recovered; delivery quota is not a lookup failure
+            elif outcome == "matched":
+                failures = 0  # a successful judgement ends the consecutive lookup failure streak
+                if notify and not acknowledged:
+                    # Even a buggy caller's baseline settlement cannot clear a live intent.
+                    state, outcome = "pending", "unsent"
+                else:
+                    state, notify = "done", False
+            else:
+                state = "blocked" if notify else "done"  # pending intent, currently outside criteria
+            db.execute("INSERT INTO advert_work (chat_id,key,context,settings,notify,silent,failures,next_retry,"
+                       "state,updated_at,intent_id) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,key) DO UPDATE SET "
+                       "context=excluded.context,settings=excluded.settings,notify=excluded.notify,"
+                       "silent=excluded.silent,failures=excluded.failures,next_retry=excluded.next_retry,"
+                       "state=excluded.state,updated_at=excluded.updated_at,intent_id=excluded.intent_id",
+                       (chat_id, key, context, settings, int(notify), int(silent), failures, next_retry, state, at, intent_id))
+            db.execute(
+                "INSERT INTO verdicts (chat_id,key,outcome,rent,all_in,travel_minutes,crime_score,settings,"
+                "updated_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,key) DO UPDATE SET "
+                "outcome=excluded.outcome,rent=excluded.rent,all_in=excluded.all_in,"
+                "travel_minutes=excluded.travel_minutes,crime_score=excluded.crime_score,"
+                "settings=excluded.settings,updated_at=excluded.updated_at",
+                (chat_id, key, outcome, rent, all_in, travel, crime, settings, at))
 
 
 def verdicts_since(chat_id, days, at=None, settings=None):
@@ -217,18 +381,39 @@ def verdicts_since(chat_id, days, at=None, settings=None):
         return _rows(db, sql, *params)
 
 
-def pending(chat_id, sources, settings, limit, skip=()):
-    """Active archived adverts this person's current settings have not judged yet (a failed
-    enrichment, or a match whose alert hit MAX_ALERTS_PER_RUN, counts as not judged), newest first,
-    as Listing objects."""
+def pending(chat_id, sources, settings, limit, skip=(), *, drainage=False, at=None, exclude_intents=False):
+    """Due work only. Drainage ignores classified retries/intents, NOT unattempted inventory.
+
+    Baseline membership and live intent are durable per advert, so global go-live need not wait for
+    a failing advert or for delivery quota. Backoff/terminal work stays visible in /status.
+    """
     marks = ",".join("?" for _ in sources)
+    at = at or now()
     with _db() as db:
-        rows = _rows(db, f"SELECT a.data, a.key FROM adverts a LEFT JOIN verdicts v ON v.key = a.key"
-                         f" AND v.chat_id = ? WHERE a.status = 'active' AND a.source IN ({marks})"
-                         f" AND (v.key IS NULL OR v.settings IS NOT ? OR v.outcome IN {RETRY})"
-                         f" ORDER BY a.first_seen DESC, a.key", str(chat_id), *sources, settings)
-    rows = [r for r in rows if r["key"] not in skip]
-    return [restore(json.loads(r["data"])) for r in rows[:limit]]
+        rows = _rows(db, f"SELECT a.data,a.key,v.outcome,v.settings AS verdict_settings FROM adverts a "
+                         f"LEFT JOIN verdicts v ON v.key=a.key AND v.chat_id=? "
+                         f"LEFT JOIN advert_work w ON w.key=a.key AND w.chat_id=? "
+                         f"WHERE a.status='active' AND a.source IN ({marks}) AND "
+                         f"(v.key IS NULL OR v.settings IS NOT ? OR v.outcome IN {RETRY}) "
+                         f"ORDER BY CASE WHEN v.outcome='unsent' AND w.notify=1 THEN 0 "
+                         f"WHEN v.key IS NULL OR v.settings IS NOT ? THEN 1 ELSE 2 END, "
+                         f"w.updated_at,a.first_seen DESC,a.key", str(chat_id), str(chat_id), *sources, settings, settings)
+        selected = []
+        for row in rows:
+            if row["key"] in skip:
+                continue
+            context = _context(settings, row["data"])
+            job = _job(db, chat_id, row["key"])
+            classified = job is not None and job["context"] == context
+            if drainage and classified and row["verdict_settings"] == settings and row["outcome"] in (
+                    "enrichment", "unsent", "deferred", "enrichment_failed"):
+                continue
+            if _waiting(job, context, at) or (exclude_intents and job and job["notify"]):
+                continue
+            selected.append(restore(json.loads(row["data"])))
+            if len(selected) >= limit:
+                break
+    return selected
 
 
 def matched_listings(chat_id, sources, exclude=()):

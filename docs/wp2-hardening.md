@@ -1,126 +1,173 @@
-# WP2 hardening after independent review
+# WP2 hardening — round 2 (PR #7)
 
-Branch: `wp2-hardening`, based on `dee641e`. Draft PR base: `wp2-archive`.
-Review: [WP2 independent review](https://github.com/HenryCorn/PisoBot/pull/2#issuecomment-6764005268).
+**Draft; not a rollout approval.** This supersedes the round-1 liveness/baseline claims in
+the original `docs/wp2-hardening.md`. Base of this round: `fe24507`; PR base remains
+`wp2-archive`. No merge, deployment, production state operation or live market/API request
+was performed.
 
-**Do not deploy or merge without BOSS review.** This is a local/offline hardening change,
-not a production rollout. No zone estimates are used as a hard filter.
+## Independent re-review: finding-by-finding
 
-## Review findings: fixed / deferred
-
-| Review finding | Status | Change and regression evidence |
+| Finding | Fix | Executed regression evidence |
 | --- | --- | --- |
-| P1 #1: matched verdict committed before delivery | Fixed | `unsent` is a durable delivery intent, written before publish/send/seen I/O. Only successful seen persistence, explicit silent baselining, visible report delivery, or no-alert/hidden suppression settles it. DB failure prevents delivery. Telegram errors, later-phase errors and actual child hard exits are covered. |
-| P1 #2: advert changes never invalidate verdicts | Fixed | Decision-fact changes and reactivation invalidate every person's verdict transactionally with the advert update. Seen/rent history is retained for correct drop alerts. Per-person utilities/estimated-cost fields do not spuriously revise shared facts. |
-| P1 #3: failed archive writes claim coverage | Fixed | Crawl uses strict archive writes; a failed write cannot advance the page/read count or finish a sweep. The reserved request remains charged. Retry reads the same page; incomplete work never contributes absence misses. |
-| P1 #4: reports reject outer-zone sweep matches | Fixed | Report extras carry per-listing sweep provenance into the gates. Their small head-poll radius is not reapplied. Actual report-path regression checks the result and stored verdict, not just input keys. |
-| P1 #5: premature silent baseline | Fixed | Retryable rows cannot be hidden by invocation-local skips when testing drainage. A compatible completed scope/generation is required, with no newer running generation. Scope expansion starts a new crawl immediately, instead of using an old narrower completion or waiting 12 hours. Found counters reset with settings generation. Failure/recovery, restarts between batches and cap-expansion regressions stay silent. |
-| P1 #6: alert allowance resets per batch | Fixed | One mutable allowance per person per watcher cycle is shared by the head poll and every batch/source. Excess intents stay pending. Tests drain 51 matches under cap 2 without loss/duplicates and cover cross-source/head+sweep sharing. |
-| P1 #7: whole slow batch overruns time slice | Fixed | Deadline passed into the per-advert loop, checked before the next advert, crime lookup, details and delivery. A deferred judgement remains retryable. Slice orchestration and unseen-message draining also respect the overall deadline. Simulated 30-second budget now stops after three 10-second lookups, not all 25. |
-| P2 #8: crash erases consumed request budget | Fixed | Reserve each attempt in SQLite with an immediate transaction **before** network I/O. A hard exit after page commit keeps the charge. Replay is idempotent and consumes budget; exhaustion is reported incomplete, never free extra requests. Actual `os._exit` test starts from 149 and cannot issue a request beyond 150. |
-| P2 #9: fingerprint ignores defaults/policy | Fixed | Hash immutable effective per-person defaults/overrides/destination plus a judgement-policy version and sweep radius. Do not read another person's temporarily mutated config as defaults. Head and sweep baselines use the same fingerprint. Unknown legacy head markers receive one silent rebaseline without clearing history. |
-| P2 #10: unrelated head failure blocks healthy sweeps | Fixed | Run the independently bounded sweep/retry step even when another head source/person failed. Head health still reports/raises the failure; healthy matches and queues can progress. |
-| P2 #11: unseen message lost after status commit | Fixed for new transitions | Persist an event in the same transaction as the unseen transition and track acknowledgement per person. Retry every slice; a failed chat does not block the other. Superseded absence episodes are coalesced. Tests cover failed delivery, retry/ack, multiple chats and deadline yield. Historical pre-hardening transitions are not backfilled automatically (see limits). |
-| P2 #12: what-if counts stale/already-fitting rows | Fixed | Use only the current settings fingerprint; require current limit < metric <= relaxed limit. Label the sample historical and approximate, not lower/upper bounds or current availability. |
+| **F1 / P1 — quiet sweep absorbs head alerts** | New durable per-person/per-advert work provenance is separate from verdicts. A live notification promise is sticky across quiet runs, settings changes and advert revisions. A baseline cannot acknowledge it. Quiet evaluators deliver it under the shared allowance, or retain it pending without writing an alerted seen record. Non-baseline lookup provenance is persisted before external lookup I/O as well. | Ported reviewer **A1, A2, A3**. Added whole-cycle cap + quiet sweep + adverts falling off later head pages; zero-budget/settings-change baseline; storage-level refusal of silent acknowledgement; actual child hard exit during lookup; identical-criteria owner/guest provenance isolation. |
+| **F2 / P1 — bad detail blocks a person's head baseline** | Local per-advert lookup/parser errors are degraded work, not source failure. A source-healthy head baseline completes and only its successfully evaluated silent members are recorded. The failed member's silent provenance survives global go-live, so recovery does not falsely announce an old baseline home. | Ported reviewer **B**. Whole-cycle tests assert both head/sweep markers go live with a bad member, later good new homes alert, recovery of the original member stays silent, and a parser exception affects only that advert. |
+| **F3 / P2 — persistent detail suppresses healthcheck** | Heartbeat/completion measures successful source/loop work, independently of per-advert lookup quality. Degraded head counts are stored separately and shown in /status. Each failed advert has bounded retry/backoff and a visible terminal state; no per-advert error increments the global failed-cycle warning path. Genuine source, storage and delivery-channel failures remain operational failures. | Ported reviewer **C1** verifies all 3 heartbeats. Added controlled-clock whole-cycle test: backoff observed by head AND sweep, exactly 3 failed logical attempts, continued heartbeat/last-success updates, and /status displays the property and enrichment_failed. |
+| **F4 / P2 — one retry keeps sweep quiet forever** | Global baseline drainage waits for unclassified inventory, not already classified retry/delivery work. Per-member silence is durable, so a failed initial member can retry after the source goes live without absorbing newer homes. Repeated failures/deadline yields terminate after the retry budget. Unattempted inventory outranks recurring lookup retries; confirmed delivery intents retain priority. Drainage is checked even when the last member consumed the slice. | Ported reviewer **C2**. Added a permanently over-budget advert case proving other inventory is classified, source goes live, newer work remains a live intent and is delivered (not silently consumed), while the bad member reaches a visible final state. |
 
-No confirmed review finding #1–12 is deliberately left unfixed for future code work.
-The external-service/upgrade limitations below remain explicit.
+All **seven original reviewer reproductions pass unchanged**, including their whole
+`Watcher.cycle` compositions. They are also ported into
+`tests/test_hardening_round2.py`, not merely run from the scratchpad.
 
-## Additional correctness fixes found while hardening
+## Lifecycle invariant and data model
 
-- A truncated local rental digest must not mark every candidate as delivered. Only top
-  cards, all visible saved entries and the formatter's limited rental alternatives are
-  acknowledged. Unshown new/drop matches remain `unsent`; the next scan sends them without
-  repeating ones actually shown. Cloud/sale report semantics are unchanged.
-- Enforce each person's `minrent` when judging the shared archive, not just when portals
-  originally fetch it.
-- Distinguish temporary Rightmove/OnTheMarket details failures from genuine detail
-  exclusions on the local path. Temporary failures remain retryable and silent during
-  initial baselining; definitive HTTP 404/410 exclusions are not retried indefinitely.
-  Source refine's boolean API and cloud rejection outcomes remain unchanged.
-- The zone hook is still a no-op, with its comment corrected to BOSS's **ordering only**
-  decision. This PR neither imports zone.py nor changes lookup ordering.
+An additive `advert_work` table in the **primary** archive DB is keyed by
+`(chat_id, key)`. It records the facts/effective-settings context, notification obligation,
+silent membership, failure count, next retry time and state. No private renter-profile
+fields are stored in the shared market snapshots.
 
-## File-by-file
+- `evaluating`: provenance recorded before external lookup I/O. Restarting a live-origin
+  lookup under a quiet judge does not turn it into baseline inventory.
+- `pending`: a due evaluation/delivery, with its notification/silence class retained.
+- `backoff`: lookup failed/yielded; do not hammer it again from another path in the same interval.
+- `failed`: budget exhausted, verdict `enrichment_failed`; visible in /status, no further
+  automatic attempts for the same context. A live notification promise remains retained.
+- `blocked`: a notification obligation remains, but current criteria reject the advert.
+  It is not marked delivered/seen. A changed context can reconsider it.
+- `done`: successfully acknowledged notification, intentionally silent baseline member,
+  or a resolved non-notifying judgement.
 
-- `pisobot/archive.py`: decision-fact invalidation; current-settings verdict queries;
-  durable request reservation; additive unseen event/delivery tables and latest-event query.
-- `pisobot/main.py`: durable delivery intents and settlement; report provenance/visible
-  acknowledgements; shared budget; per-advert/stage deadlines; effective fingerprint;
-  local min-rent and transient-detail outcomes.
-- `pisobot/sweep.py`: compatible baseline generations; truthful persistence/resume;
-  shared allowance/deadlines; immediate scope expansion; retryable per-person unseen events.
-- `pisobot/watch.py`: shared cycle budget; healthy-source sweep independence; provenance;
-  fingerprinted silent policy migration.
-- `pisobot/status.py`: current-settings, strictly additional what-if increments and honest labels.
-- `pisobot/sources/rightmove.py`, `pisobot/sources/otm_rent.py`: ephemeral detail-failure signal,
-  not a persisted market fact.
-- `tests/test_hardening.py`: 40 new offline regressions ported/extended from the review repros.
-- `tests/test_sweep.py`, `tests/test_users.py`: update three obsolete baseline/fingerprint/
-  what-if expectations and the legacy migration expectation. No production failure is
-  hidden by weakening the new regressions.
-- `docs/wp2-hardening.md`: this versioned implementation/test/operations report.
+Verdict + work-state updates are transactional. A verdict alone is not a receipt.
+Each live obligation has a unique receipt identity. Actual sends/visible reports stamp that
+identity into the per-user seen record; only that exact identity can recover an interrupted
+database acknowledgement. Same price, a previous notification, or a silent baseline record
+cannot prove that a DIFFERENT outstanding obligation was sent. Regressions cover price
+reversion under a quiet run and an actual hard exit between seen persistence and DB ack.
+`notify` cannot be cleared by ordinary baseline bookkeeping; the storage API rejects
+`baseline=True, acknowledged=True`. Actual sends/reports and durable prior receipts use
+explicit acknowledgement. Seen state is saved before acknowledging a delivered card.
+A changed context resets lookup admission **without erasing a live notification promise**.
 
-## Tests
+Retry policy: **3 consecutive failed logical lookup attempts**, first retry immediately,
+then at least **5 minutes** before the final attempt. Both head and sweep obey the same
+clock. Deadline yields count too, so one perpetually over-budget member cannot monopolise
+work forever. Successful judgement resets the failure streak. New relevant facts,
+reactivation, effective criteria or judgement-policy revision allow fresh lookup admission.
+The fingerprint policy is now `wp2-hardening-2`.
 
-From `/Users/quique/repo/PisoBot-review`, using the main checkout's existing virtualenv:
+This is not a promise of exactly-once Telegram delivery or a strict raw-HTTP-attempt cap:
+an interrupted in-flight operation may need replay because its outcome is unknown, and
+existing HTTP helpers can retry internally. No completed delivery intent is silently
+converted into a baseline receipt.
+
+## Lower-severity / inferred section of the re-review
+
+| Concern | Disposition and evidence |
+| --- | --- |
+| Already delivered head/sweep matches rejudged after a later send fails | **Fixed in the normal receipt path.** A per-card receipt is committed immediately after durable seen persistence, not after the batch. Existing already-seen unchanged matches do not create new delivery intents. `test_completed_receipts_are_not_rejudged_after_another_send_fails` selects only the two actually undelivered members. Storage failure at the receipt itself can still require conservative re-evaluation; seen prevents an ordinary repeat send. |
+| RM backlog starves OTM | **Mitigated explicitly.** Divide the person's remaining time across sources and rotate the starting source in durable per-person metadata. Tests show the other source gets work despite a slow RM member and starts first next time. |
+| Fixed-order people / unseen queue only gets leftover time | **Mitigated explicitly.** Rotate starting people for judging and unseen delivery using primary-DB cursors; reserve 10% of the slice for unseen work before judging can consume it. Tests cover a slow first chat, an in-flight operation consuming the slice, and actual step ordering. In-flight operations cannot be pre-empted, so rotation bounds starvation across calls, not every-call latency. |
+| Upward cap/minrent changes restart quiet generations | **Intentionally retained for honest coverage.** The new work ledger makes quiet-generation resets unable to consume existing live intents. The zero-budget + changed-settings regression proves this. New unclassified inventory still receives the intended initial silent treatment; the per-cycle pacing and per-generation search request cap remain. |
+| No realistic poisoned upsert example | **No speculative recovery added.** Strict archive persistence remains necessary for real DB/I/O failures. No page is advanced or complete absence coverage claimed after a failed write. |
+
+## Test evidence
+
+Using only `/Users/quique/repo/PisoBot-review`, on `wp2-hardening`, with the main checkout's
+existing virtualenv:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 /Users/quique/repo/PisoBot/.venv/bin/python -m unittest discover -s tests
 ```
 
-Printed result:
-
 ```text
-Ran 373 tests in 4.508s
+Ran 402 tests in 8.935s
 
 OK
 ```
 
-The previous suite had 333 tests. The 40 additions include actual child hard exits before
-delivery, after seen persistence, and after page persistence; simulated-clock deadline tests;
-two-person limits/destinations/utilities/database routing; atomic rollback; lost-send retry;
-truncated reports; silent recovery and scope expansion; and an actual-STORAGE-unset shared-
-ownership pipeline test verifying details-before-journey and zero archive DB access.
+This is **29 new round-2 tests** over the previous 373. The original reviewer script was
+also rerun without edits:
 
-All fixtures block real network requests. No live portals, TfL, Telegram, VPS, deployment
-or secret operations were performed. Only the explicitly requested GitHub push/draft-PR
-publication is permitted for this task.
+```text
+Ran 7 tests in 0.965s
 
-## Remaining limits / deployment blockers for BOSS
+OK
+```
 
-1. **Independent re-review and rollout approval remain blockers.** In particular review the
-   changed delivery lifecycle, baseline migration, and combined head+sweep cap against WP3.
-   This PR is draft and must remain unmerged.
-2. **At-least-once, not exactly-once Telegram delivery.** A crash after Telegram accepts but
-   before seen/DB acknowledgement can duplicate a message. The durable intent prevents
-   permanent loss; no Telegram idempotency key exists here. The after-seen crash test does
-   avoid duplication. Manual multi-message reports have the same acknowledgement ambiguity.
-3. **Deadlines are cooperative.** They stop the next advert/lookup stage, not an already
-   running HTTP retry, image fetch or Telegram operation. Existing network timeout/retry
-   policies still bound those operations. This is not a strict 120-second process kill or
-   a new TfL requests-per-minute limiter; no sustained live throughput claim is made.
-4. **Conservative initial baselines can take time.** Failed initial enrichment/details rows
-   remain quiet until resolved or removed from active inventory. This prioritizes no flood;
-   new outer-zone notices can be delayed while an initial generation drains. The summary
-   counter is best effort across the narrow crash window after seen persistence but before
-   its counter update; delivery state remains safe even if that count under-reports.
-5. **No automatic historical notification replay.** Experimental databases from unhardened
-   WP2 may already contain unseen transitions with no event, or matched verdicts whose old
-   delivery outcome is unknowable. They are not blindly replayed, avoiding a stale flood.
-   The new policy fingerprint silently rejudges archive eligibility. If such a database is
-   used, BOSS must decide any historical recovery/reconciliation explicitly.
-6. **Fractional price-band contract remains unverified/deferred.** The review's separate
-   synthetic £1,380.50 gap risk is not one of its confirmed P1/P2 findings. Integer portal
-   price-band splitting is unchanged. Confirm whether each portal rounds/buckets monthly
-   rent, or design conservative overlapping bands, before claiming penny-exact coverage.
-   No live calls were made to guess that contract.
-7. **Upgrade/rollback needs a consistent state backup and a reviewed plan.** The local
-   schema change is additive and `worker/schema.sql` is untouched, but the new `deferred`
-   outcome and event queues are not understood by old WP2. Do not roll back and assume pending
-   work remains scheduled. Preserve the primary DB, its WAL consistently, and all per-user
-   state/seen files using the approved operator procedure; no backup/deployment was run here.
+The ported tests retain the reviewer labels A1/A2/A3/B/C1/C2 plus control. Additional tests
+cover per-person work isolation, direct storage invariants, interrupted lookups, backoff and
+terminal states, successful recovery/reset, reactivation, delivery after head-page disappearance,
+zero quotas/settings changes, parser errors, cooperative deadlines, fairness and dry runs.
+Existing tests that expected an advert-level error to block the global baseline/heartbeat
+were updated to the new explicitly requested policy; they still assert silent member recovery
+and absence of duplicate sends.
 
-The unchanged cloud/sale gates and mortgage path are regression-tested. No state was reset,
-no user preferences were migrated into another person's profile, and no market requests
-were made to validate assumptions.
+All external portal/TfL/Telegram/healthcheck operations in these tests are fixtures/stubs.
+No real property, chat, VPS or credential operations were performed. Only the requested
+GitHub push and PR update access GitHub.
+
+## Retained round-1 fixes
+
+The original archive/revision, truthful coverage, report provenance/visible settlement,
+cross-batch/person-cycle delivery allowance, request reservation before portal I/O,
+current-settings what-if queries and durable per-person unseen-event queues remain.
+Cloud/sale gate order, criteria, mortgage behaviour and disabled archive path remain covered
+by the full suite. This branch does not import zone.py or use it as a hard filter.
+
+## Files changed in this round
+
+- `pisobot/archive.py`: additive work ledger, atomic provenance/verdict lifecycle, bounded
+  retry clock, classified drainage, priority, sticky obligations and context admission resets.
+- `pisobot/main.py`: lookup-start provenance, shared retry admission, per-member silence,
+  explicit/per-card acknowledgement, local degraded-vs-source completion and safe parser errors.
+- `pisobot/sweep.py`: work-aware go-live, correct silent-only summary counts, fair source/person
+  scheduling and reserved/rotating unseen delivery.
+- `pisobot/watch.py`: aggregate and persist degraded-advert diagnostics without suppressing a
+  successful source heartbeat.
+- `pisobot/status.py`: own-user pending/backoff/exhausted/blocked states and up to five exhausted
+  advert links with the bounded attempt count.
+- `tests/test_hardening_round2.py`: seven ported independent reproductions and twenty-two additional
+  lifecycle/fairness/composition regressions.
+- `tests/test_hardening.py`, `tests/test_sweep.py`, `tests/test_watch.py`: replace the obsolete
+  whole-baseline-blocking expectations; reflect earlier per-card receipts.
+- `docs/wp2-hardening.md`: this current report, replacing the inaccurate round-1 limit 4.
+
+## Remaining limits / BOSS gates
+
+1. **Independent re-review and rollout approval remain blockers.** In particular review this
+   provenance/state transition model and rerun the independent checks after incorporation into
+   the WP3 integration candidate. PR #7 remains draft and must not be merged automatically.
+2. **Historical fe24507 state cannot be magically repaired.** Already-absorbed alerts left only
+   `matched` + `seen.alerted` without a delivery log; that is not enough to distinguish a real
+   send from the old quiet absorption. No production state was read/reset. BOSS must decide any
+   historical reconciliation. Legacy retryable rows lacking provenance are conservatively
+   adopted as live obligations rather than silently acknowledged; this may surface old work
+   under the ordinary delivery cap and needs an approved migration decision.
+3. **Terminal retry is explicit, not endless polling.** Exhausted same-context lookups stay visible
+   and stop consuming attempts. Facts/reactivation/effective-settings/policy changes reset
+   admission; an unchanged-context manual per-advert retry command/UI is not added here.
+   A live obligation stays pending, including when it is currently blocked by criteria or a
+   superseded price change is not currently deliverable. There is no implicit stale-intent
+   cancellation: inventing a receipt would violate the requested invariant. A future explicit
+   cancellation/reconciliation policy is BOSS's decision.
+4. **Real incomplete coverage still cannot go live dishonestly.** A first covering generation can
+   remain quiet if the portal/source crawl never completes; that is not one bad advert holding
+   it open. Initial classified silent members intentionally do not receive later historical
+   new-home alerts for the same context. After compatible coverage/classification, genuinely
+   newer work is live even while old members are backing off/exhausted.
+5. **At-least-once delivery and cooperative deadlines remain.** Remote acceptance before a local
+   receipt can cause a repeat, and an in-flight HTTP/image/send operation can overrun a slice.
+   Quotas are not consumed by silent members, retries or failed sends; they are shared across
+   head/sweep batches for actual individual delivery. A slow attempt can delay a ready notice
+   to the next slice, but cannot silently acknowledge it.
+6. **Heartbeat now means source/loop health, with separate lookup-quality diagnostics.** A genuine
+   source, storage or delivery-channel error still fails the cycle. Widespread external
+   enrichment failure is visible as degraded/exhausted advert counts, not falsely claimed to
+   be good enrichment just because the process heartbeat pings.
+7. **WP3 fixes are outside this branch.** The independent WP3 blockers and duplicate notification
+   ownership seam (pipeline-first unseen/rent notices) are not claimed fixed by this work.
+   Integrating this new commit into PR #8 requires fresh combined tests/re-review; the old
+   `6a77f33` candidate still contains the original round-1 regressions until updated.
+8. Fractional portal-price contract, source cache freshness, additive-schema backup/WAL and
+   rollback reconciliation remain operator/review gates from the prior report. Old code ignores
+   this new provenance ledger; rollback must not be assumed to preserve notification semantics.
+   No backup, migration of real state, deployment or zone integration was performed.

@@ -321,7 +321,7 @@ def settings_key(person=None):
     """Effective defaults are immutable across the polling/pipeline threads. Version policy too."""
     person = person if person is not None else users.current()
     person = person or users.User(users.owner_chat(), owner=True)
-    policy = {"version": "wp2-hardening-1", "criteria": users.effective(person),
+    policy = {"version": "wp2-hardening-2", "criteria": users.effective(person),
               "sweep_miles": config.DEEP_SWEEP_MILES}
     return hashlib.sha1(json.dumps(policy, sort_keys=True).encode()).hexdigest()[:12]
 
@@ -355,7 +355,11 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     alert_budget = alert_budget if alert_budget is not None else new_alert_budget()
     sweep_keys = set(sweep_keys)
     processed = []
+    local_rentals = archive.enabled() and rentals
+    person_id = users.current_chat() or users.owner_chat() or "owner"
+    settings = settings_key() if archive.enabled() else None
     seen = load_seen()
+    seen_before = copy.deepcopy(seen)
     p = prefs.load()
     live = not dry_run and not preview_dir
     alerted = [v for v in seen.values() if v.get("alerted")]
@@ -397,6 +401,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
 
     # Distinct rental IDs are not proof of the same flat, even at identical map pins/prices.
     matches, kept, rejected, enrich_failures = [], [], {}, 0
+    deferred_failures = 0
     rental_keys = set()
     verdicts = []
     try:
@@ -406,6 +411,12 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 break
             processed.append(l.key)
             from_sweep = sweep or l.key in sweep_keys
+            if local_rentals and live:
+                blocked = archive.retry_block(person_id, l.key, settings)
+                if blocked:
+                    reject(l.source, blocked)
+                    deferred_failures += 1
+                    continue
             if l.tenure == "rent" and l.key in rental_keys:
                 reject(l.source, "duplicate_id")
                 continue
@@ -419,6 +430,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             else:
                 why = passes_basic(l)
             if not why:
+                if local_rentals and live:
+                    archive.begin_lookup(person_id, l.key, settings, baseline=baseline)
                 try:
                     why = (passes_area(l, deadline=deadline, clock=clock) if deadline is not None
                            else passes_area(l))
@@ -430,8 +443,15 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     continue
             if not why and order:
                 if deadline is not None and clock() >= deadline:
-                    break  # leave this advert pending, before requesting its details
-                why = passes_basic(l, sweep=from_sweep, stage="details")
+                    why = "deferred"  # classified, isolated work; never hog every future slice
+                else:
+                    try:
+                        why = passes_basic(l, sweep=from_sweep, stage="details")
+                    except Exception as ex:
+                        if not local_rentals:
+                            raise
+                        print(f"details failed for {l.key}: {type(ex).__name__}", file=sys.stderr)
+                        why = "enrichment"
                 if why == "enrichment":
                     enrich_failures += 1
             verdicts.append(_verdict_row(l, why))
@@ -457,16 +477,20 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if live and archive.enabled() and verdicts:
             try:
                 # Durable delivery intent BEFORE publish/send/seen I/O. A match is not an ack.
-                intents = [(r[0], "unsent", *r[2:]) if r[1] == "matched" else r for r in verdicts]
-                archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner", intents,
-                                        settings_key())
+                notice_keys = {r[0] for r in verdicts if r[0] not in seen or (
+                    r[2] is not None and seen[r[0]].get("rent") is not None
+                    and seen[r[0]].get("alerted") and seen[r[0]]["rent"] - r[2] >= config.PRICE_DROP_ALERT)}
+                intents = [(r[0], "unsent", *r[2:]) if r[1] == "matched" and r[0] in notice_keys
+                           else r for r in verdicts]
+                archive.record_verdicts(person_id, intents, settings,
+                                        baseline=baseline, notice_keys=notice_keys)
             except Exception as ex:
                 print(f"archive verdicts failed: {type(ex).__name__}: {ex}", file=sys.stderr)
                 if rentals:
                     raise  # do not deliver local rentals without durable retry state
     print(f"rejected: {rejected}")
     print(f"funnel: {json.dumps(funnel, sort_keys=True)}")
-    if baseline and not sweep and (failures or enrich_failures):
+    if baseline and not sweep and (failures or (enrich_failures and not local_rentals)):
         raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
 
@@ -557,20 +581,26 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         except Exception:
             print(f"map page failed\n{traceback.format_exc()}", file=sys.stderr)
 
-    if baseline:
-        to_send = []
-        if live:
-            for l in matches:
+    # Silence is per-advert provenance, never a global permission to consume a live intent.
+    # Baseline failures retain this membership even after the person's source goes live.
+    silent = (archive.silent_keys(person_id, [l.key for l in matches], baseline=baseline)
+              if local_rentals and live else {l.key for l in matches} if baseline else set())
+    baseline_fresh = sum(l.key in silent and l.key not in seen for l in matches)
+    to_send = [(l, reason) for l, reason in to_send if l.key not in silent]
+    if live and silent:
+        for l in matches:
+            if l.key in silent:
                 seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
-            save_seen(seen)
-            if not sweep:
-                telegram.send_text(f"Rental watch is live: {len(matches)} current matches recorded. "
-                                   "Only new matches and price drops will alert; /report shows them all.")
+        save_seen(seen)
+    if baseline and live and not sweep:
+        telegram.send_text(f"Rental watch is live: {len(silent)} current matches recorded. "
+                           "Only new matches and price drops will alert; /report shows them all.")
     if watch:
         saved_changes, gone = [], []
 
     # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
     report_waiting = set()
+    visible = None
     first_run = not seen and not rentals
     if not watch and (first_run or report or rentals or preview_dir):
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
@@ -621,6 +651,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             for l in matches:
                 if visible is None or l.key in visible:
                     seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+                    if local_rentals:
+                        token = archive.intent_token(person_id, l.key)
+                        if token:
+                            seen[l.key]["delivery_intent"] = token
             if rentals:
                 cache.put("meta", users.scoped("last_rentals_report"), _now())
             else:
@@ -642,8 +676,14 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         telegram.send_listing(l, reason)
         alert_budget["remaining"] -= 1
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
-        if watch:
+        if local_rentals:
+            token = archive.intent_token(person_id, l.key)
+            if token:
+                seen[l.key]["delivery_intent"] = token
+        if watch or local_rentals:
             save_seen(seen)
+        if local_rentals:
+            archive.record_verdicts(person_id, [_verdict_row(l, None)], settings, acknowledged=True)
         delivered.add(l.key)
         telegram.throttle()
     if live:
@@ -664,10 +704,21 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             waiting = ({l.key for l, _ in to_send} - delivered) | report_waiting
             settled = [r for r in verdicts if r[1] == "matched" and r[0] not in waiting]
             if settled:
-                archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner",
-                                        settled, settings_key())
+                # Only a receipt for THIS obligation may recover an interrupted DB ack.
+                # Same price / an old silent baseline is never evidence this notice was sent.
+                acknowledged = delivered | (visible or set())
+                acknowledged |= {l.key for l in matches
+                                 if seen_before.get(l.key, {}).get("delivery_intent") is not None
+                                 and seen_before[l.key]["delivery_intent"] == archive.intent_token(person_id, l.key)}
+                receipts = [r for r in settled if r[0] in acknowledged]
+                bookkeeping = [r for r in settled if r[0] not in acknowledged]
+                if receipts:
+                    archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
+                if bookkeeping:
+                    archive.record_verdicts(person_id, bookkeeping, settings)
     return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
-            "complete": not failures and not enrich_failures, "fresh": fresh,
+            "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
+            "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
             "processed": processed, "sent": len(delivered)}
 
 

@@ -184,20 +184,36 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
     return sweep_id
 
 
+def _people_turn(people, name):
+    """Primary-DB cursor, regardless of the caller's current person/database."""
+    people = list(people)
+    row = users._primary("SELECT value FROM meta WHERE name = ?", name)
+    turn = int(row[0]["value"]) % len(people) if row and people else 0
+    if people:
+        users._primary("INSERT INTO meta(name,value) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                       name, str((turn + 1) % len(people)))
+    return people[turn:] + people[:turn]
+
+
 def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=None):
     """Drain durable, per-person transition events; one failed chat must not block another.
 
     At least once: a crash after Telegram accepts but before the DB ack may duplicate a message.
     """
-    for person in users.everyone():
+    if deadline is not None and clock() >= deadline:
+        return
+    people = _people_turn(users.everyone(), "unseen_turn")
+    for index, person in enumerate(people):
+        person_deadline = (None if deadline is None else
+                           min(deadline, clock() + max(0, deadline - clock()) / (len(people) - index)))
         try:
             with users.use(person):
                 p = prefs.load()
                 for event in archive.pending_unseen(person.chat_id):
                     if stop_event is not None and stop_event.is_set():
                         raise InterruptedError("PisoBot is stopping")
-                    if deadline is not None and clock() >= deadline:
-                        return
+                    if person_deadline is not None and clock() >= person_deadline:
+                        break
                     if keys is not None and event["key"] not in keys:
                         continue
                     info = p["saved"].get(event["key"])
@@ -240,28 +256,39 @@ def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock
     deadline = clock() + budget_seconds
     skip, finished = set(), {}
     with users.use(person), users.criteria(person.params):
-        for source in sources:
+        turn = int(_meta("sweep_judge_turn") or 0) % len(sources) if sources else 0
+        sources = sources[turn:] + sources[:turn]
+        if sources:
+            _put_meta("sweep_judge_turn", (turn + 1) % len(sources))
+        for index, source in enumerate(sources):
+            source_deadline = min(deadline, clock() + max(0, deadline - clock()) / (len(sources) - index))
             quiet = _meta(f"sweep_base:{source}") != settings
             if quiet and _meta(f"sweep_generation:{source}") != settings:
                 _put_meta(f"sweep_generation:{source}", settings)
                 _put_meta(f"sweep_found:{source}", 0)
             drained = False
-            while clock() < deadline:
+            while clock() < source_deadline:
                 if stop_event is not None and stop_event.is_set():
                     raise InterruptedError("PisoBot is stopping")
                 if not quiet and alert_budget["remaining"] <= 0:
                     break
-                batch = archive.pending(person.chat_id, [source], settings, EVALUATE_BATCH, skip)
+                batch = archive.pending(person.chat_id, [source], settings, EVALUATE_BATCH, skip,
+                                        exclude_intents=quiet and alert_budget["remaining"] <= 0)
                 if not batch:
-                    # Invocation-local skips include FAILED lookups, not completed judgements.
-                    drained = not archive.pending(person.chat_id, [source], settings, 1)
+                    # Classified retries/intents have their OWN silence/delivery lifecycle.
+                    # Only unattempted inventory blocks this source generation from going live.
+                    drained = not archive.pending(person.chat_id, [source], settings, 1, drainage=True)
                     break
                 result = pipeline._run([source], False, verbose, rentals=True, watch=True, baseline=quiet,
                                        stop_event=stop_event, prefetched=(batch, []), sweep=True,
-                                       alert_budget=alert_budget, deadline=deadline, clock=clock)
+                                       alert_budget=alert_budget, deadline=source_deadline, clock=clock)
                 skip.update(result.get("processed", [l.key for l in batch]))
                 if quiet:
-                    _put_meta(f"sweep_found:{source}", int(_meta(f"sweep_found:{source}") or 0) + result["fresh"])
+                    _put_meta(f"sweep_found:{source}", int(_meta(f"sweep_found:{source}") or 0) + result.get("baseline_fresh", result["fresh"]))
+            if quiet:
+                # The last attempted member may have consumed the slice. Its classified retry
+                # must not keep the generation quiet merely because the loop hit its deadline.
+                drained = not archive.pending(person.chat_id, [source], settings, 1, drainage=True)
             complete = archive.last_sweep(source, complete=True)
             running = archive.running_sweep(source)
             generation_complete = (complete is not None and covers(complete["scope"], needed)
@@ -302,7 +329,10 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
             raise
         except Exception as ex:
             log.error("Deep sweep of %s failed (%s)", source, type(ex).__name__)
-    for person in people:
+    # Reserve time for old durable notices BEFORE judgement can consume the whole slice.
+    notify_unseen(deadline=min(deadline, clock() + config.DEEP_SWEEP_STEP_SECONDS * 0.1),
+                  clock=clock, stop_event=stop_event)
+    for person in _people_turn(people, "sweep_people_turn"):
         if not person.owner and users.get(person.chat_id) is None:
             continue
         try:
