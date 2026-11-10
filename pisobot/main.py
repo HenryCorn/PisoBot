@@ -751,7 +751,6 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if live:
         save_seen(seen)
         prefs.save(p)
-<<<<<<< HEAD
         if archive.enabled() and verdicts:
             waiting = ({l.key for l, _ in to_send} - delivered) | report_waiting
             settled = [r for r in verdicts if r[1] == "matched" and r[0] not in waiting]
