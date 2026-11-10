@@ -6,11 +6,24 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import archive, bot, d1, main, renter, telegram, tracker, users
+from html.parser import HTMLParser
+
+from pisobot import archive, bot, collage, d1, enrich, main, renter, sweep, telegram, tgtext, tracker, users
 from pisobot.prefs import sid as short_id
 from pisobot.sources import rightmove
 from test_portal_facts import rm_property
 from test_users import FRIEND, OWNER, Base, home, message
+
+
+def shown_units(text):
+    """What Telegram counts against its limits: the visible text (tags dropped, entities decoded),
+    in UTF-16 code units. Independent of tgtext so the tests do not grade it with itself."""
+    parts = []
+    parser = HTMLParser(convert_charrefs=True)
+    parser.handle_data = parts.append
+    parser.feed(text)
+    parser.close()
+    return len("".join(parts).encode("utf-16-le")) // 2
 
 UTC = dt.timezone.utc
 LONDON = tracker.LONDON
@@ -56,7 +69,7 @@ class TrackerTests(Base):
 
     def test_reminders_evening_before_two_hours_before_then_rating_each_once(self):
         listing = publish(home(1))
-        tracker.move(listing, "enquired", NOW)
+        tracker.move(listing, "viewing", NOW)
         tracker.set_viewing(listing["key"], london(2026, 11, 14, 11, 0), NOW)
 
         def due(*when):
@@ -121,18 +134,28 @@ class TrackerTests(Base):
         self.assertIn("next: send an enquiry", text)
         self.assertIn("&lt;agent&gt; says busy", text)
         data = [btn["callback_data"] for row in markup["inline_keyboard"] for btn in row]
-        self.assertIn(f"P:t:{b.short_id}", data)
+        self.assertIn(f"P:t:{b.short_id}:0", data)
         self.assertIn(f"q:{c.short_id}", data)
         self.assertTrue(all(len(d.encode()) <= 64 for d in data))
 
-    def test_long_pipeline_is_cut_cleanly(self):
-        for i in range(1, 6):
-            tracker.move(publish(home(i)), "enquired" if i < 4 else "offer", NOW)
-        text, markup = tracker.view({}, OWNER, NOW, limit=3)
-        self.assertIn("Offer made (2)", text)
-        self.assertIn("Enquired (3)", text)
-        self.assertEqual(len(markup["inline_keyboard"]), 3)
-        self.assertTrue(text.endswith("… and 2 more"))
+    def test_long_pipeline_is_paged_with_numbering_across_pages(self):
+        for i in range(1, 26):
+            tracker.move(publish(home(i)), "enquired" if i < 23 else "offer", NOW)
+        tracker.move(publish(home(30)), "won", NOW)
+        first, nav = tracker.view({}, OWNER, NOW)
+        self.assertIn("page 1/3", first)
+        self.assertIn("Offer made (3)", first)
+        self.assertEqual(nav["inline_keyboard"][-1], [{"text": "Next ▶", "callback_data": "P:g:1"}])
+        self.assertNotIn("🏆", first)                                  # closed summary: last page only
+        second, nav = tracker.view({}, OWNER, NOW, page=1)
+        self.assertTrue(second.split("\n\n<b>")[1].split("</b>\n")[1].startswith("11. "))
+        self.assertIn("Enquired (22)", second)                            # the whole group's count
+        self.assertEqual([b["callback_data"] for b in nav["inline_keyboard"][-1]], ["P:g:0", "P:g:2"])
+        self.assertTrue(all(d.endswith(":1") for row in nav["inline_keyboard"][:-1]
+                            for d in (b["callback_data"] for b in row) if d.startswith("P:")))
+        last, nav = tracker.view({}, OWNER, NOW, page=99)                # out of range: the last page
+        self.assertIn("page 3/3", last)
+        self.assertIn("🏆 Won 1", last)
 
 
 class ProfileTests(Base):
@@ -370,13 +393,14 @@ class BotTests(BotBase):
         self.handler.handle(message("/profile", OWNER))
         self.assertIn("Alex Smith", self.texts()[-1])
 
-    def test_more_photos_sends_the_rest_as_an_album_or_one_photo(self):
+    def test_more_photos_sends_the_photos_the_card_did_not_show(self):
         l = home(1)
         l.image = "https://img/0.jpg"
         l.images = [f"https://img/{i}.jpg" for i in range(10)] + ["https://img/floorplan.jpg"]
         l.floorplan = "https://img/floorplan.jpg"
         archive.upsert([l], "head")
         publish(l)
+        tracker.record_shown(l.key, 7, [f"https://img/{i}.jpg" for i in range(4)])
         self.handler.handle(press(f"m:{l.short_id}"))
         media = self.calls("sendMediaGroup")[-1]["media"]
         self.assertEqual([m["media"] for m in media], [f"https://img/{i}.jpg" for i in range(4, 10)])
@@ -387,6 +411,7 @@ class BotTests(BotBase):
         few.images = [f"https://img/{i}.jpg" for i in range(5)]
         archive.upsert([few], "head")
         publish(few)
+        tracker.record_shown(few.key, 7, [f"https://img/{i}.jpg" for i in range(4)])
         self.handler.handle(press(f"m:{few.short_id}"))
         self.assertEqual(self.calls("sendPhoto")[-1]["photo"], "https://img/4.jpg")
         none = home(3)
@@ -394,10 +419,10 @@ class BotTests(BotBase):
         publish(none)
         self.handler.handle(press(f"m:{none.short_id}"))
         self.assertIn("No more photos", self.answers()[-1])
-        self.client.call.side_effect = lambda method, **kw: (_ for _ in ()).throw(bot.TelegramError("x")) \
-            if method == "sendMediaGroup" else None
-        self.handler.handle(press(f"m:{l.short_id}"))
-        self.assertEqual(self.answers()[-1], "Photos unavailable; use Open listing")
+        self.client.call.side_effect = lambda method, **kw: (_ for _ in ()).throw(
+            bot.TelegramError("x", permanent=True)) if method == "sendMediaGroup" else None
+        self.handler.handle(press(f"m:{l.short_id}"))                  # rejected for good: say so
+        self.assertEqual(self.texts()[-1], "📷 Photos unavailable; use Open listing")
 
     def test_buttons_are_vps_only_and_unknown_or_oversized_data_is_ignored(self):
         l = home(1)
@@ -428,17 +453,6 @@ class BotTests(BotBase):
         tracker.set_viewing(home(2).key, london(2026, 11, 12, 12, 0), NOW)
         self.handler.tick(london(2026, 11, 11, 18, 0))            # failure: logged, retried next tick
         self.assertEqual(tracker.get(home(2).key)["reminded"], "")
-
-    def test_tick_does_not_repeat_the_sweeps_saved_home_unseen_notice(self):
-        l = home(1)
-        archive.upsert([l], "head")
-        tracker.move(publish(l), "enquired")
-        d1.query("INSERT INTO saved (key, info) VALUES (?, ?)", l.key, json.dumps({"unseen": True}))
-        with archive._db() as db:
-            db.execute("UPDATE adverts SET status = 'unseen' WHERE key = ?", (l.key,))
-        self.handler.tick(NOW)
-        self.assertEqual(self.calls("sendMessage"), [])
-        self.assertEqual(tracker.get(l.key)["told_status"], "unseen")
 
     def test_tick_is_a_no_op_on_the_cloud_path(self):
         with patch.object(users, "enabled", return_value=False), patch.object(tracker, "due_reminders") as due:
@@ -483,6 +497,418 @@ class OnboardingTests(BotBase):
         self.assertEqual(self.trigger.call_count, 1)                       # no search change after the pause
         with users.use(users.owner()):
             self.assertEqual(renter.profile()["name"], None)               # per person
+
+
+class ReviewFixTests(BotBase):
+    """Regressions for the independent WP3 review (wp3-independent-review.md), one or more per finding."""
+
+    def update(self, payload, update_id):
+        return {**payload, "update_id": update_id}
+
+    # ---- P1-1: every message fits Telegram's limits; a rejected reply never blocks later updates ----
+
+    def long_pipeline(self, count=20):
+        for i in range(1, count + 1):
+            item = home(i)
+            item.address = f"Flat {i}, Example Residence 🏠🏠, 123 Long London Street, London N1 1AA"
+            tracker.move(publish(item), "enquired", NOW)
+            tracker.set_field(item.key, "note", ("Bright rooms 🌞, ask agent about damp & insulation. " * 3)[:120])
+
+    def test_every_pipeline_page_fits_one_message(self):
+        self.long_pipeline(40)
+        text, markup = tracker.view({}, OWNER, NOW)
+        pages = int(text.split("page 1/")[1].split("<")[0].split()[0])
+        self.assertGreater(pages, 1)
+        for page in range(pages):
+            text, _ = tracker.view({}, OWNER, NOW, page=page)
+            self.assertLessEqual(shown_units(text), 4096)
+
+    def test_a_long_pipeline_never_blocks_later_updates(self):
+        self.long_pipeline()
+        self.admit()
+        client = self.poll_client(lambda body: shown_units(body["text"]) > 4096 and bot.TelegramError("too long"))
+        self.poll(client, [message("/pipeline", OWNER), message("/help", FRIEND)])
+        self.assertIn(FRIEND, client.chats)
+        self.assertEqual(d1.query("SELECT value FROM meta WHERE name = ?", bot.OFFSET_KEY), [{"value": "12"}])
+
+    def test_a_reply_telegram_rejects_for_good_is_skipped_but_its_change_is_kept(self):
+        self.admit()
+        client = self.poll_client(lambda body: str(body["chat_id"]) == OWNER
+                                  and bot.TelegramError("Bad Request", permanent=True))
+        self.poll(client, [message("/profile name Alex Smith", OWNER), message("/help", FRIEND)])
+        self.assertEqual(renter.profile()["name"], "Alex Smith")
+        self.assertEqual(client.chats.count(OWNER), 1)                      # tried once, not forever
+        self.assertIn(FRIEND, client.chats)
+        self.assertEqual(d1.query("SELECT value FROM meta WHERE name = ?", bot.OFFSET_KEY), [{"value": "12"}])
+
+    def test_poll_skips_an_update_a_permanent_error_escapes_from(self):
+        client = self.poll_client(lambda body: None)
+        with patch.object(bot.Handler, "handle", side_effect=[bot.TelegramError("x", permanent=True), None]):
+            self.poll(client, [message("/help", OWNER), message("/help", OWNER)])
+        self.assertEqual(d1.query("SELECT value FROM meta WHERE name = ?", bot.OFFSET_KEY), [{"value": "12"}])
+
+    def poll_client(self, reject):
+        class Client:
+            chats, gets = [], 0
+            def clear_webhook(self):
+                pass
+            def call(self, method, **body):
+                if method == "getUpdates":
+                    self.gets += 1
+                    return self.updates if self.gets == 1 else []
+                if method == "sendMessage":
+                    self.chats.append(str(body["chat_id"]))
+                    error = reject(body)
+                    if error:
+                        raise error
+                return {"message_id": 1}
+        return Client()
+
+    def poll(self, client, updates):
+        client.updates = [self.update(u, 10 + i) for i, u in enumerate(updates)]
+
+        class Stop:
+            waits = 0
+            def is_set(self):
+                return client.gets >= 2
+            def wait(self, seconds):
+                self.waits += 1
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "offline-token"}), \
+                patch.object(bot, "TelegramClient", return_value=client), patch.object(bot.time, "monotonic", return_value=0):
+            bot.poll(Mock(return_value=True), Stop())
+
+    def test_long_profile_and_draft_are_split_under_the_limit(self):
+        for name in renter.FIELDS:
+            if name != "movein":
+                renter.set_field(name, "🏠" * 300)
+        l = home(1)
+        publish(l)
+        self.handler.handle(message("/profile", OWNER))
+        self.handler.handle(press(f"q:{l.short_id}"))
+        sent = self.calls("sendMessage")
+        self.assertGreater(len(sent), 2)
+        self.assertTrue(all(shown_units(m["text"]) <= 4096 for m in sent))
+
+    def test_split_keeps_html_balanced_and_counts_utf16(self):
+        text = "<b>" + "🏠" * 3000 + "</b>\n<i>tail &amp; end</i>"
+        pieces = tgtext.split_html(text)
+        self.assertGreater(len(pieces), 1)
+        for piece in pieces:
+            self.assertLessEqual(shown_units(piece), 4096)
+            self.assertEqual(piece.count("<b>"), piece.count("</b>"))
+        self.assertEqual("".join(p.replace("<b>", "").replace("</b>", "") for p in pieces).count("🏠"), 3000)
+        self.assertTrue(pieces[-1].endswith("<i>tail &amp; end</i>"))
+        self.assertLessEqual(len(tgtext.clip("é🏠" * 200, 200).encode("utf-16-le")) // 2, 200)
+
+    # ---- P1-2: stage changes are checked against the current stage and replay-safe ----
+
+    def test_stale_buttons_never_move_a_home_backwards_or_out_of_won_or_lost(self):
+        item = home(1)
+        listing = publish(item)
+        tracker.move(listing, "offer")
+        self.handler.handle(press(f"p:b:{item.short_id}"))               # an old card's Book viewing
+        self.assertEqual(tracker.get(item.key)["stage"], "offer")
+        self.assertEqual(self.answers()[-1], "Already " + tracker.LABELS["offer"])
+        tracker.move(listing, "won")
+        for data in (f"p:t:{item.short_id}", f"P:e:{item.short_id}:0", f"p:l:{item.short_id}",
+                     f"v:3:{item.short_id}", f"p:o:{item.short_id}"):
+            self.handler.handle(press(data))
+            self.assertEqual(tracker.get(item.key)["stage"], "won", data)
+        self.assertIsNone(tracker.expected())                              # no question was asked
+        self.assertIsNone(tracker.get(item.key)["rating"])
+
+    def test_reopen_restores_the_stage_a_home_was_closed_from(self):
+        a, b = home(1), home(2)
+        tracker.move(publish(a), "offer")
+        self.handler.handle(press(f"p:l:{a.short_id}"))
+        self.handler.handle(message("let to someone else", OWNER))
+        self.assertIn(f"p:r:{a.short_id}", json.dumps(tracker.card_row("lost", a.short_id)))
+        self.handler.handle(press(f"p:r:{a.short_id}"))
+        self.assertEqual((tracker.get(a.key)["stage"], tracker.get(a.key)["lost_reason"]), ("offer", None))
+        d1.query("INSERT INTO saved (key, info) VALUES (?, ?)", b.key, json.dumps({"url": b.url}))
+        publish(b)
+        self.handler.handle(press(f"P:l:{b.short_id}:0"))                 # lost straight from Saved
+        self.handler.handle(press(f"p:r:{b.short_id}"))
+        self.assertIsNone(tracker.get(b.key))                              # back to just saved
+
+    def test_a_replayed_button_update_is_applied_once_and_only_unsent_replies_are_resent(self):
+        item = home(1)
+        publish(item)
+        failed = []
+
+        def flaky(method, **body):
+            if method == "sendMessage" and not failed:
+                failed.append(1)
+                raise bot.TelegramError("timeout")
+            return {"message_id": 50}
+        self.client.call.side_effect = flaky
+        update = self.update(press(f"p:b:{item.short_id}"), 30)
+        with self.assertRaises(bot.TelegramError):
+            self.handler.handle(update)
+        self.assertEqual(tracker.get(item.key)["stage"], "viewing")
+        tracker.move(publish(item), "viewed")                              # meanwhile, another button
+        self.handler.handle(update)                                        # poll retries the update
+        self.handler.handle(update)                                        # ... and once more
+        self.assertEqual(tracker.get(item.key)["stage"], "viewed")         # never re-applied
+        self.assertEqual(len(self.calls("answerCallbackQuery")), 1)
+        self.assertEqual(len(self.calls("sendMessage")), 2)                # failed once, then sent once
+        self.assertIn("When is it?", self.texts()[-1])
+
+    # ---- P1-3: a failed onboarding question never shifts answers ----
+
+    def onboarding_at_job(self):
+        tracker.put("onboarded", "running")
+        tracker.put("onboard.step", "6")
+        tracker.expect("onboard", "6", at=NOW)
+        return self.update(message("nurse at the hospital", OWNER), 10)
+
+    def test_onboarding_answer_replayed_after_the_next_question_failed_is_not_reused(self):
+        update = self.onboarding_at_job()
+        failed = []
+
+        def flaky(method, **body):
+            if method == "sendMessage" and not failed:
+                failed.append(1)
+                raise bot.TelegramError("timeout")
+            return {"message_id": 200}
+        self.client.call.side_effect = flaky
+        with patch.object(tracker, "now", return_value=NOW):
+            with self.assertRaises(bot.TelegramError):
+                self.handler.handle(update)
+            self.handler.handle(update)
+            self.assertEqual(tracker.expected()["message_id"], 200)     # the resent question is bound
+        facts = renter.profile()
+        self.assertEqual((facts["job"], facts["household"]), ("nurse at the hospital", None))
+        self.assertEqual(tracker.value("onboard.step"), "7")
+        self.assertIn("8/11", self.texts()[-1])
+
+    def test_onboarding_answer_replayed_after_a_crash_before_its_record_is_not_reused(self):
+        update = self.onboarding_at_job()
+        with patch.object(tracker, "now", return_value=NOW):
+            with patch.object(tracker, "record", side_effect=RuntimeError("power cut")), self.assertRaises(RuntimeError):
+                self.handler.handle(update)
+            self.assertEqual(self.calls("sendMessage"), [])
+            self.handler.handle(update)
+            self.handler.handle(update)
+        facts = renter.profile()
+        self.assertEqual((facts["job"], facts["household"]), ("nurse at the hospital", None))
+        self.assertEqual(tracker.value("onboard.step"), "7")
+        self.assertEqual(len(self.calls("sendMessage")), 1)
+        self.assertIn("8/11", self.texts()[-1])
+
+    def test_an_old_onboarding_button_never_answers_a_later_question(self):
+        tracker.put("onboarded", "running")
+        tracker.put("onboard.step", "7")
+        self.handler.handle(press("o:6:0"))
+        self.assertIn("That question has passed", self.answers()[-1])
+        self.assertIsNone(renter.profile()["job"])
+
+    # ---- P1-4: a typed answer is bound to its prompt and home ----
+
+    def test_a_reply_to_an_older_prompt_never_books_another_home(self):
+        a, b = home(1), home(2)
+        ids = [110]
+
+        def numbered(method, **body):
+            if method == "sendMessage":
+                ids[0] += 1
+                return {"message_id": ids[0]}
+            return True
+        self.client.call.side_effect = numbered
+        publish(a)
+        publish(b)
+        self.handler.handle(press(f"p:b:{a.short_id}"))
+        prompt_a = ids[0]
+        self.handler.handle(press(f"p:b:{b.short_id}"))
+        prompt_b = ids[0]
+        reply = message("2026-11-14 18:30", OWNER)
+        reply["message"]["reply_to_message"] = {"message_id": prompt_a}
+        with patch.object(tracker, "now", return_value=NOW):
+            self.handler.handle(reply)
+            self.assertIsNone(tracker.get(a.key)["viewing_at"])
+            self.assertIsNone(tracker.get(b.key)["viewing_at"])
+            self.assertIn("earlier message", self.texts()[-1])
+            reply["message"]["reply_to_message"] = {"message_id": prompt_b}
+            self.handler.handle(reply)
+        self.assertIsNotNone(tracker.get(b.key)["viewing_at"])
+        self.assertIsNone(tracker.get(a.key)["viewing_at"])
+
+    def test_a_time_typed_after_the_home_moved_on_books_nothing(self):
+        item = home(1)
+        publish(item)
+        self.handler.handle(press(f"p:b:{item.short_id}"))
+        self.handler.handle(press(f"p:o:{item.short_id}"))                # offer made before answering
+        with patch.object(tracker, "now", return_value=NOW):
+            self.handler.handle(message("Sat 11:00", OWNER))
+        self.assertEqual((tracker.get(item.key)["stage"], tracker.get(item.key)["viewing_at"]), ("offer", None))
+        self.assertIn("no viewing time was set", self.texts()[-1])
+
+    # ---- P2-5: one acknowledgement per change, shared by every path ----
+
+    def unseen_saved_enquired_home(self):
+        item = home(1)
+        archive.upsert([item], "head", at="2026-11-10T00:00:00+00:00")
+        tracker.move(publish(item), "enquired", NOW)
+        d1.query("INSERT INTO saved (key, info) VALUES (?, ?)", item.key,
+                 json.dumps({"url": item.url, "address": item.address}))
+        scope = {"miles": 10.0, "min_rent": 1000, "max_rent": 1760, "min_beds": 1, "centre": [51.5152, -0.1419]}
+        unseen = []
+        for day in (11, 12):
+            sweep_id = archive.start_sweep("rm", scope, {}, at=f"2026-11-{day}T00:00:00+00:00")
+            unseen = archive.finish_sweep(sweep_id, True, at=f"2026-11-{day}T01:00:00+00:00")
+        self.assertEqual(unseen, [item.key])
+        return item, unseen
+
+    def sweep_notice(self, keys):
+        with patch.object(telegram, "send_text", side_effect=lambda text, *a, **kw: self.client.call(
+                "sendMessage", chat_id=users.current_chat() or OWNER, text=text)), patch.object(telegram, "throttle"):
+            sweep.notify_unseen(keys)
+
+    def test_unseen_saved_home_is_told_once_when_the_sweep_goes_first(self):
+        item, keys = self.unseen_saved_enquired_home()
+        self.sweep_notice(keys)
+        self.handler.tick(NOW)
+        self.handler.tick(NOW)
+        self.assertEqual(len(self.calls("sendMessage")), 1)
+        self.assertIn("Saved home no longer found", self.texts()[0])
+        self.assertEqual(tracker.get(item.key)["told_status"], "unseen")
+
+    def test_unseen_saved_home_is_told_once_when_the_pipeline_goes_first(self):
+        item, keys = self.unseen_saved_enquired_home()
+        self.handler.tick(NOW)
+        self.sweep_notice(keys)
+        self.sweep_notice(keys)
+        self.assertEqual(len(self.calls("sendMessage")), 1)
+        self.assertIn("No longer found", self.texts()[0])
+        self.assertTrue(json.loads(d1.query("SELECT info FROM saved")[0]["info"])["unseen"])
+
+    def run_watch(self, listings, cards, baseline=False):
+        with patch.object(enrich, "journey", return_value={"minutes": 25, "route": "Tube", "station": "S", "walk": 5}), \
+                patch.object(enrich, "crime_score", return_value=30), patch.object(enrich, "assign_crime_percentiles"), \
+                patch.object(enrich, "geocode"), patch.object(rightmove, "refine", return_value=True), \
+                patch.object(main, "_ensure_photos"), patch.object(telegram, "throttle"), \
+                patch.object(telegram, "send_listing", side_effect=lambda l, reason: cards.append((l.key, reason))):
+            with users.use(users.owner()), users.criteria({}):
+                main._run(["rm"], False, False, rentals=True, watch=True, baseline=baseline, sweep=True,
+                          prefetched=(listings, []))
+
+    def test_a_rent_cut_is_told_once_whether_the_watcher_or_the_pipeline_goes_first(self):
+        for watcher_first in (True, False):
+            with self.subTest(watcher_first=watcher_first):
+                self.client.call.reset_mock()
+                n = 1 if watcher_first else 2
+                item = home(n, rent=1200)
+                archive.upsert([item], "head")
+                cards = []
+                self.run_watch([item], cards, baseline=True)
+                tracker.move(publish(item), "enquired", NOW)
+                cut = home(n, rent=1100)
+                archive.upsert([cut], "head")
+                if watcher_first:
+                    self.run_watch([cut], cards)
+                    self.handler.tick(NOW)
+                else:
+                    self.handler.tick(NOW)
+                    self.run_watch([cut], cards)
+                    self.run_watch([cut], cards)                       # seen: never retried either
+                self.assertEqual(len(cards) + len(self.texts()), 1, (cards, self.texts()))
+                self.assertEqual(tracker.get(item.key)["told_rent"], 1100)
+
+    def test_a_change_another_path_is_sending_waits_and_is_not_lost(self):
+        l = home(1, rent=1200)
+        archive.upsert([l], "head")
+        tracker.move(publish(l), "enquired", NOW)
+        archive.upsert([home(1, rent=1100)], "head")
+        event = archive.change_id(l.key, "rent", 1100)
+        self.assertEqual(tracker.claim(l.key, "rent", event), "claimed")      # the watcher is mid-send
+        self.assertEqual(tracker.notify_changes(lambda text, kb: self.fail("sent twice")), 0)
+        self.assertEqual(tracker.get(l.key)["told_rent"], 1200)               # baseline kept for later
+        self.assertEqual(tracker.once(l.key, "rent", 1100, lambda: self.fail("sent twice")), "busy")
+        tracker.release(l.key, "rent", event)                                 # its send failed
+        sent = []
+        self.assertEqual(tracker.notify_changes(lambda text, kb: sent.append(text)), 1)
+        self.assertIn("£1,100", sent[0])
+        later = tracker.now() + tracker.NOTICE_LEASE + dt.timedelta(seconds=1)
+        self.assertEqual(tracker.claim(l.key, "rent", event, at=later), "told")
+
+    # ---- P2-6: More photos skips exactly what the header showed ----
+
+    def card_with_floorplan_header(self):
+        from PIL import Image
+        item = home(1)
+        item.image = "https://img/0.jpg"
+        item.images = [f"https://img/{i}.jpg" for i in range(4)]
+        item.floorplan = "https://img/floorplan.jpg"
+        archive.upsert([item], "head")
+        publish(item)
+        with patch.object(collage, "_thumb", return_value=Image.new("RGB", (collage.PHOTO_W, collage.HEIGHT))), \
+                patch.object(collage, "_gallery_thumb", side_effect=lambda url, size: Image.new("RGB", size)), \
+                patch.object(collage, "_map", return_value=Image.new("RGB", (collage.MAP_W, collage.HEIGHT))), \
+                patch.object(telegram, "_call", return_value={"ok": True, "result": {"message_id": 7}}):
+            telegram.send_listing(item, "new")
+        return item
+
+    def test_more_photos_sends_the_photo_a_floorplan_header_left_out(self):
+        item = self.card_with_floorplan_header()
+        shown = tracker.shown_urls(item.key, 7)
+        self.assertNotIn("https://img/3.jpg", shown)
+        self.handler.handle(press(f"m:{item.short_id}", message_id=7))
+        self.assertEqual(self.calls("sendPhoto")[-1]["photo"], "https://img/3.jpg")
+        self.assertEqual(self.answers()[-1], "📷 1 more photo")
+
+    def test_more_photos_without_a_record_of_the_card_sends_all_and_says_so(self):
+        item = home(1)
+        item.images = [f"https://img/{i}.jpg" for i in range(3)]
+        archive.upsert([item], "head")
+        publish(item)
+        self.handler.handle(press(f"m:{item.short_id}"))
+        self.assertEqual([m["media"] for m in self.calls("sendMediaGroup")[-1]["media"]],
+                         [f"https://img/{i}.jpg" for i in range(3)])
+        self.assertEqual(self.answers()[-1], "📷 All 3 photos")
+
+    # ---- P2-7: the evening-before reminder is only sent the evening before ----
+
+    def test_a_missed_evening_reminder_is_not_sent_on_the_day(self):
+        item = home(1)
+        tracker.move(publish(item), "viewing", NOW)
+        tracker.set_viewing(item.key, london(2026, 11, 14, 15, 0), NOW)
+        self.assertEqual(tracker.due_reminders(london(2026, 11, 14, 9, 0)), [])
+        self.assertEqual([r[1] for r in tracker.due_reminders(london(2026, 11, 14, 13, 0))], ["soon"])
+        eve = tracker.due_reminders(london(2026, 11, 13, 23, 59))
+        self.assertIn("Viewing tomorrow", eve[0][2])
+
+    def test_a_viewing_just_after_midnight_gets_its_evening_reminder_until_two_hours_before(self):
+        item = home(1)
+        tracker.move(publish(item), "viewing", NOW)
+        tracker.set_viewing(item.key, london(2026, 11, 14, 0, 30), NOW)
+        self.assertEqual([r[1] for r in tracker.due_reminders(london(2026, 11, 13, 22, 0))], ["eve"])
+        self.assertEqual([r[1] for r in tracker.due_reminders(london(2026, 11, 13, 22, 31))], ["soon"])
+
+    # ---- P3-8: early/mid/late month windows ----
+
+    def test_month_parts_set_the_window(self):
+        today = NOW.date()
+        cases = {"late December": ("2026-12-21", "2026-12-31"), "end of December": ("2026-12-21", "2026-12-31"),
+                 "early December": ("2026-12-01", "2026-12-10"), "beginning of Jan": ("2027-01-01", "2027-01-10"),
+                 "mid-December": ("2026-12-11", "2026-12-20"), "middle of February": ("2027-02-11", "2027-02-20"),
+                 "late Feb": ("2027-02-21", "2027-02-28"), "early Dec to mid Jan": ("2026-12-01", "2027-01-20"),
+                 "early November": ("2026-11-01", "2026-11-10"), "early November 2027": ("2027-11-01", "2027-11-10")}
+        for text, (start, end) in cases.items():
+            with self.subTest(text):
+                self.assertEqual(renter.parse_window(text, today),
+                                 (dt.date.fromisoformat(start), dt.date.fromisoformat(end)))
+        renter.set_field("movein", "late December", today)
+        self.assertEqual(tracker.value("profile.movein"), "2026-12-21..2026-12-31")
+        self.assertNotEqual(renter.fit("2026-12-01", today)[0], "✅")
+
+    def test_onboarding_echoes_the_move_in_window_it_read(self):
+        tracker.put("onboarded", "running")
+        tracker.put("onboard.step", "4")
+        tracker.expect("onboard", "4")
+        with patch.object(renter, "_today", return_value=NOW.date()):
+            self.handler.handle(message("late December", OWNER))
+        self.assertIn("📅 Move-in: 21 Dec–31 Dec", self.texts()[-2])
+        self.assertIn("6/11", self.texts()[-1])
 
 
 if __name__ == "__main__":

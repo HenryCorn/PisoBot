@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, net, ranking, users
+from . import collage, config, net, ranking, tgtext, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -47,7 +47,10 @@ def _call(method, files=None, loud=False, **data):
         res = {}
     if not res.get("ok"):
         # Telegram's description says what's wrong (e.g. "chat not found", "Unauthorized")
-        raise RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
+        error = RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
+        # 400/403: Telegram rejected this request for good (too long, chat blocked...); retrying is futile
+        error.permanent = (res.get("error_code") or r.status_code) in (400, 403)
+        raise error from None
     return res
 
 
@@ -256,10 +259,28 @@ def _loud(l):
 def send_listing(l, reason="new"):
     text = format_listing(l, reason)
     kb = listing_keyboard(l, saved=reason == "saved")
-    jpeg = collage.build(l)
+    shown = []
+    jpeg = collage.build(l, sources=shown)
     if not jpeg:
         text += "\n📷 Header unavailable · use Open listing to view the media"
-    return send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]), loud=_loud(l))
+    result = send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]), loud=_loud(l))
+    remember_photos(l.key, result, shown if jpeg else [])
+    return result
+
+
+def remember_photos(key, result, urls):
+    """Record which listing photos the card just sent (``result``: its sendMessage/sendPhoto reply)
+    showed, so its 📷 More photos button sends exactly the others. Best effort: a card is never
+    held back by this."""
+    if not users.enabled():
+        return
+    try:
+        message_id = result["result"]["message_id"]
+        if type(message_id) is int:
+            from . import tracker
+            tracker.record_shown(key, message_id, urls)
+    except Exception:
+        pass
 
 
 def send_card(jpeg, text, keyboard, short_caption, loud=False):
@@ -273,12 +294,17 @@ def send_card(jpeg, text, keyboard, short_caption, loud=False):
 
 
 def send_text(text, reply_markup=None, silent=False, loud=False):
-    data = {"text": text, "parse_mode": "HTML", "disable_web_page_preview": "true"}
-    if reply_markup:
-        data["reply_markup"] = reply_markup
-    if silent:
-        data["disable_notification"] = "true"
-    return _call("sendMessage", **data, **({"loud": True} if loud else {}))
+    """One message, or several when the text is over Telegram's 4,096 visible UTF-16 units (cut at
+    line breaks, tags kept balanced; the buttons go on the last). Returns the last reply."""
+    pieces = tgtext.split_html(text)
+    for i, piece in enumerate(pieces):
+        data = {"text": piece, "parse_mode": "HTML", "disable_web_page_preview": "true"}
+        if reply_markup and i == len(pieces) - 1:
+            data["reply_markup"] = reply_markup
+        if silent:
+            data["disable_notification"] = "true"
+        result = _call("sendMessage", **data, **({"loud": True} if loud else {}))
+    return result
 
 
 def send_photo_bytes(jpeg, caption="", reply_markup=None, loud=False):
@@ -314,9 +340,10 @@ def _group_line(group, flags_of, map_url=None):
 
 
 def _chunk(blocks, limit=3800):
+    # UTF-16 units of the raw HTML: never less than what Telegram counts, so a chunk always fits
     chunks, cur = [], ""
     for b in blocks:
-        if cur and len(cur) + len(b) + 1 > limit:
+        if cur and tgtext.units(cur) + tgtext.units(b) + 1 > limit:
             chunks.append(cur)
             cur = ""
         cur += b + "\n"

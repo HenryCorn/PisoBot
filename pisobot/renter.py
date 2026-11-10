@@ -14,7 +14,7 @@ from . import archive, config, ranking, tracker
 
 FIELDS = {   # name: (label, example)
     "name": ("Name", "Alex Smith"),
-    "movein": ("Move-in", "1 Dec, 1/12-15/12, December or asap"),
+    "movein": ("Move-in", "1 Dec, 1/12-15/12, December, late December or asap"),
     "job": ("Occupation", "nurse at St Thomas', full time"),
     "household": ("Household", "couple, no children"),
     "pets": ("Pets", "none"),
@@ -33,6 +33,8 @@ TOP_DAYS = 14
 TOP_MIN_SAMPLE = 10    # fewer recent matches than this: only the "just listed" rule applies
 NEAR_DAYS = 14         # available this close to the move-in window still counts as a near fit
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+PART = {"early": (1, 10), "beginning of": (1, 10), "start of": (1, 10), "mid": (11, 20),
+        "middle of": (11, 20), "late": (21, 31), "end of": (21, 31)}   # day ranges of a month part
 
 
 def field_name(word):
@@ -74,18 +76,24 @@ def _date(text, today, end=False):
     if m and m[2] in MONTHS:
         day = dt.date(int(m[3] or today.year), MONTHS.index(m[2]) + 1, int(m[1]))
         return day if m[3] or day >= today else day.replace(year=day.year + 1)
-    m = re.fullmatch(r"(?:early |mid |late |end of )?([a-z]{3})[a-z]*(?: (\d{4}))?", text)
-    if m and m[1] in MONTHS:
-        month, year = MONTHS.index(m[1]) + 1, int(m[2] or today.year)
-        if not m[2] and (year, month) < (today.year, today.month):
+    m = re.fullmatch(r"(?:(?:the )?(early|beginning of|start of|mid|middle of|late|end of)[ -])?"
+                     r"([a-z]{3})[a-z]*(?: (\d{4}))?", text)
+    if m and m[2] in MONTHS:
+        month, year = MONTHS.index(m[2]) + 1, int(m[3] or today.year)
+        first, last = PART.get(m[1], (1, 31))
+
+        def span(year):
+            days = (dt.date(year + month // 12, month % 12 + 1, 1) - dt.timedelta(days=1)).day
+            return dt.date(year, month, first), dt.date(year, month, min(last, days))
+        if not m[3] and span(year)[1] < today:
             year += 1
-        last = (dt.date(year + month // 12, month % 12 + 1, 1) - dt.timedelta(days=1)).day
-        return dt.date(year, month, last if end else 1)
+        return span(year)[1 if end else 0]
     raise ValueError(text)
 
 
 def parse_window(text, today=None):
-    """'asap', '1 Dec', '1/12-15/12', '2026-12-01..2027-01-15', 'December' -> (start, end) dates."""
+    """'asap', '1 Dec', '1/12-15/12', '2026-12-01..2027-01-15', 'December', 'late December' (21st to
+    month end; early = 1-10, mid = 11-20) -> (start, end) dates."""
     today = today or _today()
     text = text.strip().lower()
     if text in ("asap", "now", "immediately", "anytime", "any time"):
@@ -102,7 +110,7 @@ def parse_window(text, today=None):
             raise ValueError
     except (ValueError, IndexError):
         raise ValueError("I couldn't read that move-in date; try <code>1 Dec</code>, <code>1/12-15/12</code>, "
-                         "<code>December</code> or <code>asap</code>") from None
+                         "<code>December</code>, <code>late December</code> or <code>asap</code>") from None
     if end < start:
         raise ValueError("The window ends before it starts")
     return start, end

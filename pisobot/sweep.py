@@ -17,7 +17,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, config, d1, main as pipeline, prefs, telegram, users
+from . import archive, config, d1, main as pipeline, prefs, telegram, tracker, users
 from .sources import otm_rent, rightmove
 
 log = logging.getLogger(__name__)
@@ -169,23 +169,35 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
 
 def notify_unseen(keys):
     """A saved home that two complete sweeps could not find. Absence is all the evidence there is, so
-    the message says only that: it may have been let, withdrawn or re-priced above the swept range."""
+    the message says only that: it may have been let, withdrawn or re-priced above the swept range.
+    With per-person storage the message shares one acknowledgement with the /pipeline change notice
+    for the same archived transition (tracker.once), whichever path gets there first."""
     for person in users.everyone():
         with users.use(person):
             p = prefs.load()
             changed = False
-            for key in keys:
-                info = p["saved"].get(key)
-                if info is None or info.get("unseen"):
-                    continue
-                telegram.send_text(f'❤️ <b>Saved home no longer found in the search</b>\n<a href="{info.get("url")}">'
-                                   f'{telegram.e(info.get("address") or "listing")}</a>\n'
-                                   "<i>It may have been let, withdrawn or re-priced above your range.</i>")
-                info["unseen"] = True    # keep the saved entry; just never repeat the message
-                changed = True
-                telegram.throttle()
-            if changed:
-                prefs.save(p)
+            try:
+                for key in keys:
+                    info = p["saved"].get(key)
+                    if info is None or info.get("unseen"):
+                        continue
+                    text = (f'❤️ <b>Saved home no longer found in the search</b>\n<a href="{info.get("url")}">'
+                            f'{telegram.e(info.get("address") or "listing")}</a>\n'
+                            "<i>It may have been let, withdrawn or re-priced above your range.</i>")
+                    if users.enabled() and archive.enabled():
+                        state = tracker.once(key, "status", "unseen", lambda: telegram.send_text(text))
+                    else:
+                        telegram.send_text(text)
+                        state = "sent"
+                    if state == "busy":
+                        continue         # the pipeline is telling it right now; it acknowledges for both
+                    info["unseen"] = True    # keep the saved entry; just never repeat the message
+                    changed = True
+                    if state == "sent":
+                        telegram.throttle()
+            finally:
+                if changed:
+                    prefs.save(p)
 
 
 # ---------- judging archived adverts for each person ----------

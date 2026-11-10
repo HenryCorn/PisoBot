@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import (archive, cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, renter, taste,
-               telegram, users)
+               telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -232,11 +232,11 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
         os.makedirs(preview_dir, exist_ok=True)
     preview = []
     for i, (text, kb) in enumerate(messages):
-        jpeg = None
+        jpeg, l, shown = None, None, []
         if 1 <= i <= len(top):
             l = top[i - 1]
             _ensure_photos(l)
-            jpeg = collage.build(l)
+            jpeg = collage.build(l, sources=shown)
             print(f"card #{i}: {l.key}")
             if not jpeg:
                 text += "\n📷 Header unavailable · use Open listing to view the media"
@@ -249,7 +249,9 @@ def send_report(top, saved, rest, title, flags_of, preview_dir=None, map_url=Non
                 image = f'<img src="{filename}" alt="Listing {i} map and property" style="max-width:100%"><br>\n'
             preview.append(image + text.replace("\n", "<br>\n"))
         else:
-            telegram.send_card(jpeg, text, kb, f"🏠 Listing #{i}")
+            result = telegram.send_card(jpeg, text, kb, f"🏠 Listing #{i}")
+            if l is not None:
+                telegram.remember_photos(l.key, result, shown if jpeg else [])
             telegram.throttle()
     if preview_dir:
         with open(os.path.join(preview_dir, "report.html"), "w", encoding="utf-8") as f:
@@ -333,6 +335,16 @@ def _set_urgency(l):
         l.urgency = renter.tier(l, users.current_chat() or users.owner_chat() or "owner")
     except Exception as ex:
         print(f"urgency tier failed: {type(ex).__name__}", file=sys.stderr)
+
+
+def _send_change(l, reason):
+    """Send a price-drop or saved-home change card unless this person was already told about the same
+    archived rent change by another path (a /pipeline notice). Returns "sent", "told" (record it as
+    seen, send nothing) or "busy" (another path is sending it now: leave it for the next run)."""
+    if l.tenure == "rent" and l.rent is not None and users.enabled() and archive.enabled():
+        return tracker.once(l.key, "rent", l.rent, lambda: telegram.send_listing(l, reason))
+    telegram.send_listing(l, reason)
+    return "sent"
 
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
@@ -607,7 +619,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         _ensure_photos(l)
         if reason == "new" and archive.enabled():
             _set_urgency(l)
-        telegram.send_listing(l, reason)
+        if reason == "new":
+            telegram.send_listing(l, reason)
+        elif _send_change(l, reason) == "busy":
+            continue
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if watch:
             save_seen(seen)
@@ -623,8 +638,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if live:
         for l in saved_changes:
             _ensure_photos(l)
-            telegram.send_listing(l, "saved")
-            telegram.throttle()
+            if _send_change(l, "saved") == "sent":
+                telegram.throttle()
         for info in gone:
             telegram.send_text(f'❤️ <b>Saved home no longer listed</b>\n<a href="{info.get("url")}">'
                                f'{telegram.e(info.get("address") or "listing")}</a>')

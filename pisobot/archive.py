@@ -164,6 +164,25 @@ def history(key):
         return _rows(db, "SELECT at, rent, status FROM observations WHERE key = ? ORDER BY id", key)
 
 
+def change_id(key, kind, value):
+    """The id of the observation that started the advert's current ``kind`` ("rent" or "status")
+    episode, if its current value is ``value``; None otherwise. Every path that tells a person about
+    a change names it by this id, so they can share one acknowledgement: the same rent cut seen by
+    the watcher and by the pipeline is the same event, and a later cut is a new one."""
+    column = {"rent": "rent", "status": "status"}[kind]
+    with _db() as db:
+        found = db.execute(f"SELECT id, {column} AS v FROM observations WHERE key = ? ORDER BY id DESC LIMIT 500",
+                           (key,)).fetchall()
+    if not found or found[0]["v"] != value:
+        return None
+    event = None
+    for row in found:
+        if row["v"] != value:
+            break
+        event = row["id"]
+    return event
+
+
 def advert(key):
     with _db() as db:
         rows = _rows(db, "SELECT * FROM adverts WHERE key = ?", key)
