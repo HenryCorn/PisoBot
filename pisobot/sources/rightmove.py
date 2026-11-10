@@ -183,9 +183,12 @@ def _details(p):
     features = " ".join(f for f in p.get("keyFeatures") or [] if isinstance(f, str))
     plans = [f.get("url") for f in p.get("floorplans") or [] if isinstance(f, dict) and f.get("url")]
     living = p.get("livingCosts") or {}
+    addr = p.get("address") if isinstance(p.get("address"), dict) else {}
+    postcode = f"{addr.get('outcode') or ''} {addr.get('incode') or ''}".strip()
     band = str(living.get("councilTaxBand") or "").strip().upper()
     return {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
                                 f"{features} {(p.get('text') or {}).get('description', '')}"),
+            "postcode": postcode if len(postcode.split()) == 2 else None,
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
             "deposit": lettings.get("deposit") or None, "available": available,
             "furnishing": rental_text.furnishing(lettings.get("furnishType") or ""),

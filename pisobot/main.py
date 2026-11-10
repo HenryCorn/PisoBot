@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
+from . import (archive, cache, collage, config, epc, costs, d1, enrich, extract, intelligence, mapgen, models,
                prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
@@ -546,6 +546,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 continue
             if l.tenure != "rent":
                 kept.append(_record(l, "", alerted=True))
+            epc.annotate(l)          # G2: certificate facts; adds labels only, never rejects (fails open)
             matches.append(l)
             stats = source_stats(l.source)
             stats["matched"] += 1
@@ -574,6 +575,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if baseline and not sweep and (failures or (enrich_failures and not local_rentals)):
         raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
+    epc.annotate_values(listings)    # G2: rent per m2 against the same scan
 
     # 2. Saved/hidden choices (recorded instantly by the Worker) apply to these matches
     today = dt.date.today().isoformat()

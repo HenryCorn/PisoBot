@@ -159,6 +159,8 @@ def apply_rent_details(listing, details):
     for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing", "agent_phone"):
         if details.get(key):
             setattr(listing, key, details[key])
+    if details.get("postcode") and not listing.full_postcode:
+        listing.full_postcode = details["postcode"]
     if details.get("council_tax_included") is not None:
         listing.council_tax_included = details["council_tax_included"]
     private_rent_costs(listing)
