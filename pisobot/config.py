@@ -76,6 +76,13 @@ RENT_MAX_PAGES = _env("RENT_MAX_PAGES", 20, int)
 WATCH_INTERVAL_MIN = _env("WATCH_INTERVAL_MIN", 15)
 WATCH_FAILURE_LIMIT = _env("WATCH_FAILURE_LIMIT", 3, int)
 WATCH_SOURCES = os.environ.get("WATCH_SOURCES", "rm,otmr,orent")
+# VPS deep sweep (sweep.py): a full crawl of Rightmove and OnTheMarket lettings, sliced into price
+# bands, run in short resumable slices inside the watcher. DEEP_SWEEP_HOURS=0 disables it.
+DEEP_SWEEP_MILES = _env("DEEP_SWEEP_MILES", 10)
+DEEP_SWEEP_HOURS = _env("DEEP_SWEEP_HOURS", 12)
+DEEP_SWEEP_MAX_REQUESTS = _env("DEEP_SWEEP_MAX_REQUESTS", 150, int)   # portal requests per source per sweep
+DEEP_SWEEP_STEP_SECONDS = _env("DEEP_SWEEP_STEP_SECONDS", 120)         # per cycle: half crawling, half judging
+DEEP_SWEEP_RENT_MARGIN = 1.10      # sweep up to this multiple of the highest rent cap
 
 # "Best" ranking for the report: each term is scaled 0-1 against its cap, lower is better
 RANK_WEIGHTS = {"cost": 0.45, "travel": 0.30, "crime": 0.25}

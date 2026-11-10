@@ -181,6 +181,91 @@ cards.
 4. An out-of-range Rightmove page (HTTP 200 without `__NEXT_DATA__`, seen at index 1008) must
    end pagination cleanly instead of raising "blocked or layout changed".
 
+## Work package 2 (market archive and deep sweep)
+
+Goal: the watcher stops seeing only the newest few pages inside a 5-mile circle, and every
+decision it makes is remembered so a setting's cost and the search's completeness can be
+measured. VPS only (`STORAGE=local`); the cloud path is untouched. Intent: blueprint sections 1
+and 2.
+
+Why: Rightmove holds 118 flats at 5 miles and 1,268 at 10 miles for rent up to £1,600, and about
+half of locations 8-16 km out are within the 40-minute commute limit. Nothing is stored about
+rejected flats.
+
+1. **Archive** (`pisobot/archive.py`, primary SQLite database, added without changing
+   `worker/schema.sql`): `adverts` (one row per `source:id`: latest facts, first/last seen, the
+   portal's first-listed date, status active/unseen), `observations` (a row whenever rent or status
+   changes), `verdicts` (per person and advert: latest outcome, `matched` or the first funnel
+   rejection, with rent, all-in, travel minutes and crime score when known), `sweeps` (one row per
+   deep sweep: scope, requests, adverts seen, adverts the head poll had never seen, complete or
+   not). Every advert fetched in a local rental cycle is upserted and every per-person outcome
+   recorded, with no extra network requests.
+2. **Deep sweep** for Rightmove and OnTheMarket: a full crawl of `DEEP_SWEEP_MILES` (10) from
+   `RENT_MIN` to 110% of the highest rent cap among users, in price bands that are halved
+   whenever a band reports more results than the portal will page through (Rightmove: 42 pages,
+   1,008 results; OnTheMarket: 34 pages, about 1,000 results, see the probe results). It runs inside the watcher every `DEEP_SWEEP_HOURS` (12; 0 disables) through
+   the existing paced fetcher, resumes across cycles in slices of about two minutes so the
+   15-minute head poll is not delayed, stops at `DEEP_SWEEP_MAX_REQUESTS` (150) per source per
+   sweep, and records an incomplete sweep as incomplete.
+3. **Evaluate sweep adverts for each person** so matches the head poll never saw are alerted.
+   Gates are reordered for private rentals so coordinate-only checks (distance, commute from the
+   cached TfL journey, crime) run before any details-page fetch. A person's radius is not a hard
+   filter for sweep adverts; the commute limit is. One marked hook is left where a cheap
+   commute-zone prefilter (`pisobot/zone.py`, `could_reach`, built elsewhere) can run before the
+   TfL call.
+4. **Coverage audit**: each completed sweep stores how many in-scope adverts the head poll had
+   not already seen. `/status` shows last scan time, per-source health, the last sweep's numbers
+   and the head-poll recall.
+5. **Gone detection**: an advert inside a swept scope that is missing from two consecutive
+   complete sweeps becomes `unseen` (not `gone`: absence is the only evidence, and it may have
+   been let, withdrawn or re-priced above the swept range) with an observation. Incomplete sweeps
+   never mark anything. A saved home that becomes unseen triggers a "no longer found in the
+   search" message saying so.
+6. **`/whatif`**: from the last 7 days of a person's verdicts, how many more adverts would have
+   matched with rent cap +£50/+£100, commute +5/+10 minutes, or the crime limit +25%. Only the
+   first rejection reason is stored, so the answer is approximate and says so.
+7. **No flood**: a person's first completed sweep records the matches it finds silently and sends
+   one summary with the count, pointing to `/report`; later sweeps alert normally, within
+   `MAX_ALERTS_PER_RUN`.
+
+## Work package 3 (act fast and keep track)
+
+Goal: the bot stops at a card with Save and Hide. In London a good flat is often let within days,
+and people lose flats because they enquired late or lost track. Help the two users act quickly and
+follow each home from first sight to signed tenancy. Intent: section 7. VPS only (`STORAGE=local`);
+the cloud path is untouched.
+
+1. **Pipeline.** Per person and advert a stage: new, saved, enquired, viewing booked (date and
+   time), viewed (rating 1-5 and a free-text note), offer made, won, lost (optional reason). Cards
+   gain an Enquired button; a saved or enquired home's card and `/pipeline` move a home along with
+   buttons, and a viewing time and notes are set by replying in text. `/pipeline` lists homes by
+   stage with rent, commute and the next action. Viewing reminders: the evening before and two
+   hours before. When an archived advert in someone's pipeline changes rent or becomes `unseen`
+   (work package 2), tell them once.
+2. **Urgency tiers.** A new match is `top` when its ranking score is in the best fifth of that
+   person's matches over the last 14 days of verdicts, or the portal first listed it within the
+   last 3 hours. Top matches carry a visible marker and notify with sound even in quiet hours only
+   if the person turned that on (`/set urgent on`, default off). Ordinary matches behave as today.
+3. **Renter profile and enquiry draft.** `/profile` stores a few facts per person: name to sign
+   with, move-in date or window, occupation, household, pets, smoker, references ready, anything
+   else. An Enquiry text button replies with a short message built from the profile and the advert
+   (address, the advert's available date against the move-in window, a request for the earliest
+   viewing slots). The bot never sends anything to agents or portals; it only drafts text.
+4. **Contact.** Where a portal's details page publishes the agent's phone number (Rightmove
+   `contactInfo`), store it and show agent name and number on the card as plain text. Telegram
+   inline URL buttons do not accept `tel:` links, so there is no call button; a plain number in
+   message text is tappable.
+5. **More photos.** A button sends the advert's remaining photos as an album on demand (media
+   groups take 2-10 items and cannot carry inline buttons, hence on demand).
+6. **Move-in fit.** With a move-in window in the profile and an available date on the advert, the
+   card says whether it fits and by how many days it misses.
+7. **Onboarding.** A new person's `/start` (and `/onboard`) asks destination, rent cap, commute
+   limit, bedrooms, move-in window and profile facts one question at a time, with buttons where
+   the answer is a choice, writing the same settings `/set` does. Resumable and skippable.
+
+Constraints: `callback_data` stays within Telegram's 64 bytes; the durable update offset and the
+allowlist in `bot.py` are unchanged.
+
 ## Probe results (2026-11-10, this Mac, plain HTTP, paced, no challenge solving)
 
 Egress for the "home" column was a UK consumer ISP; the "VPN" column is an earlier run through
@@ -215,7 +300,18 @@ Rightmove (10 mi, ≤£1,600, 1,268 results):
 - Searching by postcode district was not worked out.
 
 OnTheMarket (≤£1,600, flats): 312 results at 5 mi and 1,655 at 10 mi, 30 per page. See work
-package 1 for the sort finding.
+package 1 for the sort finding. Observed paging behaviour (radius 10, max-price 1600,
+sort-field update_date, 2026-11-10):
+
+- `min-price` works: `min-price=1500` gives `totalResults` 703, all priced 1500-1600.
+- `totalResults` is present on normal pages (1,655 for the whole query), and
+  `paginationControls` also carries a total-count key.
+- One query serves 34 pages (about 1,000 results). Page 34 returns 30 items with
+  `paginationControls.next` false although the total is 1,655; pages 50 and 56 return an empty
+  list with `totalResults` None and no pagination keys. A missing next link therefore proves
+  nothing: the deep sweep decides from the band's first-page total (split when it exceeds
+  1,000), and treats reaching page 34, or an empty page past the first, as completion only when
+  the adverts read equal that band's total.
 
 TfL: one call to `StopPoint/Mode/tube` returns 1,751 points covering 345 stations with
 coordinates (group by `stationNaptan`). Five keyless journey calls averaged 1.1 s with no rate

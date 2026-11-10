@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import cache, config, d1, main as pipeline, net, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,8 @@ class Watcher:
         """Share identical portal searches, then apply each person's criteria and delivery."""
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
-        totals, errors = {"matches": 0, "complete": True, "people": {}}, []
+        totals, errors = {"matches": 0, "complete": True, "people": {}, "degraded": 0}, []
+        alert_budgets = {p.chat_id: pipeline.new_alert_budget() for p in people}
         with pipeline.locked():
             for params, group in users.search_groups(people):
                 if stop_event is not None and stop_event.is_set():
@@ -67,13 +68,16 @@ class Watcher:
                         cache.put("rent_search", source, {})
                 with users.criteria(params):
                     prefetched = pipeline.fetch_sources(self.sources, stop_event)
+                if not dry_run:
+                    pipeline.archive_adverts(prefetched[0])     # no requests: just remembers what was fetched
                 for person in group:
                     if not person.owner and users.get(person.chat_id) is None:
                         continue
                     try:
                         with users.use(person), users.criteria(person.params):
                             result = self._person_cycle(kind if person.chat_id == report_chat else "rentals",
-                                                        prefetched, stop_event, dry_run)
+                                                        prefetched, stop_event, dry_run,
+                                                        alert_budget=alert_budgets[person.chat_id])
                     except InterruptedError:
                         raise
                     except Exception as ex:
@@ -83,13 +87,36 @@ class Watcher:
                         continue
                     totals["people"][person.label] = result["matches"]
                     totals["matches"] += result["matches"]
+                    totals["degraded"] += result.get("degraded", 0)
                     totals["complete"] = totals["complete"] and result["complete"]
+            if not dry_run and sweep.enabled(self.sources):
+                # After the head poll has alerted: a short, resumable slice of the deep sweep
+                try:
+                    res = sweep.step(self.sources, people, stop_event, self.verbose, alert_budgets=alert_budgets)
+                    if res and not res.get("complete", True):
+                        totals["complete"] = False
+                        if res.get("errors"):
+                            errors.extend(res["errors"])
+                except InterruptedError:
+                    raise
+                except Exception as ex:
+                    log.error("Deep sweep step failed (%s)", type(ex).__name__)
+                    errors.append(ex)
+                    totals["complete"] = False
         if errors:
             raise errors[0]
         if not totals["complete"]:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
+            # Loop/source liveness is separate from lookup health. A successful heartbeat
+            # must not hide an enrichment outage, including sweep-only inventory.
+            retries = sum(archive.lookup_degraded(p.chat_id or users.owner_chat() or "owner",
+                                                 pipeline.settings_key(p)) for p in people)
+            # The ledger distinguishes API failures from cooperative deadline yields;
+            # the head summary alone counts both kinds of backoff.
+            totals["degraded"] = retries
+            self._lookup_health(totals["degraded"])
             healthcheck = os.environ.get("HEALTHCHECK_URL", "")
             if healthcheck:
                 try:
@@ -99,22 +126,62 @@ class Watcher:
                     log.error("Healthcheck failed (%s)", type(ex).__name__)
         return totals
 
-    def _person_cycle(self, kind, prefetched, stop_event, dry_run):
+    def _person_cycle(self, kind, prefetched, stop_event, dry_run, alert_budget=None):
         person = users.current()
-        settings = json.dumps(person.params if person else {}, sort_keys=True)
+        settings = pipeline.settings_key(person)
         previous = _meta("watch_settings")
-        # A legacy owner baseline has no settings marker. Keep it when defaults are unchanged.
-        first = (not _meta("watch_initialized")
-                 or (previous != settings and (previous is not None or settings != "{}")))
+        # The deployed pre-archive watcher stored raw params JSON and authoritative seen
+        # history. Recognize that specific format when the params still agree: otherwise
+        # a quiet upgrade would swallow homes listed since the last live poll. Unknown
+        # markers or explicit /set resets still take the conservative silent-baseline path.
+        legacy_live = False
+        if previous is not None and _meta("watch_initialized") and pipeline.load_seen():
+            try:
+                stored = json.loads(previous)
+                legacy_live = isinstance(stored, dict) and stored == (person.params if person else {})
+            except (TypeError, ValueError):
+                pass
+        first = not _meta("watch_initialized") or (previous != settings and not legacy_live)
+        sweep_keys = set()
+        if kind == "report" and not first and archive.enabled():
+            # /report also lists the matches only the deep sweep has found
+            shown = {l.key for l in prefetched[0]}
+            extra = archive.matched_listings(person.chat_id if person else users.owner_chat(),
+                                             sweep.swept(self.sources), exclude=shown)
+            sweep_keys = {l.key for l in extra}
+            prefetched = (list(prefetched[0]) + extra, prefetched[1])
         result = pipeline._run(self.sources, dry_run, self.verbose,
                                report=kind == "report" and not first, rentals=True,
                                watch=kind != "report" or first, baseline=first,
-                               stop_event=stop_event, prefetched=prefetched)
+                               stop_event=stop_event, prefetched=prefetched,
+                               sweep_keys=sweep_keys, alert_budget=alert_budget)
         if result["complete"] and not dry_run:
             _put_meta("watch_settings", settings)
             if first:
                 _put_meta("watch_initialized", "1")
         return result
+
+    def _lookup_health(self, degraded):
+        """One push warning per sustained incident; transient send failure leaves it retryable."""
+        _put_meta("watch_degraded_adverts", degraded)
+        failures = int(_meta("watch_lookup_failures") or 0) + 1 if degraded else 0
+        _put_meta("watch_lookup_failures", failures)
+        if degraded and failures >= config.WATCH_FAILURE_LIMIT and _meta("watch_lookup_warned") != "1":
+            try:
+                telegram.send_text(f"⚠️ Advert lookups have been degraded for {failures} consecutive cycles "
+                                   f"({degraded} waiting across all active searches). Scans continue; failed lookups "
+                                   "retry automatically with cooldowns capped at one hour. /status shows the backlog.")
+            except Exception as ex:
+                log.error("Lookup degradation warning failed (%s)", type(ex).__name__)
+            else:
+                _put_meta("watch_lookup_warned", "1")
+        elif not degraded and _meta("watch_lookup_warned") == "1":
+            try:
+                telegram.send_text("✅ Advert lookups have recovered; the current retry backlog is clear.")
+            except Exception as ex:
+                log.error("Lookup recovery warning failed (%s)", type(ex).__name__)
+            else:
+                _put_meta("watch_lookup_warned", "0")
 
     def _failed(self):
         failures = int(_meta("watch_failures") or 0) + 1
