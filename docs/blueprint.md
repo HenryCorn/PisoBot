@@ -181,6 +181,51 @@ cards.
 4. An out-of-range Rightmove page (HTTP 200 without `__NEXT_DATA__`, seen at index 1008) must
    end pagination cleanly instead of raising "blocked or layout changed".
 
+## Work package 2 (market archive and deep sweep)
+
+Goal: the watcher stops seeing only the newest few pages inside a 5-mile circle, and every
+decision it makes is remembered so a setting's cost and the search's completeness can be
+measured. VPS only (`STORAGE=local`); the cloud path is untouched. Intent: blueprint sections 1
+and 2.
+
+Why: Rightmove holds 118 flats at 5 miles and 1,268 at 10 miles for rent up to £1,600, and about
+half of locations 8-16 km out are within the 40-minute commute limit. Nothing is stored about
+rejected flats.
+
+1. **Archive** (`pisobot/archive.py`, primary SQLite database, added without changing
+   `worker/schema.sql`): `adverts` (one row per `source:id`: latest facts, first/last seen, the
+   portal's first-listed date, status active/gone), `observations` (a row whenever rent or status
+   changes), `verdicts` (per person and advert: latest outcome, `matched` or the first funnel
+   rejection, with rent, all-in, travel minutes and crime score when known), `sweeps` (one row per
+   deep sweep: scope, requests, adverts seen, adverts the head poll had never seen, complete or
+   not). Every advert fetched in a local rental cycle is upserted and every per-person outcome
+   recorded, with no extra network requests.
+2. **Deep sweep** for Rightmove and OnTheMarket: a full crawl of `DEEP_SWEEP_MILES` (10) from
+   `RENT_MIN` to 110% of the highest rent cap among users, in price bands that are halved
+   whenever a band reports more results than the portal will page through (Rightmove: 42 pages,
+   1,008 results). It runs inside the watcher every `DEEP_SWEEP_HOURS` (12; 0 disables) through
+   the existing paced fetcher, resumes across cycles in slices of about two minutes so the
+   15-minute head poll is not delayed, stops at `DEEP_SWEEP_MAX_REQUESTS` (150) per source per
+   sweep, and records an incomplete sweep as incomplete.
+3. **Evaluate sweep adverts for each person** so matches the head poll never saw are alerted.
+   Gates are reordered for private rentals so coordinate-only checks (distance, commute from the
+   cached TfL journey, crime) run before any details-page fetch. A person's radius is not a hard
+   filter for sweep adverts; the commute limit is. One marked hook is left where a cheap
+   commute-zone prefilter (`pisobot/zone.py`, `could_reach`, built elsewhere) can run before the
+   TfL call.
+4. **Coverage audit**: each completed sweep stores how many in-scope adverts the head poll had
+   not already seen. `/status` shows last scan time, per-source health, the last sweep's numbers
+   and the head-poll recall.
+5. **Gone detection**: an advert inside a swept scope that is missing from two consecutive
+   complete sweeps becomes `gone` with an observation. Incomplete sweeps never mark anything
+   gone. A saved home that goes gone triggers the existing "saved home no longer listed" message.
+6. **`/whatif`**: from the last 7 days of a person's verdicts, how many more adverts would have
+   matched with rent cap +£50/+£100, commute +5/+10 minutes, or the crime limit +25%. Only the
+   first rejection reason is stored, so the answer is approximate and says so.
+7. **No flood**: a person's first completed sweep records the matches it finds silently and sends
+   one summary with the count, pointing to `/report`; later sweeps alert normally, within
+   `MAX_ALERTS_PER_RUN`.
+
 ## Probe results (2026-11-10, this Mac, plain HTTP, paced, no challenge solving)
 
 Egress for the "home" column was a UK consumer ISP; the "VPN" column is an earlier run through
