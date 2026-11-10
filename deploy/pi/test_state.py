@@ -15,6 +15,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -213,6 +214,22 @@ class ReplaceCheckTests(Base):
             self.check("2025-06-01T09:00:00+00:00", "not-a-time", False)
 
 
+class PersistenceTests(Base):
+    def test_ciphertext_checksum_and_new_directory_ancestry_are_synced_leaf_first(self):
+        directory = self.tmp / "new/backups"
+        directory.mkdir(parents=True)
+        copy = directory / "copy.age"
+        checksum = directory / "copy.age.sha256"
+        copy.write_bytes(b"synthetic ciphertext")
+        checksum.write_text(kit.digest(copy))
+        with patch.object(kit, "sync_path", wraps=kit.sync_path) as sync:
+            kit.persist_files(copy, checksum)
+        self.assertEqual([call.args[0] for call in sync.call_args_list],
+                         [copy, checksum, directory, *directory.parents])
+        self.assertEqual([call.kwargs for call in sync.call_args_list],
+                         [{}, {}, *({"directory": True} for _ in (directory, *directory.parents))])
+
+
 class InstallTests(Base):
     def setUp(self):
         super().setUp()
@@ -303,6 +320,47 @@ class LockTests(Base):
 
 
 class SnapshotTests(Base):
+    def test_final_fence_is_persisted_while_both_application_locks_are_held(self):
+        self.fill()
+        persist = kit.persist_files
+
+        def guarded(*paths):
+            self.assertEqual(paths, (self.state / kit.HANDOFF,))
+            for name in ("watch.lock", "run.lock"):
+                with (self.state / name).open("rb") as stream:
+                    with self.assertRaises(BlockingIOError):
+                        kit.fcntl.flock(stream, kit.fcntl.LOCK_EX | kit.fcntl.LOCK_NB)
+            persist(*paths)
+
+        with patch.object(kit, "persist_files", side_effect=guarded) as sync:
+            dest = self.snapshot(quiesced=True, final=True)
+        sync.assert_called_once()
+        self.assertTrue((self.state / kit.HANDOFF).is_file())
+        self.assertNotIn(kit.HANDOFF, self.names(dest / "state"))
+
+    def test_failed_final_fence_sync_keeps_marker_and_stops_before_snapshot(self):
+        self.fill()
+        before = kit.fingerprint(self.state)
+        with patch.object(kit.os, "fsync", side_effect=OSError("synthetic sync failure")):
+            with self.assertRaises(OSError):
+                self.snapshot(quiesced=True, final=True)
+        self.assertTrue((self.state / kit.HANDOFF).is_file())
+        self.assertEqual(before, kit.fingerprint(self.state))
+        self.assertFalse((self.tmp / "snapshot-1/state").exists())
+
+    def test_invalid_final_snapshot_leaves_its_fail_closed_fence(self):
+        self.fill()
+        (self.state / "seen.json").write_text("{invalid")
+        with self.assertRaises(ValueError):
+            self.snapshot(quiesced=True, final=True)
+        self.assertTrue((self.state / kit.HANDOFF).is_file())
+
+    def test_final_without_application_locks_is_refused(self):
+        self.fill()
+        with self.assertRaisesRegex(ValueError, "requires the application locks"):
+            self.snapshot(quiesced=False, final=True)
+        self.assertFalse((self.state / kit.HANDOFF).exists())
+
     def test_quiesced_snapshot_removes_only_the_sidecars_it_caused(self):
         self.fill()
         before = self.names(self.state)

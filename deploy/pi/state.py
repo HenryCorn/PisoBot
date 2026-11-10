@@ -124,10 +124,14 @@ def snapshot(state, env, dest, revision, host, quiesced, final):
     require(state.is_dir(), "State directory is missing")
     private_file(env)
     require(re.fullmatch(r"[a-f0-9]{40,64}", revision), "Cannot identify application commit")
+    require(not final or quiesced, "Final export requires the application locks")
     dest.mkdir(mode=0o700)
     require(state not in dest.parents, "Scratch must be outside the state directory")
     lock = stopped_locks(state) if quiesced else contextlib.nullcontext()
     with lock:
+        if final:
+            handoff(state, "set")
+            persist_files(state / HANDOFF)
         source_files = files(state)
         size = sum(path.stat().st_size for path in source_files)
         require(shutil.disk_usage(dest).free > size * 2 + 16 * 1024**2, "Insufficient snapshot/encryption space")
@@ -239,6 +243,29 @@ def durable_path(directory, *others):
                 "The encrypted-copy directory must be separate from the state and scratch directories")
 
 
+def sync_path(path, directory=False):
+    flags = os.O_RDONLY | os.O_NOFOLLOW | (os.O_DIRECTORY if directory else 0)
+    descriptor = os.open(path, flags)
+    try:
+        mode = os.fstat(descriptor).st_mode
+        require(stat.S_ISDIR(mode) if directory else stat.S_ISREG(mode), "Unexpected persistence target type")
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def persist_files(*paths):
+    directories = set()
+    for path in paths:
+        plain_path(path)
+        sync_path(path)
+        directories.update(path.parents)
+    # Leaf first, through the filesystem root: backup directories may have just been created.
+    # Any open/fsync failure is fatal, including unsupported directory synchronization.
+    for directory in sorted(directories, key=lambda p: (-len(p.parts), str(p))):
+        sync_path(directory, directory=True)
+
+
 def fingerprint(state):
     # Same names, sizes and mtimes mean nothing was written since the encrypted copy was taken.
     # WAL commits need not touch the main DB; include the WAL even though snapshots omit it.
@@ -304,7 +331,8 @@ def handoff(state, action):
         marker.unlink(missing_ok=True)
     elif not marker.exists():
         with marker.open("x") as output:
-            output.write(f"State handed off to the Raspberry Pi at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}.\n"
+            output.write(f"Final export/handoff started at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}.\n"
+                         "This fence does not prove that the export completed successfully.\n"
                          "Do not start pisobot-watch on this host; see cutover.md (Rollback).\n")
 
 
@@ -462,6 +490,8 @@ def main(args):
         print(fingerprint(Path(args[0])))
     elif command == "durable-path":
         durable_path(*map(Path, args))
+    elif command == "persist":
+        persist_files(*map(Path, args))
     elif command == "discard":
         discard(Path(args[0]), args[1:])
     elif command == "retain":

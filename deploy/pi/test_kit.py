@@ -4,6 +4,7 @@ import contextlib
 import fcntl
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import platform
@@ -138,6 +139,135 @@ class KitTests(unittest.TestCase):
 
     def restore_test(self, archive):
         return self.invoke("pi-import.sh", "--archive", str(archive), "--restore-test", importing=True)
+
+    def traced_python(self):
+        wrapper = self.root / "traced-python"
+        wrapper.write_text(
+            f"#!{sys.executable}\n"
+            "import importlib.util, json, os, sys\n"
+            "from pathlib import Path\n"
+            "from unittest.mock import patch\n"
+            "if len(sys.argv) < 3 or not sys.argv[1].endswith('/state.py'):\n"
+            "    os.execv(sys.executable, [sys.executable, *sys.argv[1:]])\n"
+            "script = sys.argv.pop(1)\n"
+            "spec = importlib.util.spec_from_file_location('kit', script)\n"
+            "kit = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(kit)\n"
+            "def record(event, **values):\n"
+            "    with open(os.environ['TEST_TRACE'], 'a') as stream:\n"
+            "        stream.write(json.dumps(dict(event=event, **values)) + '\\n')\n"
+            "record('command', name=sys.argv[1])\n"
+            "sync = kit.sync_path\n"
+            "def observed_sync(path, directory=False):\n"
+            "    if directory:\n"
+            "        kind = 'directory' if str(path) == os.environ['PISOBOT_PREVIOUS_DIR'] else 'ancestor'\n"
+            "    else:\n"
+            "        kind = 'checksum' if str(path).endswith('.sha256') else 'ciphertext'\n"
+            "    if kind == os.environ.get('TEST_SYNC_FAIL'):\n"
+            "        record('sync-failure', path=str(path))\n"
+            "        with patch.object(kit.os, 'fsync', side_effect=OSError('synthetic fsync failure')):\n"
+            "            sync(path, directory=directory)\n"
+            "    sync(path, directory=directory)\n"
+            "    record('synced', path=str(path))\n"
+            "kit.sync_path = observed_sync\n"
+            "move = kit.shutil.move\n"
+            "def observed_move(*args, **kwargs):\n"
+            "    record('move', source=str(args[0]))\n"
+            "    return move(*args, **kwargs)\n"
+            "kit.shutil.move = observed_move\n"
+            "try:\n"
+            "    kit.main(sys.argv[1:])\n"
+            "except OSError:\n"
+            "    print('ERROR: injected or real helper I/O failure', file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+        wrapper.chmod(0o700)
+        return wrapper
+
+    def prepare_replacement(self):
+        self.export("--final")
+        self.import_archive(*self.acknowledge)
+        (self.target / "original-only").write_text("must remain recoverable\n")
+        (self.target / "HANDED-OFF-TO-PI").write_text("original fence\n")
+
+    def test_verified_safety_copy_and_all_ancestry_persist_before_first_original_move(self):
+        self.prepare_replacement()
+        trace = self.root / "trace.jsonl"
+        self.invoke("pi-import.sh", "--archive", str(self.archive), *self.acknowledge, "--replace-state",
+                    importing=True, extra_env={"PISOBOT_PYTHON": str(self.traced_python()),
+                                               "TEST_TRACE": str(trace)})
+        events = [json.loads(line) for line in trace.read_text().splitlines()]
+        copy, = self.replaced_copies()
+        synced = [event["path"] for event in events if event["event"] == "synced"]
+        self.assertEqual(synced, list(map(str, (copy, Path(str(copy) + ".sha256"), *copy.parents))))
+        first_sync = next(i for i, event in enumerate(events) if event["event"] == "synced")
+        verified = [i for i, event in enumerate(events) if event == {"event": "command", "name": "verify"}]
+        self.assertLess(max(verified), first_sync)
+        installed = events.index({"event": "command", "name": "install"})
+        first_move = next(i for i, event in enumerate(events) if event["event"] == "move")
+        last_sync = max(i for i, event in enumerate(events) if event["event"] == "synced")
+        self.assertLess(last_sync, installed)
+        self.assertLess(installed, first_move)
+        self.assertEqual(self.copy_members(copy)["state/original-only"], b"must remain recoverable\n")
+        self.assertIn("RESTORE TEST OK", self.restore_test(copy))
+
+    def test_any_safety_copy_sync_failure_preserves_original_and_fences_before_install(self):
+        self.prepare_replacement()
+        wrapper = self.traced_python()
+        env_before = (self.root / "config/pisobot.env").read_bytes()
+        state_before = {p.relative_to(self.target): p.read_bytes() for p in self.target.rglob("*") if p.is_file()}
+        for kind in ("ciphertext", "checksum", "directory", "ancestor"):
+            with self.subTest(kind=kind):
+                trace = self.root / f"{kind}.jsonl"
+                output = self.invoke(
+                    "pi-import.sh", "--archive", str(self.archive), *self.acknowledge, "--replace-state",
+                    importing=True, success=False,
+                    extra_env={"PISOBOT_PYTHON": str(wrapper), "TEST_TRACE": str(trace), "TEST_SYNC_FAIL": kind})
+                self.assertIn("Cannot synchronize", output)
+                events = [json.loads(line) for line in trace.read_text().splitlines()]
+                self.assertTrue(any(event["event"] == "sync-failure" for event in events))
+                self.assertFalse(any(event["event"] == "move" for event in events))
+                self.assertNotIn({"event": "command", "name": "install"}, events)
+                self.assertEqual(state_before, {p.relative_to(self.target): p.read_bytes()
+                                               for p in self.target.rglob("*") if p.is_file()})
+                self.assertEqual(env_before, (self.root / "config/pisobot.env").read_bytes())
+                self.assertTrue((self.source / "HANDED-OFF-TO-PI").exists())
+                self.assertFalse((self.target / ".import-in-progress").exists())
+                self.assertEqual(list((self.root / "scratch").iterdir()), [])
+
+    def test_final_export_is_fenced_before_encryption_and_keeps_fence_on_failure(self):
+        binary = shutil.which("age")
+        directory = self.root / "wrapped-bin"
+        directory.mkdir()
+        wrapper = directory / "age"
+        wrapper.write_text(
+            f"#!{sys.executable}\n"
+            "import fcntl, json, os, sys\n"
+            "from pathlib import Path\n"
+            "if '--encrypt' in sys.argv:\n"
+            "    root = Path(os.environ['PISOBOT_STATE_DIR'])\n"
+            "    streams = [(root / name).open('rb') for name in ('watch.lock', 'run.lock')]\n"
+            "    for stream in streams:\n"
+            "        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)\n"
+            "    Path(os.environ['TEST_EXPORT_TRACE']).write_text(json.dumps({\n"
+            "        'locks_available': True, 'fenced': (root / 'HANDED-OFF-TO-PI').is_file()}))\n"
+            "    for stream in streams:\n"
+            "        stream.close()\n"
+            "    if os.environ.get('TEST_FAIL_ENCRYPT') == '1':\n"
+            "        sys.exit(71)\n"
+            f"os.execv({binary!r}, [{binary!r}, *sys.argv[1:]])\n"
+        )
+        wrapper.chmod(0o700)
+        trace = self.root / "export-trace.json"
+        for fail in ("1", "0"):
+            with self.subTest(encryption_failure=fail):
+                self.invoke("vps-export.sh", "--archive", str(self.archive), "--final", success=fail == "0",
+                            extra_env={"PATH": f"{directory}:{os.environ['PATH']}",
+                                       "TEST_EXPORT_TRACE": str(trace), "TEST_FAIL_ENCRYPT": fail})
+                self.assertEqual(json.loads(trace.read_text()), {"locks_available": True, "fenced": True})
+                self.assertTrue((self.source / "HANDED-OFF-TO-PI").is_file())
+                self.assertEqual(self.archive.exists(), fail == "0")
+                self.assertEqual(list((self.root / "scratch").iterdir()), [])
 
     def test_live_wal_roundtrip_permissions_and_repeat_import(self):
         output = self.export("--final")

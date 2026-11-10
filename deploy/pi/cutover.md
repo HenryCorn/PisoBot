@@ -94,8 +94,21 @@ Expect `quiesced=True; final=True`, a database count and the encrypted archive's
 SHA256. Export checks the installed source service is inactive and disabled/masked; it
 does not stop it for you. It snapshots all owner/guest DBs, seen/cache JSON,
 tiles and the environment. Keep the final archive and checksum for rollback.
-After publishing archive/checksum it writes `/var/lib/pisobot/HANDED-OFF-TO-PI`.
-Confirm that marker exists and the drop-in is loaded before allowing the Pi to
+Before snapshotting, **while holding both application locks**, it writes and
+synchronizes `/var/lib/pisobot/HANDED-OFF-TO-PI` and its directory ancestry.
+Encryption and publication run with that fence already in place; there is no
+unlocked, unfenced interval after the authoritative snapshot.
+The fence is fail-closed: it remains if snapshotting, synchronization,
+encryption, publication or checksum generation fails. A marker is **not**
+evidence of a completed archive. Keep both hosts stopped, resolve the error
+and retry with a fresh output name without clearing the fence. To abandon an
+export, follow the unchanged-source rollback procedure below only if the other
+host has never scanned/accepted updates and all validation/backup jobs are
+stopped. Otherwise use the full latest-state rollback, not a marker deletion.
+See README "Failure procedure" for residual scratch/partial-output handling.
+
+After a successful export, reconfirm `ActiveState=inactive`, `MainPID=0` and
+disabled/masked status. Confirm the marker exists and the drop-in is loaded before allowing the Pi to
 scan. If masking was unavailable, test the condition fence now, while the Pi
 is still stopped: a VPS `systemctl start` must leave it inactive with
 `ConditionResult=no`. If it becomes active, stop it and fix the fence before
@@ -130,6 +143,11 @@ After inspection, add `--replace-state` and
 encrypted safety copy under `/var/backups/pisobot`. Keep the first copy until a
 verified off-box backup exists. A newer existing scan timestamp also requires
 `--allow-older-archive`, deliberately accepting data loss; do not add it routinely.
+The verified ciphertext, checksum and all containing directory ancestry are
+`fsync`ed before any original-state move/import marker. Any sync error refuses
+replacement with the original and fences intact. This ordering is tested with
+injected failures, not real power cuts; actual storage durability remains an
+on-hardware validation gate.
 
 It then runs the application's **real unit suite without production env**:
 

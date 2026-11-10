@@ -464,6 +464,15 @@ root-only 700, not tmpfs/ramfs or inside state/scratch). The selected identity
 must decrypt this copy as well as the incoming archive. Keep the copy and
 checksum until the next verified off-box nightly backup; the **first** copy
 holds the original state, later retries copy the state left by earlier attempts.
+After verification and before any original-state move or import marker, the
+helper `fsync`s the ciphertext, checksum and containing directory ancestry,
+leaf-first through the root. This includes newly created backup directories.
+Any open/sync error, including unsupported directory synchronization, aborts
+replacement with the original state and fences unchanged. Fix the storage
+error before retrying; reading a copy successfully from cache is not persistence.
+These are explicit OS persistence barriers, **not real power-loss proof**:
+filesystem/device flush behaviour still needs validation on disposable state
+with the actual SSD/enclosure and root-storage layout.
 
 If existing `watch_last_success` is later than the incoming archive's creation
 time, import refuses unless **`--allow-older-archive`** accompanies
@@ -474,10 +483,13 @@ archive is newer or compare every intervening button action.
 Restored env files accept only application variable names, with `STORAGE=local`,
 `FETCH_CHAIN=plain` and the matching state path. `PYTHONPATH`, `LD_PRELOAD`,
 `INSECURE_SSL` and unknown names are refused without logging values.
-The installed `pisobot-vps-handoff.conf` fences the old VPS after final export;
+The installed `pisobot-vps-handoff.conf` fences the old VPS during final export;
 see cutover.md for installation, masking and rollback. The Pi drop-in also
 honours the marker when exporting back. Successful import clears a handoff
 marker only after validation; failed import keeps it.
+Final export creates and synchronizes its handoff fence while holding both
+application locks, before snapshotting. It never removes that fence on failure.
+The marker alone does not mean an archive is complete or usable.
 Re-provisioning refuses an active watcher. Stop the backup timer/service before
 maintenance; never run provisioning/import and backup concurrently.
 
@@ -493,6 +505,19 @@ matters.
 
 ### Failure procedure
 
+**Failed final export:** keep both hosts stopped and the handoff drop-in/marker
+in place. A snapshot, sync, encryption, publication or checksum failure may
+leave the marker but no usable archive; do not import partial output. Resolve
+the cause, reconfirm inactive/MainPID=0 and disabled/masked status, then retry
+with a fresh archive name **without clearing the fence**. To abandon cutover,
+first prove the other host has never scanned or accepted updates and all
+validation/backup jobs are stopped; follow cutover.md's unchanged-source
+rollback procedure before deliberately clearing the source marker. If the
+other host has run, use its latest state and the full rollback procedure,
+never just remove the old host's fence. Recheck service conditions after any
+intended start. Interrupted jobs may leave plaintext scratch; inspect and
+remove only the exact job directory after recovery.
+
 On import failure after installation begins, the service stays disabled and
 `.import-in-progress` blocks startup. The cleanup removes plaintext scratch
 state/env copies and retains only validation logs. The replaced state survives
@@ -500,6 +525,10 @@ in the printed durable `replaced-*.age` copy, **not in `/run`**. Pre-install
 failures normally remove the entire job. SIGKILL/power loss cannot run cleanup:
 inspect and remove residual plaintext privately after recovery. Logs can also
 contain sensitive application output; do not paste them into issues.
+If safety-copy synchronization failed **before** installation, there is no
+new import marker and the original remains intact. A verified but not fully
+synchronized copy may remain in the backup directory; do not treat it as a
+durable substitute for the original or bypass the failed barrier.
 
 1. Confirm both hosts are still stopped. If import was interrupted, inspect
    `systemctl status pisobot-migration-check.service --no-pager`; if that
@@ -550,9 +579,12 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s deploy/pi -p test_stat
 ```
 
 `test_state.py` covers replacement/fingerprints, cleanup, allowlisted env,
-WAL/sidecar handling, absent/held locks and stubbed systemctl states.
+WAL/sidecar handling, absent/held locks, lock-held final fences, file/directory
+sync ordering/failures and stubbed systemctl states.
 `test_kit.py` requires age/age-keygen for encryption validation; a plumbing shim
-is not an encryption test. No test contacts Telegram, portals or a live host.
+is not an encryption test. It also injects ciphertext/checksum/directory/
+ancestor sync failures before installation and encryption failure after fencing.
+No test contacts Telegram, portals or a live host.
 
 The suite creates/deletes dedicated `pisobot-kit-test-*` folders under this
 directory, keeps SQLite WAL connections open during export, preserves fake
@@ -576,6 +608,8 @@ Exercise SSD missing-mount/reboot guards, ext4 `lost+found`, sidecar ownership,
 the handoff/import conditions and `systemctl is-active` after every start.
 Masking an `/etc/systemd/system` regular unit may fail; never replace/delete
 the unit to force it. Verify the installed drop-in and marker fence instead.
-Check the durable encrypted copy survives reboot and memory-backed paths are
-refused. Remote shell/scp/readback, real application tests/dry scan, Telegram
+Check memory-backed paths are refused and rehearse abrupt storage/power-failure
+recovery on disposable synthetic state with the actual disks/enclosure.
+Successful `fsync`, graceful reboot and process-kill tests alone do not prove
+power-loss recovery. Remote shell/scp/readback, real application tests/dry scan, Telegram
 takeover, rollback, disaster recovery and the 24-hour soak all remain untested.

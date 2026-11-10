@@ -122,6 +122,8 @@ store_existing_state() {
         rm -f -- "$COPY" "$COPY.sha256"
         die "The encrypted copy of the existing state could not be verified; nothing changed."
     fi
+    "$PYTHON" "$KIT_DIR/state.py" persist "$COPY" "$COPY.sha256" ||
+        die "Cannot synchronize the verified safety copy and directory ancestry; nothing replaced. Keep services stopped and resolve storage errors before retrying."
     "$PYTHON" "$KIT_DIR/state.py" discard "$WORK" existing existing.age existing-check
     INSTALL_REPLACE=1
     note "Existing state stored as a verified encrypted copy: $COPY (keep it until the next verified nightly backup)."
