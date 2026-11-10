@@ -669,10 +669,19 @@ def once(key, kind, value, send):
 def notify_changes(send, limit=10):
     """Tell the person about pipeline changes, each archive event once across all paths. send(text,
     keyboard) delivers one message. A change another path is sending right now waits for the next
-    tick; one already told only moves this home's baseline. At most ``limit`` messages per call."""
-    sent = 0
-    for key, _, rent, status, parts in changes():
-        if sent >= limit:
+    tick; one already told only moves this home's baseline. ``limit`` bounds attempts,
+    including permanent rejections; return the number successfully delivered."""
+    sent, attempts = 0, 0
+    pending = changes()
+    if not pending or limit <= 0:
+        return 0
+    try:
+        cursor = int(value("notice.cursor") or 0) % len(pending)
+    except ValueError:
+        cursor = 0
+    pending = pending[cursor:] + pending[:cursor]
+    for index, (key, _, rent, status, parts) in enumerate(pending):
+        if attempts >= limit:
             break
         events = [(kind, archive.change_id(key, kind, value), line) for kind, value, line in parts]
         claimed, lines, busy = [], [], False
@@ -689,6 +698,10 @@ def notify_changes(send, limit=10):
                     release(key, kind, event, token=token)
             continue
         if lines:
+            attempts += 1
+            # Rotate even rejected attempts so a permanent bad prefix cannot starve
+            # later homes on every polling tick. This is per-person non-search state.
+            put("notice.cursor", (cursor + index + 1) % len(pending))
             try:
                 send(_change_text(get(key), lines), None)
             except Exception as ex:

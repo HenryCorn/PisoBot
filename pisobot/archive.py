@@ -466,8 +466,9 @@ def pending(chat_id, sources, settings, limit, skip=(), *, drainage=False, at=No
                          f"LEFT JOIN advert_work w ON w.key=a.key AND w.chat_id=? "
                          f"WHERE a.status='active' AND a.source IN ({marks}) AND "
                          f"(v.key IS NULL OR v.settings IS NOT ? OR v.outcome IN {RETRY}) "
-                         f"ORDER BY CASE WHEN v.outcome='unsent' AND w.notify=1 THEN 0 "
-                         f"WHEN v.key IS NULL OR v.settings IS NOT ? THEN 1 ELSE 2 END, "
+                         f"ORDER BY CASE WHEN v.outcome='unsent' AND w.notify=1 AND w.failures=0 THEN 0 "
+                         f"WHEN v.key IS NULL OR v.settings IS NOT ? THEN 1 "
+                         f"WHEN v.outcome='unsent' AND w.notify=1 THEN 2 ELSE 3 END, "
                          f"w.updated_at,a.first_seen DESC,a.key", str(chat_id), str(chat_id), *sources, settings, settings)
         selected = []
         for row in rows:

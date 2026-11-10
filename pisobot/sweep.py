@@ -180,7 +180,9 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
     log.info("Deep sweep of %s %s after %s requests%s", NAMES[source], "complete" if complete else "incomplete",
              requests, f" ({note})" if note else "")
     if unseen:
-        notify_unseen(unseen, deadline=deadline, clock=clock, stop_event=stop_event)
+        notices = notify_unseen(unseen, deadline=deadline, clock=clock, stop_event=stop_event)
+        if notices and notices.get("errors"):
+            raise notices["errors"][0]  # keep committed events pending and surface failed output
     return sweep_id
 
 
@@ -204,6 +206,7 @@ def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=Non
     """
     if deadline is not None and clock() >= deadline:
         return
+    errors = []
     people = _people_turn(users.everyone(), "unseen_turn")
     for index, person in enumerate(people):
         person_deadline = (None if deadline is None else
@@ -222,21 +225,22 @@ def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=Non
                             continue
                         info = p["saved"].get(event["key"])
                         if info is not None and event["status"] == "unseen":
-                            if not info.get("unseen"):
-                                text = (f'❤️ <b>Saved home no longer found in the search</b>\n'
-                                        f'<a href="{info.get("url")}">{telegram.e(info.get("address") or "listing")}</a>\n'
-                                        "<i>It may have been let, withdrawn or re-priced above your range.</i>")
-                                if users.enabled() and archive.enabled():
-                                    state = tracker.once(event["key"], "status", "unseen", lambda: telegram.send_text(text))
-                                else:
-                                    telegram.send_text(text)
-                                    state = "sent"
-                                if state == "busy":
-                                    continue
-                                info["unseen"] = True
-                                changed = True
-                                if state == "sent":
-                                    telegram.throttle()
+                            # This durable event is a new absence episode even if the UI's
+                            # old 'unseen' flag survived a sweep-only/filtered reappearance.
+                            text = (f'❤️ <b>Saved home no longer found in the search</b>\n'
+                                    f'<a href="{info.get("url")}">{telegram.e(info.get("address") or "listing")}</a>\n'
+                                    "<i>It may have been let, withdrawn or re-priced above your range.</i>")
+                            if users.enabled() and archive.enabled():
+                                state = tracker.once(event["key"], "status", "unseen", lambda: telegram.send_text(text))
+                            else:
+                                telegram.send_text(text)
+                                state = "sent"
+                            if state == "busy":
+                                continue
+                            info["unseen"] = True
+                            changed = True
+                            if state == "sent":
+                                telegram.throttle()
                             archive.acknowledge_unseen(person.chat_id, event["id"])
                         elif info is None:
                             archive.acknowledge_unseen(person.chat_id, event["id"])
@@ -247,6 +251,8 @@ def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=Non
             raise
         except Exception as ex:
             log.error("Unseen notification failed for %s (%s); retained for retry", person.label, type(ex).__name__)
+            errors.append(ex)
+    return {"complete": not errors, "errors": errors}
 
 
 # ---------- judging archived adverts for each person ----------
@@ -272,7 +278,7 @@ def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock
     needed = scope_for([person])
     alert_budget = alert_budget if alert_budget is not None else pipeline.new_alert_budget()
     deadline = clock() + budget_seconds
-    skip, finished = set(), {}
+    skip, finished, delivery_errors = set(), {}, []
     with users.use(person), users.criteria(person.params):
         turn = int(_meta("sweep_judge_turn") or 0) % len(sources) if sources else 0
         sources = sources[turn:] + sources[:turn]
@@ -297,9 +303,15 @@ def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock
                     # Only unattempted inventory blocks this source generation from going live.
                     drained = not archive.pending(person.chat_id, [source], settings, 1, drainage=True)
                     break
-                result = pipeline._run([source], False, verbose, rentals=True, watch=True, baseline=quiet,
-                                       stop_event=stop_event, prefetched=(batch, []), sweep=True,
-                                       alert_budget=alert_budget, deadline=source_deadline, clock=clock)
+                try:
+                    result = pipeline._run([source], False, verbose, rentals=True, watch=True, baseline=quiet,
+                                           stop_event=stop_event, prefetched=(batch, []), sweep=True,
+                                           alert_budget=alert_budget, deadline=source_deadline, clock=clock)
+                except Exception as ex:
+                    result = getattr(ex, "pisobot_delivery_result", None)
+                    if result is None:
+                        raise  # storage/programming failures are not completed judgement batches
+                    delivery_errors.append(ex)
                 skip.update(result.get("processed", [l.key for l in batch]))
                 if quiet:
                     _put_meta(f"sweep_found:{source}", int(_meta(f"sweep_found:{source}") or 0) + result.get("baseline_fresh", result["fresh"]))
@@ -316,6 +328,8 @@ def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock
                 finished[source] = int(_meta(f"sweep_found:{source}") or 0)
                 _put_meta(f"sweep_base:{source}", settings)
                 _put_meta(f"sweep_found:{source}", 0)
+    if delivery_errors:
+        raise delivery_errors[0]
     return finished
 
 
@@ -338,6 +352,7 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
     sources = swept(sources)
     half = config.DEEP_SWEEP_STEP_SECONDS / 2
     deadline = clock() + config.DEEP_SWEEP_STEP_SECONDS
+    errors = []
     for source in sources:
         if clock() >= deadline:
             break
@@ -347,10 +362,11 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
             raise
         except Exception as ex:
             log.error("Deep sweep of %s failed (%s)", source, type(ex).__name__)
+            errors.append(ex)
     # Reserve time for old durable notices BEFORE judgement can consume the whole slice.
-    notify_unseen(deadline=min(deadline, clock() + config.DEEP_SWEEP_STEP_SECONDS * 0.1),
-                  clock=clock, stop_event=stop_event)
-    errors = []
+    notices = notify_unseen(deadline=min(deadline, clock() + config.DEEP_SWEEP_STEP_SECONDS * 0.1),
+                            clock=clock, stop_event=stop_event)
+    errors.extend((notices or {}).get("errors", []))
     for person in _people_turn(people, "sweep_people_turn"):
         if not person.owner and users.get(person.chat_id) is None:
             continue
@@ -365,5 +381,6 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, 
             log.error("Deep sweep judging failed for %s (%s)", person.label, type(ex).__name__)
             errors.append(ex)
     # Retry durable events even when no new sweep finished; never let a backlog hold the poll.
-    notify_unseen(deadline=deadline, clock=clock, stop_event=stop_event)
+    notices = notify_unseen(deadline=deadline, clock=clock, stop_event=stop_event)
+    errors.extend((notices or {}).get("errors", []))
     return {"complete": not errors, "errors": errors}

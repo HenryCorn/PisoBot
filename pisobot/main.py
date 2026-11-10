@@ -825,14 +825,16 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
+              "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
+              "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
+              "processed": processed, "sent": len(delivered)}
     if delivery_errors:
-        # Healthy later cards have been checkpointed; the cycle still fails honestly,
-        # retaining the existing operational warning path and retrying unsent adverts.
+        # The persisted batch can yield to other inventory without hiding the cycle error.
+        # Only send-phase failures receive this marker; failed storage/evaluation never does.
+        delivery_errors[0].pisobot_delivery_result = result
         raise delivery_errors[0] from None
-    return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
-            "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
-            "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
-            "processed": processed, "sent": len(delivered)}
+    return result
 
 
 def main():
