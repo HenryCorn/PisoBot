@@ -16,7 +16,8 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import archive, cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import (archive, cache, collage, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, renter, taste,
+               telegram, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -325,6 +326,15 @@ def _verdict_row(l, why):
     return (l.key, why or "matched", l.rent, all_in, l.travel_minutes, l.crime_score)
 
 
+def _set_urgency(l):
+    """WP3: mark a new rental "top" (⚡ on the card; loud at night only with /set urgent on). Best
+    effort: a failure only means no marker, never a lost alert."""
+    try:
+        l.urgency = renter.tier(l, users.current_chat() or users.owner_chat() or "owner")
+    except Exception as ex:
+        print(f"urgency tier failed: {type(ex).__name__}", file=sys.stderr)
+
+
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
          watch=False, baseline=False, stop_event=None, prefetched=None, sweep=False):
     """prefetched: (listings, failures) shared by several people's runs in one cycle; each run
@@ -595,6 +605,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if not live:
             continue
         _ensure_photos(l)
+        if reason == "new" and archive.enabled():
+            _set_urgency(l)
         telegram.send_listing(l, reason)
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if watch:

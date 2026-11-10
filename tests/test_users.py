@@ -429,7 +429,10 @@ class SharedBotTests(Base):
         self.handler.handle(message("/start", FRIEND, "thebeatifulest"))
         self.assertIn("Welcome", self.texts(FRIEND)[0])
         self.assertIn("joined", self.texts(OWNER)[0])
-        self.assertEqual(self.texts(FRIEND)[-1], bot.HELP)
+        # WP3: a brand-new person's /start opens onboarding (one question at a time) after the welcome
+        self.assertIn("1/11", self.texts(FRIEND)[-1])
+        self.handler.handle(message("/start", FRIEND, "thebeatifulest"))
+        self.assertIn("1/11", self.texts(FRIEND)[-1])      # a repeated /start resumes, never re-admits
         self.handler.handle(message("/report", FRIEND, "renamed"))
         self.trigger.assert_called_with("report", FRIEND)
 

@@ -80,6 +80,7 @@ CREATE INDEX IF NOT EXISTS sweeps_source ON sweeps (source, id);
 """
 RETRY = "('enrichment', 'unsent')"   # outcomes to judge again: a failed lookup, or a match whose alert was capped
 UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
+ARCHIVE_IMAGES = 16   # photos kept per advert: the card's header plus a "More photos" album (2-10)
 
 
 def enabled():
@@ -125,7 +126,7 @@ def upsert(listings, via, sweep_id=None, at=None):
             if l.rent is None:
                 continue
             old = (_rows(db, "SELECT * FROM adverts WHERE key = ?", l.key) or [None])[0]
-            data = json.dumps(snapshot(l), sort_keys=True)
+            data = json.dumps(snapshot(l, max_images=ARCHIVE_IMAGES), sort_keys=True)
             if old is None:
                 db.execute("INSERT INTO adverts (key, source, url, address, bedrooms, rent, lat, lng, first_seen,"
                            " last_seen, portal_first_listed, status, head_seen, last_sweep_id, missed, data)"

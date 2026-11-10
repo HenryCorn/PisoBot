@@ -155,7 +155,7 @@ def update_kind(reason):
 def apply_rent_details(listing, details):
     """Merge a lettings details page (see the sources' refine); False drops rooms and bedsits."""
     listing.description = f"{listing.description} {details['description']}"
-    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band"):
+    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "agent_phone"):
         if details.get(key):
             setattr(listing, key, details[key])
     if details.get("council_tax_included") is not None:
@@ -188,14 +188,26 @@ CACHE_FIELDS = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure"
             "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
             "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
-            "bathrooms", "agent",
+            "bathrooms", "agent", "agent_phone", "first_listed_at",
             "advert_deposit")
 
 
-def snapshot(listing):
-    """The stored facts of a rental listing (search cache and market archive), JSON-safe."""
+def snapshot(listing, max_images=6):
+    """The stored facts of a rental listing (search cache and market archive), JSON-safe. The search
+    cache keeps 6 photos; the archive keeps more so "More photos" has something to send."""
     data = {k: v for k, v in asdict(listing).items() if k in CACHE_FIELDS}
-    return {**data, "images": data.get("images", [])[:6], "description": (data.get("description") or "")[:1500]}
+    return {**data, "images": data.get("images", [])[:max_images],
+            "description": (data.get("description") or "")[:1500]}
+
+
+def phone_number(value):
+    """A published UK phone number as plain text ('020 7123 4567'), else None. Defensive: portals'
+    contact fields are not verified against stored pages, so anything unusual is dropped."""
+    value = " ".join(str(value or "").split())
+    digits = re.sub(r"\D", "", value)
+    if not re.fullmatch(r"\+?[\d ()\-]{9,24}", value) or not 10 <= len(digits) <= 13:
+        return None
+    return value
 
 
 def restore(data):

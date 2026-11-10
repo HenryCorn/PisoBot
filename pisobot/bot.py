@@ -19,16 +19,20 @@ import logging
 import math
 import os
 import re
+import time
 
 import requests
 
-from . import d1, net, status as reports, users
+from . import archive, config, d1, net, renter, status as reports, tracker, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
 HTTP_TIMEOUT = 35
 POLL_TIMEOUT = 25
 RETRY_SECONDS = 3
+TICK_SECONDS = 60      # viewing reminders and pipeline change notices are checked this often
+CARD_PHOTOS = 4        # photos the card's header already shows (hero + 3 gallery; collage.build)
+WP3_PREFIXES = ("e", "p", "P", "v", "q", "m", "o")
 DEFAULT_LABELS = {"s": "❤️ Save", "h": "👎 Hide", "d": "🔕 Hide building"}
 ACTIVE_LABELS = {"s": "🩶 Saved", "h": "🩶 Hidden", "d": "🔕 Building hidden"}
 REASON_LABELS = {
@@ -66,6 +70,13 @@ HELP = (
     "/whatif – what loosening rent, commute or crime would add (last 7 days)\n"
     "/set &lt;name&gt; &lt;value&gt; – change one, e.g. <code>/set rent 1500</code>, "
     "<code>/set destination Canary Wharf</code>, <code>/set commute default</code>\n"
+    "/pipeline – homes you are pursuing, by stage, with the next step (VPS)\n"
+    "/profile – your renter profile for enquiry drafts and move-in fit (VPS)\n"
+    "/onboard – set up your search and profile one question at a time (VPS)\n"
+    "<code>/set urgent on</code> – ⚡ top matches ring even in quiet hours (VPS; default off)\n"
+    "On rental cards (VPS): ✉️ Enquired starts tracking a home, ✍️ Enquiry text drafts a message "
+    "for you to send yourself (PisoBot never contacts agents), 📷 More photos sends the rest.\n"
+    "/cancel – stop waiting for a typed answer\n"
     "/help – this message"
 )
 SETTINGS_HELP = (
@@ -156,7 +167,7 @@ class TelegramClient:
         if (not 200 <= response.status_code < 300 or not isinstance(result, dict)
                 or result.get("ok") is not True):
             description = result.get("description", "") if isinstance(result, dict) else ""
-            edit_error = (method == "editMessageReplyMarkup" and isinstance(result, dict)
+            edit_error = (method in ("editMessageReplyMarkup", "editMessageText") and isinstance(result, dict)
                           and result.get("error_code") == 400 and isinstance(description, str))
             if edit_error and description.startswith("Bad Request: message is not modified"):
                 return True
@@ -229,6 +240,54 @@ def _update_keyboard(markup, action, sid, note=None):
                 inserted = True
     markup["inline_keyboard"] = output
     return markup
+
+
+# WP3 onboarding: (setting, question, suggested answers). The first four write the same search
+# settings as /set; the rest fill the renter profile. Every answer can also be typed.
+ONBOARDING = (
+    ("destination", "📍 Where do you commute to most days? Send a postcode, station or place, e.g. "
+                    "<code>EC2M 7PY</code> or <code>Canary Wharf</code>.", ()),
+    ("rent", "💷 Highest advertised monthly rent you would pay (before bills)? Tap one or type a number.",
+     ("1200", "1500", "1800", "2100", "2500")),
+    ("commute", "🚇 Longest commute, in minutes, door to door?", ("30", "40", "50", "60")),
+    ("beds", "🛏️ Minimum bedrooms?", ("1", "2", "3")),
+    ("movein", "📅 When do you want to move in? e.g. <code>1 Dec</code>, <code>1/12-15/12</code>, "
+               "<code>December</code> or <code>asap</code>.", ("asap",)),
+    ("name", "👤 Your name, for enquiry drafts?", ()),
+    ("job", "💼 Your occupation, e.g. <code>nurse, full time</code>?", ()),
+    ("household", "🏠 Who will live there, e.g. <code>couple, no children</code>?", ()),
+    ("pets", "🐾 Any pets? Tap or type, e.g. <code>one indoor cat</code>.", ("none",)),
+    ("smoker", "🚬 Do you smoke?", ("no", "yes")),
+    ("references", "📄 References you can provide?", ("employer and previous landlord", "not yet")),
+)
+SEARCH_STEPS = ("destination", "rent", "commute", "beds")
+
+
+def _stage_button(data, sid):
+    return isinstance(data, str) and (data == f"e:{sid}" or (
+        data.startswith("p:") and data.endswith(":" + sid) and data.count(":") == 2))
+
+
+def _stage_markup(markup, sid, stage):
+    """The card's keyboard with its pipeline row swapped for the row of ``stage``; None when the
+    message has no pipeline row (a reminder, a report card sent before WP3)."""
+    rows, found = [], False
+    for row in markup.get("inline_keyboard", []):
+        if any(_stage_button(b.get("callback_data"), sid) for b in row):
+            rows.append(tracker.card_row(stage, sid))
+            found = True
+        else:
+            rows.append(row)
+    if not found:
+        return None
+    markup["inline_keyboard"] = rows
+    return markup
+
+
+def _quiet(at=None):
+    start, end = config.QUIET_HOURS
+    hour = (at or dt.datetime.now(dt.timezone.utc)).astimezone(tracker.LONDON).hour
+    return hour >= start or hour < end
 
 
 class Handler:
@@ -320,8 +379,22 @@ class Handler:
         if not users.enabled():
             self.reply("Search settings can only be changed on the VPS bot.")
             return
+        if len(words) >= 2 and words[1].lower() == "urgent":
+            # Stored with the renter profile, never in params: no settings fingerprint change and
+            # no re-baselined search.
+            raw = " ".join(words[2:]).strip().lower()
+            if raw not in ("on", "off", "yes", "no", "default"):
+                self.reply("Usage: <code>/set urgent on</code> or <code>/set urgent off</code>")
+                return
+            renter.set_urgent(raw in ("on", "yes"))
+            self.reply("⚡ Top matches now ring even in quiet hours (22:00–07:00)." if renter.urgent_on()
+                       else "🔕 Top matches stay silent in quiet hours, like every other alert.")
+            return
         if len(words) < 2:
-            self.reply(f"<b>🔎 Your search</b>\n{users.describe(person)}{SETTINGS_HELP}")
+            urgent = "on" if renter.urgent_on() else "off"
+            self.reply(f"<b>🔎 Your search</b>\n{users.describe(person)}\n"
+                       f"• <b>urgent</b> {urgent} — ⚡ top matches ring in quiet hours "
+                       f"(<code>/set urgent on|off</code>; not a search setting){SETTINGS_HELP}")
             return
         name, raw = words[1].lower(), " ".join(words[2:]).strip()
         params = dict(person.params)
@@ -382,12 +455,22 @@ class Handler:
                    + "\n<code>/removeuser &lt;chat_id&gt;</code> removes someone.")
 
     def command(self, text):
+        if users.enabled() and not text.lstrip().startswith("/"):
+            self.text_reply(text)      # an answer to a prompt; other chatter is ignored as before
+            return
         words = text.split()
         command = words[0].split("@")[0].lower() if words else ""
         if words:
             words[0] = command
         if command in ("/settings", "/search", "/set"):
             self.settings(words if command == "/set" else words[:1])
+            return
+        if command in ("/pipeline", "/profile", "/onboard", "/cancel"):
+            if not users.enabled():
+                self.reply("This command is only available on the VPS bot.")
+            else:
+                {"/pipeline": self.pipeline, "/profile": self.profile, "/onboard": self.onboard,
+                 "/cancel": self.cancel}[command](words)
             return
         if command in ("/status", "/whatif"):
             if not users.enabled():
@@ -449,7 +532,10 @@ class Handler:
             d1.query("DELETE FROM hidden_dev")
             self.reply("👀 Hidden homes will show again from the next report.")
         elif command in ("/help", "/start"):
-            self.reply(HELP)
+            if command == "/start" and self._new_person():
+                self.onboard(words)
+            else:
+                self.reply(HELP)
 
     def callback(self, query, message):
         data, query_id = query.get("data"), query.get("id")
@@ -470,6 +556,9 @@ class Handler:
 
         if len(parts) == 3 and parts[:2] == ["r", "ack"] and parts[2]:
             answer("Preference already noted!")
+            return
+        if parts[0] in WP3_PREFIXES:
+            self.wp3_callback(parts, message, markup, answer)
             return
         reason = None
         if len(parts) == 4 and parts[0] == "r":
@@ -526,6 +615,388 @@ class Handler:
             LOG.warning("Telegram keyboard unavailable; preference was recorded")
         answer(label)
 
+    # ---------- WP3: pipeline, profile, onboarding (VPS only) ----------
+
+    def send(self, text, markup=None, chat_id=None, silent=False):
+        body = {"chat_id": chat_id or self.chat, "text": text, "parse_mode": "HTML",
+                "disable_web_page_preview": True}
+        if markup:
+            body["reply_markup"] = markup
+        if silent:
+            body["disable_notification"] = True
+        return self.client.call("sendMessage", **body)
+
+    def prompt(self, text, placeholder):
+        """Ask for a typed answer; the reply arrives as plain text (text_reply)."""
+        self.send(text + "\n<i>/cancel to skip</i>",
+                  {"force_reply": True, "input_field_placeholder": placeholder[:64]})
+
+    def _edit_markup(self, message, markup):
+        try:
+            self.client.call("editMessageReplyMarkup", chat_id=message["chat"]["id"],
+                             message_id=message["message_id"], reply_markup=markup)
+        except TelegramError as error:
+            if not error.unavailable_message:
+                raise
+            LOG.warning("Telegram keyboard unavailable; the choice was recorded")
+
+    def _saved(self):
+        out = {}
+        for row in d1.query("SELECT key, info FROM saved"):
+            try:
+                info = json.loads(row["info"])
+            except (TypeError, ValueError):
+                continue
+            if isinstance(info, dict):
+                out[row["key"]] = info
+        return out
+
+    def _new_person(self):
+        """/start opens (or resumes) onboarding only for an invited person who has set nothing yet."""
+        return (users.enabled() and self.user is not None and not self.user.owner and not self.user.params
+                and tracker.value("onboarded") in (None, "running"))
+
+    def pipeline(self, words):
+        text, markup = tracker.view(self._saved(), self.chat)
+        self.send(text, markup)
+
+    def cancel(self, words):
+        pending = tracker.expected()
+        tracker.done()
+        self.reply("OK, cancelled." if pending else "Nothing to cancel.")
+
+    def profile(self, words):
+        if len(words) < 2:
+            self.reply(renter.show_profile())
+            return
+        name = renter.field_name(words[1])
+        if name is None:
+            self.reply("Usage: <code>/profile &lt;field&gt; &lt;value&gt;</code> with one of "
+                       + ", ".join(f"<code>{n}</code>" for n in renter.FIELDS) + ". /profile shows yours.")
+            return
+        raw = " ".join(words[2:]).strip()
+        if not raw:
+            tracker.expect("profile", name)
+            self.prompt(f"{renter.FIELDS[name][0]}?", renter.FIELDS[name][1])
+            return
+        self._profile_answer(name, raw)
+
+    def _profile_answer(self, name, raw):
+        try:
+            stored = renter.set_field(name, raw)
+        except ValueError as error:
+            self.reply(f"⚠️ {error}")
+            return False
+        tracker.done()
+        label = renter.FIELDS[name][0]
+        if stored is None:
+            self.reply(f"🧹 {label} cleared.")
+        elif name == "movein":
+            self.reply(f"📅 Move-in set to {renter.show_window(*renter.window())}. Cards now show how each "
+                       "home's available date fits.")
+        else:
+            self.reply(f"✅ {label} saved.")
+        return True
+
+    def text_reply(self, text):
+        pending = tracker.expected()
+        if pending is None:
+            return
+        kind, key = pending.get("kind"), pending.get("key")
+        text = " ".join(text.split())[:500]
+        if kind == "onboard":
+            self._onboard_answer(int(key), text)
+            return
+        if kind == "profile":
+            self._profile_answer(key, text)
+            return
+        row = tracker.get(key)
+        if row is None:
+            tracker.done()
+            return
+        if kind == "time":
+            try:
+                when = tracker.parse_when(text)
+            except ValueError as error:
+                self.reply(f"⚠️ {error}. Try again, or /cancel.")
+                return
+            row = tracker.set_viewing(key, when)
+            tracker.done()
+            self.reply(f"📅 Viewing booked for <b>{tracker.show_time(row['viewing_at'])}</b> · "
+                       f"{tracker._home(row)}\nI'll remind you the evening before and two hours before, "
+                       "then ask how it went.")
+        elif kind in ("note", "lost"):
+            tracker.set_field(key, "note" if kind == "note" else "lost_reason", text)
+            tracker.done()
+            self.reply("📝 Note saved; it shows in /pipeline." if kind == "note" else "❌ Reason noted.")
+
+    def wp3_callback(self, parts, message, markup, answer):
+        if not users.enabled():
+            answer("This button works on the VPS bot only")
+            return
+        kind = parts[0]
+        if kind == "o":
+            self._onboard_button(parts, message, answer)
+            return
+        if kind in ("e", "q", "m") and len(parts) == 2:
+            code, sid = "e", parts[1]
+        elif kind in ("p", "P") and len(parts) == 3 and parts[1] in (*tracker.CODES, "t", "n", "i"):
+            code, sid = parts[1], parts[2]
+        elif kind == "v" and len(parts) == 3 and parts[1] in ("1", "2", "3", "4", "5"):
+            code, sid = parts[1], parts[2]
+        else:
+            answer()
+            return
+        if not sid:
+            answer()
+            return
+        listings = d1.query("SELECT * FROM listings WHERE sid = ?", sid)
+        if not listings:
+            answer("Listing no longer tracked")
+            return
+        listing = listings[0]
+        if kind == "q":
+            self.send(self._draft(listing))
+            answer("✍️ Draft below")
+            return
+        if kind == "m":
+            answer(self._photos(listing))
+            return
+        if kind == "v":
+            row = tracker.get(listing["key"])
+            if row is None or row["stage"] in ("enquired", "viewing"):
+                tracker.move(listing, "viewed")
+            tracker.set_field(listing["key"], "rating", int(code))
+            self._edit_markup(message, {"inline_keyboard": [[{"text": f"✓ Rated {code}/5",
+                                                               "callback_data": f"p:i:{sid}"}]]})
+            tracker.expect("note", listing["key"])
+            self.prompt("📝 Anything to remember about the viewing? Reply with a note.", "damp in the bathroom")
+            answer(f"Rated {code}/5")
+            return
+        if kind == "e" and tracker.get(listing["key"]) is not None:
+            # An older card still shows ✉️ Enquired: never move a home back, just refresh the card
+            label = "Already in /pipeline: " + tracker.LABELS[tracker.get(listing["key"])["stage"]]
+        else:
+            label = self._stage_action(listing, code)
+        if kind == "P":
+            self._refresh_pipeline(message)
+        else:
+            stage = tracker.stage_of(listing["key"])
+            updated = _stage_markup(markup, sid, stage)
+            if updated is not None:
+                self._edit_markup(message, updated)
+        answer(label)
+
+    def _stage_action(self, listing, code):
+        key = listing["key"]
+        row = tracker.get(key)
+        if code == "i":
+            return tracker.LABELS[row["stage"]] if row else "Not tracked yet"
+        if code == "n":
+            if row is None:
+                return "Tap ✉️ Enquired first"
+            tracker.expect("note", key)
+            self.prompt("📝 Reply with a note for this home.", "agent says 3 other viewings booked")
+            return "Reply with a note"
+        if code == "t":
+            if row is None or row["stage"] != "viewing":
+                tracker.move(listing, "viewing")
+            tracker.expect("time", key)
+            self.prompt("🕒 When is the viewing? e.g. <code>Sat 11:00</code>, <code>tomorrow 18:30</code> or "
+                        "<code>14/11 9:15am</code> (UK time).", "Sat 11:00")
+            return "Reply with the viewing time"
+        stage = tracker.CODES[code]
+        tracker.move(listing, stage)
+        if stage == "viewing":
+            tracker.expect("time", key)
+            self.prompt("🕒 Viewing booked. When is it? e.g. <code>Sat 11:00</code> or <code>14/11 18:30</code> "
+                        "(UK time).", "Sat 11:00")
+        elif stage == "viewed":
+            self.send(f"👀 <b>How was the viewing?</b>\n{tracker._home(tracker.get(key))}\nRate it 1-5.",
+                      tracker.rating_keyboard(listing["sid"]))
+        elif stage == "lost":
+            tracker.expect("lost", key)
+            self.prompt("❌ Marked as lost. Why? (optional, e.g. <code>let to someone else</code>)", "let agreed")
+        return tracker.LABELS[stage]
+
+    def _refresh_pipeline(self, message):
+        text, markup = tracker.view(self._saved(), self.chat)
+        try:
+            self.client.call("editMessageText", chat_id=message["chat"]["id"], message_id=message["message_id"],
+                             text=text, parse_mode="HTML", disable_web_page_preview=True,
+                             reply_markup=markup or {"inline_keyboard": []})
+        except TelegramError as error:
+            if not error.unavailable_message:
+                raise
+            self.send(text, markup)
+
+    def _advert(self, key):
+        if not archive.enabled():
+            return {}
+        try:
+            ad = archive.advert(key)
+            data = json.loads(ad["data"]) if ad else {}
+        except Exception:
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _draft(self, listing):
+        data = self._advert(listing["key"])
+        text, _ = renter.draft({**listing, "available": data.get("available")})
+        return text
+
+    def _photos(self, listing):
+        """Send the photos the card's header did not show (2-10 as an album, 1 as a photo)."""
+        from .collage import _is_floorplan
+        data = self._advert(listing["key"])
+        plan = data.get("floorplan")
+        urls = [u for u in dict.fromkeys([data.get("image"), *(data.get("images") or [])])
+                if isinstance(u, str) and u.startswith("https://") and u != plan and not _is_floorplan(u)]
+        rest = urls[CARD_PHOTOS:][:10]
+        if not rest:
+            return "No more photos stored; use Open listing"
+        caption = "📷 " + html.escape(str(listing.get("address") or "More photos")[:80])
+        try:
+            if len(rest) == 1:
+                self.client.call("sendPhoto", chat_id=self.chat, photo=rest[0], caption=caption, parse_mode="HTML")
+            else:
+                self.client.call("sendMediaGroup", chat_id=self.chat, media=[
+                    {"type": "photo", "media": url, **({"caption": caption, "parse_mode": "HTML"} if i == 0 else {})}
+                    for i, url in enumerate(rest)])
+        except TelegramError:
+            return "Photos unavailable; use Open listing"
+        return f"📷 {len(rest)} more photo{'s' * (len(rest) != 1)}"
+
+    # ---------- onboarding ----------
+
+    def onboard(self, words):
+        step = tracker.value("onboard.step")
+        resumable = tracker.value("onboarded") in ("paused", "running")
+        start = int(step) if step is not None and step.isdigit() and resumable else 0
+        start = start if start < len(ONBOARDING) else 0
+        tracker.put("onboarded", "running")
+        intro = ("👋 <b>Let's set up your search</b> · one question at a time. Tap an answer or type one; "
+                 "Skip leaves a setting as it is, Stop pauses (/onboard resumes).")
+        if start:
+            intro = f"👋 Picking up where you left off (question {start + 1} of {len(ONBOARDING)})."
+        self.reply(intro)
+        self._ask(start)
+
+    def _ask(self, step):
+        name, question, choices = ONBOARDING[step]
+        tracker.put("onboard.step", step)
+        tracker.expect("onboard", str(step))
+        buttons = [{"text": c, "callback_data": f"o:{step}:{i}"} for i, c in enumerate(choices)]
+        rows = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
+        rows.append([{"text": "⏭ Skip", "callback_data": f"o:{step}:s"},
+                     {"text": "⏸ Stop", "callback_data": f"o:{step}:x"}])
+        self.send(f"<b>{step + 1}/{len(ONBOARDING)}</b> {question}", {"inline_keyboard": rows})
+
+    def _onboard_button(self, parts, message, answer):
+        current = tracker.value("onboard.step")
+        if (len(parts) != 3 or tracker.value("onboarded") != "running" or current is None
+                or parts[1] != current):
+            answer("That question has passed; /onboard resumes")
+            return
+        step, choice = int(parts[1]), parts[2]
+        self._edit_markup(message, {"inline_keyboard": []})
+        if choice == "x":
+            tracker.put("onboarded", "paused")
+            tracker.done()
+            self._onboard_close("⏸ Paused. /onboard picks up from this question.")
+            answer("Paused")
+            return
+        if choice == "s":
+            answer("Skipped")
+            self._onboard_next(step)
+            return
+        choices = ONBOARDING[step][2]
+        if not choice.isdigit() or int(choice) >= len(choices):
+            answer()
+            return
+        answer("✓ " + choices[int(choice)])
+        self._onboard_answer(step, choices[int(choice)])
+
+    def _onboard_answer(self, step, raw):
+        name = ONBOARDING[step][0]
+        try:
+            if name in SEARCH_STEPS:
+                self._onboard_search(name, raw)
+            else:
+                renter.set_field(name, raw)
+        except ValueError as error:
+            self.reply(f"⚠️ {error}. Try again, tap Skip, or /cancel.")
+            return
+        self._onboard_next(step)
+
+    def _onboard_search(self, name, raw):
+        person = self.user or users.owner()
+        params = dict(person.params)
+        if name == "destination":
+            label, lat, lng = _locate(raw)
+            if any(type(value) not in (int, float) or not math.isfinite(value) for value in (lat, lng)):
+                raise ValueError("Location lookup returned invalid coordinates; try again later")
+            if not users.in_london(lat, lng):
+                raise ValueError(f"{html.escape(label)} is outside London")
+            params[name] = {"name": label, "lat": round(lat, 5), "lng": round(lng, 5)}
+        else:
+            params[name] = users.parse(name, raw)
+        if params != person.params:
+            users.save_params(person, params)
+            # Same as /set: the next scan quietly re-records matches under the new criteria
+            d1.query("DELETE FROM meta WHERE name = 'watch_initialized'")
+            tracker.put("onboard.changed", "1")
+
+    def _onboard_next(self, step):
+        if step + 1 < len(ONBOARDING):
+            self._ask(step + 1)
+            return
+        tracker.put("onboarded", "done")
+        tracker.drop("onboard.step")
+        tracker.done()
+        self._onboard_close("✅ <b>All set.</b> /settings and /profile show (and change) your answers; "
+                            "/pipeline tracks homes once you tap ✉️ Enquired on a card.")
+
+    def _onboard_close(self, text):
+        if tracker.value("onboard.changed"):
+            tracker.drop("onboard.changed")
+            accepted = self._request("rentals")
+            text += ("\n🔎 A scan with your new search has been requested." if accepted
+                     else "\n🔎 A scan is already queued; your search applies to the next one.")
+        self.reply(text)
+
+    # ---------- reminders and change notices (called from the polling loop) ----------
+
+    def tick(self, at=None):
+        """Send due viewing reminders and pipeline change notices to everyone. Never raises; a
+        failure is retried on the next tick because nothing is marked sent until it was sent."""
+        if not users.enabled():
+            return
+        for person in users.everyone():
+            try:
+                with users.use(person):
+                    self._tick_person(person.chat_id or self.chat_id, at)
+            except Exception:
+                # Never log details: HTTP errors can disclose the bot token.
+                LOG.warning("Pipeline reminders failed for one person; retrying next tick")
+
+    def _tick_person(self, chat_id, at):
+        quiet = _quiet(at)
+        for key, flag, text, markup in tracker.due_reminders(at):
+            # The two-hour reminder rings even at night: the person booked that viewing.
+            self.send(text, markup, chat_id, silent=quiet and flag != "soon")
+            tracker.reminded(key, flag)
+        found = tracker.changes()
+        if not found:
+            return
+        saved = self._saved()
+        for key, text, rent, status in found:
+            row = tracker.get(key)
+            # sweep.notify_unseen already told this person about a saved home going unseen
+            if not (status == "unseen" and rent == row["told_rent"] and saved.get(key, {}).get("unseen")):
+                self.send(text, None, chat_id, silent=quiet)
+            tracker.told(key, rent, status)
+
 
 def _offset():
     rows = d1.query("SELECT value FROM meta WHERE name = ?", OFFSET_KEY)
@@ -554,7 +1025,16 @@ def poll(request_run, stop_event):
         client.clear_webhook()
         offset = _offset()
         handler = Handler(chat_id, request_run, client)
+        next_tick = 0.0
         while not stop_event.is_set():
+            if time.monotonic() >= next_tick:
+                # Reminders run beside polling, never inside it: a failure here must not hold back
+                # or replay Telegram updates, and the update offset is untouched.
+                next_tick = time.monotonic() + TICK_SECONDS
+                try:
+                    handler.tick()
+                except Exception:
+                    LOG.warning("Pipeline reminders failed; retrying next tick")
             try:
                 updates = client.call("getUpdates", offset=offset, timeout=POLL_TIMEOUT,
                                       allowed_updates=["message", "callback_query"])
