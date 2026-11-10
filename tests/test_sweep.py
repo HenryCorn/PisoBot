@@ -13,29 +13,39 @@ try:
 except ImportError:      # run as `python -m unittest discover -s tests`
     from test_archive import ArchiveBase, SCOPE, advert, at
 
-from pisobot import archive, bot, config, d1, enrich, main, prefs, status, sweep, telegram, users, watch
+from pisobot import archive, bot, config, d1, enrich, main, net, prefs, status, sweep, telegram, users, watch
 from pisobot.sources import otm_rent, rightmove
 
 OWNER = "100"
 
 
 class Market:
-    """A synthetic portal: id -> rent. band_page pages it the way the real portals do."""
+    """A synthetic portal: id -> rent. band_page pages it the way the real portals do.
 
-    def __init__(self, prices, source="rm", size=24, reachable=1008, total_known=True, fail=()):
+    max_pages: pages the portal serves; later pages come back empty with no total and no next link
+    (observed on OnTheMarket, pages 50 and 56). cut_next: the last served page says there is no next
+    page even though results remain (observed on OnTheMarket, page 34)."""
+
+    def __init__(self, prices, source="rm", size=24, reachable=1008, total_known=True, fail=(),
+                 max_pages=None, cut_next=False):
         self.prices, self.source, self.size, self.reachable = dict(prices), source, size, reachable
         self.total_known, self.fail, self.calls = total_known, list(fail), []
+        self.max_pages, self.cut_next = max_pages, cut_next
 
     def band_page(self, low, high, page):
         self.calls.append((low, high, page))
         if self.fail:
             raise self.fail.pop(0)
+        if self.max_pages is not None and page >= self.max_pages:
+            return {"listings": [], "raw": 0, "total": None, "more": False}
         ids = sorted(i for i, rent in self.prices.items() if low <= rent <= high)
         start = page * self.size
         chunk = ids[start:start + self.size] if start < self.reachable else []
-        return {"listings": [advert(i, self.prices[i], source=self.source) for i in chunk],
-                "total": len(ids) if self.total_known else None,
-                "more": start + self.size < (min(len(ids), self.reachable) if self.total_known else len(ids))}
+        more = start + self.size < (min(len(ids), self.reachable) if self.max_pages is None else len(ids))
+        if self.cut_next and self.max_pages is not None and page == self.max_pages - 1:
+            more = False
+        return {"listings": [advert(i, self.prices[i], source=self.source) for i in chunk], "raw": len(chunk),
+                "total": len(ids) if self.total_known else None, "more": more}
 
 
 def big_market():
@@ -127,7 +137,7 @@ class CrawlTests(ArchiveBase):
         self.assertEqual((row["complete"], archive.counts()), (True, {"active": 2}))
 
     def test_a_price_band_the_portal_cannot_page_is_reported_not_hidden(self):
-        market = self.pager(Market({n: 1500 for n in range(1, 31)}))
+        market = self.pager(Market({n: 1500 for n in range(1, 31)}, reachable=24))
         with patch.object(rightmove, "REACHABLE", 24):
             drive()
         row = archive.last_sweep("rm")
@@ -136,15 +146,75 @@ class CrawlTests(ArchiveBase):
         self.assertEqual(row["state"]["truncated"], 1)
         self.assertEqual(len(archive.pending("100", ["rm"], "s", 100)), 24)       # the reachable part is kept
 
-    def test_onthemarket_without_a_total_splits_when_the_page_limit_is_reached(self):
-        market = self.pager(Market({n: 1000 + n for n in range(200)}, source="otmr", size=30, total_known=False),
-                            otm_rent)
-        with patch.object(otm_rent, "REACHABLE", 90):
-            drive("otmr")
+    def otm(self, prices, **kw):
+        return self.pager(Market(prices, source="otmr", size=30, max_pages=otm_rent.MAX_PAGES,
+                                 reachable=otm_rent.MAX_PAGES * 30, **kw), otm_rent)
+
+    def test_onthemarket_band_over_the_total_is_split_from_its_first_page(self):
+        """Observed: 1,655 results, 34 pages served, then 'no next page'. Reading it would look complete."""
+        market = self.otm({n: 1000 + n // 3 for n in range(1655)}, cut_next=True)
+        drive("otmr")
+        row = archive.last_sweep("otmr")
+        self.assertEqual((row["complete"], archive.counts()), (True, {"active": 1655}))
+        self.assertEqual(market.calls[0], (1000, 1760, 0))
+        self.assertGreater(row["state"]["splits"], 0)
+        for low, high, page in market.calls:
+            if page > 0:
+                self.assertLessEqual(sum(low <= r <= high for r in market.prices.values()), otm_rent.REACHABLE)
+        self.assertLess(row["requests"], config.DEEP_SWEEP_MAX_REQUESTS)
+
+    def test_a_missing_total_at_the_page_limit_is_truncation_never_completion(self):
+        market = self.otm({n: 1000 + n // 3 for n in range(1655)}, total_known=False, cut_next=True)
+        drive("otmr")
         row = archive.last_sweep("otmr")
         self.assertTrue(row["complete"])
-        self.assertEqual(archive.counts(), {"active": 200})
+        self.assertEqual(archive.counts(), {"active": 1655})          # nothing silently missed
+        self.assertGreater(row["state"]["splits"], 0)                  # the 34-page limit forced splits
+        self.assertTrue(any(page == otm_rent.MAX_PAGES - 1 for _, _, page in market.calls))
+
+    def test_unsplittable_band_without_a_total_makes_the_sweep_incomplete(self):
+        self.otm({n: 1500 for n in range(1100)}, total_known=False, cut_next=True)
+        drive("otmr")
+        row = archive.last_sweep("otmr")
+        self.assertFalse(row["complete"])
+        self.assertTrue(row["state"]["truncated"] or "request limit" in row["note"])
+
+    def test_an_empty_page_without_totals_is_a_clean_end_only_if_the_adverts_read_equal_the_total(self):
+        self.enterContext(patch.object(sweep, "due", return_value=True))
+        # the portal links a next page it will not serve: 500 reported, 150 readable -> not a clean end
+        market = self.otm({n: 1000 + n // 5 for n in range(500)}, cut_next=False)
+        market.max_pages = 5
+        market.reachable = 150
+        drive("otmr")
+        row = archive.last_sweep("otmr")
+        self.assertEqual((row["complete"], archive.counts()), (True, {"active": 500}))
         self.assertGreater(row["state"]["splits"], 0)
+        # same shape, no totals at all: still never a clean end
+        self.otm({n + 5000: 1000 + n for n in range(100)}, total_known=False).max_pages = 2
+        drive("otmr")
+        self.assertEqual(archive.counts()["active"], 600)               # the earlier 500 plus these 100
+        self.assertGreater(archive.last_sweep("otmr")["state"]["splits"], 0)
+        # read == total: the empty page after it is a clean end, no split
+        market = self.otm({n: 1500 + n % 100 for n in range(60)})
+        market.max_pages = 2
+        market.prices = {n + 9000: p for n, p in market.prices.items()}
+        before = len(market.calls)
+        drive("otmr")
+        self.assertEqual(archive.last_sweep("otmr")["state"]["splits"], 0)
+        self.assertEqual([c[2] for c in market.calls[before:]], [0, 1])
+
+    def test_a_natural_end_before_the_page_limit_needs_no_total(self):
+        market = self.otm({n: 1500 + n for n in range(45)}, total_known=False)
+        drive("otmr")
+        row = archive.last_sweep("otmr")
+        self.assertEqual((row["complete"], row["state"]["splits"], len(market.calls)), (True, 0, 2))
+        self.assertEqual(archive.counts(), {"active": 45})
+
+    def test_an_empty_band_is_complete(self):
+        market = self.otm({1: 1700})
+        drive("otmr")
+        self.assertTrue(archive.last_sweep("otmr")["complete"])
+        self.assertEqual(archive.counts(), {"active": 1})
 
     def test_a_sweep_is_due_only_every_deep_sweep_hours(self):
         self.assertTrue(sweep.due("rm"))
@@ -169,6 +239,51 @@ class CrawlTests(ArchiveBase):
             self.assertFalse(sweep.enabled(["rm"]))
         with patch.dict("os.environ", {"STORAGE": ""}):
             self.assertFalse(sweep.enabled(["rm"]))
+
+
+def otm_html(rows, **results):
+    page = {"initialReduxState": {"results": {"list": rows, **results}}}
+    return '<script id="__NEXT_DATA__">' + json.dumps({"props": {"pageProps": page}}) + "</script>"
+
+
+def otm_rows(n, first=1):
+    return [{"id": str(first + i), "property-title": "1 bedroom flat to rent", "humanised-property-type": "Flat",
+             "price": "£1,500 pcm", "bedrooms": 1, "address": "Home SE22", "location": {"lat": 51.5, "lon": -0.1}}
+            for i in range(n)]
+
+
+class OnTheMarketPageShapes(ArchiveBase):
+    """The three shapes observed live on 2026-11-10 (radius 10, max-price 1600, sort-field update_date)."""
+
+    def page(self, html, number=0):
+        with patch.object(net, "page", return_value=html) as get, users.criteria({"radius": 10}):
+            result = otm_rent.band_page(1500, 1600, number)
+        return result, get.call_args
+
+    def test_a_normal_page_has_the_total_and_a_next_link(self):
+        result, call = self.page(otm_html(otm_rows(30), totalResults=703, paginationControls={"next": "/?page=2"}))
+        self.assertEqual((result["total"], result["raw"], result["more"], len(result["listings"])), (703, 30, True, 30))
+        self.assertEqual(call.kwargs["params"], {"radius": 10.0, "min-bedrooms": 1, "min-price": 1500,
+                                                 "max-price": 1600, "sort-field": "update_date"})
+
+    def test_the_last_served_page_has_items_but_no_next_link_though_results_remain(self):
+        result, call = self.page(otm_html(otm_rows(30), totalResults=1655, paginationControls={"next": False}), 33)
+        self.assertEqual((result["total"], result["raw"], result["more"]), (1655, 30, False))
+        self.assertEqual(call.kwargs["params"]["page"], 34)
+        self.assertEqual(otm_rent.MAX_PAGES, 34)               # which is why a missing link proves nothing
+
+    def test_a_page_past_the_limit_is_empty_with_no_total_and_no_pagination(self):
+        result, _ = self.page(otm_html([]), 49)
+        self.assertEqual((result["total"], result["raw"], result["more"], result["listings"]), (None, 0, False, []))
+
+    def test_the_total_is_also_found_in_a_pagination_count_key(self):
+        result, _ = self.page(otm_html(otm_rows(2), paginationControls={"totalCount": "1,655", "next": "x"}))
+        self.assertEqual(result["total"], 1655)
+
+    def test_raw_counts_items_the_listing_filter_drops(self):
+        rows = otm_rows(3) + [{"id": "99", "property-title": "Room to rent", "price": "£900 pcm", "bedrooms": 1}]
+        result, _ = self.page(otm_html(rows, totalResults=4))
+        self.assertEqual((result["raw"], len(result["listings"])), (4, 3))
 
 
 class JudgingBase(ArchiveBase):
@@ -357,7 +472,7 @@ class Judging(JudgingBase):
 
 
 class GoneNotifications(JudgingBase):
-    def test_a_saved_home_that_goes_gone_triggers_the_existing_message_once(self):
+    def test_a_saved_home_two_complete_sweeps_cannot_find_gets_an_honest_message_once(self):
         market = Market({n: 1400 + n for n in range(1, 6)})
         clock = itertools.count(0, 60)       # sweeps are minutes apart, as timestamps have one-second resolution
         self.enterContext(patch.object(archive, "now", side_effect=lambda: at(next(clock) / 3600)))
@@ -369,14 +484,17 @@ class GoneNotifications(JudgingBase):
             drive()
             self.assertEqual(self.texts, [])
             drive()
-        gone = [t for t in self.texts if "no longer listed" in t]
-        self.assertEqual(len(gone), 1)
-        self.assertIn("Home 2 &amp; Co", gone[0])
-        self.assertEqual(archive.advert("rm:2")["status"], "gone")
-        self.assertTrue(json.loads(d1.query("SELECT info FROM saved WHERE key = 'rm:2'")[0]["info"])["gone"])
+        found = [t for t in self.texts if "no longer found in the search" in t]
+        self.assertEqual(len(found), 1)
+        self.assertEqual(len(self.texts), 1)
+        self.assertIn("Home 2 &amp; Co", found[0])
+        self.assertIn("let, withdrawn or re-priced above your range", found[0])
+        self.assertNotIn("no longer listed", found[0])
+        self.assertEqual(archive.advert("rm:2")["status"], "unseen")
+        self.assertTrue(json.loads(d1.query("SELECT info FROM saved WHERE key = 'rm:2'")[0]["info"])["unseen"])
         with patch.object(rightmove, "band_page", market.band_page), patch.object(sweep, "due", return_value=True):
             drive()
-        self.assertEqual(len([t for t in self.texts if "no longer listed" in t]), 1)
+        self.assertEqual(len([t for t in self.texts if "no longer found" in t]), 1)
 
 
 class WatcherIntegration(JudgingBase):

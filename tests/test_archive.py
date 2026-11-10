@@ -122,23 +122,24 @@ class VerdictTests(ArchiveBase):
         self.assertEqual([l.key for l in archive.matched_listings("100", ["rm"], exclude={"rm:1"})], ["rm:2"])
 
 
-class GoneTests(ArchiveBase):
+class UnseenTests(ArchiveBase):
     def sweep(self, listings, hour, complete=True):
         sid = archive.start_sweep("rm", SCOPE, {}, at(hour))
         archive.upsert(listings, "sweep", sid, at(hour))
         return archive.finish_sweep(sid, complete, "" if complete else "stopped", at(hour + 0.5))
 
-    def test_missing_from_two_consecutive_complete_sweeps_means_gone(self):
+    def test_missing_from_two_consecutive_complete_sweeps_means_unseen_never_gone(self):
         a, b = advert(1), advert(2)
         self.assertEqual(self.sweep([a, b], 0), [])
         self.assertEqual(self.sweep([a], 12), [])                  # first miss
         self.assertEqual(archive.advert("rm:2")["status"], "active")
         self.assertEqual(self.sweep([a], 24), ["rm:2"])            # second miss
-        self.assertEqual(archive.advert("rm:2")["status"], "gone")
-        self.assertEqual(archive.history("rm:2")[-1]["status"], "gone")
+        self.assertEqual(archive.advert("rm:2")["status"], "unseen")
+        self.assertEqual(archive.history("rm:2")[-1]["status"], "unseen")
+        self.assertNotIn("gone", [h["status"] for h in archive.history("rm:2")])
         self.assertEqual(archive.advert("rm:1")["status"], "active")
 
-    def test_an_incomplete_sweep_never_marks_anything_gone_or_counts_a_miss(self):
+    def test_an_incomplete_sweep_never_marks_anything_unseen_or_counts_a_miss(self):
         a, b = advert(1), advert(2)
         self.sweep([a, b], 0)
         self.assertEqual(self.sweep([a], 12, complete=False), [])
@@ -174,14 +175,14 @@ class GoneTests(ArchiveBase):
         for key in ("rm:2", "rm:3", "otmr:4"):
             self.assertEqual(archive.advert(key)["status"], "active", key)
 
-    def test_a_gone_advert_that_reappears_is_active_again_with_an_observation(self):
+    def test_an_unseen_advert_that_reappears_is_active_again_with_an_observation(self):
         a, b = advert(1), advert(2)
         self.sweep([a, b], 0)
         self.sweep([a], 12)
         self.sweep([a], 24)
         archive.upsert([b], "head", at=at(30))
         self.assertEqual(archive.advert("rm:2")["status"], "active")
-        self.assertEqual([h["status"] for h in archive.history("rm:2")], ["active", "gone", "active"])
+        self.assertEqual([h["status"] for h in archive.history("rm:2")], ["active", "unseen", "active"])
 
 
 if __name__ == "__main__":

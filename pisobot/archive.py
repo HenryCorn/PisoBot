@@ -3,7 +3,7 @@ of it. Everything lives in the primary SQLite database, created on first use, so
 worker/schema.sql (shared with the cloud Worker) is untouched.
 
 adverts       one row per source:id with the latest facts, first/last seen, the portal's own
-              first-listed date and status active/gone
+              first-listed date and status active/unseen
 observations  a row whenever an advert's rent or status changes (including the first sighting)
 verdicts      per person and advert, the latest outcome: "matched" or the first funnel rejection,
               with the numbers behind it
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS sweeps (
 CREATE INDEX IF NOT EXISTS sweeps_source ON sweeps (source, id);
 """
 RETRY = "('enrichment', 'unsent')"   # outcomes to judge again: a failed lookup, or a match whose alert was capped
-GONE_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
+UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
 
 
 def enabled():
@@ -262,9 +262,11 @@ def _in_scope(row, scope):
 
 def finish_sweep(sweep_id, complete, note="", at=None):
     """Close a sweep. Only a complete one counts misses; adverts in its scope that no sighting
-    reached for GONE_AFTER complete sweeps in a row become gone. Returns the keys that just did."""
+    reached for UNSEEN_AFTER complete sweeps in a row become "unseen" and return here. Absence is the only
+    evidence: the advert may have been let, withdrawn, or re-priced above the swept range, so it is
+    never called "gone"."""
     at = at or now()
-    gone = []
+    unseen = []
     with _db() as db:
         row = _rows(db, "SELECT * FROM sweeps WHERE id = ?", sweep_id)[0]
         db.execute("UPDATE sweeps SET finished_at = ?, complete = ?, note = ? WHERE id = ?",
@@ -279,14 +281,14 @@ def finish_sweep(sweep_id, complete, note="", at=None):
                         or not _in_scope(advert, scope):
                     continue
                 missed = advert["missed"] + 1
-                if missed >= GONE_AFTER:
-                    db.execute("UPDATE adverts SET missed = ?, status = 'gone' WHERE key = ?", (missed, advert["key"]))
-                    db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'gone')",
+                if missed >= UNSEEN_AFTER:
+                    db.execute("UPDATE adverts SET missed = ?, status = 'unseen' WHERE key = ?", (missed, advert["key"]))
+                    db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'unseen')",
                                (advert["key"], at, advert["rent"]))
-                    gone.append(advert["key"])
+                    unseen.append(advert["key"])
                 else:
                     db.execute("UPDATE adverts SET missed = ? WHERE key = ?", (missed, advert["key"]))
-    return gone
+    return unseen
 
 
 def recall(sweep):

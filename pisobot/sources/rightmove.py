@@ -92,21 +92,25 @@ def search():
 
 
 REACHABLE = MAX_INDEX     # results one query can page through
+MAX_PAGES = MAX_INDEX // PAGE_SIZE   # 42 pages
 
 
 def band_page(low, high, page):
     """One page of a deep-sweep price band (minPrice..maxPrice inclusive, whole pounds):
-    {"listings", "total" (all results in the band), "more" (another reachable page follows)}."""
+    {"listings", "raw" (items on the page before filtering), "total" (all results in the band),
+    "more" (another reachable page follows)}."""
     index = page * PAGE_SIZE
     results = _results(net.page(f"{BASE}/property-to-rent/find.html",
                                 params=_params(index, minPrice=int(low), maxPrice=int(high))))
     if results is None:
         if index >= MAX_INDEX:
-            return {"listings": [], "total": None, "more": False}
+            return {"listings": [], "raw": 0, "total": None, "more": False}
         raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
     total = _total(results)
-    listings = [l for x in results.get("properties") or [] if (l := _listing(x))]
-    return {"listings": listings, "total": total, "more": (page + 1) * PAGE_SIZE < min(total, MAX_INDEX)}
+    properties = results.get("properties") or []
+    listings = [l for x in properties if (l := _listing(x))]
+    return {"listings": listings, "raw": len(properties), "total": total,
+            "more": (page + 1) * PAGE_SIZE < min(total, MAX_INDEX)}
 
 
 def fetch():

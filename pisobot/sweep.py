@@ -66,6 +66,18 @@ def due(source, hours=None, at=None):
 
 # ---------- crawling ----------
 
+def _split(state, band):
+    mid = (band["low"] + band["high"]) // 2
+    state["queue"][:0] = [[band["low"], mid], [mid + 1, band["high"]]]
+    state["current"], state["splits"] = None, state["splits"] + 1
+
+
+def _truncated(state, band):
+    if not band.get("flagged"):
+        band["flagged"] = True
+        state["truncated"] += 1
+
+
 def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic):
     """Advance this source's sweep for up to budget_seconds (always at least one request).
     Starts a sweep when one is due. Returns the finished sweep's id, or None while it continues."""
@@ -111,25 +123,35 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
                     break
                 state["errors"] = 0
                 pipeline.archive_adverts(result["listings"], "sweep", sweep_id)
-                total = result["total"]
-                oversize = (total is not None and total > pager.REACHABLE) or (
-                    result["more"] and (band["page"] + 1) * pager.PAGE_SIZE >= pager.REACHABLE)
-                if oversize and band["low"] < band["high"]:
+                raw = result.get("raw", len(result["listings"]))
+                if band["page"] == 0:
+                    band["total"], band["read"] = result["total"], 0
+                band["read"] = band.get("read", 0) + raw
+                total = band.get("total")
+                if band["page"] == 0 and total is not None and total > pager.REACHABLE:
                     # more results than the portal will page through: halve the price band
-                    mid = (band["low"] + band["high"]) // 2
-                    state["queue"][:0] = [[band["low"], mid], [mid + 1, band["high"]]]
-                    state["current"], state["splits"] = None, state["splits"] + 1
+                    if band["low"] < band["high"]:
+                        _split(state, band)
+                        continue
+                    _truncated(state, band)       # a one-pound band: read what is reachable, report the gap
+                last_page = band["page"] + 1 >= pager.MAX_PAGES
+                ended = not result["more"] or raw == 0 or last_page
+                if not ended:
+                    band["page"] += 1
                     continue
-                if oversize and not band.get("flagged"):
-                    band["flagged"] = True
-                    state["truncated"] += 1       # a one-pound band is still too big: the gap is real
-                band["page"] += 1
-                if (not result["more"] or not result["listings"]
-                        or band["page"] * pager.PAGE_SIZE >= pager.REACHABLE):
-                    if (total is not None and not oversize and not result["listings"]
-                            and band["page"] * pager.PAGE_SIZE < total):
-                        state["truncated"] += 1   # the portal ran dry before the count it reported
-                    state["current"], state["bands"] = None, state["bands"] + 1
+                # A missing next link, a missing total or an empty page is not proof the band was read:
+                # only the adverts read reaching the band's own total is (or, with no total anywhere,
+                # a natural end before the page limit).
+                if total is not None:
+                    short = band["read"] < total
+                else:
+                    short = last_page or (raw == 0 and band["page"] > 0)
+                if short:
+                    if band["low"] < band["high"]:
+                        _split(state, band)
+                        continue
+                    _truncated(state, band)
+                state["current"], state["bands"] = None, state["bands"] + 1
     finally:
         archive.save_sweep(sweep_id, state, requests)
     if finished is None:
@@ -137,27 +159,29 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
     complete, note = finished
     if not complete and not note:
         note = f"{state['truncated']} price band(s) too large to page through"
-    gone = archive.finish_sweep(sweep_id, complete, note)
+    unseen = archive.finish_sweep(sweep_id, complete, note)
     log.info("Deep sweep of %s %s after %s requests%s", NAMES[source], "complete" if complete else "incomplete",
              requests, f" ({note})" if note else "")
-    if gone:
-        notify_gone(gone)
+    if unseen:
+        notify_unseen(unseen)
     return sweep_id
 
 
-def notify_gone(keys):
-    """A saved home that has gone from the portal gets the existing "no longer listed" message."""
+def notify_unseen(keys):
+    """A saved home that two complete sweeps could not find. Absence is all the evidence there is, so
+    the message says only that: it may have been let, withdrawn or re-priced above the swept range."""
     for person in users.everyone():
         with users.use(person):
             p = prefs.load()
             changed = False
             for key in keys:
                 info = p["saved"].get(key)
-                if info is None or info.get("gone"):
+                if info is None or info.get("unseen"):
                     continue
-                telegram.send_text(f'❤️ <b>Saved home no longer listed</b>\n<a href="{info.get("url")}">'
-                                   f'{telegram.e(info.get("address") or "listing")}</a>')
-                info["gone"] = True      # keep the saved entry; just never repeat the message
+                telegram.send_text(f'❤️ <b>Saved home no longer found in the search</b>\n<a href="{info.get("url")}">'
+                                   f'{telegram.e(info.get("address") or "listing")}</a>\n'
+                                   "<i>It may have been let, withdrawn or re-priced above your range.</i>")
+                info["unseen"] = True    # keep the saved entry; just never repeat the message
                 changed = True
                 telegram.throttle()
             if changed:

@@ -67,7 +67,7 @@ def status_text(now=None):
                 lines.append(f"• {name}: running, {running['requests']}/{config.DEEP_SWEEP_MAX_REQUESTS} requests, "
                              f"{len(st.get('queue', []))} price band(s) queued, {running['adverts_seen']:,} adverts so far")
     counts = archive.counts()
-    lines.append(f"\n<b>Archive</b>: {counts.get('active', 0):,} active adverts · {counts.get('gone', 0):,} gone")
+    lines.append(f"\n<b>Archive</b>: {counts.get('active', 0):,} active adverts · {counts.get('unseen', 0):,} unseen")
     return "\n".join(lines)
 
 

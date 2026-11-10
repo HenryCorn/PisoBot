@@ -3,7 +3,6 @@
 pages are read only for listings that pass the cheap filters, to catch rooms and short lets."""
 import datetime as dt
 import json
-import os
 import re
 import sys
 
@@ -101,14 +100,28 @@ def search():
 
 
 PAGE_SIZE = 30
-# Pages one OnTheMarket query is assumed to serve. This is not observed (no fixture or note records a
-# limit), so a band that still has a next page after this many is split further, never trusted.
-REACHABLE = int(os.environ.get("OTM_REACHABLE", 1000))
+# Observed (2026-11-10, radius 10, max-price 1600, sort-field update_date): totalResults is on normal
+# pages (1655 for the whole query); page 34 returns 30 items with paginationControls.next false even
+# though more results exist; pages 50 and 56 return an empty list, totalResults None and no pagination
+# keys. So one query serves 34 pages (about 1,000 results) and then just says there is no next page.
+MAX_PAGES = 34
+REACHABLE = 1000        # a band reporting more than this is split before it is read
+
+
+def _total(results):
+    """The result count, from totalResults or a total-count key of paginationControls; None if absent."""
+    candidates = [results.get("totalResults")]
+    candidates += [v for k, v in (results.get("paginationControls") or {}).items() if "total" in str(k).lower()]
+    for value in candidates:
+        if value is not None and str(value).replace(",", "").isdigit():
+            return int(str(value).replace(",", ""))
+    return None
 
 
 def band_page(low, high, page):
-    """One page of a deep-sweep price band: {"listings", "total" (None if the page does not say),
-    "more" (the portal links a next page)}."""
+    """One page of a deep-sweep price band: {"listings", "raw" (items on the page before filtering),
+    "total" (None if the page does not say), "more" (the portal links a next page)}. A missing
+    next link is NOT proof the band is finished: see MAX_PAGES."""
     params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
               "min-price": int(low), "max-price": int(high), "sort-field": "update_date"}
     if page > 0:
@@ -118,12 +131,8 @@ def band_page(low, high, page):
     if not m:
         raise ValueError("OnTheMarket page has no __NEXT_DATA__ (blocked or layout changed)")
     results = json.loads(m.group(1))["props"]["pageProps"]["initialReduxState"]["results"]
-    total = results.get("totalResults")
-    if total is None:
-        total = (results.get("paginationControls") or {}).get("totalResults")
-    total = int(str(total).replace(",", "")) if str(total).replace(",", "").isdigit() else None
-    listings = [l for x in results.get("list") or [] if (l := _listing(x))]
-    return {"listings": listings, "total": total,
+    rows = results.get("list") or []
+    return {"listings": [l for x in rows if (l := _listing(x))], "raw": len(rows), "total": _total(results),
             "more": bool((results.get("paginationControls") or {}).get("next"))}
 
 

@@ -249,9 +249,12 @@ as incomplete. One sweep of each source is about 75 requests at current volumes.
 Archived adverts are judged for each person with their own limits; a person's radius does
 not apply, the commute limit does. A person's first completed sweep records its matches
 without alerting and sends one summary; later sweeps alert as usual. An advert inside a
-sweep's scope that is missing from two complete sweeps in a row is marked gone (never
-from an incomplete sweep), and a saved home that goes gone gets the "no longer listed"
-message.
+sweep's scope that is missing from two complete sweeps in a row is marked `unseen` (never
+from an incomplete sweep, and not "gone": it may have been let, withdrawn or re-priced
+above the swept range), and a saved home that becomes unseen gets a "no longer found in
+the search" message saying so. A sweep band counts as read only when the adverts read
+reach the portal's own total for that band, so a portal that silently stops paging makes
+the sweep incomplete rather than looking complete.
 
 `/status` shows the last scan, per-source health and the last sweep with the head-poll
 recall; `/whatif` estimates what loosening rent, commute or crime would add, from the last

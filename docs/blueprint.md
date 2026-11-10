@@ -194,7 +194,7 @@ rejected flats.
 
 1. **Archive** (`pisobot/archive.py`, primary SQLite database, added without changing
    `worker/schema.sql`): `adverts` (one row per `source:id`: latest facts, first/last seen, the
-   portal's first-listed date, status active/gone), `observations` (a row whenever rent or status
+   portal's first-listed date, status active/unseen), `observations` (a row whenever rent or status
    changes), `verdicts` (per person and advert: latest outcome, `matched` or the first funnel
    rejection, with rent, all-in, travel minutes and crime score when known), `sweeps` (one row per
    deep sweep: scope, requests, adverts seen, adverts the head poll had never seen, complete or
@@ -203,7 +203,7 @@ rejected flats.
 2. **Deep sweep** for Rightmove and OnTheMarket: a full crawl of `DEEP_SWEEP_MILES` (10) from
    `RENT_MIN` to 110% of the highest rent cap among users, in price bands that are halved
    whenever a band reports more results than the portal will page through (Rightmove: 42 pages,
-   1,008 results). It runs inside the watcher every `DEEP_SWEEP_HOURS` (12; 0 disables) through
+   1,008 results; OnTheMarket: 34 pages, about 1,000 results, see the probe results). It runs inside the watcher every `DEEP_SWEEP_HOURS` (12; 0 disables) through
    the existing paced fetcher, resumes across cycles in slices of about two minutes so the
    15-minute head poll is not delayed, stops at `DEEP_SWEEP_MAX_REQUESTS` (150) per source per
    sweep, and records an incomplete sweep as incomplete.
@@ -217,8 +217,10 @@ rejected flats.
    not already seen. `/status` shows last scan time, per-source health, the last sweep's numbers
    and the head-poll recall.
 5. **Gone detection**: an advert inside a swept scope that is missing from two consecutive
-   complete sweeps becomes `gone` with an observation. Incomplete sweeps never mark anything
-   gone. A saved home that goes gone triggers the existing "saved home no longer listed" message.
+   complete sweeps becomes `unseen` (not `gone`: absence is the only evidence, and it may have
+   been let, withdrawn or re-priced above the swept range) with an observation. Incomplete sweeps
+   never mark anything. A saved home that becomes unseen triggers a "no longer found in the
+   search" message saying so.
 6. **`/whatif`**: from the last 7 days of a person's verdicts, how many more adverts would have
    matched with rent cap +£50/+£100, commute +5/+10 minutes, or the crime limit +25%. Only the
    first rejection reason is stored, so the answer is approximate and says so.
@@ -260,7 +262,18 @@ Rightmove (10 mi, ≤£1,600, 1,268 results):
 - Searching by postcode district was not worked out.
 
 OnTheMarket (≤£1,600, flats): 312 results at 5 mi and 1,655 at 10 mi, 30 per page. See work
-package 1 for the sort finding.
+package 1 for the sort finding. Observed paging behaviour (radius 10, max-price 1600,
+sort-field update_date, 2026-11-10):
+
+- `min-price` works: `min-price=1500` gives `totalResults` 703, all priced 1500-1600.
+- `totalResults` is present on normal pages (1,655 for the whole query), and
+  `paginationControls` also carries a total-count key.
+- One query serves 34 pages (about 1,000 results). Page 34 returns 30 items with
+  `paginationControls.next` false although the total is 1,655; pages 50 and 56 return an empty
+  list with `totalResults` None and no pagination keys. A missing next link therefore proves
+  nothing: the deep sweep decides from the band's first-page total (split when it exceeds
+  1,000), and treats reaching page 34, or an empty page past the first, as completion only when
+  the adverts read equal that band's total.
 
 TfL: one call to `StopPoint/Mode/tube` returns 1,751 points covering 345 stations with
 coordinates (group by `stationNaptan`). Five keyless journey calls averaged 1.1 s with no rate
