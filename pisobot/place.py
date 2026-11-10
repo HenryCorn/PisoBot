@@ -18,6 +18,15 @@ NOISE_SERVICES = (
 )
 OVERPASS_UA = "PisoBot place facts/1.0 (open-source rental search project)"
 CACHE_TTL_SECONDS = 90 * 24 * 60 * 60
+OVERPASS_GAP_SECONDS = 10
+OVERPASS_ROAD_RADIUS_M = 400
+AMENITY_RADIUS_M = 600
+MAJOR_ROAD_LABEL_M = 200
+RAILWAY_LABEL_M = 50
+QUIET_ROAD_CLEAR_M = 300
+QUIET_RAIL_CLEAR_M = 100
+LOW_NOISE_MAX_DB = 45
+MODERATE_NOISE_MAX_DB = 55
 _overpass_lock = threading.Lock()
 _overpass_next = 0.0
 _tfl_lock = threading.Lock()
@@ -43,18 +52,18 @@ def _distance_m(lat1, lng1, lat2, lng2):
 
 
 def _query(lat, lng):
-    return f"""[out:json][timeout:25];
+    return f"""[out:json][timeout:12];
 (
-  nwr(around:800,{lat:.6f},{lng:.6f})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)$"];
+  nwr(around:{OVERPASS_ROAD_RADIUS_M},{lat:.6f},{lng:.6f})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)$"];
 )->.roads;
 (
-  nwr(around:800,{lat:.6f},{lng:.6f})[railway~"^(rail|light_rail|tram|subway)$"];
+  nwr(around:{OVERPASS_ROAD_RADIUS_M},{lat:.6f},{lng:.6f})[railway~"^(rail|light_rail|tram|subway)$"];
 )->.rail;
 (
-  nwr(around:600,{lat:.6f},{lng:.6f})[shop=supermarket];
-  nwr(around:600,{lat:.6f},{lng:.6f})[leisure~"^(park|garden|nature_reserve|common|fitness_centre)$"];
-  nwr(around:600,{lat:.6f},{lng:.6f})[landuse~"^(recreation_ground|village_green)$"];
-  nwr(around:600,{lat:.6f},{lng:.6f})[amenity~"^(gym|fitness_centre|cafe|pharmacy)$"];
+  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[shop=supermarket];
+  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[leisure~"^(park|garden|nature_reserve|common|fitness_centre)$"];
+  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[landuse~"^(recreation_ground|village_green)$"];
+  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[amenity~"^(gym|fitness_centre|cafe|pharmacy)$"];
 )->.amenities;
 .roads out geom;
 .rail out geom;
@@ -202,12 +211,12 @@ def _overpass(lat, lng):
             response = requests.post(
                 OVERPASS_URL, data={"data": _query(lat, lng)},
                 headers={"User-Agent": OVERPASS_UA, "Accept": "application/json"},
-                timeout=35,
+                timeout=18,
             )
             response.raise_for_status()
             return response.json()
         finally:
-            _overpass_next = time.monotonic() + 4
+            _overpass_next = time.monotonic() + OVERPASS_GAP_SECONDS
 
 
 def _tfl(lat, lng):
@@ -278,52 +287,109 @@ def facts(lat, lng, now=None):
     return result
 
 
+def noise_band(decibels):
+    """Use the highest mapped Lnight value: low <45, moderate 45-55, high >55 dB."""
+    if decibels is None:
+        return None
+    if decibels < LOW_NOISE_MAX_DB:
+        return "low"
+    if decibels <= MODERATE_NOISE_MAX_DB:
+        return "moderate"
+    return "high"
+
+
+def _night_noise(facts):
+    values = [value for value in (facts.get("noise") or {}).values()
+              if isinstance(value, (int, float))]
+    return max(values) if values else None
+
+
 def street_label(facts):
+    """Major=OSM motorway/trunk/primary within 200 m; rail within 50 m.
+
+    "Quiet residential street" additionally requires a residential-type road, all
+    available modelled Lnight values below 45 dB, major roads beyond 300 m and rail beyond 100 m.
+    """
     if not facts:
         return ""
     main = facts.get("main_road")
     rail = facts.get("railway")
     street = facts.get("street")
-    if main and main["distance_m"] <= 50:
-        return "On a main road"
-    if rail and rail["distance_m"] <= 50:
-        return "Beside a railway"
-    if street and street["class"] in ("residential", "living_street", "unclassified", "service") \
-            and (not main or main["distance_m"] > 500) and (not rail or rail["distance_m"] > 500):
-        return "Quiet residential street"
+    nearby = []
+    if main and main["distance_m"] <= MAJOR_ROAD_LABEL_M:
+        nearby.append((main["distance_m"], "Busy road nearby"))
+    if rail and rail["distance_m"] <= RAILWAY_LABEL_M:
+        nearby.append((rail["distance_m"], "Railway nearby"))
+    if nearby:
+        return min(nearby)[1]
+    if street and street["class"] in ("residential", "living_street", "unclassified", "service"):
+        noise = noise_band(_night_noise(facts))
+        if (noise == "low" and (not main or main["distance_m"] > QUIET_ROAD_CLEAR_M)
+                and (not rail or rail["distance_m"] > QUIET_RAIL_CLEAR_M)):
+            return "Quiet residential street"
+        return "Residential street"
+    if street and street["class"] in ("secondary", "tertiary"):
+        return f"{street['class'].title()} road"
     return ""
 
 
 def card_line(facts):
-    """One compact, HTML-safe-at-the-caller card line; empty when no facts are available."""
+    """A prioritized place summary capped at 90 characters."""
     if not facts:
         return ""
     parts = []
     street = street_label(facts)
     if street:
         parts.append(street)
+    band = noise_band(_night_noise(facts))
+    if band:
+        parts.append(f"night noise {band}")
     transit = facts.get("transit") or {}
-    if transit.get("rail_lines") or transit.get("bus_routes"):
-        lines, routes = transit.get("rail_lines", 0), transit.get("bus_routes", 0)
-        parts.append(f"{lines} line{'s' if lines != 1 else ''} + {routes} bus route{'s' if routes != 1 else ''}")
-    noise = facts.get("noise") or {}
-    levels = [f"{source} {noise[key]:g} dB" for source, key in
-              (("road", "road_lnight_db"), ("rail", "rail_lnight_db")) if noise.get(key) is not None]
-    if levels:
-        parts.append("Lnight " + ", ".join(levels))
-    labels = {"supermarket": "shop", "park": "park", "gym": "gym", "cafe": "cafe",
-              "pharmacy": "pharmacy"}
-    plurals = {"supermarket": "shops", "park": "parks", "gym": "gyms", "cafe": "cafes",
-               "pharmacy": "pharmacies"}
-    for category, label in labels.items():
+    lines = transit.get("rail_lines", 0)
+    if lines:
+        parts.append(f"{lines} rail/tube line{'s' if lines != 1 else ''}")
+    nearby = []
+    for category, label in (("supermarket", "shop"), ("park", "park")):
         data = (facts.get("amenities") or {}).get(category) or {}
-        count, nearest = data.get("count", 0), data.get("nearest")
-        if not count:
-            continue
+        nearest = data.get("nearest")
         if nearest:
-            name = nearest.get("name", label.title())
-            nearby = f"{name} ~{nearest['distance_m']} m"
-            parts.append(nearby if count == 1 else f"{plurals[category]} {count} ({nearby})")
-        else:
-            parts.append(f"{plurals[category]} {count}")
-    return "🏘 " + " · ".join(parts) if parts else ""
+            name = nearest.get("name", label.title()).strip()[:12]
+            nearby.append(f"{name} ~{nearest['distance_m']}m")
+    text = "🏘 " + " · ".join(parts)
+    for item in nearby:
+        candidate = text + " · " + item
+        if len(candidate) <= 90:
+            text = candidate
+    return text if parts else ""
+
+
+def detail_lines(facts):
+    """Full facts for a future expanded card; distances are approximate within the cached cell."""
+    if not facts:
+        return []
+    lines = []
+    street = facts.get("street")
+    main = facts.get("main_road")
+    rail = facts.get("railway")
+    if street:
+        lines.append(f"Nearest street: {street['class']} (~{street['distance_m']} m)")
+    lines.append(f"Nearest main road (motorway/trunk/primary): "
+                 + (f"{main['class']} (~{main['distance_m']} m)" if main else
+                    f"not found within {OVERPASS_ROAD_RADIUS_M} m"))
+    lines.append("Nearest railway: " + (f"~{rail['distance_m']} m" if rail else
+                                       f"not found within {OVERPASS_ROAD_RADIUS_M} m"))
+    amenities = facts.get("amenities") or {}
+    for category in ("supermarket", "park", "gym", "cafe", "pharmacy"):
+        info = amenities.get(category) or {}
+        nearest = info.get("nearest")
+        distance = f"; nearest {nearest['name']} (~{nearest['distance_m']} m)" if nearest else ""
+        lines.append(f"{category.title()}: {info.get('count', 0)} within {AMENITY_RADIUS_M} m{distance}")
+    transit = facts.get("transit") or {}
+    lines.append(f"TfL: {transit.get('rail_lines', 0)} distinct rail/tube lines within 800 m; "
+                 f"{transit.get('bus_routes', 0)} bus routes within 300 m")
+    noise = facts.get("noise") or {}
+    road, railway = noise.get("road_lnight_db"), noise.get("rail_lnight_db")
+    lines.append("Defra Round 4 Lnight (2021 model year, 4 m receptor, 23:00–07:00): "
+                 f"road {f'{road:g} dB' if road is not None else 'no value'}; "
+                 f"rail {f'{railway:g} dB' if railway is not None else 'no value'}")
+    return lines
