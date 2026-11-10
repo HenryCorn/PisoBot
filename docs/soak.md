@@ -1,11 +1,44 @@
 # VPS rollout and soak
 
-Status: **deployed; 24-hour soak is still pending**.
+Status: **deployed; 24-hour soak completed on 2026-11-10**.
 Current application: `65a223f`, branch `vps-rentals` (rental filtering and diagnostics).
 Current version first started: 2026-11-09 07:26:21 UTC.
 Restart-persistence check started: 2026-11-09 07:28:11 UTC.
 Latest configuration restart: 2026-11-09 07:42:33 UTC (guest invitations disabled).
-Earliest uninterrupted 24-hour observation point: 2026-11-10 07:42:33 UTC.
+Completed uninterrupted 24-hour observation window: 2026-11-09 07:42:33 to
+2026-11-10 07:42:33 UTC.
+
+## 24-hour soak result
+
+- Audited the full window after its end. The service remained active under
+  `pisobot`, with **0 systemd restarts**, **92 completed rental cycles** and
+  **0 failed cycles**. Latest observed cycle completed at 07:33:55 UTC with
+  14 current matches.
+- No portal block signals were logged. `portal_fetch` recorded **1,164 HTTP
+  responses** total:
+
+  | Host | HTTP 200 | HTTP 301 | Total |
+  | --- | ---: | ---: | ---: |
+  | Rightmove | 283 | 0 | 283 |
+  | OnTheMarket | 283 | 0 | 283 |
+  | OpenRent | 390 | 16 | 406 |
+  | SpareRoom | 184 | 0 | 184 |
+  | L&Q | 8 | 0 | 8 |
+  | **Total** | **1,148** | **16** | **1,164** |
+
+- Ten new/drop alert events were logged. A URL-level check found **no repeated
+  alert URLs** in the window. This does not claim that cross-portal adverts
+  with different URLs were deduplicated.
+- Four transient Telegram warnings occurred: two polling/handling retries and
+  two callback-acknowledgement failures. The watcher continued, recorded no
+  failed rental cycles, and stayed active. These are worth keeping in mind;
+  Telegram delivery/acknowledgement is not guaranteed by the clean scan count.
+- Cgroup memory at the end of the audit was approximately **68 MiB**. This is
+  a point-in-time reading, not a measured 24-hour peak or range.
+- Conclusion: the application completed a clean 24-hour scan soak with
+  sensible request volume and no observed portal blocking or duplicate alert
+  URLs. Telegram emitted transient warnings; no external uptime monitor or
+  full memory history is configured.
 
 ## Invitation correction
 
