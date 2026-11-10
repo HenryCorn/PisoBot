@@ -33,12 +33,19 @@
     "notes": "One call each for tube, dlr, overground and elizabeth-line. National-rail timed out twice at 40 seconds. Tube probe reused, not fetched again. Raw mode responses are local uncommitted resume files.",
     "source": "https://api.tfl.gov.uk/StopPoint/Mode/<mode>"
   },
+  "followup": {
+    "calls": 1,
+    "checked_at": "2026-11-10T08:59:28.339295+00:00",
+    "error": "transport_or_json_error",
+    "failed": 1,
+    "note": "Existing snapshots retain their honest National Rail omission."
+  },
   "tests": {
     "command": "cd /Users/quique/repo/PisoBot-zone && /Users/quique/repo/PisoBot/.venv/bin/python -m unittest discover -s tests",
     "output": "Ran 242 tests in 0.942s\n\nOK"
   },
-  "total_failed_calls": 6,
-  "total_tfl_calls": 997,
+  "total_failed_calls": 7,
+  "total_tfl_calls": 998,
   "validation_cache": {
     "note": "Legacy origins have no destination; both requested assumed-Oxford and explicit-only cohorts reported.",
     "path": "/Users/quique/repo/PisoBot/state/cache.json",

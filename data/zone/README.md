@@ -5,6 +5,15 @@ portal searches or the production cache. Do not deploy it as a hard filter on th
 strength of the current validation. The model constants were chosen before the
 live build and were not tuned to meet the recall target.
 
+## Follow-up
+
+This module is intended to **order exact journey lookups**, not to hard-filter
+adverts. Validation now also reports margins 15 and 20 for both cohorts. One
+additional National Rail retry timed out at 40 seconds; the omission remains.
+`national-rail-retry.json` records that attempt. Cumulative live traffic is now
+998 calls, 7 failed attempts. Follow-up suite: `Ran 242 tests in 1.006s`, `OK`.
+The original build figures below describe the initial experiment.
+
 ## Reproduce
 
 From the worktree root (the existing virtualenv can be used without installing

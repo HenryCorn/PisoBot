@@ -371,6 +371,8 @@ class ValidationTests(Base):
         self.assertIn("Limit 40, margin  0:", text)
         self.assertIn("Limit 40, margin  5:", text)
         self.assertIn("Limit 40, margin 10:", text)
+        self.assertIn("Limit 40, margin 15:", text)
+        self.assertIn("Limit 40, margin 20:", text)
         self.assertIn("NOT MET", text)
         self.assertIn("No constants fitted", text)
 

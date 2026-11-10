@@ -502,7 +502,7 @@ def _validation_metrics(points, zone, output):
     else:
         output("Mean / 90th-percentile absolute error: N/A (no estimates)")
     targets = []
-    for margin in (0, 5, 10):
+    for margin in (0, 5, 10, 15, 20):
         false_drop = true_drop = 0
         for point, exact, _ in comparisons:
             discarded = not could_reach(*point, zone, 40, margin)
