@@ -155,6 +155,23 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
 
+## Optional: local place facts
+
+Place facts require the local Greater London OSM index; without it, enrichment is unavailable.
+Build it with the separate build-time dependency (the bot does not import `osmium`):
+
+```sh
+python3 -m venv /tmp/pisobot-place-builder
+/tmp/pisobot-place-builder/bin/python -m pip install -r requirements-place.txt
+/tmp/pisobot-place-builder/bin/python scripts/build_place_index.py
+```
+
+The builder downloads the Geofabrik extract once and writes the ODbL-attributed SQLite index
+to `state/place-index.sqlite3`; neither artifact should be committed. Refresh the extract and
+atomically rebuild the index monthly with `scripts/build_place_index.py --refresh`.
+The runtime reads SQLite using Python's standard library. Place facts remain off by default;
+set `PLACE_FACTS_ENABLED=true` to add them to cards.
+
 ## Optional: language-model reading of rental adverts
 
 `pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a

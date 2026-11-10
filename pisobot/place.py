@@ -1,14 +1,17 @@
 """Cached, additive place facts from OpenStreetMap and TfL."""
 import math
+import os
 import re
+import sqlite3
 import threading
 import time
+from contextlib import closing
+from pathlib import Path
 
 import requests
 
-from . import cache, config
+from . import cache
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 TFL_URL = "https://api.tfl.gov.uk/StopPoint"
 NOISE_SERVICES = (
     ("https://environment.data.gov.uk/spatialdata/road-noise-all-metrics-england-round-4/wms",
@@ -16,23 +19,24 @@ NOISE_SERVICES = (
     ("https://environment.data.gov.uk/spatialdata/noise-data/wms",
      "Rail_Noise_Lnight_England_Round_4_All", "rail_lnight_db"),
 )
-OVERPASS_UA = "PisoBot place facts/1.0 (open-source rental search project)"
 CACHE_TTL_SECONDS = 90 * 24 * 60 * 60
-OVERPASS_GAP_SECONDS = 10
-OVERPASS_ROAD_RADIUS_M = 400
-AMENITY_RADIUS_M = 600
+CACHE_NAMESPACE = "place_facts_v2"
+LOCAL_INDEX_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                "state", "place-index.sqlite3")
+LOCAL_ROAD_RADIUS_M = 800
+LOCAL_AMENITY_RADIUS_M = 600
 MAJOR_ROAD_LABEL_M = 200
 RAILWAY_LABEL_M = 50
 QUIET_ROAD_CLEAR_M = 300
 QUIET_RAIL_CLEAR_M = 100
 LOW_NOISE_MAX_DB = 45
 MODERATE_NOISE_MAX_DB = 55
-_overpass_lock = threading.Lock()
-_overpass_next = 0.0
 _tfl_lock = threading.Lock()
 _tfl_next = 0.0
 _noise_lock = threading.Lock()
 _noise_next = 0.0
+_MAIN_ROAD_CLASSES = {"motorway", "trunk", "primary"}
+_AMENITY_CATEGORIES = ("supermarket", "park", "gym", "cafe", "pharmacy")
 _RAIL_MODES = {"tube", "overground", "elizabeth-line", "dlr", "national-rail"}
 _RAIL_LINE_IDS = {
     "bakerloo", "central", "circle", "district", "dlr", "elizabeth", "elizabeth-line",
@@ -51,119 +55,87 @@ def _distance_m(lat1, lng1, lat2, lng2):
     return math.hypot(x, y)
 
 
-def _query(lat, lng):
-    return f"""[out:json][timeout:12];
-(
-  nwr(around:{OVERPASS_ROAD_RADIUS_M},{lat:.6f},{lng:.6f})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)$"];
-)->.roads;
-(
-  nwr(around:{OVERPASS_ROAD_RADIUS_M},{lat:.6f},{lng:.6f})[railway~"^(rail|light_rail|tram|subway)$"];
-)->.rail;
-(
-  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[shop=supermarket];
-  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[leisure~"^(park|garden|nature_reserve|common|fitness_centre)$"];
-  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[landuse~"^(recreation_ground|village_green)$"];
-  nwr(around:{AMENITY_RADIUS_M},{lat:.6f},{lng:.6f})[amenity~"^(gym|fitness_centre|cafe|pharmacy)$"];
-)->.amenities;
-.roads out geom;
-.rail out geom;
-.amenities out center;"""
+def _segment_distance_m(lat, lng, lat1, lon1, lat2, lon2):
+    cos_lat = math.cos(math.radians(lat))
+    x1, y1 = (lon1 - lng) * 111320 * cos_lat, (lat1 - lat) * 111320
+    x2, y2 = (lon2 - lng) * 111320 * cos_lat, (lat2 - lat) * 111320
+    dx, dy = x2 - x1, y2 - y1
+    length = dx * dx + dy * dy
+    t = 0 if not length else min(1, max(0, -(x1 * dx + y1 * dy) / length))
+    return math.hypot(x1 + t * dx, y1 + t * dy)
 
 
-def _element_point(element):
-    point = element.get("center") or element
-    lat, lng = point.get("lat"), point.get("lon")
-    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
-        return lat, lng
-    return None
+def _index_grid_bounds(db, lat, lng, radius_m):
+    meta = dict(db.execute("SELECT key, value FROM meta"))
+    cell_size = float(meta["grid_cell_size_m"])
+    lat_origin = float(meta["grid_lat_origin"])
+    lon_scale = float(meta["grid_lon_scale"])
+    x = lng * lon_scale
+    y = (lat - lat_origin) * 111320
+    span = math.ceil(radius_m / cell_size)
+    return (math.floor(x / cell_size) - span, math.floor(x / cell_size) + span,
+            math.floor(y / cell_size) - span, math.floor(y / cell_size) + span)
 
 
-def _geometry_distance(element, lat, lng):
-    geometry = element.get("geometry") or []
-    if not geometry:
-        point = _element_point(element)
-        return _distance_m(lat, lng, *point) if point else None
-    points = [(p["lat"], p["lon"]) for p in geometry]
-    if len(points) == 1:
-        return _distance_m(lat, lng, *points[0])
-
-    def xy(point):
-        return ((point[1] - lng) * 111320 * math.cos(math.radians(lat)),
-                (point[0] - lat) * 111320)
-
-    coords = [xy(point) for point in points]
-    best = float("inf")
-    for (x1, y1), (x2, y2) in zip(coords, coords[1:]):
-        dx, dy = x2 - x1, y2 - y1
-        length = dx * dx + dy * dy
-        t = 0 if not length else min(1, max(0, -(x1 * dx + y1 * dy) / length))
-        best = min(best, math.hypot(x1 + t * dx, y1 + t * dy))
-    return best
-
-
-def parse_overpass(data, lat, lng):
-    """Reduce a combined Overpass response to stable, compact facts."""
-    roads, main_roads, railways = [], [], []
-    amenities = {name: [] for name in ("supermarket", "park", "gym", "cafe", "pharmacy")}
-    for element in data.get("elements", []):
-        tags = element.get("tags") or {}
-        point = _element_point(element)
-        highway = tags.get("highway")
-        if highway:
-            distance = _geometry_distance(element, lat, lng)
-            if distance is None:
+def local_osm_facts(lat, lng, index_path=None):
+    """Read nearby OSM features from the optional, standard-library SQLite index."""
+    path = Path(index_path or LOCAL_INDEX_PATH)
+    if not path.is_file():
+        return None
+    uri = path.resolve().as_uri() + "?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True)) as db:
+        x1, x2, y1, y2 = _index_grid_bounds(db, lat, lng, LOCAL_ROAD_RADIUS_M)
+        rows = db.execute("""
+            SELECT DISTINCT f.id, f.kind, f.class, f.name, f.osm_id,
+                   f.lat1, f.lon1, f.lat2, f.lon2, f.lat, f.lon
+            FROM grid_cells AS g
+            JOIN features AS f ON f.id = g.feature_id
+            WHERE g.cell_x BETWEEN ? AND ? AND g.cell_y BETWEEN ? AND ?
+        """, (x1, x2, y1, y2))
+        roads, main_roads, railways = [], [], []
+        amenities = {category: [] for category in _AMENITY_CATEGORIES}
+        seen_ids = set()
+        for feature_id, kind, feature_class, name, osm_id, lat1, lon1, lat2, lon2, point_lat, point_lon in rows:
+            if feature_id in seen_ids:
                 continue
-            road = {"class": highway, "distance_m": round(distance)}
-            roads.append(road)
-            if highway in ("motorway", "trunk", "primary"):
-                main_roads.append(road)
-        railway = tags.get("railway")
-        if railway in ("rail", "light_rail", "tram", "subway"):
-            distance = _geometry_distance(element, lat, lng)
-            if distance is not None:
+            seen_ids.add(feature_id)
+            if kind == "amenity":
+                distance = round(_distance_m(lat, lng, point_lat, point_lon))
+                if distance > LOCAL_AMENITY_RADIUS_M:
+                    continue
+                category = feature_class
+                item_name = name or category.title()
+                item = {"name": item_name, "distance_m": distance, "_osm_id": osm_id}
+                duplicate = next((old for old in amenities[category]
+                                  if ((name and old["_name"].casefold() == name.casefold()
+                                       and _distance_m(lat, lng, point_lat, point_lon) < 50)
+                                      or (not name and old["_osm_id"] == osm_id))), None)
+                if duplicate:
+                    if distance < duplicate["distance_m"]:
+                        duplicate.update(item)
+                else:
+                    item["_name"] = name
+                    amenities[category].append(item)
+                continue
+
+            distance = _segment_distance_m(lat, lng, lat1, lon1, lat2, lon2)
+            if kind == "road" and distance <= LOCAL_ROAD_RADIUS_M:
+                item = {"class": feature_class, "distance_m": round(distance)}
+                roads.append(item)
+                if feature_class in _MAIN_ROAD_CLASSES:
+                    main_roads.append(item)
+            elif kind == "railway" and distance <= LOCAL_ROAD_RADIUS_M:
                 railways.append({"distance_m": round(distance)})
-        if point is None:
-            continue
-        distance = round(_distance_m(lat, lng, *point))
-        if tags.get("shop") == "supermarket":
-            category = "supermarket"
-        elif tags.get("leisure") in ("park", "garden", "nature_reserve", "common") \
-                or tags.get("landuse") in ("recreation_ground", "village_green"):
-            category = "park"
-        elif tags.get("amenity") in ("gym", "fitness_centre") or tags.get("leisure") == "fitness_centre":
-            category = "gym"
-        elif tags.get("amenity") in ("cafe", "pharmacy"):
-            category = tags["amenity"]
-        else:
-            continue
-        if distance <= 600:
-            name = " ".join((tags.get("name") or tags.get("brand") or "").split())
-            if category == "park" and element.get("type") == "way" and not name:
-                continue
-            item = {"name": name or category.title(), "distance_m": distance, "_point": point}
-            duplicate = next((old for old in amenities[category]
-                              if (name and old["_name"].casefold() == name.casefold()
-                                  and (category == "park" or
-                                       _distance_m(*old["_point"], *point) < 50))
-                              or (not name and old["_id"] == (element.get("type"), element.get("id")))),
-                             None)
-            if duplicate:
-                if distance < duplicate["distance_m"]:
-                    duplicate.update(item)
-            else:
-                item["_name"] = name
-                item["_id"] = (element.get("type"), element.get("id"))
-                amenities[category].append(item)
 
     nearest = lambda values: min(values, key=lambda item: item["distance_m"]) if values else None
-    clean_amenities = {}
-    for kind, items in amenities.items():
-        closest = nearest(items)
-        clean_amenities[kind] = {
+    clean_amenities = {
+        category: {
             "count": len(items),
-            "nearest": ({key: value for key, value in closest.items() if not key.startswith("_")}
-                        if closest else None),
+            "nearest": ({key: value for key, value in nearest(items).items()
+                         if not key.startswith("_")} if items else None),
         }
+        for category, items in amenities.items()
+    }
     return {
         "street": nearest(roads),
         "main_road": nearest(main_roads),
@@ -199,24 +171,6 @@ def parse_tfl(data):
                 if route and route not in _RAIL_LINE_IDS:
                     bus_routes.add(route)
     return {"rail_lines": len(rail_lines), "bus_routes": len(bus_routes)}
-
-
-def _overpass(lat, lng):
-    global _overpass_next
-    with _overpass_lock:
-        delay = _overpass_next - time.monotonic()
-        if delay > 0:
-            time.sleep(delay)
-        try:
-            response = requests.post(
-                OVERPASS_URL, data={"data": _query(lat, lng)},
-                headers={"User-Agent": OVERPASS_UA, "Accept": "application/json"},
-                timeout=18,
-            )
-            response.raise_for_status()
-            return response.json()
-        finally:
-            _overpass_next = time.monotonic() + OVERPASS_GAP_SECONDS
 
 
 def _tfl(lat, lng):
@@ -270,20 +224,26 @@ def _noise(lat, lng):
 
 
 def facts(lat, lng, now=None):
-    """Return OSM/TfL facts, cached for 90 days per approximately 100 m cell."""
+    """Return locally indexed OSM and live TfL/Defra facts, cached for 90 days."""
     if lat is None or lng is None:
         return None
+    try:
+        index_version = os.stat(LOCAL_INDEX_PATH).st_mtime_ns
+    except FileNotFoundError:
+        return None
     now = time.time() if now is None else now
-    key = _cell(lat, lng)
-    hit = cache.get("place_facts_v1", key)
+    key = f"{_cell(lat, lng)}:{index_version}"
+    hit = cache.get(CACHE_NAMESPACE, key)
     if hit and now - hit.get("fetched_at", 0) < CACHE_TTL_SECONDS:
         return hit.get("facts")
 
-    osm = parse_overpass(_overpass(lat, lng), lat, lng)
+    osm = local_osm_facts(lat, lng)
+    if osm is None:
+        return None
     transit = parse_tfl(_tfl(lat, lng))
     noise = _noise(lat, lng)
     result = {**osm, "transit": transit, "noise": noise}
-    cache.put("place_facts_v1", key, {"fetched_at": now, "facts": result})
+    cache.put(CACHE_NAMESPACE, key, {"fetched_at": now, "facts": result})
     return result
 
 
@@ -375,15 +335,16 @@ def detail_lines(facts):
         lines.append(f"Nearest street: {street['class']} (~{street['distance_m']} m)")
     lines.append(f"Nearest main road (motorway/trunk/primary): "
                  + (f"{main['class']} (~{main['distance_m']} m)" if main else
-                    f"not found within {OVERPASS_ROAD_RADIUS_M} m"))
+                    f"not found within {LOCAL_ROAD_RADIUS_M} m"))
     lines.append("Nearest railway: " + (f"~{rail['distance_m']} m" if rail else
-                                       f"not found within {OVERPASS_ROAD_RADIUS_M} m"))
+                                       f"not found within {LOCAL_ROAD_RADIUS_M} m"))
     amenities = facts.get("amenities") or {}
     for category in ("supermarket", "park", "gym", "cafe", "pharmacy"):
         info = amenities.get(category) or {}
         nearest = info.get("nearest")
         distance = f"; nearest {nearest['name']} (~{nearest['distance_m']} m)" if nearest else ""
-        lines.append(f"{category.title()}: {info.get('count', 0)} within {AMENITY_RADIUS_M} m{distance}")
+        lines.append(f"{category.title()}: {info.get('count', 0)} within "
+                     f"{LOCAL_AMENITY_RADIUS_M} m{distance}")
     transit = facts.get("transit") or {}
     lines.append(f"TfL: {transit.get('rail_lines', 0)} distinct rail/tube lines within 800 m; "
                  f"{transit.get('bus_routes', 0)} bus routes within 300 m")

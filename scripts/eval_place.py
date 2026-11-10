@@ -62,13 +62,19 @@ def main(argv=None, out=print, facts_for=place.facts, sleep=time.sleep):
             out(f"{index + 1:02d}. {place.card_line(facts) or 'No mapped place facts'}")
             main_road = facts.get("main_road") if facts else None
             road_text = (f"{main_road['class']} ~{main_road['distance_m']}m"
-                         if main_road else f"none within {place.OVERPASS_ROAD_RADIUS_M}m")
+                         if main_road else f"none within {place.LOCAL_ROAD_RADIUS_M}m")
+            railway = facts.get("railway") if facts else None
+            rail_text = (f"~{railway['distance_m']}m" if railway
+                         else f"none within {place.LOCAL_ROAD_RADIUS_M}m")
             noise = (facts.get("noise") or {}) if facts else {}
             road_noise = noise.get("road_lnight_db")
             rail_noise = noise.get("rail_lnight_db")
             road_value = f"{road_noise:g} dB" if road_noise is not None else "no value"
             rail_value = f"{rail_noise:g} dB" if rail_noise is not None else "no value"
-            out(f"    main road: {road_text}; Defra Lnight 2021/4m: road {road_value}, rail {rail_value}")
+            out(f"    main road: {road_text}; railway: {rail_text}; "
+                f"Defra Lnight 2021/4m: road {road_value}, rail {rail_value}")
+            out(f"    label/noise: {place.street_label(facts)} / "
+                f"{place.noise_band(place._night_noise(facts)) or 'no value'}")
             cache.save()
         except Exception as error:
             failures += 1

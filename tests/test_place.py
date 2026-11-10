@@ -1,5 +1,7 @@
 import json
+import math
 import os
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,31 +13,64 @@ from scripts import eval_place
 
 
 class PlaceFactsTests(unittest.TestCase):
-    def test_osm_parser_counts_amenities_and_classifies_nearby_roads(self):
-        data = {"elements": [
-            {"type": "way", "id": 1, "center": {"lat": 51.5, "lon": -0.1},
-             "tags": {"highway": "residential"}},
-            {"type": "way", "id": 2,
-             "geometry": [{"lat": 51.499, "lon": -0.1}, {"lat": 51.501, "lon": -0.1}],
-             "tags": {"highway": "primary"}},
-            {"type": "way", "id": 3,
-             "geometry": [{"lat": 51.5, "lon": -0.098}, {"lat": 51.501, "lon": -0.098}],
-             "tags": {"railway": "rail"}},
-            {"type": "node", "id": 4, "lat": 51.5005, "lon": -0.1,
-             "tags": {"shop": "supermarket", "name": "Lidl"}},
-            {"type": "way", "id": 5, "center": {"lat": 51.501, "lon": -0.1},
-             "tags": {"leisure": "park", "name": "Community Park"}},
-            {"type": "way", "id": 7, "center": {"lat": 51.50101, "lon": -0.1},
-             "tags": {"leisure": "park", "name": "Community Park"}},
-            {"type": "node", "id": 6, "lat": 51.502, "lon": -0.1,
-             "tags": {"amenity": "cafe"}},
-        ]}
-        facts = place.parse_overpass(data, 51.5, -0.1)
+    def test_local_index_reader_uses_fixture_sqlite_grid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "fixture.sqlite3")
+            db = sqlite3.connect(path)
+            db.executescript("""
+                CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE features (
+                    id INTEGER PRIMARY KEY, kind TEXT NOT NULL, class TEXT, name TEXT,
+                    osm_id TEXT NOT NULL, lat1 REAL, lon1 REAL, lat2 REAL, lon2 REAL,
+                    lat REAL, lon REAL
+                );
+                CREATE TABLE grid_cells (
+                    cell_x INTEGER NOT NULL, cell_y INTEGER NOT NULL, feature_id INTEGER NOT NULL,
+                    PRIMARY KEY (cell_x, cell_y, feature_id)
+                ) WITHOUT ROWID;
+            """)
+            db.executemany("INSERT INTO meta VALUES (?, ?)", [
+                ("grid_cell_size_m", "250"),
+                ("grid_lat_origin", "51.5"),
+                ("grid_lon_scale", str(111320 * math.cos(math.radians(51.5)))),
+            ])
+            features = [
+                (1, "road", "residential", None, "way/1", 51.5, -0.1005, 51.5, -0.0995, None, None),
+                (2, "road", "primary", None, "way/2", 51.5002, -0.1005, 51.5002, -0.0995, None, None),
+                (3, "railway", "rail", None, "way/3", 51.501, -0.1005, 51.501, -0.0995, None, None),
+                (4, "amenity", "supermarket", "Lidl", "node/4", None, None, None, None, 51.5005, -0.1),
+                (5, "amenity", "park", "Community Park", "way/5", None, None, None, None, 51.501, -0.1),
+                (6, "amenity", "cafe", "Cafe", "node/6", None, None, None, None, 51.502, -0.1),
+            ]
+            db.executemany("INSERT INTO features VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", features)
+            cell_size = 250
+            lon_scale = 111320 * math.cos(math.radians(51.5))
+            cell_x = math.floor(-0.1 * lon_scale / cell_size)
+            cell_y = 0
+            db.executemany("INSERT INTO grid_cells VALUES (?, ?, ?)",
+                           [(cell_x, cell_y, row[0]) for row in features])
+            db.commit()
+            db.close()
+
+            facts = place.local_osm_facts(51.5, -0.1, path)
+
         self.assertEqual(facts["street"]["class"], "residential")
-        self.assertEqual(facts["main_road"]["distance_m"], 0)
+        self.assertEqual(facts["main_road"]["class"], "primary")
+        self.assertGreater(facts["main_road"]["distance_m"], 0)
+        self.assertLess(facts["main_road"]["distance_m"], 30)
+        self.assertGreater(facts["railway"]["distance_m"], 100)
         self.assertEqual(facts["amenities"]["supermarket"]["nearest"]["name"], "Lidl")
         self.assertEqual(facts["amenities"]["park"]["count"], 1)
         self.assertEqual(place.street_label(facts), "Busy road nearby")
+
+    def test_place_facts_are_unavailable_without_index(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = os.path.join(directory, "missing.sqlite3")
+            with patch.object(place, "LOCAL_INDEX_PATH", missing), \
+                    patch.object(place, "_tfl") as tfl, patch.object(place, "_noise") as noise:
+                self.assertIsNone(place.facts(51.5, -0.1))
+                tfl.assert_not_called()
+                noise.assert_not_called()
 
     def test_tfl_counts_distinct_lines_and_bus_routes_with_distance_limits(self):
         data = {"stopPoints": [
@@ -49,27 +84,27 @@ class PlaceFactsTests(unittest.TestCase):
         self.assertEqual(place.parse_tfl(data), {"rail_lines": 1, "bus_routes": 2})
         self.assertIn("stopTypes=NaptanPublicBusCoachTram,NaptanMetroStation,NaptanRailStation",
                       place._tfl_url(51.5, -0.1))
-        query = place._query(51.5, -0.1)
-        self.assertIn("[timeout:12]", query)
-        self.assertIn("around:400", query)
-
     def test_facts_use_cache_and_refresh_after_ttl(self):
         cache._data = {}
         self.addCleanup(setattr, cache, "_data", {})
-        osm = {"elements": [{"type": "way", "id": 1, "center": {"lat": 51.5, "lon": -0.1},
-                             "tags": {"highway": "residential"}}]}
-        with patch.object(place, "_overpass", return_value=osm) as overpass, \
+        osm = {
+            "street": {"class": "residential", "distance_m": 10},
+            "main_road": None, "railway": None, "amenities": {},
+        }
+        with tempfile.NamedTemporaryFile() as index, \
+                patch.object(place, "LOCAL_INDEX_PATH", index.name), \
+                patch.object(place, "local_osm_facts", return_value=osm) as local, \
                 patch.object(place, "_tfl", return_value={"stopPoints": []}) as tfl, \
                 patch.object(place, "_noise", return_value={"road_lnight_db": 42.0,
                                                             "rail_lnight_db": None}) as noise:
             first = place.facts(51.5, -0.1, now=1000)
             second = place.facts(51.5001, -0.1001, now=1001)
             self.assertEqual(first, second)
-            overpass.assert_called_once()
+            local.assert_called_once()
             tfl.assert_called_once()
             noise.assert_called_once()
             place.facts(51.5, -0.1, now=1000 + place.CACHE_TTL_SECONDS + 1)
-            self.assertEqual(overpass.call_count, 2)
+            self.assertEqual(local.call_count, 2)
 
     def test_defra_point_value_parser_ignores_zero_and_errors(self):
         self.assertEqual(place._noise_value("GRAY_INDEX = 42.5"), 42.5)
