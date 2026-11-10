@@ -134,12 +134,30 @@ class CardTests(unittest.TestCase):
     def test_portal_phrase_is_shown_verbatim_only_on_the_day_it_was_read(self):
         l = self.listing(update_reason="reduced", update_text="Reduced < 14 days", update_text_on="2026-11-10")
         self.assertEqual(telegram.age_text(l, TODAY), "Reduced < 14 days")
-        self.assertEqual(telegram.portal_line(l, TODAY), "🕒 Reduced < 14 days")
+        self.assertEqual(telegram.portal_line(l, TODAY), "🕒 Reduced &lt; 14 days")
         self.assertEqual(telegram.age_text(l, dt.date(2026, 11, 11)), "")     # replayed from an older cache
         l.first_listed = "2026-11-01"
         self.assertEqual(telegram.age_text(l, dt.date(2026, 11, 11)), "Added 10 days ago")
         added = self.listing(update_reason="added", update_text="Added > 14 days", update_text_on="2026-11-10")
         self.assertEqual(telegram.age_text(added, TODAY), "Added > 14 days")
+
+    def test_full_card_escapes_portal_age_comparisons_before_telegram_html(self):
+        for phrase in ("Reduced < 14 days", "Added > 14 days"):
+            with self.subTest(phrase=phrase), patch.object(otm_rent, "_today", return_value=TODAY):
+                l = otm_rent._listing(otm_card(**{"days-since-added-reduced": phrase}))
+                l.travel_minutes, l.crime_score = 20, 30
+                with patch.object(telegram, "_today", return_value=TODAY):
+                    text = telegram.format_listing(l)
+                self.assertIn("🕒 " + telegram.e(phrase), text)
+                self.assertNotIn(phrase, text)
+                self.assertNotIn("&amp;lt;", text)
+                self.assertEqual(telegram.age_text(l, TODAY), phrase)  # plain-text API stays plain
+
+    def test_portal_age_never_injects_markup_or_entities(self):
+        l = self.listing(update_text='<b>Added</b> & "new"', update_text_on="2026-11-10")
+        line = telegram.portal_line(l, TODAY)
+        self.assertEqual(line, '🕒 &lt;b&gt;Added&lt;/b&gt; &amp; &quot;new&quot;')
+        self.assertNotIn("<b>", line)
 
     def test_exact_dates_from_text_stay_right_when_the_cache_is_replayed(self):
         with patch.object(otm_rent, "_today", return_value=TODAY):

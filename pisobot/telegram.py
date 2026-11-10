@@ -151,7 +151,8 @@ def age_text(l, today=None):
 
 def portal_line(l, today=None):
     """Age and letting agent, when the portal published them."""
-    parts = [f"🕒 {age_text(l, today)}" if age_text(l, today) else "", f"🏢 {e(l.agent[:60])}" if l.agent else ""]
+    age = age_text(l, today)
+    parts = [f"🕒 {e(age)}" if age else "", f"🏢 {e(l.agent[:60])}" if l.agent else ""]
     return " · ".join(p for p in parts if p)
 
 
