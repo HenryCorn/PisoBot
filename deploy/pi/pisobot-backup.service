@@ -1,0 +1,13 @@
+[Unit]
+Description=PisoBot encrypted off-box backup and restore drill
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/var/lib/pisobot
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/pisobot/backup.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/bin/bash /opt/pisobot/migration/nightly-backup.sh
+UMask=0077
+Nice=10

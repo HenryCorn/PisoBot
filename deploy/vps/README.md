@@ -1,4 +1,5 @@
 # VPS rental service
+For a home-hosted replacement, see the [Raspberry Pi migration kit](../pi/README.md).
 
 The local service uses Rightmove (`rm`), OnTheMarket (`otmr`) and OpenRent
 (`orent`). It runs as a dedicated `pisobot` user, uses SQLite and private JSON
