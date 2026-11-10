@@ -88,6 +88,13 @@ class ShippingSeams(unittest.TestCase):
                 with patch.object(main.SOURCES["rm"], "refine", return_value=True), \
                         patch.object(extract, "keyword_verdict", side_effect=AssertionError("no paid room rescue")):
                     self.assertEqual(main.passes_basic(listing(text, floor_area_m2=40)), "keywords")
+        for text in ("Formerly a double room to rent. Now a self-contained flat.",
+                     "Not a room in a shared house; this is a self-contained flat."):
+            with self.subTest(noncurrent=text):
+                self.assertFalse(rental_text.explicit_room_let(text))
+                ex = extract.validate(record("whole_flat", "high", "self-contained flat"), text)
+                self.assertFalse(extract.adjust(ex, True, text).reject)
+        self.assertTrue(rental_text.explicit_room_let("Not a flat but a double room to rent."))
         self.assertFalse(rental_text.explicit_room_let("Formerly a house share. Now an entire flat."))
         self.assertFalse(rental_text.explicit_room_let("Not a house share; private kitchen and bathroom."))
         self.assertTrue(rental_text.explicit_room_let("Shared kitchen with two tenants."))

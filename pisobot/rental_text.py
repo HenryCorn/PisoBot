@@ -76,6 +76,15 @@ def classify(value, keywords):
     return list(dict.fromkeys(rejected)), list(dict.fromkeys(warnings))
 
 
+def _noncurrent_room_prefix(before):
+    # Cover nested phrases such as 'formerly a double room to rent' and
+    # 'not a room in a shared house', without extending across but/new clauses.
+    return bool(re.search(
+        r"\b(?:not|without|no(?:\s+longer)?|formerly|previously|once)\s+"
+        r"(?:(?:a|an|the|double|single|room|in|shared|house|flat|to|rent|let|"
+        r"marketed|advertised|used|described|rented|as)\s+){0,10}$", before, re.I))
+
+
 def explicit_room_let(value):
     """Current explicit room/share evidence that a whole-flat model answer cannot override."""
     text = value or ""
@@ -87,10 +96,7 @@ def explicit_room_let(value):
         pattern = re.escape(keyword).replace(r"\ ", r"[\s-]+")
         for match in re.finditer(r"(?<!\w)" + pattern + r"(?!\w)", text, re.I):
             before = text[:match.start()]
-            historical = re.search(r"\b(?:formerly|previously|once)\s+"
-                                   r"(?:(?:marketed|advertised|used|described|let|rented)\s+as\s+)?"
-                                   r"(?:(?:a|an)\s+)?$", before, re.I)
-            if historical or _negated(text, match.start()):
+            if _noncurrent_room_prefix(before) or _negated(text, match.start()):
                 continue
             if keyword == "room in" and re.search(r"\b(?:living|dining|reception|sitting|family)\s+$", before, re.I):
                 continue
@@ -98,10 +104,7 @@ def explicit_room_let(value):
                 continue
             return True
     for match in ROOM_LET.finditer(text):
-        if not _negated(text, match.start()) and not re.search(
-                r"\b(?:formerly|previously|once)\s+"
-                r"(?:(?:marketed|advertised|used|described|let|rented)\s+as\s+)?"
-                r"(?:(?:a|an)\s+)?$", text[:match.start()], re.I):
+        if not _negated(text, match.start()) and not _noncurrent_room_prefix(text[:match.start()]):
             return True
     return False
 
