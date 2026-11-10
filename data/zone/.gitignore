@@ -1,0 +1,4 @@
+# Full TfL StopPoint payloads are only local resumable discovery caches.
+/stops/
+/build.log
+/.zone-*

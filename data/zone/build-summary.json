@@ -1,0 +1,48 @@
+{
+  "destinations": {
+    "oxford-circus": {
+      "calls": 501,
+      "errors": {
+        "940GZZLUCTN": "http_404"
+      },
+      "failed_calls": 2,
+      "stations": 500,
+      "statuses": {
+        "error": 1,
+        "ok": 499
+      },
+      "travel_date": "20261111"
+    },
+    "shoreditch-high-street": {
+      "calls": 490,
+      "errors": {
+        "940GZZLUCTN": "http_404"
+      },
+      "failed_calls": 2,
+      "stations": 489,
+      "statuses": {
+        "error": 1,
+        "ok": 488
+      },
+      "travel_date": "20261111"
+    }
+  },
+  "discovery": {
+    "calls": 6,
+    "failed": 2,
+    "notes": "One call each for tube, dlr, overground and elizabeth-line. National-rail timed out twice at 40 seconds. Tube probe reused, not fetched again. Raw mode responses are local uncommitted resume files.",
+    "source": "https://api.tfl.gov.uk/StopPoint/Mode/<mode>"
+  },
+  "tests": {
+    "command": "cd /Users/quique/repo/PisoBot-zone && /Users/quique/repo/PisoBot/.venv/bin/python -m unittest discover -s tests",
+    "output": "Ran 242 tests in 0.942s\n\nOK"
+  },
+  "total_failed_calls": 6,
+  "total_tfl_calls": 997,
+  "validation_cache": {
+    "note": "Legacy origins have no destination; both requested assumed-Oxford and explicit-only cohorts reported.",
+    "path": "/Users/quique/repo/PisoBot/state/cache.json",
+    "read_only": true,
+    "sha256": "430a4dac77ed82232cfb967457cabc1176e02ecadcd051a57d592a91e101667f"
+  }
+}
