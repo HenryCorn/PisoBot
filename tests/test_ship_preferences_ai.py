@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from pisobot import cache, config, enrich, extract, main, rental_text, telegram
 from test_extract import FakeClient, listing, record
+from pisobot.sources import apply_rent_details
 
 
 class ShippingSeams(unittest.TestCase):
@@ -92,6 +93,7 @@ class ShippingSeams(unittest.TestCase):
                      "Not a room in a shared house; this is a self-contained flat."):
             with self.subTest(noncurrent=text):
                 self.assertFalse(rental_text.explicit_room_let(text))
+                self.assertTrue(apply_rent_details(listing(""), {"description": text, "floor_area_m2": 40}))
                 ex = extract.validate(record("whole_flat", "high", "self-contained flat"), text)
                 self.assertFalse(extract.adjust(ex, True, text).reject)
         self.assertTrue(rental_text.explicit_room_let("Not a flat but a double room to rent."))

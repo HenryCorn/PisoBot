@@ -164,7 +164,7 @@ def apply_rent_details(listing, details):
     private_rent_costs(listing)
     if details.get("deposit"):
         listing.min_deposit = details["deposit"]
-    if is_room_let(listing.description):
+    if rental_text.explicit_room_let(listing.description):
         return False
     if studios_wanted() and (listing.studio or rental_text.is_studio(listing.description)):
         return True      # a studio is small by nature: the person's studio setting sets its minimum area
