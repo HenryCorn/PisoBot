@@ -76,6 +76,36 @@ def classify(value, keywords):
     return list(dict.fromkeys(rejected)), list(dict.fromkeys(warnings))
 
 
+def explicit_room_let(value):
+    """Current explicit room/share evidence that a whole-flat model answer cannot override."""
+    text = value or ""
+    keywords = ("room in", "room only", "room to rent", "double room", "single room",
+                "flat share", "flatshare", "house share", "houseshare", "shared house",
+                "shared flat", "sharing with", "shared kitchen", "shared bathroom",
+                "communal bathroom", "multiple occupation")
+    for keyword in keywords:
+        pattern = re.escape(keyword).replace(r"\ ", r"[\s-]+")
+        for match in re.finditer(r"(?<!\w)" + pattern + r"(?!\w)", text, re.I):
+            before = text[:match.start()]
+            historical = re.search(r"\b(?:formerly|previously|once)\s+"
+                                   r"(?:(?:marketed|advertised|used|described|let|rented)\s+as\s+)?"
+                                   r"(?:(?:a|an)\s+)?$", before, re.I)
+            if historical or _negated(text, match.start()):
+                continue
+            if keyword == "room in" and re.search(r"\b(?:living|dining|reception|sitting|family)\s+$", before, re.I):
+                continue
+            if keyword in AMBIGUOUS and not _explicit(text, match, keyword):
+                continue
+            return True
+    for match in ROOM_LET.finditer(text):
+        if not _negated(text, match.start()) and not re.search(
+                r"\b(?:formerly|previously|once)\s+"
+                r"(?:(?:marketed|advertised|used|described|let|rented)\s+as\s+)?"
+                r"(?:(?:a|an)\s+)?$", text[:match.start()], re.I):
+            return True
+    return False
+
+
 def exclude_keywords():
     """config.EXCLUDE_KEYWORDS for private rentals, without "studio" when this person allows studios."""
     if config.STUDIO_MIN_AREA is None:
@@ -107,7 +137,13 @@ def furnishing(value):
                 or re.match(r"\s+(?:show\s+(?:flat|apartment|home)|neighbou?r)", after):
             continue
         prefix = (m[1] or "").strip(" -")
-        negated = bool(re.search(r"\b(?:not|isn't|without)\s+(?:fully\s+)?$", before))
+        # Not fully furnished may mean part-furnished, not an explicit unfurnished let.
+        if re.search(r"\b(?:not|isn't)\s+fully\s+$", before):
+            continue
+        # Incidental furniture in a room/facility is not the state of the whole let.
+        if re.match(r"\s+(?:communal|shared|show|display|wardrobes?|furniture|lounge|reception)\b", after):
+            continue
+        negated = bool(re.search(r"\b(?:not|isn't|without)\s+$", before))
         if negated:
             if not prefix:
                 kinds.add("unfurnished")

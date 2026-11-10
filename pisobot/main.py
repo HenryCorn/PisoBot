@@ -160,6 +160,8 @@ def passes_basic(l, defer_model=False):
     why = _post_details_reject(l) or _cost_reject(l)
     if why:
         return why
+    if l.tenure == "rent" and rental_text.explicit_room_let(l.description):
+        return "keywords"  # an explicit room/share is a hard unit-type dealbreaker, never an AI rescue
     if not defer_model and extract.keyword_verdict(l, l.excluded_by_keywords()):
         return "keywords"
     return None

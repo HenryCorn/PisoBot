@@ -505,7 +505,7 @@ def deposit_notes(listing):
 
 def _rescue_evidence(phrase, text):
     body, phrase = _norm(_advert_body(text)), _norm(phrase)
-    if not phrase or phrase not in body or rental_text.is_room_let(body):
+    if not phrase or phrase not in body or rental_text.explicit_room_let(body):
         return False
     if re.search(r"\b(?:not|no|never|without|isnt)\b", phrase):
         return False

@@ -80,6 +80,24 @@ class ShippingSeams(unittest.TestCase):
         raw = record(flags=[("too_good_to_be_true", "No Deposit Option Available For Tenants")])
         self.assertEqual(extract.validate(raw, text).red_flags, [])
 
+    def test_explicit_room_cannot_be_rescued_by_a_true_quote_about_its_containing_flat(self):
+        for text in ("Double room to rent in a self-contained flat.", "House share in a self-contained flat."):
+            with self.subTest(text=text):
+                ex = extract.validate(record("whole_flat", "high", "self-contained flat"), text)
+                self.assertTrue(extract.adjust(ex, True, text).reject)
+                with patch.object(main.SOURCES["rm"], "refine", return_value=True), \
+                        patch.object(extract, "keyword_verdict", side_effect=AssertionError("no paid room rescue")):
+                    self.assertEqual(main.passes_basic(listing(text, floor_area_m2=40)), "keywords")
+        self.assertFalse(rental_text.explicit_room_let("Formerly a house share. Now an entire flat."))
+        self.assertFalse(rental_text.explicit_room_let("Not a house share; private kitchen and bathroom."))
+        self.assertTrue(rental_text.explicit_room_let("Shared kitchen with two tenants."))
+
+    def test_partial_or_incidental_furniture_does_not_establish_a_hard_opposite(self):
+        for text in ("The flat is not fully furnished.", "There is a furnished communal lounge in the building."):
+            with self.subTest(text=text):
+                self.assertIsNone(rental_text.furnishing(text))
+        self.assertEqual(rental_text.furnishing("The flat is not furnished."), "unfurnished")
+
     def response(self):
         def option(minutes, walk, rides):
             legs = [{"duration": walk, "mode": {"id": "walking"}}]
