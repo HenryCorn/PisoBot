@@ -77,8 +77,25 @@ def save_seen(seen):
             os.unlink(temporary)
 
 
-def _cost_ok(l):
-    return costs.compute(l) and l.monthly_cost <= config.MAX_MONTHLY_COST
+def _private_rental(l):
+    """Costed as a private let (rent + estimated bills); scheme rents on the sale path are not."""
+    return l.tenure == "rent" and l.bills is not None
+
+
+def _cost_reject(l, early=False):
+    """None when the money limits pass, else the funnel reason. Private rentals: advertised rent
+    against the rent cap ("rent_cap"), then, only if the person set one, rent + bills against the
+    all-in cap ("all_in_cap"). early=True is the cheap check before the details page is fetched,
+    when bills are not final: rent alone is a lower bound, so it can only reject safely."""
+    if not costs.compute(l):
+        return "cost"
+    if not _private_rental(l):
+        return "cost" if l.monthly_cost > config.MAX_MONTHLY_COST else None
+    if l.rent > config.MAX_RENT:
+        return "rent_cap"
+    if config.MAX_ALL_IN is not None and (l.rent if early else l.monthly_cost) > config.MAX_ALL_IN:
+        return "all_in_cap"
+    return None
 
 
 def passes_basic(l):
@@ -95,8 +112,9 @@ def passes_basic(l):
     refine = getattr(SOURCES[l.source], "refine", None)
     if refine:
         # cheap gate first so only plausible listings cost a details-page fetch
-        if not _cost_ok(copy.deepcopy(l)):
-            return "cost"
+        why = _cost_reject(copy.deepcopy(l), early=True)
+        if why:
+            return why
         if not refine(l):
             return "details"
         if l.excluded_by_keywords():
@@ -104,9 +122,7 @@ def passes_basic(l):
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
-    if not _cost_ok(l):
-        return "cost"
-    return None
+    return _cost_reject(l)
 
 
 def passes_area(l):
@@ -152,9 +168,21 @@ def report_due(p, now=None):
 
 def _record(l, today, alerted, prev=None):
     prev = prev or {}
-    return {"alerted": alerted, "cost": round(l.monthly_cost), "first": prev.get("first", _now()),
-            "last": today, "url": l.url, "beds": l.bedrooms, "price": l.share_price or l.rent,
-            "lat": l.lat, "lng": l.lng, "address": l.address}
+    record = {"alerted": alerted, "cost": round(l.monthly_cost), "first": prev.get("first", _now()),
+              "last": today, "url": l.url, "beds": l.bedrooms, "price": l.share_price or l.rent,
+              "lat": l.lat, "lng": l.lng, "address": l.address}
+    if l.tenure == "rent":
+        record["rent"] = l.rent   # price drops compare advertised rent: bills estimates vary per listing
+    return record
+
+
+def price_dropped(l, prev):
+    """Alert-worthy cut since the stored record. Rentals compare the advertised rent, never the
+    all-in cost; a record without a stored rent cannot alert."""
+    if l.tenure == "rent":
+        old = prev.get("rent")
+        return old is not None and l.rent is not None and old - l.rent >= config.PRICE_DROP_ALERT
+    return prev.get("cost", 0) - l.monthly_cost >= config.PRICE_DROP_ALERT
 
 
 def _ensure_photos(l):
@@ -369,7 +397,14 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         l = by_key.get(key)
         if l:
             info["missing"] = 0
-            if abs((info.get("cost") or 0) - l.monthly_cost) >= config.PRICE_DROP_ALERT:
+            if l.tenure == "rent":
+                # advertised rent, not all-in: an unchanged advert must not alert when bills move
+                if info.get("rent") is None:
+                    info["rent"], info["cost"] = l.rent, round(l.monthly_cost)
+                elif abs(info["rent"] - l.rent) >= config.PRICE_DROP_ALERT:
+                    saved_changes.append(l)
+                    info["rent"], info["cost"] = l.rent, round(l.monthly_cost)
+            elif abs((info.get("cost") or 0) - l.monthly_cost) >= config.PRICE_DROP_ALERT:
                 saved_changes.append(l)
                 info["cost"] = round(l.monthly_cost)
         elif key in fetched_keys:
@@ -390,10 +425,12 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         elif prev is None:
             if l.tenure == "rent" or not is_duplicate(l, alerted):
                 to_send.append((l, "new"))
-        elif prev.get("alerted") and prev.get("cost", 0) - l.monthly_cost >= config.PRICE_DROP_ALERT:
+        elif prev.get("alerted") and price_dropped(l, prev):
             to_send.append((l, "drop"))
         if prev and live:
             prev["last"] = today
+            if l.tenure == "rent" and l.rent is not None and (prev.get("rent") is None or l.rent > prev["rent"]):
+                prev["rent"] = l.rent   # first sight of this record's rent, or the advert went up
     to_send.sort(key=lambda x: ranking.score(x[0]))
 
     # 🆕 = first seen since the last report (older records only have a date: treat as reported).

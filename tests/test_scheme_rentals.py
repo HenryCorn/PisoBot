@@ -21,14 +21,15 @@ class SchemeRentalTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
 
     def test_rent_only_searches_follow_the_current_budget(self):
-        with patch.object(config, "MAX_MONTHLY_COST", 1900):
+        with patch.object(config, "MAX_RENT", 1900):
             self.assertEqual(sharetobuy._searches(rent_only=True), [("2", ["13", "17"], 1900)])
             self.assertEqual(len(sharetobuy._searches()), 2)
 
     def test_scheme_rents_are_costed_like_private_lets(self):
         with patch.object(sharetobuy, "fetch", return_value=[llr()]):
             [l] = sharetobuy.search_rent()
-        self.assertEqual((l.bills, l.service_charge), (config.RENT_BILLS_ESTIMATE, 0))
+        self.assertEqual((l.utilities_monthly, l.service_charge), (config.RENT_BILLS_ESTIMATE, 0))
+        self.assertEqual(l.bills, config.RENT_BILLS_ESTIMATE + l.council_tax_monthly)
         self.assertEqual(l.min_deposit, round(1100 * 12 / 52 * 5))
         self.assertIn("bills", l.estimated)
 
@@ -44,7 +45,7 @@ class SchemeRentalTests(unittest.TestCase):
             entry["at"] = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=4)).isoformat()
             main.SOURCES["stbr"].fetch()
             self.assertEqual(fetch.call_count, 2)
-            with patch.object(config, "MAX_MONTHLY_COST", 2500):
+            with patch.object(config, "MAX_RENT", 2500):
                 main.SOURCES["stbr"].fetch()
             self.assertEqual(fetch.call_count, 3)
 
@@ -60,7 +61,8 @@ class SchemeRentalTests(unittest.TestCase):
         with patch.object(lq.net, "page", side_effect=[json.dumps([dev]), json.dumps(plots)]) as page, \
                 patch.object(lq.net, "get") as legacy:
             [l] = lq.search_rent()
-        self.assertEqual((l.key, l.scheme, l.rent, l.bills), ("lq:1", "London Living Rent", 1050, config.RENT_BILLS_ESTIMATE))
+        self.assertEqual((l.key, l.scheme, l.rent, l.utilities_monthly),
+                         ("lq:1", "London Living Rent", 1050, config.RENT_BILLS_ESTIMATE))
         self.assertEqual(page.call_count, 2)
         legacy.assert_not_called()
 

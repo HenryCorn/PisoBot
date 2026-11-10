@@ -1,11 +1,19 @@
-from . import config
+from . import config, council_tax
+
+
+def cost_scale(l):
+    """What a full-price home costs: the sale cap, or for private lets the all-in cap if set,
+    else the rent cap plus typical bills (all-in is ranked, not capped)."""
+    if l.tenure != "rent" or l.bills is None:
+        return config.MAX_MONTHLY_COST
+    return config.MAX_ALL_IN or config.MAX_RENT + config.RENT_BILLS_ESTIMATE + council_tax.monthly(None, None)[0]
 
 
 def score(l):
     """Lower is better. Weighted mix of cost, commute friction, and crime, adjusted by taste."""
     w = config.RANK_WEIGHTS
     commute = l.commute_friction if getattr(l, "commute_friction", None) is not None else (l.travel_minutes or 0)
-    s = (w["cost"] * l.monthly_cost / config.MAX_MONTHLY_COST
+    s = (w["cost"] * l.monthly_cost / cost_scale(l)
          + w["travel"] * commute / config.MAX_TRAVEL_MINUTES
          + w["crime"] * (l.crime_score or 0) / config.MAX_CRIME_SCORE)
     if l.tenure == "sale" and (l.deposit or 0) > config.PREFERRED_DEPOSIT:

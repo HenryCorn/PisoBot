@@ -35,18 +35,20 @@ class RentalTests(unittest.TestCase):
 
     def test_bills_are_estimated_unless_included_and_deposit_is_five_weeks(self):
         l = private_rent_costs(Listing("rm", "1", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1300))
-        self.assertEqual((l.bills, l.estimated, l.min_deposit), (280, ["bills"], 1500))
+        # utilities 130 + London-average band C council tax 153 (neither band nor borough known)
+        self.assertEqual((l.bills, l.estimated, l.min_deposit), (283, ["bills"], 1500))
+        self.assertEqual((l.utilities_monthly, l.council_tax_monthly), (130, 153))
         self.assertTrue(costs.compute(l))
-        self.assertEqual((l.monthly_cost, l.deposit), (1580, 1500))
+        self.assertEqual((l.monthly_cost, l.deposit), (1583, 1500))
         inc = private_rent_costs(Listing("rm", "2", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1500,
                                          description="Lovely flat, all bills included"))
         self.assertEqual((inc.bills, inc.estimated), (0, []))
         exc = private_rent_costs(Listing("rm", "3", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1500,
                                          description="Bills included? No - bills not included"))
-        self.assertEqual(exc.bills, 280)
+        self.assertEqual(exc.bills, 283)
         ct = private_rent_costs(Listing("rm", "4", "u", "a", 1, PRIVATE_RENT, tenure="rent", rent=1400,
                                         description="*BILLS INCLUDED (except Council Tax)*"))
-        self.assertEqual((ct.bills, ct.estimated), (150, ["council tax"]))
+        self.assertEqual((ct.bills, ct.estimated), (153, ["council tax"]))
 
     def test_rightmove_skips_shares_and_students_and_reads_full_size_photos(self):
         props = [rm_property(1), rm_property(2, propertySubType="House Share"), rm_property(3, students=True),
@@ -114,7 +116,7 @@ class RentalTests(unittest.TestCase):
         first = cached_search("rm", search)
         again = cached_search("rm", search)
         self.assertEqual(search.call_count, 1)
-        self.assertEqual((again[0].key, again[0].rent, again[0].bills), (first[0].key, 1300, 280))
+        self.assertEqual((again[0].key, again[0].rent, again[0].bills), (first[0].key, 1300, 283))
         stale = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=12)).isoformat()
         cache._data["rent_search"]["rm"]["at"] = stale
         cached_search("rm", search)
@@ -198,15 +200,17 @@ class RentalTests(unittest.TestCase):
         self.assertIsNotNone(rightmove._listing(rm_property(2, summary="Near a yoga studio")))
 
     def test_zero_bill_estimates_are_not_presented_as_included(self):
-        for description, field in (("Bills not included", "RENT_BILLS_ESTIMATE"),
-                                   ("Bills included except council tax", "RENT_COUNCIL_TAX_ESTIMATE")):
-            with self.subTest(description=description), patch.object(config, field, 0):
-                home = private_rent_costs(Listing("rm", "1", "u", "London", 1, PRIVATE_RENT,
-                                                 tenure="rent", rent=1300, description=description))
-                self.assertIn("Bills: ~£0 (estimate)", telegram.finance_lines(home)[0])
+        with patch.object(config, "RENT_BILLS_ESTIMATE", 0):
+            home = private_rent_costs(Listing("rm", "1", "u", "London", 1, PRIVATE_RENT,
+                                             tenure="rent", rent=1300, description="Bills not included"))
+        self.assertIn("utilities ~£0 (estimate)", telegram.finance_lines(home)[0])
+        except_tax = private_rent_costs(Listing("rm", "3", "u", "London", 1, PRIVATE_RENT, tenure="rent",
+                                                rent=1300, description="Bills included except council tax"))
+        self.assertEqual((except_tax.utilities_monthly, except_tax.council_tax_monthly), (0, 153))
+        self.assertIn("utilities incl.", telegram.finance_lines(except_tax)[0])
         included = private_rent_costs(Listing("rm", "2", "u", "London", 1, PRIVATE_RENT,
                                               tenure="rent", rent=1300, description="All bills included"))
-        self.assertIn("Bills: incl.", telegram.finance_lines(included)[0])
+        self.assertIn("bills included", telegram.finance_lines(included)[0])
 
     def test_onthemarket_rental_details_read_the_published_deposit(self):
         p = {"id": "5", "lettingDetails": {"items": ["Furnished", "Deposit: £1172.00", "Long term let"]},
@@ -223,7 +227,7 @@ class RentalTests(unittest.TestCase):
                                           lat=51.51, lng=-0.14))
         with patch.object(rightmove, "refine", return_value=True):
             self.assertIsNone(main.passes_basic(home))
-        self.assertEqual(home.monthly_cost, 1480)
+        self.assertEqual(home.monthly_cost, 1483)
 
     def test_report_lists_rentals_even_when_cheaper_homes_fill_the_cheapest_places(self):
         def home(i, **kw):
@@ -285,7 +289,8 @@ class RentalTests(unittest.TestCase):
                                        available="2026-10-19"))
         costs.compute(l)
         lines = telegram.finance_lines(l)
-        self.assertIn("Bills: ~£280", lines[0])
+        self.assertEqual(lines[0], "💷 <b>£1,300 rent</b> · ~£1,583 all-in "
+                                   "<i>(council tax ~C, London average £153 · utilities ~£130)</i>")
         self.assertIn("£1.5k dep", lines[1])
         self.assertIn("from 2026-10-19", lines[1])
         self.assertNotIn("Lease", telegram.facts_line(l))

@@ -174,9 +174,13 @@ def deal_hunter_signals(listing, seen_record, now=None):
         days = (now - first_dt).days
     except (ValueError, TypeError):
         return None
-    prev_cost = seen_record.get("cost")
-    if prev_cost and listing.monthly_cost and (prev_cost - listing.monthly_cost) >= 30:
-        drop = round(prev_cost - listing.monthly_cost)
+    if listing.tenure == "rent":
+        # advertised rent: the all-in figure moves with per-listing bills estimates
+        prev_cost, current = seen_record.get("rent"), listing.rent
+    else:
+        prev_cost, current = seen_record.get("cost"), listing.monthly_cost
+    if prev_cost and current and (prev_cost - current) >= 30:
+        drop = round(prev_cost - current)
         return f"🏷️ Price cut (-£{drop}/mo)"
     if days >= 45:
         return f"⏳ {days}d on market (Negotiation potential)"

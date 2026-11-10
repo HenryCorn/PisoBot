@@ -82,7 +82,7 @@ def _listing(attrs, block):
     rent = monthly_rent(money(attrs.get("ad-headline-rate")), "weekly" if period == "pw" else "monthly")
     outcode = attrs.get("postcode", "").upper().replace(" ", "")
     if (kind == "studio" or beds < max(1, config.MIN_BEDROOMS) or not rent
-            or not config.RENT_MIN <= rent <= config.MAX_MONTHLY_COST or not OUTCODE.match(outcode)
+            or not config.RENT_MIN <= rent <= config.MAX_RENT or not OUTCODE.match(outcode)
             or re.search(r"\b(?:studio|bedsit)\b|\broom\s+(?:in|to\s+(?:rent|let))\b"
                          r"|\b(?:double|single)\s+room\b", title, re.I)):
         return None

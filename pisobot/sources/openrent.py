@@ -96,7 +96,7 @@ def _index(html):
         if (identifier in seen or not row["islivelistBool"] or row["isshared"] or row["isstudio"]
                 or not row["nonStudents"] or row["propertyTypes"] == 3
                 or row["bedrooms"] < max(1, config.MIN_BEDROOMS)
-                or not config.RENT_MIN <= row["prices"] <= config.MAX_MONTHLY_COST
+                or not config.RENT_MIN <= row["prices"] <= config.MAX_RENT
                 or now_ms - row["dateFirstListedMs"] < locked_hours * 3600000
                 or _km(row["PROPERTYLISTLATITUDES"], row["PROPERTYLISTLONGITUDES"],
                        config.TARGET_LAT, config.TARGET_LNG) > config.RENT_SEARCH_MILES * 1.609344):
@@ -129,7 +129,7 @@ def _listing(card, row):
     description = text(f"{title}. {card['description']}")
     if (card["letAgreed"] or card["isMultiRoom"]
             or rental_text.classify(description, config.EXCLUDE_KEYWORDS)[0]
-            or not config.RENT_MIN <= rent <= config.MAX_MONTHLY_COST):
+            or not config.RENT_MIN <= rent <= config.MAX_RENT):
         return None
     if not beds:
         raise ValueError("OpenRent card has no bedroom count")
@@ -162,7 +162,7 @@ def _search_snapshot():
         raise ValueError("RENT_MAX_PAGES must be positive")
     params = {"term": "Oxford Circus", "latn": config.TARGET_LAT, "lngn": config.TARGET_LNG,
               "area": math.ceil(config.RENT_SEARCH_MILES * 1.609344), "searchType": "km",
-              "prices_max": int(config.MAX_MONTHLY_COST), "bedrooms_min": max(1, config.MIN_BEDROOMS)}
+              "prices_max": int(config.MAX_RENT), "bedrooms_min": max(1, config.MIN_BEDROOMS)}
     html = net.page(f"{BASE}/properties-to-rent/oxford-circus", params=params)
     rows = _index(html)
     limit = config.RENT_MAX_PAGES * PAGE_SIZE
@@ -206,7 +206,7 @@ def search():
 def fetch():
     # Reusing a search after expanding its radius/budget would hide new matches.
     filters = [config.TARGET_LAT, config.TARGET_LNG, config.RENT_SEARCH_MILES,
-               config.RENT_MIN, config.MAX_MONTHLY_COST, config.MIN_BEDROOMS, config.RENT_MAX_PAGES]
+               config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS, config.RENT_MAX_PAGES]
     hit = cache.get("rent_search", "orent") or {}
     if hit.get("filters") != filters:
         cache.put("rent_search", "orent", {**hit, "at": ""})
@@ -330,7 +330,7 @@ def refine(listing):
             "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "details": details,
             "search_rent": listing.rent, "search_bills_kind": _bills_kind(listing)})
     listing.rent = details["rent"]
-    if not config.RENT_MIN <= listing.rent <= config.MAX_MONTHLY_COST:
+    if not config.RENT_MIN <= listing.rent <= config.MAX_RENT:
         return False
     if details["images"]:
         listing.images, listing.image = details["images"], details["images"][0]

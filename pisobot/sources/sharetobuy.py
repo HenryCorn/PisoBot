@@ -23,10 +23,11 @@ RENT_REFRESH_MINUTES = 180
 
 
 def _searches(rent_only=False):
-    """(rentOrBuy, scheme ids, maxMonthlyCost), read at call time so per-person budgets apply.
+    """(rentOrBuy, scheme ids, maxMonthlyCost), read at call time so per-person caps apply.
     Sale costs get slack: they are recomputed with our deposit."""
-    rent = [(*RENT_SCHEMES, config.MAX_MONTHLY_COST)]
-    return rent if rent_only else [("3", ["2", "1"], config.MAX_MONTHLY_COST + 300), *rent]
+    if rent_only:   # private-rent costing: the cap is the advertised rent
+        return [(*RENT_SCHEMES, config.MAX_RENT)]
+    return [("3", ["2", "1"], config.MAX_MONTHLY_COST + 300), (*RENT_SCHEMES, config.MAX_MONTHLY_COST)]
 
 
 def _params(rent_or_buy, schemes, max_cost):

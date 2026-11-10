@@ -37,11 +37,14 @@ class Param:
 
 
 PARAMS = {
-    "budget": Param("MAX_MONTHLY_COST", float, 300, 10000, "Max monthly cost (rent + bills)", "£/mo"),
+    "rent": Param("MAX_RENT", float, 300, 10000, "Max advertised monthly rent (the hard limit)", "£/mo"),
+    "budget": Param("MAX_ALL_IN", float, 300, 10000,
+                    "Optional cap on rent + estimated bills (off unless set)", "£/mo"),
     "beds": Param("MIN_BEDROOMS", int, 1, 5, "Min bedrooms"),
     "commute": Param("MAX_TRAVEL_MINUTES", int, 10, 120, "Max commute (weekday 08:30)", "min"),
     "crime": Param("MAX_CRIME_SCORE", int, 10, 2000, "Max safety crimes within 500 m / month"),
-    "bills": Param("RENT_BILLS_ESTIMATE", float, 0, 1500, "Bills estimate when not included", "£/mo"),
+    "bills": Param("RENT_BILLS_ESTIMATE", float, 0, 1500,
+                   "Utilities estimate (energy, water, broadband) when not included; council tax is separate", "£/mo"),
     "minrent": Param("RENT_MIN", float, 0, 10000, "Min advertised rent (filters out rooms)", "£/mo"),
     "area": Param("RENT_MIN_AREA_M2", float, 0, 300, "Min floor area, when published", "m²"),
     "radius": Param("RENT_SEARCH_MILES", float, 1, 15, "Portal search radius round Oxford Circus", "miles",
@@ -243,7 +246,8 @@ def overrides(params):
 def fetch_params(person):
     """Portal filters only; a commute destination must not move the search centre."""
     values = effective(person, live=True)
-    return {name: values[name] for name in ("budget", "radius", "beds", "minrent")}
+    # The all-in cap ("budget") is applied locally, so it never splits a shared portal search.
+    return {name: values[name] for name in ("rent", "radius", "beds", "minrent")}
 
 
 def search_groups(people):
@@ -276,8 +280,11 @@ def describe(user):
     lines = []
     for name, spec in PARAMS.items():
         value = values[name]
-        shown = f"£{value:,.0f}" if spec.unit.startswith("£") else f"{value:g}"
-        unit = "" if spec.unit.startswith("£") else f" {spec.unit}".rstrip()
+        if value is None:
+            shown = "off"
+        else:
+            shown = f"£{value:,.0f}" if spec.unit.startswith("£") else f"{value:g}"
+        unit = "" if spec.unit.startswith("£") or value is None else f" {spec.unit}".rstrip()
         mark = "" if name in user.params else " <i>(default)</i>"
         lines.append(f"• <b>{name}</b> {shown}{unit}{mark} — {spec.label}")
     dest = values["destination"]

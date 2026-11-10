@@ -4,7 +4,7 @@ import datetime as dt
 from dataclasses import asdict, fields
 from html import unescape
 
-from .. import cache, config
+from .. import cache, config, council_tax
 from ..models import Listing
 from ..rental_text import ROOM_LET, is_room_let
 
@@ -101,7 +101,9 @@ def rent_from_text(price):
 
 
 def private_rent_costs(listing):
-    """Bills (estimated unless the advert says they are included) and the capped deposit."""
+    """Bills and the capped deposit. Bills = council tax (the advert's band at the borough's 2026-27
+    Band D, London average and band C when unknown) + utilities (RENT_BILLS_ESTIMATE); either is 0
+    when the advert says it is included. Estimated parts stay labelled in ``estimated``."""
     listing.service_charge = 0   # the landlord pays it; adverts that mention one must not add it
     listing.estimated = [x for x in listing.estimated if x not in ("bills", "council tax")]
     blob = listing.description
@@ -109,14 +111,24 @@ def private_rent_costs(listing):
                          blob, re.I)
     excluded = re.search(r"\bbills\s+(?:are\s+)?(?:not\s+included|excluded|extra)\b|\b(?:excluding|exclusive\s+of|plus)\s+bills\b",
                          blob, re.I)
+    except_tax = re.search(r"\b(?:except|excluding|exc\.?|not\s+including|plus)\s+(?:the\s+)?council\s+tax\b", blob, re.I)
+    all_included = bool(included and not excluded and not except_tax)
+    tax_included = all_included or (listing.council_tax_included is True)
+    band = listing.council_tax_band or council_tax.band_from_text(blob)
+    utilities, tax, label = 0, 0, ""
     if included and not excluded:
-        listing.bills = 0
-        if re.search(r"\b(?:except|excluding|exc\.?|not\s+including|plus)\s+(?:the\s+)?council\s+tax\b", blob, re.I):
-            listing.bills = config.RENT_COUNCIL_TAX_ESTIMATE
-            listing.estimated.append("council tax")
+        pass                                  # utilities in the rent
     else:
-        listing.bills = config.RENT_BILLS_ESTIMATE
+        utilities = config.RENT_BILLS_ESTIMATE
         listing.estimated.append("bills")
+    if not tax_included:
+        tax, label, exact = council_tax.monthly(
+            band, council_tax.borough(listing.address, listing.outcode))
+        if not exact and "bills" not in listing.estimated:
+            listing.estimated.append("council tax")
+    listing.council_tax_monthly, listing.utilities_monthly = tax, utilities
+    listing.council_tax_label = label
+    listing.bills = tax + utilities
     if listing.rent:
         listing.min_deposit = round(listing.rent * 12 / 52 * config.RENT_DEPOSIT_WEEKS)
     return listing
@@ -125,9 +137,11 @@ def private_rent_costs(listing):
 def apply_rent_details(listing, details):
     """Merge a lettings details page (see the sources' refine); False drops rooms and bedsits."""
     listing.description = f"{listing.description} {details['description']}"
-    for key in ("floor_area_m2", "floorplan", "available"):
+    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band"):
         if details.get(key):
             setattr(listing, key, details[key])
+    if details.get("council_tax_included") is not None:
+        listing.council_tax_included = details["council_tax_included"]
     private_rent_costs(listing)
     if details.get("deposit"):
         listing.min_deposit = details["deposit"]
@@ -138,11 +152,11 @@ def apply_rent_details(listing, details):
 
 def rental_filters():
     return (config.TARGET_NAME, config.TARGET_LAT, config.TARGET_LNG, config.RENT_SEARCH_MILES,
-            config.RENT_MIN, config.MAX_MONTHLY_COST, config.MIN_BEDROOMS)
+            config.RENT_MIN, config.MAX_RENT, config.MIN_BEDROOMS)
 
 
 def rental_in_scope(listing):
-    if (listing.rent is None or not config.RENT_MIN <= listing.rent <= config.MAX_MONTHLY_COST
+    if (listing.rent is None or not config.RENT_MIN <= listing.rent <= config.MAX_RENT
             or listing.bedrooms < max(1, config.MIN_BEDROOMS)
             or listing.lat is None or listing.lng is None):
         return False
@@ -167,7 +181,9 @@ def cached_search(name, search, minutes=None):
     listings = search()
     keep = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
             "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
-            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years")
+            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
+            "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
+            "council_tax_label")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "listings": [{**{k: v for k, v in asdict(l).items() if k in keep},

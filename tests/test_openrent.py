@@ -71,7 +71,8 @@ class OpenRentTests(unittest.TestCase):
         self.assertEqual((home.key, home.url, home.rent, home.bedrooms, home.lat, home.lng, home.bills),
                          ("orent:700002", "https://www.openrent.co.uk/700002", 1300, 1, 51.52, -0.15, 0))
         self.assertEqual(home.address, "Example Road, W1")
-        self.assertEqual(homes[1].bills, config.RENT_BILLS_ESTIMATE)
+        self.assertEqual(homes[1].utilities_monthly, config.RENT_BILLS_ESTIMATE)
+        self.assertEqual(homes[1].bills, config.RENT_BILLS_ESTIMATE + homes[1].council_tax_monthly)
         self.assertTrue(home.image.startswith("https://imagescdn.openrent.co.uk/"))
 
     def test_filters_before_metadata_requests_and_respects_exclusive_access(self):
@@ -212,12 +213,12 @@ class OpenRentTests(unittest.TestCase):
             openrent.fetch()
             self.assertEqual(openrent.fetch()[0].key, home.key)
             self.assertEqual(search.call_count, 1)
-            with patch.object(config, "MAX_MONTHLY_COST", 1500):
+            with patch.object(config, "MAX_RENT", 1500):
                 openrent.fetch()
             self.assertEqual(search.call_count, 2)
             cache._data["rent_search"]["orent"]["at"] = (
                 dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=11)).isoformat()
-            with patch.object(config, "MAX_MONTHLY_COST", 1500):
+            with patch.object(config, "MAX_RENT", 1500):
                 openrent.fetch()
             self.assertEqual(search.call_count, 3)
 
@@ -237,7 +238,7 @@ class OpenRentTests(unittest.TestCase):
         self.assertEqual(page.call_count, 1)
         self.assertEqual((home.min_deposit, home.available, home.floor_area_m2), (1450, "2026-11-20", 42))
         self.assertEqual(home.image, "https://imagescdn.openrent.co.uk/listings/700001/full.JPG")
-        self.assertEqual(home.bills, config.RENT_BILLS_ESTIMATE)
+        self.assertEqual(home.bills, config.RENT_BILLS_ESTIMATE + home.council_tax_monthly)
         cache._data["orent_detail"]["700001"]["at"] = "2000-01-01T00:00:00+00:00"
         with patch.object(net, "page", return_value=detail_html(rent=1400)) as page:
             self.assertTrue(openrent.refine(second))
@@ -272,11 +273,11 @@ class OpenRentTests(unittest.TestCase):
             with patch.object(config, "RENT_BILLS_ESTIMATE", 0):
                 first = openrent._listing(card(), index_row())
                 self.assertTrue(openrent.refine(first))
-                self.assertEqual(first.bills, 0)
+                self.assertEqual((first.utilities_monthly, first.bills), (0, first.council_tax_monthly))
             with patch.object(config, "RENT_BILLS_ESTIMATE", 100):
                 second = openrent._listing(card(), index_row())
                 self.assertTrue(openrent.refine(second))
-                self.assertEqual(second.bills, 100)
+                self.assertEqual((second.utilities_monthly, second.bills), (100, 100 + second.council_tax_monthly))
         self.assertEqual(page.call_count, 1)
 
     def test_refine_failure_does_not_cache_success_and_bills_are_authoritative(self):
@@ -288,7 +289,7 @@ class OpenRentTests(unittest.TestCase):
         with patch.object(net, "page", return_value=detail_html()):
             home = openrent._listing(card(), index_row(bills=1))
             self.assertTrue(openrent.refine(home))
-            self.assertEqual(home.bills, config.RENT_BILLS_ESTIMATE)
+            self.assertEqual(home.bills, config.RENT_BILLS_ESTIMATE + home.council_tax_monthly)
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ def search():
     out, seen = [], set()
     for page in range(1, config.RENT_MAX_PAGES + 1):
         params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
-                  "max-price": int(config.MAX_MONTHLY_COST)}
+                  "max-price": int(config.MAX_RENT)}
         if page > 1:
             params["page"] = page
         # flats only: drops house shares server-side (499 -> 309 results: fewer proxied pages)

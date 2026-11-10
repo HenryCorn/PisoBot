@@ -62,12 +62,17 @@ HELP = (
     "/restart – clear hidden homes & run a fresh report\n"
     "/reset – clear saved, hidden and feedback preferences (keeps listing history)\n"
     "/settings – your search parameters\n"
-    "/set &lt;name&gt; &lt;value&gt; – change one, e.g. <code>/set budget 1700</code>, "
+    "/set &lt;name&gt; &lt;value&gt; – change one, e.g. <code>/set rent 1500</code>, "
     "<code>/set destination Canary Wharf</code>, <code>/set commute default</code>\n"
     "/help – this message"
 )
 SETTINGS_HELP = (
-    "\n\nChange with <code>/set &lt;name&gt; &lt;value&gt;</code>, e.g. <code>/set budget 1700</code>, "
+    "\n\n<b>Money</b>: <b>rent</b> is the hard limit on the advertised monthly rent. "
+    "<b>bills</b> only estimates utilities (energy, water, broadband); council tax is estimated "
+    "from the advert's band and the borough's 2026-27 rate (London average, band C, when unknown). "
+    "Cards show rent first, then the all-in figure (rent + bills). <b>budget</b> is an optional "
+    "cap on that all-in figure: off unless you set it (<code>/set budget off</code> turns it off).\n"
+    "Change with <code>/set &lt;name&gt; &lt;value&gt;</code>, e.g. <code>/set rent 1500</code>, "
     "<code>/set beds 2</code>, <code>/set commute 45</code>, <code>/set destination EC2M 7PY</code> "
     "(a postcode, station or place). <code>/set &lt;name&gt; default</code> restores one; "
     "<code>/set all default</code> restores everything.\n"
@@ -325,8 +330,8 @@ class Handler:
                        + ", ".join(f"<code>{n}</code>" for n in (*users.PARAMS, "destination"))
                        + ". See /settings.")
             return
-        elif raw.lower() == "default":
-            params.pop(name, None)
+        elif raw.lower() == "default" or (name == "budget" and raw.lower() in ("off", "none", "no")):
+            params.pop(name, None)   # budget's default is off: no all-in cap
         else:
             try:
                 if name == "destination":

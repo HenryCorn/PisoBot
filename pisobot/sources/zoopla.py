@@ -65,7 +65,7 @@ def search():
     out, seen, last = [], set(), 1
     for page in range(1, config.RENT_MAX_PAGES + 1):
         params = {"q": f"{config.TARGET_NAME}, London", "radius": int(config.RENT_SEARCH_MILES),
-                  "beds_min": config.MIN_BEDROOMS, "price_max": int(config.MAX_MONTHLY_COST),
+                  "beds_min": config.MIN_BEDROOMS, "price_max": int(config.MAX_RENT),
                   "price_frequency": "per_month", "is_shared_accommodation": "false",
                   "is_student_accommodation": "false", "is_retirement_home": "false", "search_source": "to-rent"}
         if page > 1:

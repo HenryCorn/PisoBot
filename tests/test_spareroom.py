@@ -21,7 +21,7 @@ class SpareRoomTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.coords_patch = patch.object(spareroom, "_coords", return_value=NEAR)
         self.coords = self.coords_patch.start()
-        patch.object(config, "MAX_MONTHLY_COST", 3000).start()
+        patch.object(config, "MAX_RENT", 3000).start()
 
     def test_real_cards_parse_rent_beds_bills_and_links(self):
         with patch.object(spareroom.net, "page", return_value=page(FIXTURE)):

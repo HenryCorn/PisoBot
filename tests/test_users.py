@@ -60,22 +60,64 @@ class ParamTests(Base):
                 users.parse(name, raw)
 
     def test_criteria_overrides_and_restores_config(self):
-        before = config.MAX_MONTHLY_COST, config.TARGET_NAME
-        params = {"budget": 1900.0, "destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}}
+        before = config.MAX_RENT, config.TARGET_NAME
+        params = {"rent": 1900.0, "destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}}
         with users.criteria(params):
-            self.assertEqual((config.MAX_MONTHLY_COST, config.TARGET_NAME), (1900.0, "Bank"))
-        self.assertEqual((config.MAX_MONTHLY_COST, config.TARGET_NAME), before)
+            self.assertEqual((config.MAX_RENT, config.TARGET_NAME), (1900.0, "Bank"))
+        self.assertEqual((config.MAX_RENT, config.TARGET_NAME), before)
 
     def test_portal_groups_share_only_identical_queries_and_ignore_destination(self):
-        a = users.User(OWNER, owner=True, params={"budget": 1600, "beds": 2})
-        b = users.User(FRIEND, params={"budget": 2000, "radius": 10, "minrent": 900,
+        a = users.User(OWNER, owner=True, params={"rent": 1600, "beds": 2})
+        b = users.User(FRIEND, params={"rent": 2000, "radius": 10, "minrent": 900,
                                        "destination": {"name": "Bank", "lat": 51.5, "lng": -0.09}})
         groups = users.search_groups([a, b])
         self.assertEqual(len(groups), 2)
-        self.assertEqual(groups[0][0], {"budget": 1600, "radius": 5, "beds": 2, "minrent": 1000})
-        self.assertEqual(groups[1][0], {"budget": 2000, "radius": 10, "beds": 1, "minrent": 900})
+        self.assertEqual(groups[0][0], {"rent": 1600, "radius": 5, "beds": 2, "minrent": 1000})
+        self.assertEqual(groups[1][0], {"rent": 2000, "radius": 10, "beds": 1, "minrent": 900})
         b.params = {**a.params, "destination": b.params["destination"], "bills": 100}
         self.assertEqual(users.search_groups([a, b]), [(groups[0][0], [a, b])])
+
+    def test_rent_is_a_portal_filter_but_the_all_in_budget_is_local(self):
+        owner = users.User(OWNER, owner=True, params={"budget": 1800})
+        friend = users.User(FRIEND, params={"rent": 1400})
+        same_search = users.User("300", params={"budget": 1700})
+        groups = users.search_groups([owner, same_search, friend])
+        self.assertEqual([[p.chat_id for p in g[1]] for g in groups], [[OWNER, "300"], [FRIEND]])
+        self.assertEqual(groups[0][0]["rent"], 1600)
+        self.assertEqual(groups[1][0]["rent"], 1400)
+        self.assertNotIn("budget", groups[0][0])
+
+    def test_stored_legacy_budget_keeps_meaning_an_all_in_cap(self):
+        owner = users.User(OWNER, owner=True, params={"budget": 1800})
+        values = users.effective(owner)
+        self.assertEqual((values["budget"], values["rent"]), (1800, 1600))
+        self.assertEqual(users.overrides(owner.params), {"MAX_ALL_IN": 1800})
+        self.assertIn("<b>budget</b> £1,800", users.describe(owner))
+        with users.criteria(owner.params):
+            self.assertEqual((config.MAX_ALL_IN, config.MAX_RENT), (1800, 1600))
+            self.assertEqual(main._cost_reject(home(1, 1600)), "all_in_cap")   # 1600 + ~283 bills > 1800
+            self.assertIsNone(main._cost_reject(home(1, 1500)))
+        self.assertIsNone(config.MAX_ALL_IN)
+
+    def test_all_in_cap_is_off_by_default_and_listed_as_off(self):
+        person = users.User(FRIEND)
+        self.assertIsNone(users.effective(person)["budget"])
+        text = users.describe(person)
+        self.assertIn("<b>budget</b> off <i>(default)</i>", text)
+        self.assertIn("<b>rent</b> £1,600 <i>(default)</i>", text)
+
+    def test_two_people_keep_separate_caps_and_destinations(self):
+        a = users.User(OWNER, owner=True, params={"rent": 1500, "budget": 1700})
+        b = users.User(FRIEND, params={"destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}})
+        with users.criteria(a.params):
+            seen_a = (config.MAX_RENT, config.MAX_ALL_IN, config.TARGET_NAME)
+            with users.criteria(b.params):
+                seen_b = (config.MAX_RENT, config.MAX_ALL_IN, config.TARGET_NAME)
+        self.assertEqual(seen_a, (1500, 1700, "Oxford Circus"))
+        self.assertEqual(seen_b, (1500, 1700, "Bank"))      # criteria() only overrides what is set
+        with users.criteria(b.params):
+            self.assertEqual((config.MAX_RENT, config.MAX_ALL_IN), (1600, None))
+        self.assertEqual((config.MAX_RENT, config.MAX_ALL_IN), (1600, None))
 
     def test_only_invited_usernames_and_max_users_are_admitted(self):
         self.assertIsNone(users.register("300", "Eve", "eve"))
@@ -151,7 +193,7 @@ class SharedWatchTests(Base):
             self.addCleanup(target.stop)
         self.enterContext(patch.object(
             main, "passes_basic",
-            side_effect=lambda l: None if main._cost_ok(l) else "cost"))
+            side_effect=lambda l: main._cost_reject(l)))
         self.fetch = self.enterContext(patch.object(main.SOURCES["rm"], "fetch",
                                                     return_value=[home(1, 1200), home(2, 1500)]))
         self.sent = []
@@ -163,6 +205,7 @@ class SharedWatchTests(Base):
         self.admit({"bills": 100.0})
 
     def test_one_fetch_serves_everyone_with_their_own_criteria_and_alerts(self):
+        users.save_params(users.owner(), {"budget": 1600.0})   # owner caps rent + bills, friend only rent
         result = watch.Watcher(["rm"]).cycle()
         self.assertEqual(self.fetch.call_count, 1)
         self.assertEqual(result["people"], {OWNER: 1, "Bea": 2})
@@ -172,12 +215,97 @@ class SharedWatchTests(Base):
         watch.Watcher(["rm"]).cycle()
         self.assertEqual(sorted(self.sent), [(OWNER, "rm:3", "new"), (FRIEND, "rm:3", "new")])
         self.assertEqual(self.fetch.call_count, 2)
-        self.assertEqual(config.MAX_MONTHLY_COST, users.DEFAULTS["MAX_MONTHLY_COST"])
+        self.assertEqual(config.MAX_RENT, users.DEFAULTS["MAX_RENT"])
         owner_stats = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
         with users.use(users.get(FRIEND)):
             friend_stats = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
-        self.assertEqual(owner_stats["sources"]["rm"]["rejected"], {"cost": 1})
+        self.assertEqual(owner_stats["sources"]["rm"]["rejected"], {"all_in_cap": 1})
         self.assertEqual(friend_stats["sources"]["rm"]["rejected"], {})
+
+    def _owner_alerts(self):
+        return sorted((key, reason) for chat, key, reason in self.sent if chat == OWNER)
+
+    def _owner_seen(self):
+        return main.load_seen()
+
+    def test_changing_bills_estimates_never_fires_price_drops(self):
+        watch.Watcher(["rm"]).cycle()                       # baseline: rm:1 at £1,200, rm:2 at £1,500
+        self.assertEqual(self._owner_seen()["rm:1"]["rent"], 1200)
+        cheaper_tax = [home(1, 1200), home(2, 1500)]
+        for l in cheaper_tax:
+            l.council_tax_band = "A"                       # all-in falls ~£50 with the rent unchanged
+        self.fetch.return_value = cheaper_tax
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self.sent, [])
+        dearer_tax = [home(1, 1200), home(2, 1500)]
+        for l in dearer_tax:
+            l.council_tax_band = "H"
+        self.fetch.return_value = dearer_tax
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self.sent, [])
+
+    def test_an_advertised_rent_cut_still_alerts_and_stores_the_new_rent(self):
+        watch.Watcher(["rm"]).cycle()
+        self.fetch.return_value = [home(1, 1150), home(2, 1500)]
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self._owner_alerts(), [("rm:1", "drop")])
+        self.assertEqual(self._owner_seen()["rm:1"]["rent"], 1150)
+        self.sent.clear()
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self.sent, [])
+
+    def test_records_without_a_stored_rent_do_not_alert_and_get_one(self):
+        watch.Watcher(["rm"]).cycle()
+        seen = self._owner_seen()
+        for record in seen.values():
+            record.pop("rent")                              # written before rents were stored
+            record["cost"] = 3000                           # an old all-in figure must not matter
+        main.save_seen(seen)
+        self.fetch.return_value = [home(1, 1100), home(2, 1500)]
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self._owner_alerts(), [])             # the friend's records do carry a rent
+        self.assertEqual(self._owner_seen()["rm:1"]["rent"], 1100)    # backfilled
+        self.fetch.return_value = [home(1, 1050), home(2, 1500)]
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self._owner_alerts(), [("rm:1", "drop")])
+
+    def test_stored_budget_1800_baselines_quietly_when_it_is_changed(self):
+        users.save_params(users.owner(), {"budget": 1800.0})   # production owner today
+        self.fetch.return_value = [home(1, 1200), home(2, 1600)]
+        result = watch.Watcher(["rm"]).cycle()
+        self.assertEqual(result["people"][OWNER], 1)            # 1600 + ~283 > 1800: all_in_cap
+        stats = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
+        self.assertEqual(stats["sources"]["rm"]["rejected"], {"all_in_cap": 1})
+        self.assertEqual(set(main.load_seen()), {"rm:1"})
+        self.assertEqual(self.sent, [])
+        # the owner turns the all-in cap off WITHOUT clearing the baseline marker: the settings
+        # fingerprint alone must re-baseline, so the newly eligible rm:2 is not a flood of alerts
+        users.save_params(users.owner(), {})
+        before = len([t for c, t in self.texts if c == OWNER])
+        result = watch.Watcher(["rm"]).cycle()
+        self.assertEqual(result["people"][OWNER], 2)
+        self.assertEqual([(key, reason) for chat, key, reason in self.sent if chat == OWNER], [])
+        owner_texts = [t for c, t in self.texts if c == OWNER]
+        self.assertEqual(len(owner_texts), before + 1)
+        self.assertIn("2 current matches", owner_texts[-1])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
+        # changing the rent cap re-baselines the same way, and ordinary alerts resume afterwards
+        users.save_params(users.owner(), {"rent": 1700.0})
+        self.fetch.return_value = [home(1, 1200), home(2, 1600), home(3, 1650)]
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual([k for c, k, r in self.sent if c == OWNER], [])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2", "rm:3"})
+        self.fetch.return_value = [home(1, 1200), home(2, 1600), home(3, 1650), home(4, 1300)]
+        watch.Watcher(["rm"]).cycle()
+        self.assertEqual(self._owner_alerts(), [("rm:4", "new")])
+
+    def test_rent_cap_rejections_are_reported_separately_from_the_all_in_cap(self):
+        self.fetch.return_value = [home(1, 1550), home(2, 1700)]
+        watch.Watcher(["rm"]).cycle()
+        owner = json.loads(d1.query("SELECT stats FROM rental_funnel ORDER BY id LIMIT 1")[0]["stats"])
+        self.assertEqual(owner["sources"]["rm"]["rejected"], {"rent_cap": 1})
+        self.assertEqual(owner["sources"]["rm"]["matched"], 1)       # £1,550 rent is no longer hidden
+        self.assertIn("rm:1", main.load_seen())
 
     def test_report_goes_only_to_whoever_asked(self):
         watch.Watcher(["rm"]).cycle()
@@ -190,12 +318,12 @@ class SharedWatchTests(Base):
 
     def test_different_queries_preserve_both_peoples_capped_inventory(self):
         friend = users.get(FRIEND)
-        users.save_params(friend, {**friend.params, "budget": 2000})
+        users.save_params(friend, {**friend.params, "rent": 2000})
         queries = []
 
         def fetch():
-            queries.append((config.MAX_MONTHLY_COST, config.TARGET_LAT, config.TARGET_LNG))
-            return [home(1)] if config.MAX_MONTHLY_COST == 1600 else [home(2, 1500)]
+            queries.append((config.MAX_RENT, config.TARGET_LAT, config.TARGET_LNG))
+            return [home(1)] if config.MAX_RENT == 1600 else [home(2, 1500)]
 
         self.fetch.side_effect = fetch
         result = watch.Watcher(["rm"]).cycle()
@@ -210,7 +338,7 @@ class SharedWatchTests(Base):
 
         def change_during_baseline(*args, **kwargs):
             if users.current_chat() == OWNER:
-                users.save_params(users.owner(), {"budget": 2000})
+                users.save_params(users.owner(), {"rent": 2000})
                 d1.query("DELETE FROM meta WHERE name = 'watch_initialized'")
             return real(*args, **kwargs)
 
@@ -238,10 +366,10 @@ class SharedWatchTests(Base):
 
     def test_a_failed_search_group_does_not_block_the_other_group(self):
         friend = users.get(FRIEND)
-        users.save_params(friend, {**friend.params, "budget": 2000})
+        users.save_params(friend, {**friend.params, "rent": 2000})
 
         def fetch():
-            if config.MAX_MONTHLY_COST == 1600:
+            if config.MAX_RENT == 1600:
                 raise RuntimeError("owner search failed")
             return [home(2, 1500)]
 
@@ -254,11 +382,11 @@ class SharedWatchTests(Base):
 
     def test_local_cli_uses_owner_settings_but_search_centre_stays_fixed(self):
         users.save_params(users.owner(), {
-            "budget": 2000, "destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}})
+            "rent": 2000, "destination": {"name": "Bank", "lat": 51.513, "lng": -0.089}})
         queries = []
 
         def fetch():
-            queries.append((config.MAX_MONTHLY_COST, config.TARGET_NAME))
+            queries.append((config.MAX_RENT, config.TARGET_NAME))
             return [home(2, 1500)]
 
         self.fetch.side_effect = fetch
@@ -320,6 +448,34 @@ class SharedBotTests(Base):
         self.assertIn("<b>beds</b> 1 <i>(default)</i>", self.texts(FRIEND)[-1])
         self.handler.handle(message("/set budget default"))
         self.assertEqual(users.get(FRIEND).params, {})
+
+    def test_budget_can_be_turned_off_and_settings_explain_rent_budget_and_bills(self):
+        self.admit()
+        self.handler.handle(message("/set budget 1800"))
+        self.assertEqual(users.get(FRIEND).params, {"budget": 1800})
+        for word in ("off", "default"):
+            self.handler.handle(message("/set budget 1800"))
+            self.handler.handle(message(f"/set budget {word}"))
+            self.assertEqual(users.get(FRIEND).params, {}, word)
+        self.handler.handle(message("/set rent 1500"))
+        self.assertEqual(users.get(FRIEND).params, {"rent": 1500})
+        self.handler.handle(message("/settings"))
+        text = self.texts(FRIEND)[-1]
+        self.assertIn("<b>rent</b> £1,500", text)
+        self.assertIn("<b>budget</b> off <i>(default)</i>", text)
+        self.assertIn("hard limit on the advertised monthly rent", text)
+        self.assertIn("council tax", text)
+        self.assertIn("/set budget off", text)
+        self.assertIn("utilities", text)
+
+    def test_changing_rent_or_budget_rebaselines_that_person(self):
+        friend = self.admit()
+        for command in ("/set rent 1500", "/set budget 1800", "/set budget off"):
+            with users.use(friend):
+                watch._put_meta("watch_initialized", "1")
+            self.handler.handle(message(command))
+            with users.use(friend):
+                self.assertIsNone(watch._meta("watch_initialized"), command)
 
     def test_owner_settings_live_in_the_users_table(self):
         self.handler.handle(message("/set commute 35", OWNER, "quique"))

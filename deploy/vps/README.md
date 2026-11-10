@@ -197,16 +197,19 @@ Everyone has an independent search: parameters in the primary database's
 baseline and alerts). The owner keeps the original `pisobot.db`/`seen.json`.
 
 `/settings` shows a person's parameters and `/set <name> <value>` changes one:
-`budget` (rent + bills, £/mo), `beds`, `commute` (minutes), `crime`, `bills`
-(estimate when not included), `minrent`, `area` (m²), `radius` (1/3/5/10/15
+`rent` (maximum advertised rent, £/mo: the hard limit, default 1,600), `budget`
+(optional cap on rent + estimated bills; off unless set, `/set budget off` clears
+it; a `budget` stored before this split keeps meaning that all-in cap), `beds`,
+`commute` (minutes), `crime`, `bills` (utilities estimate when not included;
+council tax is estimated separately from the advert's band), `minrent`, `area` (m²), `radius` (1/3/5/10/15
 miles round Oxford Circus) and `destination` (postcode, outcode, `lat,lng` or a
 station/place name, resolved with postcodes.io / TfL). `/set <name> default`
 restores one, `/set all default` everything. A change clears only that person's
 baseline: the next scan re-records their matches with one summary instead of
 alerting every newly matching home; `/report` shows them all.
 
-Each cycle shares portal searches only when budget, radius, minimum bedrooms and
-minimum rent are identical. Different portal filters receive separate searches,
+Each cycle shares portal searches only when rent, radius, minimum bedrooms and
+minimum rent are identical (the all-in `budget` is applied locally and never splits a search). Different portal filters receive separate searches,
 each bounded by `RENT_MAX_PAGES`. A single wide union query would let one person's
 newer/expensive listings displace the other's affordable inventory under that cap.
 Details and enrichment caches are shared, but additional qualifying homes can

@@ -47,7 +47,7 @@ def search():
     for page in range(config.RENT_MAX_PAGES):
         html = net.page(f"{BASE}/property-to-rent/find.html", params={
             "locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
-            "minBedrooms": config.MIN_BEDROOMS, "maxPrice": int(config.MAX_MONTHLY_COST),
+            "minBedrooms": config.MIN_BEDROOMS, "maxPrice": int(config.MAX_RENT),
             "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
             "sortType": 6, "index": page * PAGE_SIZE})
         m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
@@ -102,15 +102,20 @@ def _details(p):
         available = None
     features = " ".join(f for f in p.get("keyFeatures") or [] if isinstance(f, str))
     plans = [f.get("url") for f in p.get("floorplans") or [] if isinstance(f, dict) and f.get("url")]
+    living = p.get("livingCosts") or {}
+    band = str(living.get("councilTaxBand") or "").strip().upper()
     return {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
                                 f"{features} {(p.get('text') or {}).get('description', '')}"),
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
-            "deposit": lettings.get("deposit") or None, "available": available}
+            "deposit": lettings.get("deposit") or None, "available": available,
+            "council_tax_band": band if band in "ABCDEFGH" and len(band) == 1 else None,
+            "council_tax_included": living["councilTaxIncluded"]
+            if isinstance(living.get("councilTaxIncluded"), bool) else None}
 
 
 def refine(listing):
     d = cache.get("rm_detail", listing.id)
-    if d is None:
+    if d is None or "council_tax_band" not in d:   # entries cached before the band was captured
         try:
             p = _property_data(net.page(listing.url))
         except (RequestException, ValueError) as ex:

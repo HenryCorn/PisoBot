@@ -62,6 +62,11 @@ class Listing:
     rent: Optional[float] = None      # monthly rent (on the unowned share, or LLR rent)
     service_charge: Optional[float] = None
     bills: Optional[float] = None     # private rent: council tax + utilities (0 when included)
+    council_tax_band: Optional[str] = None       # private rent: band from the advert, A-H
+    council_tax_included: Optional[bool] = None  # private rent: the portal says rent covers council tax
+    council_tax_monthly: Optional[float] = None  # private rent: part of bills (derived per person)
+    utilities_monthly: Optional[float] = None    # private rent: other part of bills
+    council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
     available: Optional[str] = None   # private rent: ISO move-in date, when published
     min_deposit: Optional[float] = None
     lat: Optional[float] = None

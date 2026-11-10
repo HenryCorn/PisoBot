@@ -25,9 +25,13 @@ All thresholds live in `pisobot/config.py` and can be overridden with env vars o
 **Private rentals are on demand only**: scheduled runs and `/report` cover shared ownership;
 `/rentals` in Telegram (or the workflow's *rentals* box, `python -m pisobot.main --rentals`) searches the
 three lettings sources and sends a separate rentals report, with its own map at `docs/rentals.html`.
-It never counts as the 06:30/18:00 report. Rentals count rent + bills against the same £1,600 budget. Bills are estimated at
-`RENT_BILLS_ESTIMATE` (£280: council tax, energy, water, broadband) unless the advert says they are
-included; the deposit is the advertised one, else 5 weeks' rent. Rooms filed as flats (shared
+It never counts as the 06:30/18:00 report. The hard limit is the advertised monthly rent, `MAX_RENT` (£1,600); the portals are searched with
+that maximum price. Bills are estimated and shown, not used to hide flats: council tax comes from the
+advert's band and the borough's 2026-27 Band D (`pisobot/council_tax.py`, MHCLG official statistics; the
+London average and band C when the band or borough is unknown, labelled `~`), and utilities from
+`RENT_BILLS_ESTIMATE` (£130: energy, water, broadband), each omitted when the advert says it is
+included. Cards read `£1,550 rent · ~£1,812 all-in (council tax B £131 · utilities ~£131)`. A person can
+also cap that all-in figure (`budget`, off by default); the deposit is the advertised one, else 5 weeks' rent. Rooms filed as flats (shared
 kitchen/bathroom, ensuite rooms, co-living, < `RENT_MIN_AREA_M2`, rent < `RENT_MIN`) and short or student
 lets are dropped. Portals block GitHub's runners, so with `DECODO_AUTH_TOKEN` set these pages are fetched
 through [Decodo's web data API](https://dashboard.decodo.com/web-data/playground) from UK residential IPs.

@@ -67,6 +67,27 @@ def _money(value, compact=False):
     return f"£{value:,.0f}"
 
 
+def rental_all_in(l):
+    """'~£1,812 all-in': rent plus bills, with ~ while any part is estimated."""
+    return f"{'~' if l.estimated and l.monthly_cost is not None else ''}{_money(l.monthly_cost)} all-in"
+
+
+def rental_bills_detail(l):
+    """'council tax B £131 · utilities ~£131'; names what is estimated or included."""
+    if not l.bills and not l.council_tax_monthly and not l.utilities_monthly:
+        return "bills included" if "bills" not in l.estimated else "bills ~£0 (estimate)"
+    parts = []
+    if l.council_tax_monthly:
+        parts.append(f"{l.council_tax_label or 'council tax'} {_money(l.council_tax_monthly)}")
+    else:
+        parts.append("council tax incl.")
+    if l.utilities_monthly:
+        parts.append(f"utilities {'~' if 'bills' in l.estimated else ''}{_money(l.utilities_monthly)}")
+    else:   # an estimate that came to £0 is not the same as bills being included in the rent
+        parts.append("utilities ~£0 (estimate)" if "bills" in l.estimated else "utilities incl.")
+    return " · ".join(parts)
+
+
 def finance_lines(l):
     def amount(value, component):
         return ("~" if component in l.estimated and value is not None else "") + _money(value)
@@ -74,10 +95,8 @@ def finance_lines(l):
     sc = amount(l.service_charge, "service charge")
     rent = amount(l.rent, "rent")
     if l.tenure == "rent" and l.bills is not None:
-        estimated_bills = "bills" in l.estimated or "council tax" in l.estimated
-        bills = ("~£0 (estimate)" if estimated_bills else "incl.") if l.bills == 0 else amount(l.bills, "bills")
         move_in = f" · 📅 from {l.available}" if l.available else ""
-        return [f"{total} <i>(R: {rent} · Bills: {bills})</i>",
+        return [f"💷 <b>{_money(l.rent)} rent</b> · {rental_all_in(l)} <i>({rental_bills_detail(l)})</i>",
                 f"🔑 {e(l.scheme)} · 💰 <b>{_money(l.deposit, True)} dep</b>{move_in}"]
     if l.tenure == "rent":
         return [f"{total} <i>(R: {rent} · SC: {sc})</i>", "🔑 Rent · no mortgage needed"]
@@ -198,8 +217,10 @@ def send_photo_bytes(jpeg, caption="", reply_markup=None):
 
 def _short_line(l, flags):
     est = " (est.)" if l.estimated else ""
+    money = (f"{_money(l.rent)} rent · {rental_all_in(l)}" if l.tenure == "rent" and l.bills is not None
+             else f"£{l.monthly_cost:,.0f}/mo{est}")
     return (f'<a href="{e(l.url)}"><b>{e(l.address[:70])}</b></a> {flags}\n'
-            f'💷 £{l.monthly_cost:,.0f}/mo{est} · 🛏 {l.bedrooms} bed · '
+            f'💷 {money} · 🛏 {l.bedrooms} bed · '
             f'⏱ {l.travel_minutes} min · 🛡 {crime_label(l)}').rstrip()
 
 
@@ -210,10 +231,11 @@ def _group_line(group, flags_of, map_url=None):
     first = min(group, key=lambda l: l.monthly_cost)
     flags = " ".join(sorted({f for l in group for f in flags_of(l).split()}))
     est = " · includes estimates" if any(l.estimated for l in group) else ""
+    all_in = " all-in" if all(l.tenure == "rent" and l.bills is not None for l in group) else ""
     compare = (f' · <a href="{e(map_url or config.MAP_URL)}">Compare all on map</a>'
                if map_url or config.MAP_URL else "")
     return (f"<b>{e(first.address[:70])}</b> · {len(group)} homes {flags}\n"
-            f"💷 £{costs[0]:,.0f}–£{costs[-1]:,.0f}/mo · 🛏 {bed_txt}{est}\n"
+            f"💷 £{costs[0]:,.0f}–£{costs[-1]:,.0f}/mo{all_in} · 🛏 {bed_txt}{est}\n"
             f'<a href="{e(first.url)}">Open cheapest home</a>{compare}').rstrip()
 
 
@@ -239,7 +261,8 @@ def report_messages(top, rest, saved, title, flags_of, map_url=None):
     if matches:
         cheapest = min(matches.values(), key=lambda l: l.monthly_cost)
         fastest = min(matches.values(), key=lambda l: l.travel_minutes)
-        title += (f"\n💷 From <b>£{cheapest.monthly_cost:,.0f}/mo</b> · "
+        all_in = " all-in" if cheapest.tenure == "rent" and cheapest.bills is not None else ""
+        title += (f"\n💷 From <b>£{cheapest.monthly_cost:,.0f}/mo</b>{all_in} · "
                   f"⏱ Fastest <b>{fastest.travel_minutes} min</b>")
     else:
         title += "\nNo homes matched your filters this time."

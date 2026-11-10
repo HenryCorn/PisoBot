@@ -29,7 +29,11 @@ TARGET_LAT = 51.5152
 TARGET_LNG = -0.1419
 
 # Hard filters
-MAX_MONTHLY_COST = _env("MAX_MONTHLY_COST", 1600)   # mortgage + rent + service charge (private rent: + bills)
+MAX_MONTHLY_COST = _env("MAX_MONTHLY_COST", 1600)   # shared ownership: mortgage + rent + service charge
+# Private rentals: the hard limit is the ADVERTISED monthly rent. Bills are estimated and shown;
+# they only limit a search when a person sets an all-in cap (users.py "budget"), off by default.
+MAX_RENT = _env("MAX_RENT", 1600)
+MAX_ALL_IN = _env("MAX_ALL_IN", None)
 MAX_DEPOSIT = _env("MAX_DEPOSIT", 20000)
 PREFERRED_DEPOSIT = _env("PREFERRED_DEPOSIT", 10000)
 MIN_BEDROOMS = _env("MIN_BEDROOMS", 1, int)
@@ -55,8 +59,13 @@ MIN_FULL_VALUE_BY_BEDS = {1: 350000, 2: 450000, 3: 550000}
 # Telegram (main.py --rentals). Portals block cloud runners, so they go through Decodo when
 # DECODO_AUTH_TOKEN is set (~25 pages per search plus details pages for new candidates; the free
 # plan is 2,000 requests). A repeat /rentals within RENT_REFRESH_HOURS reuses the last search.
-RENT_BILLS_ESTIMATE = _env("RENT_BILLS_ESTIMATE", 280)  # council tax + energy + water + broadband
-RENT_COUNCIL_TAX_ESTIMATE = _env("RENT_COUNCIL_TAX_ESTIMATE", 150)  # "bills included except council tax"
+# Utilities (energy + water + broadband) when the advert does not include bills. Council tax is
+# estimated separately from the advert's band (council_tax.py); band C in the London-wide average
+# (about £153) plus this stays near the old flat £280 total.
+RENT_BILLS_ESTIMATE = _env("RENT_BILLS_ESTIMATE", 130)
+# Legacy flat council tax figure, kept only to recognise detail-cache entries written before
+# council tax was derived from the band (sources/openrent.py).
+RENT_COUNCIL_TAX_ESTIMATE = _env("RENT_COUNCIL_TAX_ESTIMATE", 150)
 RENT_MIN = _env("RENT_MIN", 1000)   # cheaper "1 bed" lets in zones 1-3 are rooms in shared houses
 RENT_MIN_AREA_M2 = _env("RENT_MIN_AREA_M2", 30)  # London Plan 1-bed minimum is 37 m²; smaller = room/bedsit
 RENT_DEPOSIT_WEEKS = 5                                  # Tenant Fees Act cap below £50k/yr rent
