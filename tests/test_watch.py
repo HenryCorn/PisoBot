@@ -208,6 +208,59 @@ class WatchTests(unittest.TestCase):
         self.watcher.cycle()
         self.assertEqual([call.args[0].key for call in self.send.call_args_list], ["rm:3"])
 
+    def test_one_failed_card_does_not_starve_later_healthy_cards(self):
+        self.watcher.cycle()
+        self.fetch.return_value = [home(), home(2), home(3), home(4)]
+        def fail_one(listing, reason):
+            if listing.key == "rm:2":
+                raise RuntimeError("Telegram sendPhoto failed (400): Bad Request: invalid photo")
+        self.send.side_effect = fail_one
+        with self.assertRaises(RuntimeError):
+            self.watcher.cycle()
+        self.assertEqual([c.args[0].key for c in self.send.call_args_list], ["rm:2", "rm:3", "rm:4"])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:3", "rm:4"})
+        self.send.reset_mock(side_effect=True)
+        self.watcher.cycle()
+        self.assertEqual([c.args[0].key for c in self.send.call_args_list], ["rm:2"])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2", "rm:3", "rm:4"})
+
+    def test_total_delivery_outage_keeps_all_new_adverts_retryable(self):
+        self.watcher.cycle()
+        self.fetch.return_value = [home(), home(2), home(3)]
+        self.send.side_effect = RuntimeError("Telegram sendMessage request failed (Timeout)")
+        with self.assertRaises(RuntimeError):
+            self.watcher.cycle()
+        self.assertEqual(self.send.call_count, 2)
+        self.assertEqual(set(main.load_seen()), {"rm:1"})
+        self.send.reset_mock(side_effect=True)
+        self.watcher.cycle()
+        self.assertEqual([c.args[0].key for c in self.send.call_args_list], ["rm:2", "rm:3"])
+
+    def test_failed_card_attempts_still_respect_the_existing_cycle_cap(self):
+        self.watcher.cycle()
+        self.fetch.return_value = [home(), home(2), home(3)]
+        self.send.side_effect = RuntimeError("card unavailable")
+        with patch.object(config, "MAX_ALERTS_PER_RUN", 1), self.assertRaises(RuntimeError):
+            self.watcher.cycle()
+        self.assertEqual(self.send.call_count, 1)
+        self.assertEqual(set(main.load_seen()), {"rm:1"})
+
+    def test_delivery_diagnostics_never_echo_raw_exception_details(self):
+        secret = "123456:SECRET_NOT_FOR_LOGGING"
+        samples = [
+            (f"Telegram sendPhoto failed (400): can't parse entities {secret}", "sendPhoto HTTP 400 invalid_html"),
+            (f"Telegram sendMessage failed (429): Too Many Requests {secret}", "sendMessage HTTP 429 rate_limited"),
+            (f"Telegram sendPhoto request failed (Timeout) https://api.telegram.org/bot{secret}/sendPhoto",
+             "Telegram transport failure"),
+            (secret, "listing sender RuntimeError"),
+        ]
+        for raw, expected in samples:
+            with self.subTest(expected=expected):
+                label = telegram.delivery_failure_label(RuntimeError(raw))
+                self.assertEqual(label, expected)
+                self.assertNotIn(secret, label)
+                self.assertNotIn("api.telegram.org", label)
+
     def test_run_requests_are_coalesced_and_invalid_commands_rejected(self):
         self.assertTrue(self.watcher.request_run("rentals"))
         self.assertFalse(self.watcher.request_run("report"))

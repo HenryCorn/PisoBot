@@ -512,6 +512,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
 
     # 6. ... otherwise individual alerts
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
+    delivery_errors = []
     for l, reason in to_send[: config.MAX_ALERTS_PER_RUN]:
         check_stop()
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
@@ -519,7 +520,16 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if not live:
             continue
         _ensure_photos(l)
-        telegram.send_listing(l, reason)
+        try:
+            telegram.send_listing(l, reason)
+        except RuntimeError as ex:
+            if not (watch and rentals and os.environ.get("STORAGE") == "local"):
+                raise  # do not change cloud, sales or report delivery semantics
+            print(f"Listing delivery failed for {l.key}: {telegram.delivery_failure_label(ex)}",
+                  file=sys.stderr)
+            delivery_errors.append(ex)
+            telegram.throttle()
+            continue  # no seen checkpoint: this advert remains retryable on the next head poll
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if watch:
             save_seen(seen)
@@ -538,6 +548,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if live:
         save_seen(seen)
         prefs.save(p)
+    if delivery_errors:
+        # Healthy later cards have been checkpointed; the cycle still fails honestly,
+        # retaining the existing operational warning path and retrying unsent adverts.
+        raise delivery_errors[0] from None
     return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
             "complete": not failures and not enrich_failures}
 

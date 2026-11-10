@@ -2,6 +2,7 @@ import datetime as dt
 import html
 import json
 import os
+import re
 import time
 from zoneinfo import ZoneInfo
 
@@ -47,6 +48,24 @@ def _call(method, files=None, **data):
         # Telegram's description says what's wrong (e.g. "chat not found", "Unauthorized")
         raise RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
     return res
+
+
+def delivery_failure_label(error):
+    """Allowlisted diagnostics only: never log raw exceptions, API URLs or descriptions."""
+    text = str(error)
+    match = re.match(r"Telegram (sendPhoto|sendMessage) failed \((\d{3})\):", text)
+    if match:
+        description = text[match.end():].lower()
+        categories = (("too long", "text_too_long"), ("parse entities", "invalid_html"),
+                      ("too many requests", "rate_limited"), ("photo", "photo_rejected"),
+                      ("image", "photo_rejected"), ("button", "invalid_button"),
+                      ("url", "invalid_url"), ("unauthorized", "unauthorized"),
+                      ("forbidden", "forbidden"))
+        kind = next((label for phrase, label in categories if phrase in description), "api_rejected")
+        return f"{match[1]} HTTP {match[2]} {kind}"
+    if re.match(r"Telegram (sendPhoto|sendMessage) request failed", text):
+        return "Telegram transport failure"
+    return "listing sender RuntimeError"
 
 
 def throttle():
