@@ -201,7 +201,8 @@ def cached_search(name, search, minutes=None):
             "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
             "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
-            "council_tax_label", "first_listed", "update_reason", "update_date", "bathrooms", "agent",
+            "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
+            "bathrooms", "agent",
             "advert_deposit")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),

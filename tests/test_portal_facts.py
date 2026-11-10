@@ -70,6 +70,31 @@ class CapturedFactsTests(unittest.TestCase):
         self.assertIsNone(string_agent.advert_deposit)
         self.assertEqual(string_agent.min_deposit, round(1400 * 12 / 52 * config.RENT_DEPOSIT_WEEKS))
 
+    def test_every_observed_text_form_of_the_age_field(self):
+        cases = {
+            "Added today": ("added", "2026-11-10", None),
+            "Added yesterday": ("added", "2026-11-09", None),
+            "Reduced yesterday": ("reduced", "2026-11-09", None),
+            "Reduced today": ("reduced", "2026-11-10", None),
+            "Reduced < 14 days": ("reduced", None, "Reduced < 14 days"),
+            "Added > 14 days": ("added", None, "Added > 14 days"),
+            "  added   today ": ("added", "2026-11-10", None),
+            "3": ("added_or_reduced", "2026-11-07", None),
+            3: ("added_or_reduced", "2026-11-07", None),
+        }
+        for value, (reason, date, phrase) in cases.items():
+            with self.subTest(value=value), patch.object(otm_rent, "_today", return_value=TODAY):
+                home = otm_rent._listing(otm_card(**{"days-since-added-reduced": value}))
+            self.assertEqual((home.update_reason, home.update_date, home.update_text),
+                             (reason, date, phrase))
+            self.assertEqual(home.update_text_on, "2026-11-10" if phrase else None)
+
+    def test_unrecognised_or_missing_age_text_is_ignored(self):
+        for value in (None, "", "Sometime", "Let agreed"):
+            with self.subTest(value=value):
+                home = otm_rent._listing(otm_card(**{"days-since-added-reduced": value}))
+                self.assertEqual((home.update_reason, home.update_date, home.update_text), (None, None, None))
+
     def test_advert_deposit_survives_a_per_person_bills_recalculation(self):
         home = otm_rent._listing(otm_card(**{"fees-description": "Deposit: £1,500"}))
         self.assertEqual(private_rent_costs(home).min_deposit, 1500)
@@ -105,6 +130,22 @@ class CardTests(unittest.TestCase):
         for fields, expected in cases:
             with self.subTest(fields=fields):
                 self.assertEqual(telegram.age_text(self.listing(**fields), TODAY), expected)
+
+    def test_portal_phrase_is_shown_verbatim_only_on_the_day_it_was_read(self):
+        l = self.listing(update_reason="reduced", update_text="Reduced < 14 days", update_text_on="2026-11-10")
+        self.assertEqual(telegram.age_text(l, TODAY), "Reduced < 14 days")
+        self.assertEqual(telegram.portal_line(l, TODAY), "🕒 Reduced < 14 days")
+        self.assertEqual(telegram.age_text(l, dt.date(2026, 11, 11)), "")     # replayed from an older cache
+        l.first_listed = "2026-11-01"
+        self.assertEqual(telegram.age_text(l, dt.date(2026, 11, 11)), "Added 10 days ago")
+        added = self.listing(update_reason="added", update_text="Added > 14 days", update_text_on="2026-11-10")
+        self.assertEqual(telegram.age_text(added, TODAY), "Added > 14 days")
+
+    def test_exact_dates_from_text_stay_right_when_the_cache_is_replayed(self):
+        with patch.object(otm_rent, "_today", return_value=TODAY):
+            l = otm_rent._listing(otm_card(**{"days-since-added-reduced": "Reduced yesterday"}))
+        self.assertEqual(telegram.age_text(l, TODAY), "Reduced yesterday")
+        self.assertEqual(telegram.age_text(l, dt.date(2026, 11, 12)), "Reduced 3 days ago")
 
     def test_card_shows_age_and_agent(self):
         l = self.listing(update_reason="reduced", update_date="2026-11-10", agent="Foxtons <Chiswick>")

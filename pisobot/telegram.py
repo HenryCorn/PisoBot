@@ -114,12 +114,15 @@ def _today():
 
 def age_text(l, today=None):
     """The portal's own listing age: 'Added today', 'Reduced yesterday', 'Added 3 days ago'."""
+    today = today or _today()
     when = l.update_date if l.update_reason else None
     verb = {"added": "Added", "reduced": "Reduced", "added_or_reduced": "Added/reduced"}.get(l.update_reason)
+    if not when and l.update_text and l.update_text_on == today.isoformat():
+        return l.update_text      # the portal's own vague phrase, only while it was read today
     if not when:
         when, verb = l.first_listed, "Added"
     try:
-        days = ((today or _today()) - dt.date.fromisoformat(when)).days
+        days = (today - dt.date.fromisoformat(when)).days
     except (TypeError, ValueError):
         return ""
     if days < 0:

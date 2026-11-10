@@ -71,6 +71,8 @@ class Listing:
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
     update_date: Optional[str] = None            # ISO date of that update
+    update_text: Optional[str] = None            # portal's own phrase when it gives no exact date
+    update_text_on: Optional[str] = None         # ISO date that phrase was read (it ages)
     bathrooms: Optional[int] = None
     agent: Optional[str] = None                  # letting agent / branch name
     advert_deposit: Optional[float] = None       # deposit stated on the search card

@@ -20,6 +20,28 @@ def _today():
     return dt.date.today()
 
 
+def _apply_age(l, value):
+    """'days-since-added-reduced' is text such as 'Added today', 'Reduced yesterday',
+    'Reduced < 14 days' or 'Added > 14 days' (a bare day count is accepted too). Exact dates are
+    stored absolute so cached searches stay right; vague phrases are kept verbatim and dated by
+    when they were read, because they must not be shown once that reading is old."""
+    value = " ".join(str(value if value is not None else "").split())
+    today = _today()
+    if value.isdigit():
+        l.update_reason = "added_or_reduced"
+        l.update_date = (today - dt.timedelta(days=int(value))).isoformat()
+        return
+    m = re.match(r"(added|reduced)\b\s*(.*)$", value, re.I)
+    if not m:
+        return
+    l.update_reason = m[1].lower()
+    when = m[2].lower()
+    if when in ("today", "yesterday"):
+        l.update_date = (today - dt.timedelta(days=int(when == "yesterday"))).isoformat()
+    elif when:
+        l.update_text, l.update_text_on = value, today.isoformat()
+
+
 def _listing(x):
     title = x.get("property-title", "")
     if (x.get("ad?") or not x.get("id") or SHARED.search(x.get("humanised-property-type") or "")
@@ -40,11 +62,7 @@ def _listing(x):
         image=images[0] if images else None, images=images,
         description=text(f"{title}. {feats} {x.get('summary', '')}"),
     )
-    days = x.get("days-since-added-reduced")
-    if str(days if days is not None else "").strip().isdigit():
-        # the portal merges "added" and "reduced"; an absolute date keeps the age right in cached searches
-        l.update_reason = "added_or_reduced"
-        l.update_date = (_today() - dt.timedelta(days=int(days))).isoformat()
+    _apply_age(l, x.get("days-since-added-reduced"))
     l.bathrooms = int(x["bathrooms"]) if str(x.get("bathrooms") or "").isdigit() else None
     agent = x.get("agent")
     if isinstance(agent, dict):
