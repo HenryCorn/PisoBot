@@ -129,9 +129,27 @@ def private_rent_costs(listing):
     listing.council_tax_monthly, listing.utilities_monthly = tax, utilities
     listing.council_tax_label = label
     listing.bills = tax + utilities
-    if listing.rent:
+    if listing.advert_deposit:
+        listing.min_deposit = listing.advert_deposit
+    elif listing.rent:
         listing.min_deposit = round(listing.rent * 12 / 52 * config.RENT_DEPOSIT_WEEKS)
     return listing
+
+
+def iso_date(value):
+    """'2026-11-09T14:03:12Z' / '2026-11-09' -> '2026-11-09', else None."""
+    try:
+        return dt.date.fromisoformat(str(value or "")[:10]).isoformat()
+    except ValueError:
+        return None
+
+
+def update_kind(reason):
+    """A portal's listing-update reason as "added" / "reduced" (None when unrecognised)."""
+    reason = str(reason or "").lower()
+    if "reduc" in reason:
+        return "reduced"
+    return "added" if "new" in reason or "add" in reason else None
 
 
 def apply_rent_details(listing, details):
@@ -183,7 +201,8 @@ def cached_search(name, search, minutes=None):
             "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
             "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
-            "council_tax_label")
+            "council_tax_label", "first_listed", "update_reason", "update_date", "bathrooms", "agent",
+            "advert_deposit")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "listings": [{**{k: v for k, v in asdict(l).items() if k in keep},

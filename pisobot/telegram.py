@@ -108,6 +108,31 @@ def finance_lines(l):
     ]
 
 
+def _today():
+    return dt.date.today()
+
+
+def age_text(l, today=None):
+    """The portal's own listing age: 'Added today', 'Reduced yesterday', 'Added 3 days ago'."""
+    when = l.update_date if l.update_reason else None
+    verb = {"added": "Added", "reduced": "Reduced", "added_or_reduced": "Added/reduced"}.get(l.update_reason)
+    if not when:
+        when, verb = l.first_listed, "Added"
+    try:
+        days = ((today or _today()) - dt.date.fromisoformat(when)).days
+    except (TypeError, ValueError):
+        return ""
+    if days < 0:
+        return ""
+    return f"{verb} " + ("today" if days == 0 else "yesterday" if days == 1 else f"{days} days ago")
+
+
+def portal_line(l, today=None):
+    """Age and letting agent, when the portal published them."""
+    parts = [f"🕒 {age_text(l, today)}" if age_text(l, today) else "", f"🏢 {e(l.agent[:60])}" if l.agent else ""]
+    return " · ".join(p for p in parts if p)
+
+
 def facts_line(l):
     area = f" ({l.floor_area_m2:g} m²" if l.floor_area_m2 else ""
     if area:
@@ -149,6 +174,8 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines = [head + "<b>" + " · ".join(title) + (" " + e(flags) if flags else "") + "</b>"]
     lines += finance_lines(l)
     lines.append(facts_line(l))
+    if portal_line(l):
+        lines.append(portal_line(l))
     lines.append(commute_line(l))
     tags = []
     if getattr(l, "match_score", None) and l.match_score >= 70:

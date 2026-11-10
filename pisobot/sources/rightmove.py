@@ -11,11 +11,13 @@ from requests import RequestException
 
 from .. import cache, config, net
 from ..models import Listing
-from . import PRIVATE_RENT, apply_rent_details, cached_search, monthly_rent, private_rent_costs, text
+from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, monthly_rent, private_rent_costs, text,
+               update_kind)
 
 BASE = "https://www.rightmove.co.uk"
 LOCATION = "STATION^6953"          # Oxford Circus Station
 PAGE_SIZE = 24                     # plus one promoted slot that may repeat or be out of area
+MAX_INDEX = 1008                   # 42 pages: from this index on Rightmove answers 200 without results
 SHARED = {"flat share", "house share", "room", "studio", "studio flat", "studio apartment"}
 
 
@@ -39,6 +41,13 @@ def _listing(x):
         description=text(f"{x.get('propertySubType', '')}. {x.get('summary', '')}"),
         available=(x.get("letAvailableDate") or "")[:10] or None,
     )
+    l.first_listed = iso_date(x.get("firstVisibleDate"))
+    update = x.get("listingUpdate") or {}
+    l.update_reason = update_kind(update.get("listingUpdateReason") or update.get("reason"))
+    l.update_date = iso_date(update.get("listingUpdateDate") or update.get("date")) if l.update_reason else None
+    l.bathrooms = int(x["bathrooms"]) if str(x.get("bathrooms") or "").isdigit() else None
+    branch = re.sub(r"^\s*by\s+", "", str(x.get("formattedBranchName") or ""), flags=re.I).strip()
+    l.agent = branch or None
     return private_rent_costs(l)
 
 
@@ -52,6 +61,11 @@ def search():
             "sortType": 6, "index": page * PAGE_SIZE})
         m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
         if not m:
+            if page * PAGE_SIZE >= MAX_INDEX:
+                # Past the last reachable page Rightmove serves a 200 "couldn't find the place" page
+                print(f"Rightmove: no results page at index {page * PAGE_SIZE}; end of the reachable results",
+                      file=sys.stderr)
+                break
             raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
         results = json.loads(m.group(1))["props"]["pageProps"]["searchResults"]
         for x in results.get("properties") or []:

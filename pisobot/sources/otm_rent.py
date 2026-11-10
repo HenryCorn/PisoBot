@@ -1,6 +1,7 @@
 """onthemarket.com lettings - same __NEXT_DATA__ layout as the shared-ownership search
 (onthemarket.py), 30 per page. Search cards carry rent, beds, location and photos; details
 pages are read only for listings that pass the cheap filters, to catch rooms and short lets."""
+import datetime as dt
 import json
 import re
 import sys
@@ -13,6 +14,10 @@ from . import PRIVATE_RENT, apply_rent_details, cached_search, money, private_re
 from .onthemarket import BASE, _photo_urls, _property_data
 
 SHARED = re.compile(r"\b(?:room|studio|flat\s*share|house\s*share|shared\s+(?:flat|house|accommodation))\b", re.I)
+
+
+def _today():
+    return dt.date.today()
 
 
 def _listing(x):
@@ -35,14 +40,27 @@ def _listing(x):
         image=images[0] if images else None, images=images,
         description=text(f"{title}. {feats} {x.get('summary', '')}"),
     )
+    days = x.get("days-since-added-reduced")
+    if str(days if days is not None else "").strip().isdigit():
+        # the portal merges "added" and "reduced"; an absolute date keeps the age right in cached searches
+        l.update_reason = "added_or_reduced"
+        l.update_date = (_today() - dt.timedelta(days=int(days))).isoformat()
+    l.bathrooms = int(x["bathrooms"]) if str(x.get("bathrooms") or "").isdigit() else None
+    agent = x.get("agent")
+    if isinstance(agent, dict):
+        agent = next((agent[k] for k in ("name", "display-name", "branch-name", "branch") if agent.get(k)), None)
+    l.agent = " ".join(str(agent).split()) or None if agent else None
+    deposit = re.search(r"deposit[^£\d]{0,30}£\s*([\d,]+(?:\.\d+)?)", str(x.get("fees-description") or ""), re.I)
+    l.advert_deposit = money(deposit[1]) if deposit else None
     return private_rent_costs(l)
 
 
 def search():
     out, seen = [], set()
     for page in range(1, config.RENT_MAX_PAGES + 1):
+        # newest first (listing update date): the default "recommended" order hid new adverts behind page 3
         params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
-                  "max-price": int(config.MAX_RENT)}
+                  "max-price": int(config.MAX_RENT), "sort-field": "update_date"}
         if page > 1:
             params["page"] = page
         # flats only: drops house shares server-side (499 -> 309 results: fewer proxied pages)

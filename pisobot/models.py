@@ -67,6 +67,13 @@ class Listing:
     council_tax_monthly: Optional[float] = None  # private rent: part of bills (derived per person)
     utilities_monthly: Optional[float] = None    # private rent: other part of bills
     council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
+    # Facts the portals already publish (private rent)
+    first_listed: Optional[str] = None           # ISO date the portal first showed the advert
+    update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
+    update_date: Optional[str] = None            # ISO date of that update
+    bathrooms: Optional[int] = None
+    agent: Optional[str] = None                  # letting agent / branch name
+    advert_deposit: Optional[float] = None       # deposit stated on the search card
     available: Optional[str] = None   # private rent: ISO move-in date, when published
     min_deposit: Optional[float] = None
     lat: Optional[float] = None
