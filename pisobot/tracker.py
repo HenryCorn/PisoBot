@@ -151,14 +151,18 @@ def drop(name):
     query("DELETE FROM renter WHERE name = ?", name)
 
 
+def _expectation(kind, key=None, at=None, update=None, nonce=None, ask=None):
+    until = (at or now()) + dt.timedelta(minutes=AWAIT_MINUTES)
+    return json.dumps({"kind": kind, "key": key, "until": _iso(until), "update": update,
+                       "nonce": nonce, "message_id": None, "ask": ask})
+
+
 def expect(kind, key=None, at=None, update=None, nonce=None, ask=None):
     """Remember that the person's next plain-text message answers a prompt (viewing time, note...).
     update: the Telegram update that asked, so a replay of it knows its answer was already taken;
     nonce: ties the prompt message, once sent, to this pending answer (see bind); ask: the prompt
     {"text", "placeholder"}, resent if the update is replayed after a crash."""
-    until = (at or now()) + dt.timedelta(minutes=AWAIT_MINUTES)
-    put("_await", json.dumps({"kind": kind, "key": key, "until": _iso(until), "update": update,
-                              "nonce": nonce, "message_id": None, "ask": ask}))
+    put("_await", _expectation(kind, key, at, update, nonce, ask))
 
 
 def bind(nonce, message_id):
@@ -220,12 +224,18 @@ def handled(update_id):
     return json.loads(found[0]["outbox"]) if found else None
 
 
+def _record(db, update_id, outbox, stamp):
+    db.execute("INSERT INTO handled (update_id, outbox, at) VALUES (?, ?, ?) "
+               "ON CONFLICT(update_id) DO UPDATE SET outbox = excluded.outbox",
+               (int(update_id), json.dumps(outbox), stamp))
+
+
 def record(update_id, outbox, at=None):
     """Remember that the update was applied, with the replies it still has to send."""
     at = at or now()
-    query("INSERT INTO handled (update_id, outbox, at) VALUES (?, ?, ?) "
-          "ON CONFLICT(update_id) DO UPDATE SET outbox = excluded.outbox", int(update_id), json.dumps(outbox), _iso(at))
-    query("DELETE FROM handled WHERE at < ?", _iso(at - dt.timedelta(days=HANDLED_DAYS)))
+    with transaction() as db:
+        _record(db, update_id, outbox, _iso(at))
+        db.execute("DELETE FROM handled WHERE at < ?", (_iso(at - dt.timedelta(days=HANDLED_DAYS)),))
 
 
 # ---------- pipeline ----------
@@ -271,14 +281,18 @@ def allowed(current, stage):
     return RANK.get(stage, -1) > RANK.get(current, -1)
 
 
-def move(listing, stage, at=None, current=None):
+def move(listing, stage, at=None, current=None, update=None, followup=None):
     """Put a home at a stage. listing: the ``listings`` row the card's button resolves to
     ({"sid", "key", "url", "address", "cost"}). The archive's current rent and status become the
     baseline for change notices, so moving a home never reports a change by itself.
 
     Returns the row, or None when the move is not allowed from the stage the home is at now (a stale
     button on an old message). The check and the write are one transaction, so two presses cannot
-    race each other past the rules. current: "saved" or "new" for a home not in the pipeline yet."""
+    race each other past the rules. current: "saved" or "new" for a home not in the pipeline yet.
+
+    With followup, a new transition also commits its outbox request (under update) and optional
+    pending-answer binding. A crash before the handler's final record can therefore replay the
+    required question without repeating the move. An already-current stage refuses a followup."""
     if stage not in STAGES:
         raise ValueError(f"Unknown stage {stage}")
     stamp = _iso(at or now())
@@ -289,6 +303,8 @@ def move(listing, stage, at=None, current=None):
         found = db.execute("SELECT stage FROM pipeline WHERE key = ?", (key,)).fetchone()
         now_at = found["stage"] if found else (current if current in ("new", "saved") else "new")
         if not allowed(now_at, stage):
+            return None
+        if followup is not None and now_at == stage:
             return None
         if found is None:
             db.execute("INSERT INTO pipeline (key, sid, stage, url, address, cost, told_rent, told_status, created_at,"
@@ -302,6 +318,14 @@ def move(listing, stage, at=None, current=None):
             # Where it was closed from, so a reopen puts it back there (or out of the pipeline)
             db.execute("INSERT INTO renter (name, value) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET "
                        "value = excluded.value", (f"closed.{key}", now_at))
+        if followup is not None:
+            pending = followup.get("expect")
+            if pending is not None:
+                state = _expectation(**pending, at=at, update=update, nonce=followup["nonce"], ask=followup["body"])
+                db.execute("INSERT INTO renter (name, value) VALUES ('_await', ?) ON CONFLICT(name) DO UPDATE SET "
+                           "value = excluded.value", (state,))
+            if update is not None:
+                _record(db, update, [followup], stamp)
     return get(key)
 
 

@@ -708,10 +708,7 @@ class Handler:
             result = self._out("sendMessage", body)
         return result
 
-    def ask(self, kind, key, text, placeholder=None, markup=None):
-        """Ask for an answer (a typed reply, or a tap on ``markup``) and remember that the next answer
-        belongs to this question: only a reply to this message, or a plain message, answers it.
-        This must be the update's last state change (a crash-replay relies on it)."""
+    def _prompt(self, kind, key, text, placeholder=None, markup=None):
         if markup is None:
             text += "\n<i>/cancel to skip</i>"
             markup = {"force_reply": True,
@@ -719,8 +716,15 @@ class Handler:
         nonce = os.urandom(6).hex()
         body = {"chat_id": self.chat, "text": tgtext.clip_html(text), "parse_mode": "HTML",
                 "disable_web_page_preview": True, "reply_markup": markup}
-        tracker.expect(kind, key, update=self._update, nonce=nonce, ask=body)
-        self._out("sendMessage", body, nonce=nonce)
+        return {"method": "sendMessage", "body": body, "nonce": nonce, "expect": {"kind": kind, "key": key}}
+
+    def ask(self, kind, key, text, placeholder=None, markup=None):
+        """Ask for an answer (a typed reply, or a tap on ``markup``) and remember that the next answer
+        belongs to this question: only a reply to this message, or a plain message, answers it.
+        This must be the update's last state change (a crash-replay relies on it)."""
+        prompt = self._prompt(kind, key, text, placeholder, markup)
+        tracker.expect(kind, key, update=self._update, nonce=prompt["nonce"], ask=prompt["body"])
+        self._out(**prompt)
 
     def _done(self):
         tracker.done(update=self._update)
@@ -906,8 +910,8 @@ class Handler:
     def _stage_action(self, listing, code):
         """(answer, follow-up) for a pipeline button. Every move is checked against the stage the home
         is at now, so a button left on an old message can never take a home backwards or out of
-        won/lost; pressing it again changes nothing. The follow-up asks the next question, after
-        the card is refreshed, as the last state change."""
+        won/lost; pressing it again changes nothing. A move and its required follow-up are committed
+        together, before the card is refreshed or any messages are sent."""
         key = listing["key"]
         row = tracker.get(key)
         current = row["stage"] if row else ("saved" if key in self._saved() else "new")
@@ -923,30 +927,30 @@ class Handler:
                 return "Tap ✉️ Enquired first", None
             return "Reply with a note", lambda: self.ask(
                 "note", key, "📝 Reply with a note for this home.", "agent says 3 other viewings booked")
-        if code == "t":
-            if current != "viewing" and (current in tracker.CLOSED
-                                         or tracker.move(listing, "viewing", current=current) is None):
-                return f"Already {tracker.LABELS.get(current, current)}", None
+        if code == "t" and current == "viewing":
             return "Reply with the viewing time", lambda: self.ask(
                 "time", key, "🕒 When is the viewing? e.g. <code>Sat 11:00</code>, <code>tomorrow 18:30</code> or "
                 "<code>14/11 9:15am</code> (UK time).", "Sat 11:00")
-        stage = tracker.CODES[code]
+        stage = "viewing" if code == "t" else tracker.CODES[code]
         if stage == current:
             return f"Already {tracker.LABELS[stage]}", None
-        if tracker.move(listing, stage, current=current) is None:
-            return f"Already {tracker.LABELS.get(current, current)}", None
-        follow = None
+        followup = None
         if stage == "viewing":
-            follow = lambda: self.ask(
+            followup = self._prompt(
                 "time", key, "🕒 Viewing booked. When is it? e.g. <code>Sat 11:00</code> or <code>14/11 18:30</code> "
                 "(UK time).", "Sat 11:00")
         elif stage == "viewed":
-            follow = lambda: self.send(f"👀 <b>How was the viewing?</b>\n{tracker._home(tracker.get(key))}\nRate it 1-5.",
-                                       tracker.rating_keyboard(listing["sid"]))
+            followup = {"method": "sendMessage", "body": {
+                "chat_id": self.chat,
+                "text": f"👀 <b>How was the viewing?</b>\n{tracker._home(row or listing)}\nRate it 1-5.",
+                "parse_mode": "HTML", "disable_web_page_preview": True,
+                "reply_markup": tracker.rating_keyboard(listing["sid"])}}
         elif stage == "lost":
-            follow = lambda: self.ask(
+            followup = self._prompt(
                 "lost", key, "❌ Marked as lost. Why? (optional, e.g. <code>let to someone else</code>)", "let agreed")
-        return tracker.LABELS[stage], follow
+        if tracker.move(listing, stage, current=current, update=self._update, followup=followup) is None:
+            return f"Already {tracker.LABELS.get(current, current)}", None
+        return tracker.LABELS[stage], (lambda: self._out(**followup)) if followup else None
 
     def _refresh_pipeline(self, message, page=0):
         text, markup = tracker.view(self._saved(), self.chat, page=page)

@@ -3,6 +3,10 @@ photos, move-in fit, urgency tier and onboarding. Offline: Telegram is a Mock, g
 import datetime as dt
 import json
 import os
+from pathlib import Path
+import subprocess
+import sys
+import textwrap
 import unittest
 from unittest.mock import Mock, patch
 
@@ -909,6 +913,173 @@ class ReviewFixTests(BotBase):
             self.handler.handle(message("late December", OWNER))
         self.assertIn("📅 Move-in: 21 Dec–31 Dec", self.texts()[-2])
         self.assertIn("6/11", self.texts()[-1])
+
+
+class PromptReplayTests(BotBase):
+    ACTIONS = (("b", "enquired", "viewing", "time"),
+               ("v", "viewing", "viewed", None),
+               ("l", "offer", "lost", "lost"))
+
+    def crash(self, update, before_commit=False):
+        source = textwrap.dedent("""
+            import contextlib
+            import json
+            import os
+            import sys
+            from unittest.mock import patch
+            import requests
+            from pisobot import bot, tracker
+
+            class OfflineClient:
+                def call(self, *args, **kwargs):
+                    raise AssertionError("No requests should precede the crash")
+
+            if sys.argv[2] == "before":
+                transaction = tracker.transaction
+                @contextlib.contextmanager
+                def crash():
+                    with transaction() as db:
+                        yield db
+                        os._exit(73)
+                tracker.transaction = crash
+            else:
+                move = tracker.move
+                def crash(*args, **kwargs):
+                    move(*args, **kwargs)
+                    os._exit(73)
+                tracker.move = crash
+
+            with patch.object(requests.sessions.Session, "request",
+                              side_effect=AssertionError("Live HTTP forbidden")):
+                bot.Handler("100", lambda *args: False, OfflineClient()).handle(json.loads(sys.argv[1]))
+        """)
+        result = subprocess.run([sys.executable, "-c", source, json.dumps(update),
+                                 "before" if before_commit else "after"],
+                                cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 73, result.stderr)
+
+    def restart(self):
+        self.handler = bot.Handler(OWNER, self.trigger, self.client)
+        self.client.call.return_value = {"message_id": 501}
+
+    def assert_followup(self, item, kind, chat=OWNER):
+        sent = self.texts(chat)
+        self.assertEqual(len(sent), 1)
+        if kind is None:
+            self.assertIn("How was the viewing?", sent[0])
+            self.assertEqual(self.calls("sendMessage")[-1]["reply_markup"], tracker.rating_keyboard(item.short_id))
+        else:
+            pending = tracker.expected()
+            self.assertEqual((pending["kind"], pending["key"], pending["message_id"]), (kind, item.key, 501))
+            self.assertTrue(self.calls("sendMessage")[-1]["reply_markup"]["force_reply"])
+
+    def test_stage_followups_survive_process_exit_immediately_after_move(self):
+        for prefix in ("p", "P"):
+            for code, initial, target, kind in (*self.ACTIONS, ("t", "enquired", "viewing", "time")):
+                with self.subTest(prefix=prefix, stage=target, code=code):
+                    self.client.reset_mock()
+                    item = home(len(tracker.rows()) + 1)
+                    tracker.move(publish(item), initial)
+                    update = press(f"{prefix}:{code}:{item.short_id}" + (":0" if prefix == "P" else ""))
+                    update["update_id"] = 1000 + len(tracker.rows())
+                    self.crash(update)
+                    self.assertEqual(tracker.get(item.key)["stage"], target)
+                    self.assertEqual(len(tracker.handled(update["update_id"])), 1)
+                    if kind:
+                        self.assertEqual(tracker.expected()["update"], update["update_id"])
+                    self.restart()
+                    self.handler.handle(update)
+                    self.handler.handle(update)
+                    self.assertEqual(tracker.get(item.key)["stage"], target)
+                    self.assert_followup(item, kind)
+                    self.assertEqual(tracker.handled(update["update_id"]), [])
+
+    def test_stage_followup_transaction_rolls_back_if_process_dies_before_commit(self):
+        for code, initial, target, kind in self.ACTIONS:
+            with self.subTest(stage=target):
+                self.client.reset_mock()
+                item = home(len(tracker.rows()) + 1)
+                tracker.move(publish(item), initial)
+                previous_prompt = tracker.value("_await")
+                update = {**press(f"p:{code}:{item.short_id}"), "update_id": 2000 + len(tracker.rows())}
+                self.crash(update, before_commit=True)
+                self.assertEqual(tracker.get(item.key)["stage"], initial)
+                self.assertEqual(tracker.value("_await"), previous_prompt)
+                self.assertIsNone(tracker.handled(update["update_id"]))
+                self.restart()
+                self.handler.handle(update)
+                self.assertEqual(tracker.get(item.key)["stage"], target)
+                self.assert_followup(item, kind)
+
+    def test_followup_survives_failure_before_final_outbox_record_and_during_send(self):
+        for code, initial, target, kind in self.ACTIONS:
+            with self.subTest(stage=target):
+                self.client.reset_mock()
+                item = home(len(tracker.rows()) + 1)
+                tracker.move(publish(item), initial)
+                update = {**press(f"p:{code}:{item.short_id}"), "update_id": 2500 + len(tracker.rows())}
+                with patch.object(tracker, "record", side_effect=RuntimeError("crash before final outbox")), \
+                        self.assertRaises(RuntimeError):
+                    self.handler.handle(update)
+                self.assertEqual(self.calls("sendMessage"), [])
+                self.restart()
+                with patch.object(tracker, "move", side_effect=AssertionError("Must not reapply the move")):
+                    self.client.call.side_effect = bot.TelegramError("send timeout")
+                    with self.assertRaises(bot.TelegramError):
+                        self.handler.handle(update)
+                    self.assertEqual(len(tracker.handled(update["update_id"])), 1)
+                    self.client.reset_mock(side_effect=True)
+                    self.restart()
+                    self.handler.handle(update)
+                    self.handler.handle(update)
+                self.assertEqual(tracker.get(item.key)["stage"], target)
+                self.assert_followup(item, kind)
+
+    def test_stale_buttons_and_completed_replays_do_not_replace_a_newer_prompt(self):
+        for code, initial, target, _ in self.ACTIONS:
+            with self.subTest(stage=target):
+                item = home(len(tracker.rows()) + 1)
+                tracker.move(publish(item), initial)
+                update = {**press(f"p:{code}:{item.short_id}"), "update_id": 3000 + len(tracker.rows())}
+                self.handler.handle(update)
+                self.handler.handle(message("/profile job", OWNER))
+                newer_prompt = tracker.value("_await")
+                self.client.reset_mock()
+                self.restart()
+                self.handler.handle(update)
+                self.handler.handle({**update, "update_id": update["update_id"] + 100})
+                self.assertEqual(tracker.value("_await"), newer_prompt)
+                self.assertEqual(tracker.get(item.key)["stage"], target)
+                self.assertEqual(self.calls("sendMessage"), [])
+
+    def test_crashed_followup_is_private_to_the_person_who_changed_the_stage(self):
+        friend = self.admit()
+        for i, (code, initial, target, kind) in enumerate(self.ACTIONS, 1):
+            with self.subTest(stage=target):
+                self.client.reset_mock()
+                item = home(i)
+                for person in (users.owner(), friend):
+                    with users.use(person):
+                        tracker.move(publish(item), initial)
+                with users.use(friend):
+                    previous_prompt = tracker.value("_await")
+                update = {**press(f"p:{code}:{item.short_id}"), "update_id": 4000 + i}
+                self.crash(update)
+                with users.use(friend):
+                    self.assertEqual(tracker.get(item.key)["stage"], initial)
+                    self.assertIsNone(tracker.handled(update["update_id"]))
+                    self.assertEqual(tracker.value("_await"), previous_prompt)
+                self.restart()
+                guest_update = {**press(f"p:{code}:{item.short_id}", FRIEND), "update_id": update["update_id"]}
+                self.handler.handle(guest_update)
+                with users.use(friend):
+                    self.assert_followup(item, kind, FRIEND)
+                    guest_prompt = tracker.value("_await")
+                self.client.reset_mock()
+                self.handler.handle(update)
+                self.assert_followup(item, kind)
+                with users.use(friend):
+                    self.assertEqual(tracker.value("_await"), guest_prompt)
 
 
 if __name__ == "__main__":
