@@ -307,7 +307,8 @@ def lookup_degraded(chat_id, settings):
     """Current active lookup retries only; stale contexts/removed inventory cannot hold an alarm."""
     with _db() as db:
         rows = _rows(db, "SELECT w.context, a.data FROM advert_work w JOIN adverts a ON a.key=w.key "
-                     "WHERE w.chat_id=? AND a.status='active' AND w.state IN ('backoff','failed')",
+                     "WHERE w.chat_id=? AND a.status='active' AND w.state IN ('backoff','failed') "
+                     "AND (w.failures > 0 OR w.state='failed')",
                      str(chat_id))
     return sum(row['context'] == _context(settings, row['data']) for row in rows)
 

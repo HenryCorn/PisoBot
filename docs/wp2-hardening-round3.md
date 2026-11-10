@@ -49,6 +49,21 @@ legacy migration and send/crash controls; first-retry head/sweep separation; one
 recovery per incident; retry after warning-send failure; old terminal-job readmission; health
 isolation; and ten consecutive outages with capped cooldown and stable intent identity.
 
+## Independent re-review follow-up
+
+The independent reviewer conditionally cleared the P1/P2 fixes, but reproduced a P3 false
+alarm: cooperative deadline yields had `state=backoff` with zero API failures and were
+counted as degraded. Fixed by counting only active/current-context retry rows with an actual
+failure streak (or legacy failed state), and using that ledger count rather than the head
+summary that also includes cooperative yields. A new whole-cycle regression proves repeated
+zero-failure cooldowns do not trigger API-degradation warnings. Full suite after this fix:
+**421 tests passed** on Python 3.14.8.
+
+The owner notification explicitly says the count is **across all active searches**. This is
+intentional shared-service operational monitoring, not a claim that the owner's personal
+route is broken; per-person `/status` work remains separate. It does not disclose guest
+addresses, renter profiles or settings.
+
 ## Policies and limits requiring review
 
 - Cooldowns cap at one hour, not a promise of strict hourly delivery: watcher cadence,

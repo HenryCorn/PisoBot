@@ -381,6 +381,18 @@ class RetryHealth(Repro):
             db.execute("UPDATE adverts SET status='unseen' WHERE key=?", (item.key,))
         self.assertEqual(archive.lookup_degraded("100", settings), 0)
 
+    def test_deadline_yields_do_not_raise_an_api_degradation_alarm(self):
+        item = NEW[0]
+        archive.upsert([item], "head")
+        settings = main.settings_key(self.owner)
+        archive.record_verdicts("100", [(item.key, "deferred", item.rent, 1500, 25, 30)], settings)
+        self.assertEqual(self.job(item.key)["failures"], 0)
+        self.assertEqual(archive.lookup_degraded("100", settings), 0)
+        for _ in range(config.WATCH_FAILURE_LIMIT + 1):
+            self.cycle(HEAD + [item])  # head sees the same cooperative cooldown, no API error
+        self.assertFalse(any("lookups have been degraded" in text for text in self.texts))
+        self.assertEqual(sweep._meta("watch_degraded_adverts"), "0")
+
     def test_repeated_outages_have_bounded_rate_not_a_terminal_budget(self):
         item = NEW[0]
         archive.upsert([item], "head")

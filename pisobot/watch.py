@@ -105,8 +105,11 @@ class Watcher:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
             # Loop/source liveness is separate from lookup health. A successful heartbeat
             # must not hide an enrichment outage, including sweep-only inventory.
-            retries = sum(archive.lookup_degraded(p.chat_id, pipeline.settings_key(p)) for p in people)
-            totals["degraded"] = max(totals["degraded"], retries)
+            retries = sum(archive.lookup_degraded(p.chat_id or users.owner_chat() or "owner",
+                                                 pipeline.settings_key(p)) for p in people)
+            # The ledger distinguishes API failures from cooperative deadline yields;
+            # the head summary alone counts both kinds of backoff.
+            totals["degraded"] = retries
             self._lookup_health(totals["degraded"])
             healthcheck = os.environ.get("HEALTHCHECK_URL", "")
             if healthcheck:
@@ -160,7 +163,7 @@ class Watcher:
         if degraded and failures >= config.WATCH_FAILURE_LIMIT and _meta("watch_lookup_warned") != "1":
             try:
                 telegram.send_text(f"⚠️ Advert lookups have been degraded for {failures} consecutive cycles "
-                                   f"({degraded} waiting in the latest scan). Scans continue; failed lookups "
+                                   f"({degraded} waiting across all active searches). Scans continue; failed lookups "
                                    "retry automatically with cooldowns capped at one hour. /status shows the backlog.")
             except Exception as ex:
                 log.error("Lookup degradation warning failed (%s)", type(ex).__name__)
