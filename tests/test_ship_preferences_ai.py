@@ -75,6 +75,11 @@ class ShippingSeams(unittest.TestCase):
             with patch.object(config, "FURNISHED", "unfurnished"):
                 self.assertIsNone(main.passes_basic(listing("Bright flat next to a furnished show apartment.")))
 
+    def test_model_value_opinions_do_not_turn_deposit_options_into_scam_flags(self):
+        text = "One bedroom flat. No Deposit Option Available For Tenants."
+        raw = record(flags=[("too_good_to_be_true", "No Deposit Option Available For Tenants")])
+        self.assertEqual(extract.validate(raw, text).red_flags, [])
+
     def response(self):
         def option(minutes, walk, rides):
             legs = [{"duration": walk, "mode": {"id": "walking"}}]

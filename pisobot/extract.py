@@ -43,7 +43,7 @@ from . import config, localdb, rental_text
 
 log = logging.getLogger(__name__)
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 MEMORY_LIMIT = 512
 KINDS = ("whole_flat", "studio", "room_in_shared", "short_let", "student_only", "age_restricted", "other")
 REJECT_KINDS = ("room_in_shared", "short_let", "student_only", "age_restricted")
@@ -273,6 +273,10 @@ def validate(raw, text):
     for item in raw.get("red_flags") or []:
         if (isinstance(item, dict) and item.get("flag") in RED_FLAGS and isinstance(item.get("phrase"), str)
                 and quoted(item["phrase"], text)):
+            # No market-comparison evidence is supplied. A model's opinion that
+            # an offer is 'too good' is not a grounded advert fact or scam signal.
+            if item["flag"] == "too_good_to_be_true":
+                continue
             if (item["flag"] == "deposit_oddity"
                     or item["flag"] == "other" and DEPOSIT_WORDS.search(item["phrase"])):
                 if not NON_REFUNDABLE_DEPOSIT.search(item["phrase"]):
