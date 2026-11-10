@@ -3,6 +3,7 @@
 pages are read only for listings that pass the cheap filters, to catch rooms and short lets."""
 import datetime as dt
 import json
+import os
 import re
 import sys
 
@@ -97,6 +98,33 @@ def search():
         if not (results.get("paginationControls") or {}).get("next"):
             break
     return out
+
+
+PAGE_SIZE = 30
+# Pages one OnTheMarket query is assumed to serve. This is not observed (no fixture or note records a
+# limit), so a band that still has a next page after this many is split further, never trusted.
+REACHABLE = int(os.environ.get("OTM_REACHABLE", 1000))
+
+
+def band_page(low, high, page):
+    """One page of a deep-sweep price band: {"listings", "total" (None if the page does not say),
+    "more" (the portal links a next page)}."""
+    params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
+              "min-price": int(low), "max-price": int(high), "sort-field": "update_date"}
+    if page > 0:
+        params["page"] = page + 1
+    html = net.page(f"{BASE}/to-rent/flats-apartments/oxford-circus-station/", params=params)
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    if not m:
+        raise ValueError("OnTheMarket page has no __NEXT_DATA__ (blocked or layout changed)")
+    results = json.loads(m.group(1))["props"]["pageProps"]["initialReduxState"]["results"]
+    total = results.get("totalResults")
+    if total is None:
+        total = (results.get("paginationControls") or {}).get("totalResults")
+    total = int(str(total).replace(",", "")) if str(total).replace(",", "").isdigit() else None
+    listings = [l for x in results.get("list") or [] if (l := _listing(x))]
+    return {"listings": listings, "total": total,
+            "more": bool((results.get("paginationControls") or {}).get("next"))}
 
 
 def fetch():

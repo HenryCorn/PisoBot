@@ -30,6 +30,7 @@ class WatchTests(unittest.TestCase):
             patch.object(main, "SEEN_PATH", str(self.state / "seen.json")),
             patch.object(cache, "PATH", str(self.state / "cache.json")),
             patch.object(cache, "_data", {}),
+            patch.object(config, "DEEP_SWEEP_HOURS", 0),     # these tests never sweep (it would fetch)
             patch.object(main.enrich, "geocode"),
             patch.object(main.enrich, "assign_crime_percentiles"),
             patch.object(main, "passes_basic", return_value=None),
@@ -95,7 +96,7 @@ class WatchTests(unittest.TestCase):
         d1.query("INSERT INTO hidden (key) VALUES (?)", first.key)
         scheme = home(4)
         scheme.source = "lq"
-        with patch.object(main, "passes_basic", side_effect=lambda l: {"2": "keywords", "3": "cost"}.get(l.id)), \
+        with patch.object(main, "passes_basic", side_effect=lambda l, **kw: {"2": "keywords", "3": "cost"}.get(l.id)), \
                 patch.object(main.SOURCES["lqr"], "fetch", return_value=[scheme]):
             watch.Watcher(["rm", "lqr"]).cycle()
         rows = d1.query("SELECT stats FROM rental_funnel")
@@ -159,7 +160,8 @@ class WatchTests(unittest.TestCase):
 
     def test_funnel_retains_partial_counts_when_filtering_is_interrupted(self):
         self.fetch.return_value = [home(), home(2)]
-        with patch.object(main, "passes_basic", side_effect=[None, InterruptedError("stopping")]):
+        # the first home passes both the cheap and the details gate, the second is interrupted
+        with patch.object(main, "passes_basic", side_effect=[None, None, InterruptedError("stopping")]):
             with self.assertRaises(InterruptedError):
                 self.watcher.cycle()
         funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])

@@ -36,6 +36,7 @@ class Base(unittest.TestCase):
             patch.object(main, "SEEN_PATH", str(self.state / "seen.json")),
             patch.object(cache, "PATH", str(self.state / "cache.json")),
             patch.object(cache, "_data", {}),
+            patch.object(config, "DEEP_SWEEP_HOURS", 0),     # these tests never sweep (it would fetch)
             patch("sys.stdout"),
             patch("sys.stderr"),
         ):
@@ -193,7 +194,7 @@ class SharedWatchTests(Base):
             self.addCleanup(target.stop)
         self.enterContext(patch.object(
             main, "passes_basic",
-            side_effect=lambda l: main._cost_reject(l)))
+            side_effect=lambda l, **kw: main._cost_reject(l)))
         self.fetch = self.enterContext(patch.object(main.SOURCES["rm"], "fetch",
                                                     return_value=[home(1, 1200), home(2, 1500)]))
         self.sent = []

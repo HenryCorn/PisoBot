@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import cache, config, d1, main as pipeline, net, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +67,8 @@ class Watcher:
                         cache.put("rent_search", source, {})
                 with users.criteria(params):
                     prefetched = pipeline.fetch_sources(self.sources, stop_event)
+                if not dry_run:
+                    pipeline.archive_adverts(prefetched[0])     # no requests: just remembers what was fetched
                 for person in group:
                     if not person.owner and users.get(person.chat_id) is None:
                         continue
@@ -84,6 +86,14 @@ class Watcher:
                     totals["people"][person.label] = result["matches"]
                     totals["matches"] += result["matches"]
                     totals["complete"] = totals["complete"] and result["complete"]
+            if not errors and totals["complete"] and not dry_run and sweep.enabled(self.sources):
+                # After the head poll has alerted: a short, resumable slice of the deep sweep
+                try:
+                    sweep.step(self.sources, people, stop_event, self.verbose)
+                except InterruptedError:
+                    raise
+                except Exception as ex:
+                    log.error("Deep sweep step failed (%s)", type(ex).__name__)
         if errors:
             raise errors[0]
         if not totals["complete"]:
@@ -106,6 +116,12 @@ class Watcher:
         # A legacy owner baseline has no settings marker. Keep it when defaults are unchanged.
         first = (not _meta("watch_initialized")
                  or (previous != settings and (previous is not None or settings != "{}")))
+        if kind == "report" and not first and archive.enabled():
+            # /report also lists the matches only the deep sweep has found
+            shown = {l.key for l in prefetched[0]}
+            extra = archive.matched_listings(person.chat_id if person else users.owner_chat(),
+                                             sweep.swept(self.sources), exclude=shown)
+            prefetched = (list(prefetched[0]) + extra, prefetched[1])
         result = pipeline._run(self.sources, dry_run, self.verbose,
                                report=kind == "report" and not first, rentals=True,
                                watch=kind != "report" or first, baseline=first,

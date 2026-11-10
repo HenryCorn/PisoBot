@@ -51,23 +51,34 @@ def _listing(x):
     return private_rent_costs(l)
 
 
+def _params(index, **extra):
+    return {"locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
+            "minBedrooms": config.MIN_BEDROOMS, "maxPrice": int(config.MAX_RENT),
+            "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
+            "sortType": 6, "index": index, **extra}
+
+
+def _results(html):
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    return json.loads(m.group(1))["props"]["pageProps"]["searchResults"] if m else None
+
+
+def _total(results):
+    return int(str(results.get("resultCount", "0")).replace(",", "") or 0)
+
+
 def search():
     out, seen = [], set()
     for page in range(config.RENT_MAX_PAGES):
-        html = net.page(f"{BASE}/property-to-rent/find.html", params={
-            "locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
-            "minBedrooms": config.MIN_BEDROOMS, "maxPrice": int(config.MAX_RENT),
-            "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
-            "sortType": 6, "index": page * PAGE_SIZE})
-        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
-        if not m:
+        html = net.page(f"{BASE}/property-to-rent/find.html", params=_params(page * PAGE_SIZE))
+        results = _results(html)
+        if results is None:
             if page * PAGE_SIZE >= MAX_INDEX:
                 # Past the last reachable page Rightmove serves a 200 "couldn't find the place" page
                 print(f"Rightmove: no results page at index {page * PAGE_SIZE}; end of the reachable results",
                       file=sys.stderr)
                 break
             raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
-        results = json.loads(m.group(1))["props"]["pageProps"]["searchResults"]
         for x in results.get("properties") or []:
             if x.get("id") in seen:
                 continue
@@ -75,9 +86,27 @@ def search():
             l = _listing(x)
             if l:
                 out.append(l)
-        if (page + 1) * PAGE_SIZE >= int(results.get("resultCount", "0").replace(",", "") or 0):
+        if (page + 1) * PAGE_SIZE >= _total(results):
             break
     return out
+
+
+REACHABLE = MAX_INDEX     # results one query can page through
+
+
+def band_page(low, high, page):
+    """One page of a deep-sweep price band (minPrice..maxPrice inclusive, whole pounds):
+    {"listings", "total" (all results in the band), "more" (another reachable page follows)}."""
+    index = page * PAGE_SIZE
+    results = _results(net.page(f"{BASE}/property-to-rent/find.html",
+                                params=_params(index, minPrice=int(low), maxPrice=int(high))))
+    if results is None:
+        if index >= MAX_INDEX:
+            return {"listings": [], "total": None, "more": False}
+        raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
+    total = _total(results)
+    listings = [l for x in results.get("properties") or [] if (l := _listing(x))]
+    return {"listings": listings, "total": total, "more": (page + 1) * PAGE_SIZE < min(total, MAX_INDEX)}
 
 
 def fetch():

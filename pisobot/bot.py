@@ -22,7 +22,7 @@ import re
 
 import requests
 
-from . import d1, net, users
+from . import d1, net, status as reports, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
@@ -62,6 +62,8 @@ HELP = (
     "/restart – clear hidden homes & run a fresh report\n"
     "/reset – clear saved, hidden and feedback preferences (keeps listing history)\n"
     "/settings – your search parameters\n"
+    "/status – last scan, source health, deep-sweep coverage\n"
+    "/whatif – what loosening rent, commute or crime would add (last 7 days)\n"
     "/set &lt;name&gt; &lt;value&gt; – change one, e.g. <code>/set rent 1500</code>, "
     "<code>/set destination Canary Wharf</code>, <code>/set commute default</code>\n"
     "/help – this message"
@@ -386,6 +388,14 @@ class Handler:
             words[0] = command
         if command in ("/settings", "/search", "/set"):
             self.settings(words if command == "/set" else words[:1])
+            return
+        if command in ("/status", "/whatif"):
+            if not users.enabled():
+                self.reply("This command is only available on the VPS bot.")
+            elif command == "/status":
+                self.reply(reports.status_text())
+            else:
+                self.reply(reports.whatif_text(self.user or users.User(self.chat_id, owner=True)))
             return
         if command in ("/users", "/removeuser"):
             self.people(words)

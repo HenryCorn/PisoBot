@@ -231,6 +231,32 @@ After deployment, keep the old soak observations and start a new 24-hour
 observation window for this version, including a settings change during a scan,
 independent Save/Hide actions, and a service restart without duplicate alerts.
 
+## Market archive and deep sweep
+
+Every advert a scan fetches is remembered in the primary database (tables `adverts`,
+`observations`, `verdicts`, `sweeps`, created on first use; `worker/schema.sql` is not
+changed). Each person's outcome for each advert (`matched`, or the first check it
+failed) is stored with the numbers behind it: rent, all-in, commute minutes, crime score.
+
+After each scan a short slice (`DEEP_SWEEP_STEP_SECONDS`, 120 by default, half crawling and
+half judging) advances the **deep sweep** of Rightmove and OnTheMarket: all rent from
+`RENT_MIN` to 110% of the highest rent cap within `DEEP_SWEEP_MILES`, in price bands that
+are halved whenever a band has more results than the portal will page through. A sweep
+starts every `DEEP_SWEEP_HOURS` (12; `0` turns it off), resumes across scans, goes through
+the same paced fetcher, and stops at `DEEP_SWEEP_MAX_REQUESTS` (150) per source, recorded
+as incomplete. One sweep of each source is about 75 requests at current volumes.
+
+Archived adverts are judged for each person with their own limits; a person's radius does
+not apply, the commute limit does. A person's first completed sweep records its matches
+without alerting and sends one summary; later sweeps alert as usual. An advert inside a
+sweep's scope that is missing from two complete sweeps in a row is marked gone (never
+from an incomplete sweep), and a saved home that goes gone gets the "no longer listed"
+message.
+
+`/status` shows the last scan, per-source health and the last sweep with the head-poll
+recall; `/whatif` estimates what loosening rent, commute or crime would add, from the last
+seven days of that person's verdicts.
+
 ## Sources
 
 `WATCH_SOURCES` may contain `rm` (Rightmove), `otmr` (OnTheMarket), `orent`
