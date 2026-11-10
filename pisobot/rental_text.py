@@ -84,8 +84,14 @@ def exclude_keywords():
 
 
 def is_studio(value):
-    """True when the text explicitly describes a studio (the same test the keyword rule uses)."""
-    return bool(classify(value or "", ["studio"])[0])
+    """Only a current explicit studio mention, not another rejection or a historical use."""
+    text = value or ""
+    for match in re.finditer(r"\bstudio\b", text, re.I):
+        before = text[:match.start()]
+        historical = re.search(r"\b(?:formerly|previously|once)\s+(?:(?:a|an)\s+)?$", before, re.I)
+        if not historical and not _negated(text, match.start()) and _explicit(text, match, "studio"):
+            return True
+    return False
 
 
 def furnishing(value):
@@ -93,7 +99,19 @@ def furnishing(value):
     text = str(value or "").lower()
     kinds = set()
     for m in re.finditer(r"\b(un[- ]?|part(?:ly)?[- ]?)?furnished\b", text):
+        before = re.split(r"[.!?;\n]", text[:m.start()])[-1]
+        after = re.split(r"[.!?;\n]", text[m.end():])[0]
+        # Do not infer this home's furnishing from a nearby/show property or a
+        # landlord's example. Uncertain references stay unknown, never a hard opposite.
+        if re.search(r"\b(?:next to|opposite|near|neighbour(?:ing)?|neighbor(?:ing)?)\b", before) \
+                or re.match(r"\s+(?:show\s+(?:flat|apartment|home)|neighbou?r)", after):
+            continue
         prefix = (m[1] or "").strip(" -")
+        negated = bool(re.search(r"\b(?:not|isn't|without)\s+(?:fully\s+)?$", before))
+        if negated:
+            if not prefix:
+                kinds.add("unfurnished")
+            continue  # 'not unfurnished/part furnished' does not establish a positive state
         kinds.add("unfurnished" if prefix.startswith("un") else "part" if prefix else "furnished")
     if not kinds:
         return None

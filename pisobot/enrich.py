@@ -52,12 +52,28 @@ def _station(leg):
     return s
 
 
+def _choose_journey(options):
+    """Fastest returned option meeting personal walk/change limits, if one exists."""
+    if not options:
+        return None
+    walk, changes = getattr(config, "MAX_WALK_MINUTES", None), getattr(config, "MAX_CHANGES", None)
+    feasible = [j for j in options if (walk is None or j["walk"] <= walk)
+                and (changes is None or j["changes"] <= changes)]
+    # Return the fastest otherwise so the caller can report the actual failed limit.
+    return min(feasible or options, key=lambda j: j["minutes"])
+
+
 def journey(lat, lng):
-    """Fastest weekday 08:30 public-transport journey to the target, cached per ~100 m.
-    Returns {"minutes", "route", "station", "walk", "changes"} or None."""
+    """Fastest returned weekday 08:30 option satisfying personal walk/change limits.
+    Cache all returned options by origin/destination; never share a person's selected route."""
     key = f"{lat:.3f},{lng:.3f}->{config.TARGET_LAT},{config.TARGET_LNG}"
+    limited = (getattr(config, "MAX_WALK_MINUTES", None) is not None
+               or getattr(config, "MAX_CHANGES", None) is not None)
+    options = cache.get("journey_options_v1", key)
+    if limited and options is not None:
+        return _choose_journey(options)
     hit = cache.get("journey", key)
-    if hit is not None:
+    if not limited and hit is not None:
         return hit or None
     params = {"date": _next_weekday(), "time": "0830", "timeIs": "Departing"}
     if os.environ.get("TFL_APP_KEY"):
@@ -65,26 +81,26 @@ def journey(lat, lng):
     r = net.get(f"https://api.tfl.gov.uk/Journey/JourneyResults/{lat:.5f},{lng:.5f}/to/"
                 f"{config.TARGET_LAT},{config.TARGET_LNG}", params=params)
     journeys = r.json().get("journeys") or []
-    if not journeys:
-        cache.put("journey", key, {})
-        return None
-    j = min(journeys, key=lambda j: j["duration"])
-    legs = j.get("legs") or []
-    ride = [l for l in legs if l["mode"]["id"] not in ("walking", "cycle")]
-    first_walk = 0
-    for leg in legs:
-        if leg["mode"]["id"] != "walking":
-            break
-        first_walk += leg["duration"]
-    out = {
-        "minutes": j["duration"],
-        "route": " → ".join(_leg_label(l) for l in ride) or "walk",
-        "station": _station(ride[0]) if ride else None,
-        "walk": first_walk,
-        "changes": max(len(ride) - 1, 0),
-    }
-    cache.put("journey", key, out)
-    return out
+    options = []
+    for j in journeys:
+        legs = j.get("legs") or []
+        ride = [l for l in legs if l["mode"]["id"] not in ("walking", "cycle")]
+        first_walk = 0
+        for leg in legs:
+            if leg["mode"]["id"] != "walking":
+                break
+            first_walk += leg["duration"]
+        options.append({
+            "minutes": j["duration"],
+            "route": " → ".join(_leg_label(l) for l in ride) or "walk",
+            "station": _station(ride[0]) if ride else None,
+            "walk": first_walk,
+            "changes": max(len(ride) - 1, 0),
+        })
+    cache.put("journey_options_v1", key, options)
+    # Legacy/default consumers must always see the unconstrained fastest option.
+    cache.put("journey", key, min(options, key=lambda j: j["minutes"]) if options else {})
+    return _choose_journey(options)
 
 
 _latest_month = None

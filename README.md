@@ -154,3 +154,54 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
+
+## Optional: language-model reading of rental adverts
+
+`pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a
+rental advert is really a whole flat, and to extract furnished state, floor and lift, heating, bills,
+pets, outdoor space, minimum term, condition, red flags (each with the quoted phrase) and a one-line
+summary. It is **off** unless `ANTHROPIC_API_KEY` is set (VPS, `STORAGE=local`; `pip install -r
+requirements-extract.txt`). With no key, or on any error, timeout or when `EXTRACT_DAILY_LIMIT` requests
+have been used that day, the keyword rules decide exactly as before.
+
+The model may rescue a rules-rejected advert only when it says `whole_flat` with high confidence and a
+contiguous quote from the description explicitly supports self-contained accommodation (not just a
+private entrance), with no explicit shared-accommodation contradiction. Empty, invented, metadata-only,
+negated or unsupported evidence preserves the rules' verdict. It may
+reject a kept advert only for `room_in_shared`, `short_let`, `student_only` or `age_restricted` with high
+confidence and a phrase that really occurs in the advert; anything in between keeps the rules' verdict and
+adds a "Check advert" note. Refinement and full cost checks precede extraction; the production pipeline
+also checks travel/crime before paying for extraction. Adverts are escaped inside a data boundary with
+explicit untrusted-input instructions. Neither delimiters nor quote matching eliminate prompt injection
+or establish that an advert is truthful.
+
+Deposit amounts are compared in code, not by model arithmetic: the usual
+[English tenancy-deposit benchmark](https://www.gov.uk/private-renting/deposits) of five weeks (six at
+annual rent of at least £50,000), with a £1 rounding allowance. A larger amount prompts a terms check,
+not a legal verdict; applicability depends on the tenancy. Existing source logic can estimate the
+deposit field, so it is not independently verified advertised evidence. Model amount-only deposit alarms and summaries
+discussing deposits are dropped. Explicit non-refundable deposit wording can still be flagged.
+Deposit-replacement offers get a neutral "check fees and liability" note, never a blanket safety or
+legality endorsement. Other supported warnings, including payment before viewing, remain.
+
+Results are cached in the local SQLite database by a hash of the input, model and prompt version; a
+512-entry in-memory LRU retains only hot results. Eviction reuses SQLite without another paid request.
+Failures are not cached. The request lock is deliberately retained across the HTTP call to preserve
+same-instance deduplication and request-slot accounting; it serializes concurrent callers. It is not a
+cross-process spending lock. Every disagreement is stored in
+`extraction_disagreements`. Only advert text and public listing fields are sent: never an address,
+a name, a chat id or a setting.
+
+First-party standard [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing),
+verified 2026-11-10, is model-specific: **Haiku 5.5** costs $0.10 input / $0.50 output per million tokens
+up to 100K prompt tokens, with $0.01 cache reads and $0.125 five-minute cache writes. Above 100K,
+including cached input, those rates are $0.50 / $2.50 / $0.05 / $0.625. **Haiku 4.5** instead costs
+$1 / $5 / $0.10 / $1.25. The evaluator uses the selected model, refuses dollar projections for unpriced
+model IDs, and does not infer a family price. These are estimates, not invoice reconciliation or a
+dollar spending cap: `EXTRACT_DAILY_LIMIT` limits attempted requests, including failures.
+
+The existing cached evaluation used truncated search-card text and establishes neither production
+accuracy nor successful filtering. Confidence is not forced higher. The changed prompt invalidates
+old cache keys; full-text quality remains unverified. `scripts/eval_extract.py` can make paid calls:
+run its model half only under a separately authorized budget. A one-off test ceiling does not authorize
+production activation.

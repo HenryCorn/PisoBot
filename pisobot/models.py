@@ -85,6 +85,10 @@ class Listing:
     council_tax_label: str = ""                  # e.g. "council tax B", "council tax ~C, London average"
     studio: bool = False                         # private rent: the advert is a studio (portal type or explicit text)
     furnishing: Optional[str] = None             # private rent: furnished, unfurnished, part, flexible (as stated)
+    # Optional language-model reading of the advert (extract.py); empty when the layer is off
+    check_notes: list = field(default_factory=list)   # "check advert" reasons the model raised
+    ai_summary: Optional[str] = None                  # its one-line summary
+    ai_facts: dict = field(default_factory=dict)      # furnished, lift, heating, pets, ... or "unknown"
     # Facts the portals already publish (private rent)
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
@@ -207,6 +211,7 @@ class Listing:
             tags.extend(f"⚠️ Check advert: {word}" for word in self._rental_keywords()[1])
             if config.FURNISHED != "any" and not (self.furnishing or rental_text.furnishing(self.description)):
                 tags.append("ℹ️ Furnishing not stated")
+            tags.extend(f"⚠️ Check advert: {note}" for note in self.check_notes)
         return tags
 
     @property

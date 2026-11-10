@@ -201,6 +201,8 @@ def format_listing(l, reason="new", rank=None, flags=""):
     if portal_line(l):
         lines.append(portal_line(l))
     lines.append(commute_line(l))
+    if getattr(l, "ai_summary", None):
+        lines.append(f"ℹ️ <i>{e(l.ai_summary)}</i>")
     tags = []
     if getattr(l, "match_score", None) and l.match_score >= 70:
         reason_txt = f" ({l.match_reasons[0]})" if getattr(l, "match_reasons", None) else ""

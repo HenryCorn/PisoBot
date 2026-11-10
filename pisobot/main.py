@@ -15,7 +15,8 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import cache, collage, models, rental_text, config, costs, d1, enrich, intelligence, mapgen, prefs, ranking, taste, telegram, users
+from . import (cache, collage, models, rental_text, extract, config, costs, d1, enrich,
+               intelligence, mapgen, prefs, ranking, taste, telegram, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -102,6 +103,9 @@ def _post_details_reject(l):
     """Rental preferences that need the details page (a published area, furnishing)."""
     if l.tenure != "rent":
         return None
+    l.studio = l.studio or rental_text.is_studio(f"{l.address}. {l.description}")
+    if l.studio and config.STUDIO_MIN_AREA is None:
+        return "studio"
     if l.studio and config.STUDIO_MIN_AREA:      # >0: studios only with a published area at least this big
         if not l.floor_area_m2 or l.floor_area_m2 < config.STUDIO_MIN_AREA:
             return "studio_area"
@@ -122,7 +126,7 @@ def _district_reject(l):
     return None
 
 
-def passes_basic(l):
+def passes_basic(l, defer_model=False):
     studio = l.tenure == "rent" and (l.studio or rental_text.is_studio(f"{l.address}. {l.description}"))
     if studio:
         l.studio = True
@@ -130,8 +134,9 @@ def passes_basic(l):
             return "studio"
     if (max(l.bedrooms, 1) if studio else l.bedrooms) < config.MIN_BEDROOMS:
         return "beds"
-    if l.excluded_by_keywords():
-        return "keywords"
+    by_rules = l.excluded_by_keywords()
+    if by_rules and not (extract.enabled() or extract._default is not None):
+        return "keywords"          # no language-model layer: the rules decide, exactly as before
     if l.lat is None or l.lng is None:
         return "no location"
     why = _district_reject(l)
@@ -149,12 +154,15 @@ def passes_basic(l):
             return why
         if not refine(l):
             return "details"
-        if l.excluded_by_keywords():
-            return "keywords"
     for key, value in detail_fields(l.description).items():
         if getattr(l, key) is None:
             setattr(l, key, value)
-    return _post_details_reject(l) or _cost_reject(l)
+    why = _post_details_reject(l) or _cost_reject(l)
+    if why:
+        return why
+    if not defer_model and extract.keyword_verdict(l, l.excluded_by_keywords()):
+        return "keywords"
+    return None
 
 
 def passes_area(l):
@@ -369,7 +377,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 continue
             if l.tenure == "rent":
                 rental_keys.add(l.key)
-            why = passes_basic(l)
+            why = passes_basic(l, defer_model=True)
             if not why:
                 try:
                     why = passes_area(l)
@@ -378,6 +386,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     enrich_failures += 1
                     reject(l.source, "enrichment")
                     continue
+            if not why and extract.keyword_verdict(l, l.excluded_by_keywords()):
+                why = "keywords"
             if why:
                 reject(l.source, why)
                 if verbose:

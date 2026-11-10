@@ -193,7 +193,7 @@ class SharedWatchTests(Base):
             self.addCleanup(target.stop)
         self.enterContext(patch.object(
             main, "passes_basic",
-            side_effect=lambda l: main._cost_reject(l)))
+            side_effect=lambda l, **kw: main._cost_reject(l)))
         self.fetch = self.enterContext(patch.object(main.SOURCES["rm"], "fetch",
                                                     return_value=[home(1, 1200), home(2, 1500)]))
         self.sent = []

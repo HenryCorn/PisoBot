@@ -95,7 +95,7 @@ class WatchTests(unittest.TestCase):
         d1.query("INSERT INTO hidden (key) VALUES (?)", first.key)
         scheme = home(4)
         scheme.source = "lq"
-        with patch.object(main, "passes_basic", side_effect=lambda l: {"2": "keywords", "3": "cost"}.get(l.id)), \
+        with patch.object(main, "passes_basic", side_effect=lambda l, **kw: {"2": "keywords", "3": "cost"}.get(l.id)), \
                 patch.object(main.SOURCES["lqr"], "fetch", return_value=[scheme]):
             watch.Watcher(["rm", "lqr"]).cycle()
         rows = d1.query("SELECT stats FROM rental_funnel")

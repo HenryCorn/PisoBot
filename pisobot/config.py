@@ -93,6 +93,12 @@ MAX_WALK_MINUTES = None     # max walk to the first station or stop; None: no li
 MAX_CHANGES = None          # max changes on the commute; None: no limit
 AREAS_EXCLUDE = ()          # postcode districts that never match, e.g. ("N7", "SE15")
 AREAS_INCLUDE = ()          # if non-empty, only these districts match
+# Optional language-model reading of rental adverts (extract.py). Off unless ANTHROPIC_API_KEY is set
+# (and STORAGE=local); on any error the keyword rules decide exactly as before.
+EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "claude-haiku-5-5")
+EXTRACT_DAILY_LIMIT = _env("EXTRACT_DAILY_LIMIT", 400, int)   # API requests per UTC day, cached results are free
+EXTRACT_TIMEOUT_S = _env("EXTRACT_TIMEOUT_S", 20)
+EXTRACT_MAX_TOKENS = _env("EXTRACT_MAX_TOKENS", 2500, int)    # includes any thinking at low effort
 
 MAX_ALERTS_PER_RUN = _env("MAX_ALERTS_PER_RUN", 40, int)
 PRICE_DROP_ALERT = _env("PRICE_DROP_ALERT", 25)     # re-alert when monthly cost falls by this much
