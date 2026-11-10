@@ -101,7 +101,7 @@ class RentalTests(unittest.TestCase):
                              "floorPlan": {"image": [{"filename": "p.jpg"}]},
                              "detailedDescription": "All bills included<br>First floor flat"}, separators=(",", ":"))
         with patch.object(net, "page", return_value=f'<script>self.__next_f.push([1,{json.dumps("6:" + detail)}])</script>'):
-            self.assertTrue(zoopla.refine(h))
+            self.assertFalse(zoopla.refine(h))  # explicit communal bathroom is a hard room-let exclusion
         self.assertEqual((h.bills, h.floorplan), (0, "https://lid.zoocdn.com/u/1024/768/p.jpg"))
         self.assertTrue(h.excluded_by_keywords())
 
