@@ -159,6 +159,8 @@ def apply_rent_details(listing, details):
     for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing"):
         if details.get(key):
             setattr(listing, key, details[key])
+    if details.get("postcode") and not listing.full_postcode:
+        listing.full_postcode = details["postcode"]
     if details.get("council_tax_included") is not None:
         listing.council_tax_included = details["council_tax_included"]
     private_rent_costs(listing)
@@ -214,7 +216,7 @@ def cached_search(name, search, minutes=None):
     listings = search()
     keep = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
             "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
-            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
+            "floor_area_m2", "full_postcode", "description", "estimated", "council_tax", "floor", "lease_years",
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
             "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
             "bathrooms", "agent",
