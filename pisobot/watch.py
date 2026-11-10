@@ -103,7 +103,11 @@ class Watcher:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
-            _put_meta("watch_degraded_adverts", totals["degraded"])
+            # Loop/source liveness is separate from lookup health. A successful heartbeat
+            # must not hide an enrichment outage, including sweep-only inventory.
+            retries = sum(archive.lookup_degraded(p.chat_id, pipeline.settings_key(p)) for p in people)
+            totals["degraded"] = max(totals["degraded"], retries)
+            self._lookup_health(totals["degraded"])
             healthcheck = os.environ.get("HEALTHCHECK_URL", "")
             if healthcheck:
                 try:
@@ -117,9 +121,18 @@ class Watcher:
         person = users.current()
         settings = pipeline.settings_key(person)
         previous = _meta("watch_settings")
-        # Unknown legacy policy/defaults are not evidence of unchanged criteria. Rebaseline
-        # silently once, retaining seen/saved/hidden history, rather than flooding on upgrade.
-        first = not _meta("watch_initialized") or previous != settings
+        # The deployed pre-archive watcher stored raw params JSON and authoritative seen
+        # history. Recognize that specific format when the params still agree: otherwise
+        # a quiet upgrade would swallow homes listed since the last live poll. Unknown
+        # markers or explicit /set resets still take the conservative silent-baseline path.
+        legacy_live = False
+        if previous is not None and _meta("watch_initialized") and pipeline.load_seen():
+            try:
+                stored = json.loads(previous)
+                legacy_live = isinstance(stored, dict) and stored == (person.params if person else {})
+            except (TypeError, ValueError):
+                pass
+        first = not _meta("watch_initialized") or (previous != settings and not legacy_live)
         sweep_keys = set()
         if kind == "report" and not first and archive.enabled():
             # /report also lists the matches only the deep sweep has found
@@ -138,6 +151,28 @@ class Watcher:
             if first:
                 _put_meta("watch_initialized", "1")
         return result
+
+    def _lookup_health(self, degraded):
+        """One push warning per sustained incident; transient send failure leaves it retryable."""
+        _put_meta("watch_degraded_adverts", degraded)
+        failures = int(_meta("watch_lookup_failures") or 0) + 1 if degraded else 0
+        _put_meta("watch_lookup_failures", failures)
+        if degraded and failures >= config.WATCH_FAILURE_LIMIT and _meta("watch_lookup_warned") != "1":
+            try:
+                telegram.send_text(f"⚠️ Advert lookups have been degraded for {failures} consecutive cycles "
+                                   f"({degraded} waiting in the latest scan). Scans continue; failed lookups "
+                                   "retry automatically with cooldowns capped at one hour. /status shows the backlog.")
+            except Exception as ex:
+                log.error("Lookup degradation warning failed (%s)", type(ex).__name__)
+            else:
+                _put_meta("watch_lookup_warned", "1")
+        elif not degraded and _meta("watch_lookup_warned") == "1":
+            try:
+                telegram.send_text("✅ Advert lookups have recovered; the current retry backlog is clear.")
+            except Exception as ex:
+                log.error("Lookup recovery warning failed (%s)", type(ex).__name__)
+            else:
+                _put_meta("watch_lookup_warned", "0")
 
     def _failed(self):
         failures = int(_meta("watch_failures") or 0) + 1

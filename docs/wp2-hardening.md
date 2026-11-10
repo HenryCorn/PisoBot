@@ -1,5 +1,8 @@
 # WP2 hardening — round 2 (PR #7)
 
+> Historical round-2 report: terminal lookup failures and unconditional quiet upgrade
+> baselines are superseded by [round 3](wp2-hardening-round3.md). Read that report first.
+
 **Draft; not a rollout approval.** This supersedes the round-1 liveness/baseline claims in
 the original `docs/wp2-hardening.md`. Base of this round: `fe24507`; PR base remains
 `wp2-archive`. No merge, deployment, production state operation or live market/API request

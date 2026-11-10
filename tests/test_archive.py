@@ -106,7 +106,8 @@ class VerdictTests(ArchiveBase):
         archive.record_verdicts("100", [("rm:1", "matched", 1400, None, None, None),
                                         ("rm:2", "enrichment", 1400, None, None, None),
                                         ("rm:3", "unsent", 1400, None, None, None)], "s1")
-        keys = lambda settings, **kw: sorted(l.key for l in archive.pending("100", ["rm"], settings, 10, **kw))
+        keys = lambda settings, **kw: sorted(l.key for l in archive.pending("100", ["rm"], settings, 10,
+                                                                          at=at(48), **kw))
         self.assertEqual(keys("s1"), ["rm:2", "rm:3", "rm:4"])
         self.assertEqual(keys("s2"), ["rm:1", "rm:2", "rm:3", "rm:4"])         # settings changed: judge again
         self.assertEqual(keys("s1", skip={"rm:2"}), ["rm:3", "rm:4"])

@@ -42,9 +42,14 @@ class Repro(JudgingBase):
         # Deep-sweep crawl is stubbed: the generation is "still in progress / not yet complete",
         # as after an upgrade, a /set change or a new person. No portal request can be made.
         self.crawl = self.enterContext(patch.object(sweep, "crawl"))
+        self.quarter = 0
 
     def cycle(self, head, patches=None):
+        # Whole production cycles are 15 minutes apart, not immediate same-clock retries.
         targets = [patch.object(rightmove, "fetch", return_value=list(head))]
+        if not isinstance(archive.now, Mock):
+            targets.append(patch.object(archive, "now", return_value=at(self.quarter * .25)))
+        self.quarter += 1
         targets += [patch.object(obj, name, value) for (obj, name), value in (patches or {}).items()]
         for t in targets:
             t.start()
@@ -222,7 +227,7 @@ class RoundTwoPrinciples(Repro):
         db.assert_not_called()
         self.assertEqual(self.alerts, [])
 
-    def test_price_reversion_and_quiet_run_cannot_receipt_a_different_intent(self):
+    def test_price_reversion_suppresses_the_obsolete_intent_without_fabricating_a_receipt(self):
         item = advert(20, 1400)
         archive.upsert([item], "head")
         with users.use(self.owner):
@@ -240,8 +245,8 @@ class RoundTwoPrinciples(Repro):
             main._run(["rm"], False, False, rentals=True, watch=True, baseline=True,
                       prefetched=([item], []))
         self.assertEqual(self.alerts, [(item.key, "new")])
-        self.assertEqual(archive.intent_token("100", item.key), outstanding)
-        self.assertTrue(self.job(item.key)["notify"])
+        self.assertIsNone(archive.intent_token("100", item.key))
+        self.assertFalse(self.job(item.key)["notify"])
         self.assertEqual(main.load_seen()[item.key]["delivery_intent"], first_receipt)
 
     def test_exact_delivery_token_recovers_a_crash_between_seen_and_database_ack(self):
@@ -289,7 +294,7 @@ class RoundTwoPrinciples(Repro):
                                 "two", acknowledged=True)
         self.assertFalse(self.job(item.key)["notify"])
 
-    def test_bounded_retry_backoff_final_state_and_healthy_whole_cycles(self):
+    def test_bounded_retry_rate_never_permanently_exhausts_an_active_home(self):
         self.archive_sweep(HEAD)
         attempts = []
         bad = failing_details({"rm:2"})
@@ -306,20 +311,19 @@ class RoundTwoPrinciples(Repro):
                     if moment == at(0):
                         self.assertEqual(sweep._meta("watch_initialized"), "1")
                         self.assertEqual(sweep._meta("sweep_base:rm"), main.settings_key(self.owner))
-                        self.assertEqual(self.job("rm:2")["failures"], 2)
+                        self.assertEqual(self.job("rm:2")["failures"], 1)
                     if moment == at(.01):
-                        self.assertEqual(len(attempts), 2)  # real head AND sweep both obey backoff
-        self.assertEqual(len(attempts), archive.LOOKUP_ATTEMPTS)
+                        self.assertEqual(len(attempts), 1)  # no same-cycle head/sweep retry
+        self.assertEqual(len(attempts), 3)
         self.assertEqual(ping.call_count, 4)
         self.assertIsNotNone(sweep._meta("watch_last_success"))
-        self.assertEqual(self.job("rm:2")["state"], "failed")
-        self.assertEqual(self.outcomes()["rm:2"], "enrichment_failed")
+        self.assertEqual(self.job("rm:2")["state"], "backoff")
+        self.assertEqual(self.outcomes()["rm:2"], "enrichment")
         self.assertNotIn("rm:2", self.seen())
         shown = status.status_text()
-        self.assertIn("1 exhausted", shown)
-        self.assertIn("Home 2", shown)
-        self.assertIn("3 attempts; enrichment_failed", shown)
+        self.assertIn("1 lookup(s) in backoff", shown)
         self.assertIn("source scan is live", shown)
+        self.assertTrue(any("lookups have been degraded" in text for text in self.texts))
 
     def test_baseline_member_recovers_silently_after_both_head_and_sweep_go_live(self):
         self.archive_sweep(HEAD)
@@ -340,7 +344,7 @@ class RoundTwoPrinciples(Repro):
             self.cycle(HEAD + NEW[:1], {(rightmove, "refine"): failing_details({"rm:4"})})
         with patch.object(archive, "now", return_value=at(.2)):
             self.cycle(HEAD + NEW[:1], {(rightmove, "refine"): failing_details({"rm:4"})})
-        self.assertEqual(self.job("rm:4")["state"], "failed")
+        self.assertEqual(self.job("rm:4")["state"], "backoff")
         self.assertTrue(self.job("rm:4")["notify"])
         self.assertNotIn("rm:4", self.seen())
         changed = advert(4, 1225, description="Updated self-contained flat")
@@ -353,10 +357,10 @@ class RoundTwoPrinciples(Repro):
         item = advert(20)
         archive.upsert([item], "head")
         key = main.settings_key(self.owner)
-        for _ in range(archive.LOOKUP_ATTEMPTS):
+        for _ in range(3):
             archive.record_verdicts("100", [(item.key, "enrichment", item.rent, 1500, 25, None)],
                                     key, baseline=False)
-        self.assertEqual(archive.retry_block("100", item.key, key), "enrichment_failed")
+        self.assertEqual(archive.retry_block("100", item.key, key), "retry_backoff")
         with archive._db() as db:
             db.execute("UPDATE adverts SET status='unseen' WHERE key=?", (item.key,))
         archive.upsert([item], "head")  # same public facts, but a new active episode
@@ -379,7 +383,8 @@ class RoundTwoPrinciples(Repro):
         self.assertFalse(self.job(item.key)["notify"])
         self.assertTrue(self.job(item.key, "200")["notify"])
         sent = []
-        with patch.object(telegram, "send_listing", side_effect=lambda l, r: sent.append(users.current_chat())):
+        with patch.object(archive, "now", return_value=at(48)), \
+                patch.object(telegram, "send_listing", side_effect=lambda l, r: sent.append(users.current_chat())):
             for person, baseline in ((self.owner, False), (friend, True)):
                 with users.use(person), users.criteria(person.params):
                     main._run(["rm"], False, False, rentals=True, watch=True, baseline=baseline,
@@ -403,7 +408,7 @@ class RoundTwoPrinciples(Repro):
         self.cycle(HEAD)
         with patch.object(archive, "now", return_value=at(0)):
             self.cycle(HEAD, {(rightmove, "refine"): failing_details({"rm:2"})})
-        self.assertEqual(self.job("rm:2")["failures"], 2)
+        self.assertEqual(self.job("rm:2")["failures"], 1)
         with patch.object(archive, "now", return_value=at(.2)):
             self.cycle(HEAD)
         self.assertEqual(self.job("rm:2")["failures"], 0)
@@ -448,8 +453,9 @@ class RoundTwoPrinciples(Repro):
         ticks[0] = 0
         with patch.object(main.enrich, "journey", journey), patch.object(archive, "now", return_value=at(24)):
             sweep.judge(self.owner, ["rm"], 10, clock=lambda: ticks[0])
-        self.assertEqual(self.job(slow.key)["state"], "failed")
-        self.assertEqual(self.outcomes()[slow.key], "enrichment_failed")
+        self.assertEqual(self.job(slow.key)["state"], "backoff")
+        self.assertEqual(self.job(slow.key)["failures"], 0)
+        self.assertEqual(self.outcomes()[slow.key], "deferred")
         self.assertTrue(self.job(newer.key)["notify"])
         self.assertNotIn(newer.key, self.seen())  # deadline deferred DELIVERY, never silently absorbed it
         ticks[0] = 0

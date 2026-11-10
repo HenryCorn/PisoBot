@@ -104,8 +104,8 @@ class WatchTests(unittest.TestCase):
         funnel = json.loads(rows[0]["stats"])
         self.assertTrue(funnel["filtering_finished"])
         self.assertEqual(funnel["sources"]["rm"], {
-            "fetched": 4, "matched": 1, "hidden": 1,
-            "rejected": {"keywords": 1, "cost": 1, "duplicate_id": 1}})
+            "fetched": 4, "matched": 0, "hidden": 1,
+            "rejected": {"hidden": 1, "keywords": 1, "cost": 1, "duplicate_id": 1}})
         self.assertEqual(funnel["sources"]["lqr"]["fetched"], 1)
         self.assertEqual(funnel["sources"]["lqr"]["matched"], 1)
         self.assertNotIn("lq", funnel["sources"])

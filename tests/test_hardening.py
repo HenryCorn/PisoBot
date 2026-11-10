@@ -264,8 +264,9 @@ class Hardening(JudgingBase):
         with patch.object(enrich, 'journey', side_effect=RuntimeError('TfL outage')):
             self.assertEqual(self.judge(), {'rm': 0})
         self.assertEqual(sweep._meta('sweep_base:rm'), main.settings_key(self.owner))
-        self.assertEqual(len(self.pending()), 50)  # first retry due, but SILENT membership is durable
-        self.assertEqual(self.judge(), {})
+        self.assertEqual(len(self.pending()), 0)  # first retry is backed off; no same-cycle hammering
+        with patch.object(archive, 'now', return_value=at(48)):
+            self.assertEqual(self.judge(), {})
         self.assertEqual(self.alerts, [])
         self.assertEqual(len(self.seen()), 50)
         archive.upsert([advert(99)], 'sweep')
@@ -314,9 +315,11 @@ class Hardening(JudgingBase):
         self.assertEqual(clock[0], 30)
         self.assertEqual(journey.call_count, 3)
         self.assertEqual(details.call_count, 2)
-        self.assertEqual(len(self.pending()), 25)
+        self.assertEqual(len(self.pending()), 24)  # one over-budget lookup is cooling down
         self.assertEqual(self.alerts, [])
-        self.judge()
+        with patch.object(archive, 'now', return_value=at(48)):
+            self.assertEqual(len(self.pending()), 25)
+            self.judge()
         self.assertEqual(len(self.alerts), 25)
 
     def test_zero_time_budget_starts_no_advert(self):
@@ -494,8 +497,9 @@ class Hardening(JudgingBase):
                                        sweep=True, prefetched=([item], []))
                 self.assertTrue(result['complete'])  # one advert degrades, not the source/person
                 self.assertEqual(result['degraded'], 1)
-                self.assertEqual(len(self.pending(sources=(source,))), 1)
-                with patch.object(module, 'refine', return_value=True):
+                self.assertEqual(len(self.pending(sources=(source,))), 0)  # wait for retry clock
+                with patch.object(archive, 'now', return_value=at(48)), \
+                        patch.object(module, 'refine', return_value=True):
                     sweep.judge(self.owner, [source], 1000, clock=lambda: 0)
                 self.assertEqual(self.pending(sources=(source,)), [])
                 self.assertEqual(self.alerts, [])

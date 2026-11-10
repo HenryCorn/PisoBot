@@ -468,7 +468,8 @@ class Judging(JudgingBase):
             self.assertEqual(self.judge(), {"rm": 0})            # member stays silent; source can go live
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "enrichment")
         self.assertEqual(sweep._meta("sweep_base:rm"), main.settings_key(self.owner))
-        self.assertEqual(self.judge(), {})
+        with patch.object(archive, "now", return_value=at(48)):
+            self.assertEqual(self.judge(), {})
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "matched")
         self.assertEqual(self.alerts, [])                           # recovery remains silent
 

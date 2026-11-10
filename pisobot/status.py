@@ -50,20 +50,20 @@ def status_text(now=None):
 
     degraded = int(meta.get("watch_degraded_adverts") or 0)
     if degraded:
-        lines.append(f"⚠️ Last head scan: {degraded} per-advert lookup(s) degraded; source scan is live.")
+        lines.append(f"⚠️ Latest cycle: {degraded} advert lookup(s) waiting or degraded; source scan is live.")
     chat_id = users.current_chat() or users.owner_chat() or "owner"
     work = archive.work_counts(chat_id)
     if work.get("intent") or work.get("backoff") or work.get("failed"):
         lines.append(f"\n<b>Your advert work</b>: {work.get('intent', 0)} pending notification intent(s), "
-                     f"{work.get('backoff', 0)} lookup(s) in backoff, {work.get('failed', 0)} exhausted, "
+                     f"{work.get('backoff', 0)} lookup(s) in backoff, {work.get('failed', 0)} legacy failure(s), "
                      f"{work.get('blocked', 0)} intent(s) blocked by current criteria.")
         if work.get("failed"):
-            lines.append("Exhausted lookups stop retrying until the advert facts or your search settings change:")
+            lines.append("Previously exhausted lookups now retry automatically with a one-hour cooldown:")
             for row in archive.failed_work(chat_id):
                 label = html.escape(str(row.get("address") or row["key"])[:60])
                 url = html.escape(str(row.get("url") or ""), quote=True)
                 home = f'<a href="{url}">{label}</a>' if url else label
-                lines.append(f"• {home} — {row['failures']} attempts; enrichment_failed")
+                lines.append(f"• {home} — {row['failures']} attempts; slow retry scheduled")
 
     lines.append("\n<b>Deep sweep</b>")
     if config.DEEP_SWEEP_HOURS <= 0:

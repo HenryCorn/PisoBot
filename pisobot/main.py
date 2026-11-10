@@ -206,6 +206,8 @@ def _record(l, today, alerted, prev=None):
               "lat": l.lat, "lng": l.lng, "address": l.address}
     if l.tenure == "rent":
         record["rent"] = l.rent   # price drops compare advertised rent: bills estimates vary per listing
+    if prev.get("delivery_intent") is not None:
+        record["delivery_intent"] = prev["delivery_intent"]  # never invent a newer delivery receipt
     return record
 
 
@@ -411,17 +413,24 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 break
             processed.append(l.key)
             from_sweep = sweep or l.key in sweep_keys
+            if l.tenure == "rent" and l.key in rental_keys:
+                reject(l.source, "duplicate_id")
+                continue
+            if l.tenure == "rent":
+                rental_keys.add(l.key)
+            if local_rentals and prefs.is_hidden(p, l):
+                # Cancel structurally hidden work before expensive lookups, including
+                # an old delivery obligation; this is suppression, not a send receipt.
+                reject(l.source, "hidden")
+                source_stats(l.source)["hidden"] += 1
+                verdicts.append(_verdict_row(l, "hidden"))
+                continue
             if local_rentals and live:
                 blocked = archive.retry_block(person_id, l.key, settings)
                 if blocked:
                     reject(l.source, blocked)
                     deferred_failures += 1
                     continue
-            if l.tenure == "rent" and l.key in rental_keys:
-                reject(l.source, "duplicate_id")
-                continue
-            if l.tenure == "rent":
-                rental_keys.add(l.key)
             order = staged(l)
             if order:
                 why = passes_basic(l, sweep=from_sweep, stage="cheap")
@@ -482,8 +491,9 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     and seen[r[0]].get("alerted") and seen[r[0]]["rent"] - r[2] >= config.PRICE_DROP_ALERT)}
                 intents = [(r[0], "unsent", *r[2:]) if r[1] == "matched" and r[0] in notice_keys
                            else r for r in verdicts]
-                archive.record_verdicts(person_id, intents, settings,
-                                        baseline=baseline, notice_keys=notice_keys)
+                suppressed = {r[0] for r in verdicts if r[1] == "matched" and r[0] not in notice_keys}
+                archive.record_verdicts(person_id, intents, settings, baseline=baseline,
+                                        notice_keys=notice_keys, suppressed_keys=suppressed)
             except Exception as ex:
                 print(f"archive verdicts failed: {type(ex).__name__}: {ex}", file=sys.stderr)
                 if rentals:

@@ -96,9 +96,9 @@ CREATE TABLE IF NOT EXISTS unseen_deliveries (
     PRIMARY KEY(chat_id, event_id)
 );
 """
-RETRY = "('enrichment', 'unsent', 'deferred')"  # failed lookup, durable delivery intent, or deadline yield
-LOOKUP_ATTEMPTS = 3  # total attempts per person + facts + effective settings
-RETRY_BACKOFF_SECONDS = 300  # first retry immediate; further retry after five minutes
+RETRY = "('enrichment', 'unsent', 'deferred', 'enrichment_failed')"
+RETRY_BACKOFF_SECONDS = 300  # even the first failure waits: head + sweep share this clock
+MAX_RETRY_BACKOFF_SECONDS = 3600  # transient failures never permanently retire an active advert
 UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
 
 
@@ -225,8 +225,12 @@ def _context_for(db, key, settings):
 def _waiting(job, context, at):
     if not job or job["context"] != context:
         return None
-    if job["state"] == "failed":
-        return "enrichment_failed"
+    # Round-2 databases may contain terminal failures. Admit them again on the slow
+    # retry clock, preserving provenance, rather than silently abandoning live homes.
+    if job["state"] == "failed" and not job["next_retry"]:
+        due = dt.datetime.fromisoformat(job["updated_at"]) + dt.timedelta(seconds=MAX_RETRY_BACKOFF_SECONDS)
+        if due > dt.datetime.fromisoformat(at):
+            return "retry_backoff"
     if job["next_retry"] and dt.datetime.fromisoformat(job["next_retry"]) > dt.datetime.fromisoformat(at):
         return "retry_backoff"
     return None
@@ -299,12 +303,23 @@ def failed_work(chat_id, limit=5):
                      "ORDER BY w.updated_at DESC, w.key LIMIT ?", str(chat_id), limit)
 
 
-def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_keys=None, acknowledged=False):
+def lookup_degraded(chat_id, settings):
+    """Current active lookup retries only; stale contexts/removed inventory cannot hold an alarm."""
+    with _db() as db:
+        rows = _rows(db, "SELECT w.context, a.data FROM advert_work w JOIN adverts a ON a.key=w.key "
+                     "WHERE w.chat_id=? AND a.status='active' AND w.state IN ('backoff','failed')",
+                     str(chat_id))
+    return sum(row['context'] == _context(settings, row['data']) for row in rows)
+
+
+def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_keys=None, acknowledged=False,
+                    suppressed_keys=()):
     """Atomically persist verdict AND durable work provenance; a verdict is NOT a delivery receipt.
 
     notify is sticky across quiet runs, settings and fact revisions until explicit acknowledgement.
-    Silent membership survives baseline completion for retries of that same context. A retryable
-    lookup failure is isolated, backed off and eventually visible as enrichment_failed.
+    Silent membership survives baseline completion for retries of that same context. Lookup
+    failures back off up to an hour, never permanently fail. Explicit suppression retires an
+    obsolete notice condition; it is not a fabricated delivery receipt.
     """
     if acknowledged and baseline is True:
         raise ValueError("A silent baseline is not a delivery receipt")
@@ -332,15 +347,20 @@ def record_verdicts(chat_id, rows, settings, at=None, *, baseline=None, notice_k
                 intent_id = intent_id or uuid.uuid4().hex
             failures = old["failures"] if same else 0
             next_retry = None
-            if outcome in ("enrichment", "deferred"):
+            if key in suppressed_keys or outcome == "hidden":
+                state, notify, intent_id, failures = "done", False, None, 0
+            elif outcome == "enrichment":
                 failures += 1
-                if failures >= LOOKUP_ATTEMPTS:
-                    state, outcome = "failed", "enrichment_failed"
-                else:
-                    state = "backoff"
-                    delay = 0 if failures == 1 else RETRY_BACKOFF_SECONDS * 2 ** (failures - 2)
-                    next_retry = (dt.datetime.fromisoformat(at) + dt.timedelta(seconds=delay)).isoformat(
-                        timespec="seconds")
+                state = "backoff"
+                delay = min(MAX_RETRY_BACKOFF_SECONDS, RETRY_BACKOFF_SECONDS * 2 ** min(failures - 1, 4))
+                next_retry = (dt.datetime.fromisoformat(at) + dt.timedelta(seconds=delay)).isoformat(
+                    timespec="seconds")
+            elif outcome == "deferred":
+                # Yielding is not a failed lookup, but a short cooldown keeps an
+                # individually over-budget advert from burning every following slice.
+                state = "backoff"
+                next_retry = (dt.datetime.fromisoformat(at) + dt.timedelta(
+                    seconds=RETRY_BACKOFF_SECONDS)).isoformat(timespec="seconds")
             elif retryable:
                 state = "pending"
                 if outcome == "unsent":
@@ -385,7 +405,7 @@ def pending(chat_id, sources, settings, limit, skip=(), *, drainage=False, at=No
     """Due work only. Drainage ignores classified retries/intents, NOT unattempted inventory.
 
     Baseline membership and live intent are durable per advert, so global go-live need not wait for
-    a failing advert or for delivery quota. Backoff/terminal work stays visible in /status.
+    a failing advert or for delivery quota. Every active lookup failure eventually becomes due again.
     """
     marks = ",".join("?" for _ in sources)
     at = at or now()
