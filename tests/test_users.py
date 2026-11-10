@@ -350,12 +350,13 @@ class SharedWatchTests(Base):
         self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 2)
         self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
 
-    def test_legacy_owner_baseline_is_kept_on_upgrade(self):
+    def test_legacy_owner_history_is_kept_during_silent_policy_upgrade(self):
         watch.Watcher(["rm"]).cycle()
         d1.query("DELETE FROM meta WHERE name = 'watch_settings'")
         watch.Watcher(["rm"]).cycle()
-        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 1)
+        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 2)
         self.assertEqual(self.sent, [])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
 
     def test_queued_report_keeps_its_recipient_when_another_request_arrives(self):
         watcher = watch.Watcher(["rm"])

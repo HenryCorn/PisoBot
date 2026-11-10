@@ -77,8 +77,17 @@ CREATE TABLE IF NOT EXISTS sweeps (
     state TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS sweeps_source ON sweeps (source, id);
+CREATE TABLE IF NOT EXISTS unseen_events (
+    id INTEGER PRIMARY KEY, sweep_id INTEGER NOT NULL, key TEXT NOT NULL,
+    UNIQUE(sweep_id, key)
+);
+CREATE INDEX IF NOT EXISTS unseen_events_key ON unseen_events (key, id);
+CREATE TABLE IF NOT EXISTS unseen_deliveries (
+    chat_id TEXT NOT NULL, event_id INTEGER NOT NULL,
+    PRIMARY KEY(chat_id, event_id)
+);
 """
-RETRY = "('enrichment', 'unsent')"   # outcomes to judge again: a failed lookup, or a match whose alert was capped
+RETRY = "('enrichment', 'unsent', 'deferred')"  # failed lookup, durable delivery intent, or deadline yield
 UNSEEN_AFTER = 2   # consecutive complete sweeps an in-scope advert may be missing from
 
 
@@ -114,6 +123,14 @@ def _rows(db, sql, *params):
 
 # ---------- adverts ----------
 
+def _facts(data):
+    """Decision inputs only: shared snapshots must not invalidate on a person's bill estimate."""
+    data = json.loads(data)
+    return {key: data.get(key) for key in (
+        'rent', 'bedrooms', 'address', 'lat', 'lng', 'description', 'floor_area_m2', 'available',
+        'council_tax', 'council_tax_band', 'council_tax_included', 'advert_deposit', 'scheme', 'tenure')}
+
+
 def upsert(listings, via, sweep_id=None, at=None):
     """Record adverts a fetch returned. via is "head" (the 15-minute poll) or "sweep".
     Returns {"seen": n, "unseen_by_head": n, "new": n} for this call; for a sweep, "seen" counts each
@@ -146,6 +163,9 @@ def upsert(listings, via, sweep_id=None, at=None):
                            (l.url, l.address, l.bedrooms, l.rent, l.lat, l.lng, at, l.first_listed,
                             int(was_head or via == "head"),
                             sweep_id if via == "sweep" else old["last_sweep_id"], data, l.key))
+                if _facts(old["data"]) != _facts(data) or old["status"] != "active":
+                    # Invalidate every person's judgement, never their delivery/seen history.
+                    db.execute("DELETE FROM verdicts WHERE key = ?", (l.key,))
                 if old["rent"] != l.rent or old["status"] != "active":
                     db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'active')",
                                (l.key, at, l.rent))
@@ -185,11 +205,16 @@ def record_verdicts(chat_id, rows, settings, at=None):
              for key, outcome, rent, all_in, travel, crime in rows])
 
 
-def verdicts_since(chat_id, days, at=None):
+def verdicts_since(chat_id, days, at=None, settings=None):
     since = ((dt.datetime.fromisoformat(at) if at else dt.datetime.now(dt.timezone.utc))
              - dt.timedelta(days=days)).isoformat(timespec="seconds")
     with _db() as db:
-        return _rows(db, "SELECT * FROM verdicts WHERE chat_id = ? AND updated_at >= ?", str(chat_id), since)
+        sql = "SELECT * FROM verdicts WHERE chat_id = ? AND updated_at >= ?"
+        params = [str(chat_id), since]
+        if settings is not None:
+            sql += " AND settings = ?"
+            params.append(settings)
+        return _rows(db, sql, *params)
 
 
 def pending(chat_id, sources, settings, limit, skip=()):
@@ -252,6 +277,32 @@ def save_sweep(sweep_id, state, requests):
                    (json.dumps(state, sort_keys=True), requests, sweep_id))
 
 
+def reserve_request(sweep_id, state, maximum):
+    """Charge an attempt BEFORE network I/O. Hard exits may replay a page, never free its cost."""
+    with _db() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute("SELECT requests, finished_at FROM sweeps WHERE id = ?", (sweep_id,)).fetchone()
+        if row["finished_at"] is not None or row["requests"] >= maximum:
+            return None
+        requests = row["requests"] + 1
+        db.execute("UPDATE sweeps SET requests = ?, state = ? WHERE id = ?",
+                   (requests, json.dumps(state, sort_keys=True), sweep_id))
+        return requests
+
+
+def pending_unseen(chat_id):
+    with _db() as db:
+        return _rows(db, "SELECT e.*, a.status FROM unseen_events e JOIN adverts a ON a.key = e.key "
+                     "LEFT JOIN unseen_deliveries d ON d.event_id = e.id AND d.chat_id = ? "
+                     "WHERE d.event_id IS NULL AND NOT EXISTS (SELECT 1 FROM unseen_events newer "
+                     "WHERE newer.key = e.key AND newer.id > e.id) ORDER BY e.id", str(chat_id))
+
+
+def acknowledge_unseen(chat_id, event_id):
+    with _db() as db:
+        db.execute("INSERT OR IGNORE INTO unseen_deliveries VALUES (?, ?)", (str(chat_id), event_id))
+
+
 def _in_scope(row, scope):
     centre_lat, centre_lng = scope["centre"]
     km = math.hypot((row["lat"] - centre_lat) * 111.2,
@@ -285,6 +336,8 @@ def finish_sweep(sweep_id, complete, note="", at=None):
                     db.execute("UPDATE adverts SET missed = ?, status = 'unseen' WHERE key = ?", (missed, advert["key"]))
                     db.execute("INSERT INTO observations (key, at, rent, status) VALUES (?, ?, ?, 'unseen')",
                                (advert["key"], at, advert["rent"]))
+                    db.execute("INSERT OR IGNORE INTO unseen_events (sweep_id, key) VALUES (?, ?)",
+                               (sweep_id, advert["key"]))
                     unseen.append(advert["key"])
                 else:
                     db.execute("UPDATE adverts SET missed = ? WHERE key = ?", (missed, advert["key"]))

@@ -56,6 +56,7 @@ class Watcher:
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
         totals, errors = {"matches": 0, "complete": True, "people": {}}, []
+        alert_budgets = {p.chat_id: pipeline.new_alert_budget() for p in people}
         with pipeline.locked():
             for params, group in users.search_groups(people):
                 if stop_event is not None and stop_event.is_set():
@@ -75,7 +76,8 @@ class Watcher:
                     try:
                         with users.use(person), users.criteria(person.params):
                             result = self._person_cycle(kind if person.chat_id == report_chat else "rentals",
-                                                        prefetched, stop_event, dry_run)
+                                                        prefetched, stop_event, dry_run,
+                                                        alert_budget=alert_budgets[person.chat_id])
                     except InterruptedError:
                         raise
                     except Exception as ex:
@@ -86,10 +88,10 @@ class Watcher:
                     totals["people"][person.label] = result["matches"]
                     totals["matches"] += result["matches"]
                     totals["complete"] = totals["complete"] and result["complete"]
-            if not errors and totals["complete"] and not dry_run and sweep.enabled(self.sources):
+            if not dry_run and sweep.enabled(self.sources):
                 # After the head poll has alerted: a short, resumable slice of the deep sweep
                 try:
-                    sweep.step(self.sources, people, stop_event, self.verbose)
+                    sweep.step(self.sources, people, stop_event, self.verbose, alert_budgets=alert_budgets)
                 except InterruptedError:
                     raise
                 except Exception as ex:
@@ -109,23 +111,26 @@ class Watcher:
                     log.error("Healthcheck failed (%s)", type(ex).__name__)
         return totals
 
-    def _person_cycle(self, kind, prefetched, stop_event, dry_run):
+    def _person_cycle(self, kind, prefetched, stop_event, dry_run, alert_budget=None):
         person = users.current()
-        settings = json.dumps(person.params if person else {}, sort_keys=True)
+        settings = pipeline.settings_key(person)
         previous = _meta("watch_settings")
-        # A legacy owner baseline has no settings marker. Keep it when defaults are unchanged.
-        first = (not _meta("watch_initialized")
-                 or (previous != settings and (previous is not None or settings != "{}")))
+        # Unknown legacy policy/defaults are not evidence of unchanged criteria. Rebaseline
+        # silently once, retaining seen/saved/hidden history, rather than flooding on upgrade.
+        first = not _meta("watch_initialized") or previous != settings
+        sweep_keys = set()
         if kind == "report" and not first and archive.enabled():
             # /report also lists the matches only the deep sweep has found
             shown = {l.key for l in prefetched[0]}
             extra = archive.matched_listings(person.chat_id if person else users.owner_chat(),
                                              sweep.swept(self.sources), exclude=shown)
+            sweep_keys = {l.key for l in extra}
             prefetched = (list(prefetched[0]) + extra, prefetched[1])
         result = pipeline._run(self.sources, dry_run, self.verbose,
                                report=kind == "report" and not first, rentals=True,
                                watch=kind != "report" or first, baseline=first,
-                               stop_event=stop_event, prefetched=prefetched)
+                               stop_event=stop_event, prefetched=prefetched,
+                               sweep_keys=sweep_keys, alert_budget=alert_budget)
         if result["complete"] and not dry_run:
             _put_meta("watch_settings", settings)
             if first:

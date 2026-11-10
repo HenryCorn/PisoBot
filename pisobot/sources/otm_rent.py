@@ -141,15 +141,19 @@ def fetch():
 
 
 def refine(listing):
+    listing.detail_unavailable = False  # ephemeral retry signal, never a market fact
     d = cache.get("otmr_detail", listing.id)
     if d is None:
         try:
             p = _property_data(net.page(listing.url))
         except (RequestException, ValueError) as ex:
             print(f"OnTheMarket rental detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
+            response = getattr(ex, "response", None)
+            listing.detail_unavailable = response is None or response.status_code not in (404, 410)
             return False
         if str(p.get("id")) != listing.id:
             print(f"OnTheMarket rental detail has no matching property ID: {listing.id}", file=sys.stderr)
+            listing.detail_unavailable = True
             return False
         lets = " ".join((p.get("lettingDetails") or {}).get("items") or [])
         feats = " ".join(f.get("feature", "") if isinstance(f, dict) else str(f) for f in p.get("features") or [])

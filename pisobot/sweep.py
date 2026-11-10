@@ -47,6 +47,13 @@ def scope_for(people):
             "centre": [users.DEFAULTS["TARGET_LAT"], users.DEFAULTS["TARGET_LNG"]]}
 
 
+def covers(scope, needed):
+    """A completed generation must actually cover this person's current search."""
+    return (scope["min_rent"] <= needed["min_rent"] and scope["max_rent"] >= needed["max_rent"]
+            and scope["min_beds"] <= needed["min_beds"] and scope["miles"] >= needed["miles"]
+            and scope["centre"] == needed["centre"])
+
+
 def initial_state(scope):
     return {"queue": [[scope["min_rent"], scope["max_rent"]]], "current": None, "errors": 0,
             "truncated": 0, "splits": 0, "bands": 0}
@@ -81,11 +88,16 @@ def _truncated(state, band):
 def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic):
     """Advance this source's sweep for up to budget_seconds (always at least one request).
     Starts a sweep when one is due. Returns the finished sweep's id, or None while it continues."""
+    required = scope_for(people)
     sweep = archive.running_sweep(source)
+    if sweep is not None and not covers(sweep["scope"], required):
+        archive.finish_sweep(sweep["id"], False, "scope expanded; starting a new generation")
+        sweep = None
     if sweep is None:
-        if not due(source):
+        last = archive.last_sweep(source)
+        if not due(source) and (last is None or covers(last["scope"], required)):
             return None
-        scope = scope_for(people)
+        scope = required
         archive.start_sweep(source, scope, initial_state(scope))
         sweep = archive.running_sweep(source)
         log.info("Deep sweep of %s started: %s", NAMES[source], scope)
@@ -112,7 +124,11 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
                     finished = (False, f"stopped at the {config.DEEP_SWEEP_MAX_REQUESTS}-request limit")
                     break
                 band = state["current"]
-                requests += 1
+                reserved = archive.reserve_request(sweep_id, state, config.DEEP_SWEEP_MAX_REQUESTS)
+                if reserved is None:
+                    finished = (False, "request budget already exhausted")
+                    break
+                requests = reserved
                 try:
                     result = pager.band_page(band["low"], band["high"], band["page"])
                 except (RequestException, ValueError) as ex:
@@ -121,8 +137,9 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
                     if state["errors"] >= MAX_ERRORS:
                         finished = (False, f"{state['errors']} consecutive request failures ({type(ex).__name__})")
                     break
+                # Strict persistence: never advance/claim coverage when a page was not archived.
+                archive.upsert(result["listings"], "sweep", sweep_id)
                 state["errors"] = 0
-                pipeline.archive_adverts(result["listings"], "sweep", sweep_id)
                 raw = result.get("raw", len(result["listings"]))
                 if band["page"] == 0:
                     band["total"], band["read"] = result["total"], 0
@@ -163,29 +180,39 @@ def crawl(source, people, budget_seconds, stop_event=None, clock=time.monotonic)
     log.info("Deep sweep of %s %s after %s requests%s", NAMES[source], "complete" if complete else "incomplete",
              requests, f" ({note})" if note else "")
     if unseen:
-        notify_unseen(unseen)
+        notify_unseen(unseen, deadline=deadline, clock=clock, stop_event=stop_event)
     return sweep_id
 
 
-def notify_unseen(keys):
-    """A saved home that two complete sweeps could not find. Absence is all the evidence there is, so
-    the message says only that: it may have been let, withdrawn or re-priced above the swept range."""
+def notify_unseen(keys=None, deadline=None, clock=time.monotonic, stop_event=None):
+    """Drain durable, per-person transition events; one failed chat must not block another.
+
+    At least once: a crash after Telegram accepts but before the DB ack may duplicate a message.
+    """
     for person in users.everyone():
-        with users.use(person):
-            p = prefs.load()
-            changed = False
-            for key in keys:
-                info = p["saved"].get(key)
-                if info is None or info.get("unseen"):
-                    continue
-                telegram.send_text(f'❤️ <b>Saved home no longer found in the search</b>\n<a href="{info.get("url")}">'
-                                   f'{telegram.e(info.get("address") or "listing")}</a>\n'
-                                   "<i>It may have been let, withdrawn or re-priced above your range.</i>")
-                info["unseen"] = True    # keep the saved entry; just never repeat the message
-                changed = True
-                telegram.throttle()
-            if changed:
-                prefs.save(p)
+        try:
+            with users.use(person):
+                p = prefs.load()
+                for event in archive.pending_unseen(person.chat_id):
+                    if stop_event is not None and stop_event.is_set():
+                        raise InterruptedError("PisoBot is stopping")
+                    if deadline is not None and clock() >= deadline:
+                        return
+                    if keys is not None and event["key"] not in keys:
+                        continue
+                    info = p["saved"].get(event["key"])
+                    if info is not None and event["status"] == "unseen":
+                        telegram.send_text(f'❤️ <b>Saved home no longer found in the search</b>\n'
+                                           f'<a href="{info.get("url")}">{telegram.e(info.get("address") or "listing")}</a>\n'
+                                           "<i>It may have been let, withdrawn or re-priced above your range.</i>")
+                        info["unseen"] = True
+                        prefs.save(p)
+                        telegram.throttle()
+                    archive.acknowledge_unseen(person.chat_id, event["id"])
+        except InterruptedError:
+            raise
+        except Exception as ex:
+            log.error("Unseen notification failed for %s (%s); retained for retry", person.label, type(ex).__name__)
 
 
 # ---------- judging archived adverts for each person ----------
@@ -200,32 +227,47 @@ def _put_meta(name, value):
              "ON CONFLICT(name) DO UPDATE SET value = excluded.value", name, str(value))
 
 
-def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock=time.monotonic):
+def judge(person, sources, budget_seconds, stop_event=None, verbose=False, clock=time.monotonic,
+          alert_budget=None):
     """Run this person's search over archived adverts their current settings have not judged yet.
     A source whose first-sweep baseline is not established judges silently; once everything archived
     is judged and a sweep of it has completed, the baseline is set. Returns {source: matches found
     during that baseline} for baselines completed in this call."""
     sources = swept(sources)
     settings = pipeline.settings_key(person)
+    needed = scope_for([person])
+    alert_budget = alert_budget if alert_budget is not None else pipeline.new_alert_budget()
     deadline = clock() + budget_seconds
     skip, finished = set(), {}
     with users.use(person), users.criteria(person.params):
         for source in sources:
             quiet = _meta(f"sweep_base:{source}") != settings
+            if quiet and _meta(f"sweep_generation:{source}") != settings:
+                _put_meta(f"sweep_generation:{source}", settings)
+                _put_meta(f"sweep_found:{source}", 0)
             drained = False
             while clock() < deadline:
                 if stop_event is not None and stop_event.is_set():
                     raise InterruptedError("PisoBot is stopping")
+                if not quiet and alert_budget["remaining"] <= 0:
+                    break
                 batch = archive.pending(person.chat_id, [source], settings, EVALUATE_BATCH, skip)
                 if not batch:
-                    drained = True
+                    # Invocation-local skips include FAILED lookups, not completed judgements.
+                    drained = not archive.pending(person.chat_id, [source], settings, 1)
                     break
-                skip.update(l.key for l in batch)
                 result = pipeline._run([source], False, verbose, rentals=True, watch=True, baseline=quiet,
-                                       stop_event=stop_event, prefetched=(batch, []), sweep=True)
+                                       stop_event=stop_event, prefetched=(batch, []), sweep=True,
+                                       alert_budget=alert_budget, deadline=deadline, clock=clock)
+                skip.update(result.get("processed", [l.key for l in batch]))
                 if quiet:
                     _put_meta(f"sweep_found:{source}", int(_meta(f"sweep_found:{source}") or 0) + result["fresh"])
-            if quiet and drained and archive.last_sweep(source, complete=True) is not None:
+            complete = archive.last_sweep(source, complete=True)
+            running = archive.running_sweep(source)
+            generation_complete = (complete is not None and covers(complete["scope"], needed)
+                                   and (running is None or running["id"] < complete["id"]))
+            if quiet and drained and generation_complete:
+                _put_meta(f"sweep_base_generation:{source}", complete["id"])
                 finished[source] = int(_meta(f"sweep_found:{source}") or 0)
                 _put_meta(f"sweep_base:{source}", settings)
                 _put_meta(f"sweep_found:{source}", 0)
@@ -245,14 +287,17 @@ def summarise(person, finished):
 
 # ---------- one watcher slice ----------
 
-def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic):
+def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic, alert_budgets=None):
     """Called once per watcher cycle after the head poll: crawl, then judge, within about
     DEEP_SWEEP_STEP_SECONDS in total."""
     sources = swept(sources)
     half = config.DEEP_SWEEP_STEP_SECONDS / 2
+    deadline = clock() + config.DEEP_SWEEP_STEP_SECONDS
     for source in sources:
+        if clock() >= deadline:
+            break
         try:
-            crawl(source, people, half / len(sources), stop_event, clock)
+            crawl(source, people, min(half / len(sources), deadline - clock()), stop_event, clock)
         except InterruptedError:
             raise
         except Exception as ex:
@@ -261,8 +306,13 @@ def step(sources, people, stop_event=None, verbose=False, clock=time.monotonic):
         if not person.owner and users.get(person.chat_id) is None:
             continue
         try:
-            summarise(person, judge(person, sources, half / len(people), stop_event, verbose, clock))
+            budget = alert_budgets.get(person.chat_id) if alert_budgets is not None else None
+            seconds = max(0, min(half / len(people), deadline - clock()))
+            summarise(person, judge(person, sources, seconds, stop_event, verbose, clock,
+                                    alert_budget=budget))
         except InterruptedError:
             raise
         except Exception as ex:
             log.error("Deep sweep judging failed for %s (%s)", person.label, type(ex).__name__)
+    # Retry durable events even when no new sweep finished; never let a backlog hold the poll.
+    notify_unseen(deadline=deadline, clock=clock, stop_event=stop_event)

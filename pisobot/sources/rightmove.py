@@ -161,15 +161,19 @@ def _details(p):
 
 
 def refine(listing):
+    listing.detail_unavailable = False  # ephemeral retry signal, never a market fact
     d = cache.get("rm_detail", listing.id)
     if d is None or "council_tax_band" not in d:   # entries cached before the band was captured
         try:
             p = _property_data(net.page(listing.url))
         except (RequestException, ValueError) as ex:
             print(f"Rightmove detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
+            response = getattr(ex, "response", None)
+            listing.detail_unavailable = response is None or response.status_code not in (404, 410)
             return False
         if str(p.get("id")) != listing.id:
             print(f"Rightmove detail has no matching property ID: {listing.id}", file=sys.stderr)
+            listing.detail_unavailable = True
             return False
         d = _details(p)
         cache.put("rm_detail", listing.id, d)

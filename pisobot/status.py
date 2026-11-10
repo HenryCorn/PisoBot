@@ -73,34 +73,37 @@ def status_text(now=None):
 
 def whatif_counts(rows, rent, commute, crime):
     """How many of these verdicts were rejected for a limit by no more than the given margin."""
-    def within(reason, field, limit):
-        return sum(1 for r in rows if r["outcome"] == reason and r[field] is not None and r[field] <= limit)
+    def within(reason, field, current, limit):
+        return sum(1 for r in rows if r["outcome"] == reason and r[field] is not None
+                   and current < r[field] <= limit)
     return {
-        "matched": sum(1 for r in rows if r["outcome"] == "matched"),
+        "matched": sum(1 for r in rows if r["outcome"] in ("matched", "unsent")),
         "judged": len(rows),
-        "rent": {50: within("rent_cap", "rent", rent + 50), 100: within("rent_cap", "rent", rent + 100)},
-        "commute": {5: within("travel", "travel_minutes", commute + 5),
-                    10: within("travel", "travel_minutes", commute + 10)},
-        "crime": within("crime", "crime_score", crime * 1.25),
+        "rent": {50: within("rent_cap", "rent", rent, rent + 50), 100: within("rent_cap", "rent", rent, rent + 100)},
+        "commute": {5: within("travel", "travel_minutes", commute, commute + 5),
+                    10: within("travel", "travel_minutes", commute, commute + 10)},
+        "crime": within("crime", "crime_score", crime, crime * 1.25),
     }
 
 
 def whatif_text(person, at=None):
     values = users.effective(person)
-    rows = archive.verdicts_since(person.chat_id, WHATIF_DAYS, at)
+    from .main import settings_key
+    rows = archive.verdicts_since(person.chat_id, WHATIF_DAYS, at, settings=settings_key(person))
     if not rows:
-        return ("<b>🔮 What if…</b>\nNothing has been judged for you in the last 7 days yet. "
+        return ("<b>🔮 What if…</b>\nNothing has been judged for your current settings in the last 7 days yet. "
                 "Try again after the next scan.")
     n = whatif_counts(rows, values["rent"], values["commute"], values["crime"])
     return "\n".join([
-        f"<b>🔮 What if…</b> (last {WHATIF_DAYS} days: {n['judged']:,} adverts judged, {n['matched']:,} match now)",
+        f"<b>🔮 What if…</b> (last {WHATIF_DAYS} days: {n['judged']:,} adverts judged, {n['matched']:,} matched when judged)",
         f"• Rent cap £{values['rent'] + 50:,.0f} (+£50): <b>+{n['rent'][50]}</b>",
         f"• Rent cap £{values['rent'] + 100:,.0f} (+£100): <b>+{n['rent'][100]}</b>",
         f"• Commute {values['commute'] + 5} min (+5): <b>+{n['commute'][5]}</b>",
         f"• Commute {values['commute'] + 10} min (+10): <b>+{n['commute'][10]}</b>",
         f"• Crime limit {values['crime'] * 1.25:,.0f} (+25%): <b>+{n['crime']}</b>",
-        "\n<i>Rough lower bounds, one limit at a time. Each advert is judged only until its first failing "
+        "\n<i>Approximate increments, not lower or upper bounds; one limit at a time. Each advert is judged only until its first failing "
         "check, so adverts that fail two limits are not counted, some counted here may still fail a later "
-        "check, and anything the bot never fetched is missing. Change a setting with /set to find out for "
+        "check, and anything the bot never fetched is missing. This is a historical sample, not availability. "
+        "Change a setting with /set to find out for "
         "certain.</i>",
     ])

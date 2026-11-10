@@ -9,6 +9,7 @@ import math
 import os
 import sys
 import tempfile
+import time
 import traceback
 from types import SimpleNamespace
 from contextlib import contextmanager
@@ -113,6 +114,8 @@ def passes_basic(l, sweep=False, stage=None):
     if stage in (None, "cheap"):
         if l.bedrooms < config.MIN_BEDROOMS:
             return "beds"
+        if archive.enabled() and _private_rental(l) and l.rent is not None and l.rent < config.RENT_MIN:
+            return "min_rent"
         if l.excluded_by_keywords():
             return "keywords"
         if l.lat is None or l.lng is None:
@@ -132,7 +135,8 @@ def passes_basic(l, sweep=False, stage=None):
     refine = getattr(SOURCES[l.source], "refine", None)
     if refine:
         if not refine(l):
-            return "details"
+            return ("enrichment" if archive.enabled() and getattr(l, "detail_unavailable", False)
+                    else "details")
         if l.excluded_by_keywords():
             return "keywords"
     for key, value in detail_fields(l.description).items():
@@ -142,14 +146,12 @@ def passes_basic(l, sweep=False, stage=None):
 
 
 def zone_prefilter(l):
-    """HOOK(zone): a cheap commute-zone prefilter that runs before the TfL call in passes_area.
-    When pisobot/zone.py (could_reach) exists, return could_reach(l.lat, l.lng, <this person's
-    destination>, config.MAX_TRAVEL_MINUTES) here; False rejects as "travel" without a TfL request.
-    Until then every advert goes on to TfL."""
+    """Legacy no-op hook. Zone estimates may ORDER future lookups, never hard-filter them.
+    Every advert still goes on to exact TfL judging; zone.py is deliberately not imported here."""
     return True
 
 
-def passes_area(l):
+def passes_area(l, deadline=None, clock=time.monotonic):
     if not zone_prefilter(l):
         return "travel"
     j = enrich.journey(l.lat, l.lng)
@@ -160,6 +162,8 @@ def passes_area(l):
     l.changes = j.get("changes", 0)
     if j["minutes"] > config.MAX_TRAVEL_MINUTES:
         return "travel"
+    if deadline is not None and clock() >= deadline:
+        return "deferred"
     l.crime_score = enrich.crime_score(l.lat, l.lng)
     if l.crime_score > config.MAX_CRIME_SCORE:
         return "crime"
@@ -314,9 +318,17 @@ def archive_adverts(listings, via="head", sweep_id=None):
 
 
 def settings_key(person=None):
-    """Short fingerprint of a person's search settings: verdicts are only current for these."""
+    """Effective defaults are immutable across the polling/pipeline threads. Version policy too."""
     person = person if person is not None else users.current()
-    return hashlib.sha1(json.dumps(person.params if person else {}, sort_keys=True).encode()).hexdigest()[:12]
+    person = person or users.User(users.owner_chat(), owner=True)
+    policy = {"version": "wp2-hardening-1", "criteria": users.effective(person),
+              "sweep_miles": config.DEEP_SWEEP_MILES}
+    return hashlib.sha1(json.dumps(policy, sort_keys=True).encode()).hexdigest()[:12]
+
+
+def new_alert_budget():
+    """One mutable allowance per person per watcher cycle, shared with every sweep batch."""
+    return {"remaining": config.MAX_ALERTS_PER_RUN}
 
 
 def _verdict_row(l, why):
@@ -326,17 +338,23 @@ def _verdict_row(l, why):
 
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
-         watch=False, baseline=False, stop_event=None, prefetched=None, sweep=False):
+         watch=False, baseline=False, stop_event=None, prefetched=None, sweep=False,
+         sweep_keys=(), alert_budget=None, deadline=None, clock=time.monotonic):
     """prefetched: (listings, failures) shared by several people's runs in one cycle; each run
     works on its own copy so per-person refinement and costs never leak between people.
     sweep: the listings come from the market archive (deep sweep), not a portal fetch; the person's
     radius does not filter them, and the run makes no funnel record, no "watch is live" message and
-    does not fail on enrichment errors (they are retried)."""
+    does not fail on enrichment errors (they are retried). sweep_keys preserves that provenance
+    for report extras. alert_budget is shared by the person\'s whole cycle. deadline yields between
+    adverts/lookup stages; it cannot cancel an already-running HTTP/image operation."""
     def check_stop():
         if stop_event is not None and stop_event.is_set():
             raise InterruptedError("PisoBot is stopping")
 
     check_stop()
+    alert_budget = alert_budget if alert_budget is not None else new_alert_budget()
+    sweep_keys = set(sweep_keys)
+    processed = []
     seen = load_seen()
     p = prefs.load()
     live = not dry_run and not preview_dir
@@ -384,6 +402,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     try:
         for l in listings:
             check_stop()
+            if deadline is not None and clock() >= deadline:
+                break
+            processed.append(l.key)
+            from_sweep = sweep or l.key in sweep_keys
             if l.tenure == "rent" and l.key in rental_keys:
                 reject(l.source, "duplicate_id")
                 continue
@@ -391,14 +413,15 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 rental_keys.add(l.key)
             order = staged(l)
             if order:
-                why = passes_basic(l, sweep=sweep, stage="cheap")
-            elif sweep:
+                why = passes_basic(l, sweep=from_sweep, stage="cheap")
+            elif from_sweep:
                 why = passes_basic(l, sweep=True)
             else:
                 why = passes_basic(l)
             if not why:
                 try:
-                    why = passes_area(l)
+                    why = (passes_area(l, deadline=deadline, clock=clock) if deadline is not None
+                           else passes_area(l))
                 except Exception as ex:  # API hiccup: try again next run
                     print(f"enrich failed for {l.key}: {type(ex).__name__}", file=sys.stderr)
                     enrich_failures += 1
@@ -406,7 +429,11 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     verdicts.append(_verdict_row(l, "enrichment"))
                     continue
             if not why and order:
-                why = passes_basic(l, sweep=sweep, stage="details")
+                if deadline is not None and clock() >= deadline:
+                    break  # leave this advert pending, before requesting its details
+                why = passes_basic(l, sweep=from_sweep, stage="details")
+                if why == "enrichment":
+                    enrich_failures += 1
             verdicts.append(_verdict_row(l, why))
             if why:
                 reject(l.source, why)
@@ -429,10 +456,14 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             _save_funnel(funnel, live, rentals)
         if live and archive.enabled() and verdicts:
             try:
-                archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner", verdicts,
+                # Durable delivery intent BEFORE publish/send/seen I/O. A match is not an ack.
+                intents = [(r[0], "unsent", *r[2:]) if r[1] == "matched" else r for r in verdicts]
+                archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner", intents,
                                         settings_key())
             except Exception as ex:
                 print(f"archive verdicts failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+                if rentals:
+                    raise  # do not deliver local rentals without durable retry state
     print(f"rejected: {rejected}")
     print(f"funnel: {json.dumps(funnel, sort_keys=True)}")
     if baseline and not sweep and (failures or enrich_failures):
@@ -539,6 +570,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         saved_changes, gone = [], []
 
     # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
+    report_waiting = set()
     first_run = not seen and not rentals
     if not watch and (first_run or report or rentals or preview_dir):
         saved = sorted((l for l in matches if l.key in saved_keys), key=lambda l: l.monthly_cost)
@@ -567,6 +599,14 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             report_top = ranking.best(list(changes.values()))
             report_saved = []
             report_rest = [l for l in changes.values() if l not in report_top]
+        # Local rental digests visibly include top cards, every saved home, and only the
+        # first RENTALS_SHOWN alternatives. Do not acknowledge undelivered queue entries
+        # merely because they were candidates for a truncated digest (no live local map).
+        visible = None
+        if archive.enabled() and rentals:
+            alternatives = sorted((l for l in report_rest if l.tenure == "rent"), key=ranking.score)
+            visible = {l.key for l in report_top + report_saved + alternatives[:telegram.RENTALS_SHOWN]}
+            report_waiting = {l.key for l, _ in to_send if l.key not in visible}
         print(f"report: {len(matches)} matches")
         if not dry_run or preview_dir:
             if compact and not changes and not preview_dir:
@@ -579,7 +619,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
             for l in matches:
-                seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
+                if visible is None or l.key in visible:
+                    seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
             if rentals:
                 cache.put("meta", users.scoped("last_rentals_report"), _now())
             else:
@@ -588,26 +629,23 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
 
     # 6. ... otherwise individual alerts
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
-    for l, reason in to_send[: config.MAX_ALERTS_PER_RUN]:
+    delivered = set()
+    for l, reason in to_send[:max(0, alert_budget["remaining"])]:
         check_stop()
+        if deadline is not None and clock() >= deadline:
+            break
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
               f"{l.bedrooms}b {l.address[:60]} {l.url}")
         if not live:
             continue
         _ensure_photos(l)
         telegram.send_listing(l, reason)
+        alert_budget["remaining"] -= 1
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if watch:
             save_seen(seen)
+        delivered.add(l.key)
         telegram.throttle()
-    if sweep and live and archive.enabled() and len(to_send) > config.MAX_ALERTS_PER_RUN:
-        # Matches whose alert hit the cap are judged again next time rather than lost
-        try:
-            archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner",
-                                    [_verdict_row(l, "unsent") for l, _ in to_send[config.MAX_ALERTS_PER_RUN:]],
-                                    settings_key())
-        except Exception as ex:
-            print(f"archive verdicts failed: {type(ex).__name__}: {ex}", file=sys.stderr)
     if live:
         for l in saved_changes:
             _ensure_photos(l)
@@ -622,8 +660,15 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if live:
         save_seen(seen)
         prefs.save(p)
+        if archive.enabled() and verdicts:
+            waiting = ({l.key for l, _ in to_send} - delivered) | report_waiting
+            settled = [r for r in verdicts if r[1] == "matched" and r[0] not in waiting]
+            if settled:
+                archive.record_verdicts(users.current_chat() or users.owner_chat() or "owner",
+                                        settled, settings_key())
     return {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
-            "complete": not failures and not enrich_failures, "fresh": fresh}
+            "complete": not failures and not enrich_failures, "fresh": fresh,
+            "processed": processed, "sent": len(delivered)}
 
 
 def main():

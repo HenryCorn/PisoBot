@@ -465,10 +465,12 @@ class Judging(JudgingBase):
     def test_enrichment_failures_are_retried_next_time_not_baselined_away(self):
         self.archive_sweep([advert(1, 1200)])
         with patch.object(enrich, "journey", side_effect=ConnectionError("tfl down")):
-            self.assertEqual(self.judge(), {"rm": 0})            # drained after one try, nothing matched
+            self.assertEqual(self.judge(), {})                  # retries are NOT a drained baseline
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "enrichment")
-        self.assertEqual(self.judge(), {})
+        self.assertIsNone(sweep._meta("sweep_base:rm"))
+        self.assertEqual(self.judge(), {"rm": 1})
         self.assertEqual(archive.verdicts_since(OWNER, 1)[0]["outcome"], "matched")
+        self.assertEqual(self.alerts, [])                           # recovery remains silent
 
 
 class GoneNotifications(JudgingBase):
@@ -541,7 +543,7 @@ class WatcherIntegration(JudgingBase):
             return {"matches": 0, "complete": True, "failures": [], "enrich_failures": 0, "fresh": 0}
 
         d1.query("INSERT INTO meta (name, value) VALUES ('watch_initialized', '1')")
-        d1.query("INSERT INTO meta (name, value) VALUES ('watch_settings', '{}')")
+        d1.query("INSERT INTO meta (name, value) VALUES ('watch_settings', ?)", main.settings_key(self.owner))
         with patch.object(main, "_run", side_effect=capture):
             watch.Watcher(["rm"])._person_cycle("report", ([advert(1, 1200)], []), None, False)
         self.assertEqual(shown["keys"], {"rm:1", "rm:5"})
@@ -564,14 +566,14 @@ class Commands(JudgingBase):
                 ("rm:5", "travel", 1400, None, 49, None), ("rm:6", "travel", 1400, None, 60, None),
                 ("rm:7", "crime", 1400, None, 20, 140), ("rm:8", "crime", 1400, None, 20, 160),
                 ("rm:9", "matched", 1400, 1700, 20, 30), ("rm:10", "keywords", 1400, None, None, None)]
-        archive.record_verdicts(OWNER, rows, "s")
+        archive.record_verdicts(OWNER, rows, main.settings_key(self.owner))
         n = status.whatif_counts(archive.verdicts_since(OWNER, 7), 1600, 40, 120)
         self.assertEqual((n["judged"], n["matched"], n["rent"], n["commute"], n["crime"]),
                          (10, 1, {50: 1, 100: 2}, {5: 1, 10: 2}, 1))
         text = self.send("/whatif")
         for line in ("Rent cap £1,650 (+£50): <b>+1</b>", "Rent cap £1,700 (+£100): <b>+2</b>",
                      "Commute 45 min (+5): <b>+1</b>", "Commute 50 min (+10): <b>+2</b>",
-                     "Crime limit 150 (+25%): <b>+1</b>", "10 adverts judged", "lower bounds", "first failing"):
+                     "Crime limit 150 (+25%): <b>+1</b>", "10 adverts judged", "Approximate increments", "first failing"):
             self.assertIn(line, text)
 
     def test_whatif_with_nothing_judged_says_so(self):
