@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, epc, net, ranking, users
+from . import collage, config, epc, net, ranking, signals, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -204,6 +204,8 @@ def format_listing(l, reason="new", rank=None, flags=""):
     if portal_line(l):
         lines.append(portal_line(l))
     lines.append(commute_line(l))
+    if signals.card_line(l):         # G3: at most two labelled hypotheses
+        lines.append(e(signals.card_line(l)))
     if getattr(l, "ai_summary", None):
         lines.append(f"ℹ️ <i>{e(l.ai_summary)}</i>")
     tags = []
@@ -243,7 +245,9 @@ def send_listing(l, reason="new"):
     jpeg = collage.build(l)
     if not jpeg:
         text += "\n📷 Header unavailable · use Open listing to view the media"
-    return send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]))
+    sent = send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]))
+    signals.log_shown(l)             # G3: record the signals on a card that was sent
+    return sent
 
 
 def send_card(jpeg, text, keyboard, short_caption):

@@ -22,7 +22,7 @@ import re
 
 import requests
 
-from . import d1, net, users
+from . import d1, net, signals, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
@@ -502,6 +502,7 @@ class Handler:
             label = "✓ Noted: " + REASON_LABELS[reason]
             markup = _update_keyboard(markup, action, sid, label)
         else:
+            signals.log_action(listing["key"], action)   # G3: what the person did after a signal was shown
             if action == "s":
                 info = {name: listing.get(name) for name in ("lat", "lng", "url", "address", "cost")}
                 info["missing"] = 0

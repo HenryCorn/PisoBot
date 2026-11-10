@@ -109,6 +109,7 @@ class Listing:
     full_postcode: Optional[str] = None          # full postcode when the portal's details give it (G2)
     area_source: Optional[str] = None            # "advert" or "epc" when floor_area_m2 is set by epc.annotate
     epc: dict = field(default_factory=dict)      # certificate match (epc.py): match exact/range/none, band, ...
+    signals: list = field(default_factory=list)  # opportunity signals (signals.py), at most two, as dicts
     value: dict = field(default_factory=dict)    # rent per m2 against the same scan (epc.value_against)
     description: str = ""
     estimated: list = field(default_factory=list)   # which cost components were estimated
