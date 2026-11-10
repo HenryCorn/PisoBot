@@ -1,5 +1,6 @@
 """Single-process rental scheduler and Telegram long-polling service."""
 import argparse
+import contextlib
 import datetime as dt
 import json
 import logging
@@ -12,7 +13,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, timing, users
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +37,14 @@ class Watcher:
             raise ValueError("VPS watch supports " + ", ".join(pipeline.LOCAL_RENTAL_SOURCES) + " only")
         if config.WATCH_INTERVAL_MIN <= 0 or config.WATCH_FAILURE_LIMIT < 1:
             raise ValueError("Watch interval and failure limit must be positive")
+        if config.FAST_POLL_MINUTES < 0 or 0 < config.FAST_POLL_MINUTES < 2 or config.FAST_POLL_MAX_ALERTS < 1:
+            raise ValueError("FAST_POLL_MINUTES must be 0 (off) or at least 2; FAST_POLL_MAX_ALERTS positive")
         self.verbose = verbose
         self.pending = queue.Queue(maxsize=1)
         self.guard = threading.Lock()
         self.running = False
+        self.fast_budgets = {}       # chat_id -> allowance shared by the fast polls between two full cycles
+        self.fast_failures = 0
 
     def request_run(self, kind, chat_id=None):
         """chat_id: who asked for a report; None is the owner. Scans always cover everyone."""
@@ -57,6 +62,7 @@ class Watcher:
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
         totals, errors = {"matches": 0, "complete": True, "people": {}, "degraded": 0}, []
         alert_budgets = {p.chat_id: pipeline.new_alert_budget() for p in people}
+        self.fast_budgets = {}           # a new full cycle starts a new window for the fast polls
         with pipeline.locked():
             for params, group in users.search_groups(people):
                 if stop_event is not None and stop_event.is_set():
@@ -126,8 +132,89 @@ class Watcher:
                     log.error("Healthcheck failed (%s)", type(ex).__name__)
         return totals
 
-    def _person_cycle(self, kind, prefetched, stop_event, dry_run, alert_budget=None):
-        person = users.current()
+    def _fetch_head(self, sources, stop_event=None):
+        """Page 1 of each fast source, newest first, not cached: (listings, failed source names)."""
+        listings, failures = [], []
+        for name in sources:
+            if stop_event is not None and stop_event.is_set():
+                raise InterruptedError("PisoBot is stopping")
+            try:
+                listings += pipeline.SOURCES[name].fetch_head()
+            except Exception as ex:
+                failures.append(name)
+                log.warning("Fast poll: %s failed (%s)", name, type(ex).__name__)
+        return listings, failures
+
+    def fast_cycle(self, stop_event=None):
+        """The fast head poll: page 1 of Rightmove and OnTheMarket for everyone, through the SAME per-person
+        evaluation (pipeline._run) and the SAME durable delivery path as a full cycle, under the same run lock
+        (so it can never overlap a full cycle or a sweep slice: both run inside cycle()). It only runs for a person
+        whose quiet baseline is complete (never baselines on partial data), spends at most FAST_POLL_MAX_ALERTS
+        alerts per person between two full cycles, writes no funnel record and never counts toward the failure
+        warning. Returns the number of alerts sent, or None when skipped."""
+        if config.FAST_POLL_MINUTES <= 0:
+            return None
+        sources = [name for name in self.sources if hasattr(pipeline.SOURCES[name], "fetch_head")]
+        if not sources:
+            return None
+        with contextlib.ExitStack() as stack:
+            try:
+                stack.enter_context(pipeline.locked())
+            except RuntimeError:
+                return None                          # another run holds the lock: skip, never wait
+            people = users.everyone()
+            sent, token = 0, timing.VIA.set("fast")
+            try:
+                for params, group in users.search_groups(people):
+                    if stop_event is not None and stop_event.is_set():
+                        raise InterruptedError("PisoBot is stopping")
+                    with users.criteria(params):
+                        listings, failures = self._fetch_head(sources, stop_event)
+                    if len(failures) == len(sources):
+                        self.fast_failures += 1
+                        continue
+                    self.fast_failures = 0
+                    pipeline.archive_adverts(listings)       # no requests: remembers what was fetched
+                    for person in group:
+                        if not person.owner and users.get(person.chat_id) is None:
+                            continue
+                        try:
+                            with users.use(person), users.criteria(person.params):
+                                if self._first(person):
+                                    continue                 # the full cycle does the quiet baseline
+                                budget = self.fast_budgets.setdefault(person.chat_id, {
+                                    "remaining": config.FAST_POLL_MAX_ALERTS, "attempts": config.FAST_POLL_MAX_ALERTS})
+                                result = pipeline._run(sources, False, self.verbose, rentals=True, watch=True,
+                                                       baseline=False, stop_event=stop_event,
+                                                       prefetched=(listings, failures), alert_budget=budget, fast=True)
+                            sent += result.get("sent", 0)
+                        except InterruptedError:
+                            raise
+                        except Exception as ex:
+                            log.error("Fast poll failed for %s (%s)", person.label, type(ex).__name__)
+            finally:
+                timing.VIA.reset(token)
+        return sent
+
+    @staticmethod
+    def due(now, next_cycle, next_fast):
+        """What the idle loop should do at `now`: "full" when the full cycle is due, "fast" when only the fast
+        poll is due and a full cycle is not about to start (within a minute), else None."""
+        if now >= next_cycle:
+            return "full"
+        if next_fast is not None and now >= next_fast and next_cycle - now > 60:
+            return "fast"
+        return None
+
+    def fast_delay(self):
+        """Seconds until the next fast poll: the interval, doubled (to at most the full interval) after
+        consecutive failed fetches, with a little jitter."""
+        base = config.FAST_POLL_MINUTES * 60
+        backed_off = min(base * 2 ** min(self.fast_failures, 4), config.WATCH_INTERVAL_MIN * 60)
+        return max(base, backed_off) * random.uniform(0.9, 1.1)
+
+    def _first(self, person):
+        """Does this person still need the quiet baseline? (never watched, or their settings changed)"""
         settings = pipeline.settings_key(person)
         previous = _meta("watch_settings")
         # The deployed pre-archive watcher stored raw params JSON and authoritative seen
@@ -141,7 +228,12 @@ class Watcher:
                 legacy_live = isinstance(stored, dict) and stored == (person.params if person else {})
             except (TypeError, ValueError):
                 pass
-        first = not _meta("watch_initialized") or (previous != settings and not legacy_live)
+        return not _meta("watch_initialized") or (previous != settings and not legacy_live)
+
+    def _person_cycle(self, kind, prefetched, stop_event, dry_run, alert_budget=None):
+        person = users.current()
+        settings = pipeline.settings_key(person)
+        first = self._first(person)
         sweep_keys = set()
         if kind == "report" and not first and archive.enabled():
             # /report also lists the matches only the deep sweep has found
@@ -211,13 +303,26 @@ class Watcher:
         listener = threading.Thread(target=listen, name="telegram", daemon=True)
         listener.start()
         next_cycle = time.monotonic()
+        next_fast = None            # armed after the first full cycle (which does any quiet baseline)
         try:
             while not stop_event.is_set():
                 remaining = max(0, next_cycle - time.monotonic())
                 try:
                     kind, chat_id = self.pending.get(timeout=min(remaining, 1))
                 except queue.Empty:
-                    if time.monotonic() < next_cycle:
+                    now = time.monotonic()
+                    due = self.due(now, next_cycle, next_fast)
+                    if due != "full":
+                        if due == "fast":
+                            try:
+                                self.fast_cycle(stop_event)
+                            except InterruptedError:
+                                if not stop_event.is_set():
+                                    raise
+                                break
+                            except Exception as ex:
+                                log.error("Fast poll failed (%s)", type(ex).__name__)
+                            next_fast = time.monotonic() + self.fast_delay()
                         continue
                     kind, chat_id = "rentals", None
                 if stop_event.is_set():
@@ -241,6 +346,7 @@ class Watcher:
                     with self.guard:
                         self.running = False
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
+                next_fast = time.monotonic() + self.fast_delay() if config.FAST_POLL_MINUTES > 0 else None
         finally:
             stop_event.set()
             listener.join(timeout=40)

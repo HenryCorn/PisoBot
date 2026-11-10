@@ -100,9 +100,9 @@ def _total(results):
     return int(str(results.get("resultCount", "0")).replace(",", "") or 0)
 
 
-def search():
+def search(max_pages=None):
     out, seen = [], set()
-    for page in range(config.RENT_MAX_PAGES):
+    for page in range(max_pages or config.RENT_MAX_PAGES):
         html = net.page(f"{BASE}/property-to-rent/find.html", params=_params(page * PAGE_SIZE))
         results = _results(html)
         if results is None:
@@ -148,6 +148,11 @@ def band_page(low, high, page):
 
 def fetch():
     return cached_search("rm", search)
+
+
+def fetch_head():
+    """Page 1 only, newest first, never cached: the fast head poll (watch.Watcher.fast_cycle)."""
+    return search(max_pages=1)
 
 
 def _property_data(html):

@@ -79,9 +79,9 @@ def _listing(x):
     return private_rent_costs(l)
 
 
-def search():
+def search(max_pages=None):
     out, seen = [], set()
-    for page in range(1, config.RENT_MAX_PAGES + 1):
+    for page in range(1, (max_pages or config.RENT_MAX_PAGES) + 1):
         # newest first (listing update date): the default "recommended" order hid new adverts behind page 3
         params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": min_bedrooms(),
                   "max-price": int(config.MAX_RENT), "sort-field": "update_date"}
@@ -146,6 +146,11 @@ def fetch():
     return cached_search("otmr", search)
 
 
+def fetch_head():
+    """Page 1 only, newest first, never cached: the fast head poll (watch.Watcher.fast_cycle)."""
+    return search(max_pages=1)
+
+
 def refine(listing):
     listing.detail_unavailable = False  # ephemeral retry signal, never a market fact
     d = cache.get("otmr_detail", listing.id)
@@ -169,6 +174,7 @@ def refine(listing):
         d = {"description": text(f"{'Students only. ' if p.get('student') else ''}{lets}. {feats} "
                                  f"{p.get('description', '')}"),
              "deposit": money(deposit[1]) if deposit else None,
-             "floor_area_m2": round(area, 2) if area else None, "floorplan": plans[0] if plans else None}
+             "floor_area_m2": round(area, 2) if area else None, "floorplan": plans[0] if plans else None,
+             "exclusive": p["exclusive"] if isinstance(p.get("exclusive"), bool) else None}
         cache.put("otmr_detail", listing.id, d)
     return apply_rent_details(listing, d)

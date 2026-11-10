@@ -75,6 +75,10 @@ RENT_REFRESH_MINUTES = _env("RENT_REFRESH_MINUTES", RENT_REFRESH_HOURS * 60)
 RENT_MAX_PAGES = _env("RENT_MAX_PAGES", 20, int)
 WATCH_INTERVAL_MIN = _env("WATCH_INTERVAL_MIN", 15)
 WATCH_FAILURE_LIMIT = _env("WATCH_FAILURE_LIMIT", 3, int)
+# Fast head poll (watch.py fast_cycle): every FAST_POLL_MINUTES between full cycles, page 1 only of Rightmove and
+# OnTheMarket (newest first) through the normal per-person pipeline and durable delivery. 0 = off (default).
+FAST_POLL_MINUTES = _env("FAST_POLL_MINUTES", 0)
+FAST_POLL_MAX_ALERTS = _env("FAST_POLL_MAX_ALERTS", 10, int)   # per person, shared by all fast polls between two full cycles
 WATCH_SOURCES = os.environ.get("WATCH_SOURCES", "rm,otmr,orent")
 # VPS deep sweep (sweep.py): a full crawl of Rightmove and OnTheMarket lettings, sliced into price
 # bands, run in short resumable slices inside the watcher. DEEP_SWEEP_HOURS=0 disables it.

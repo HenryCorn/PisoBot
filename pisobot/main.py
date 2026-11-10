@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
-               prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
+               prefs, ranking, renter, rental_text, taste, telegram, timing, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -410,14 +410,16 @@ def _send_change(l, reason):
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
          watch=False, baseline=False, stop_event=None, prefetched=None, sweep=False,
-         sweep_keys=(), alert_budget=None, deadline=None, clock=time.monotonic):
+         sweep_keys=(), alert_budget=None, deadline=None, clock=time.monotonic, fast=False):
     """prefetched: (listings, failures) shared by several people's runs in one cycle; each run
     works on its own copy so per-person refinement and costs never leak between people.
     sweep: the listings come from the market archive (deep sweep), not a portal fetch; the person's
     radius does not filter them, and the run makes no funnel record, no "watch is live" message and
     does not fail on enrichment errors (they are retried). sweep_keys preserves that provenance
     for report extras. alert_budget is shared by the person\'s whole cycle. deadline yields between
-    adverts/lookup stages; it cannot cancel an already-running HTTP/image operation."""
+    adverts/lookup stages; it cannot cancel an already-running HTTP/image operation. fast: the fast head poll
+    (watch.fast_cycle): page-1 listings through this same evaluation and delivery; it only skips the funnel
+    record, which describes a whole scan."""
     def check_stop():
         if stop_event is not None and stop_event.is_set():
             raise InterruptedError("PisoBot is stopping")
@@ -460,7 +462,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     for listing in listings:
         source_stats(listing.source)["fetched"] += 1
     if failures and len(failures) == len(selected):
-        _save_funnel(funnel, live, rentals)
+        if not fast:
+            _save_funnel(funnel, live, rentals)
         raise RuntimeError("Every source failed; report delivery is incomplete and will be retried")
 
     try:
@@ -552,7 +555,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             stats["hidden"] += int(prefs.is_hidden(p, l))
         funnel["filtering_finished"] = True
     finally:
-        if not sweep:
+        if not sweep and not fast:
             _save_funnel(funnel, live, rentals)
         if live and archive.enabled() and verdicts:
             try:
@@ -783,6 +786,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             continue
         if send_state == "sent":
             alert_budget["remaining"] -= 1
+            timing.record_alert(person_id, l, reason, "sweep" if sweep or l.key in sweep_keys else None)
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)

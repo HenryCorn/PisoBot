@@ -159,6 +159,8 @@ def apply_rent_details(listing, details):
     for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing", "agent_phone"):
         if details.get(key):
             setattr(listing, key, details[key])
+    if details.get("exclusive") is not None:
+        listing.exclusive = details["exclusive"]
     if details.get("council_tax_included") is not None:
         listing.council_tax_included = details["council_tax_included"]
     private_rent_costs(listing)
@@ -203,7 +205,7 @@ CACHE_FIELDS = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure"
             "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
             "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
             "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
-            "bathrooms", "agent", "agent_phone", "first_listed_at",
+            "bathrooms", "agent", "agent_phone", "first_listed_at", "exclusive",
             "advert_deposit", "studio", "furnishing")
 
 

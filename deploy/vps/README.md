@@ -249,6 +249,14 @@ Every advert a scan fetches is remembered in the primary database (tables `adver
 changed). Each person's outcome for each advert (`matched`, or the first check it
 failed) is stored with the numbers behind it: rent, all-in, commute minutes, crime score.
 
+**Alert delay and the fast poll (optional).** `/status` shows, per portal, the median and 90th-percentile delay of
+alerts over the last 7 days, from the portal's own listing time (where it publishes a full timestamp: Rightmove does,
+OnTheMarket does not) and from this bot's first sight of the advert. With `FAST_POLL_MINUTES=5` (default `0` = off) the
+watcher also polls page 1 of Rightmove and OnTheMarket between full scans. A fast poll takes the same run lock (it can
+never overlap a scan or a sweep slice), evaluates adverts per person with the same settings, quiet hours and durable
+delivery as a scan, never runs a person's quiet baseline, and shares `FAST_POLL_MAX_ALERTS` (10) per person with the
+other fast polls until the next full scan. Cost: 2 search requests per distinct search per poll (576 a day at 5 minutes).
+
 After each scan a short slice (`DEEP_SWEEP_STEP_SECONDS`, 120 by default, half crawling and
 half judging) advances the **deep sweep** of Rightmove and OnTheMarket: all rent from
 `RENT_MIN` to 110% of the highest rent cap within `DEEP_SWEEP_MILES`, in price bands that
