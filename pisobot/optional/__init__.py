@@ -409,6 +409,8 @@ def after_cycle(dry_run=False):
 def publish_lines(flag, mapping):
     """Publish {advert key: [(priority, text), ...]} from a feature worker, replacing that flag's snapshot atomically."""
     global _snapshot
+    if not execution_available():
+        return 0
     if type(flag) is not str or not 0 < len(flag) <= 80:
         lost["malformed"] += 1
         return 0
@@ -456,6 +458,8 @@ class Template:
 def publish_templates(flag, templates):
     """Replace a flag's templates with validated plain data. For a first alert, pass these to register() at startup instead."""
     global _templates
+    if not execution_available():
+        return 0
     if type(flag) is not str or not 0 < len(flag) <= 80:
         lost["malformed"] += 1
         return 0

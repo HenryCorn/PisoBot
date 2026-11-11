@@ -27,6 +27,7 @@ from test_users import Base, FRIEND, OWNER, home
 ROOT = Path(__file__).resolve().parents[1]
 REAL_SEND_TEXT = telegram.send_text
 REAL_SEND_LISTING = telegram.send_listing          # captured at import, before any test replaces it
+REAL_EXECUTION_AVAILABLE = optional.execution_available
 FLAG = "PISOBOT_TEST_FEATURE"
 
 
@@ -114,6 +115,7 @@ class Finder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
             return importlib.util.spec_from_loader(fullname, self)
     def exec_module(self, module):
         from pisobot import optional
+        optional.execution_available = lambda: True
         def loader():
             raise AssertionError("feature loaded on the delivery path")
         optional.register("TEST_TEMPLATE", loader, templates=(
@@ -178,15 +180,21 @@ assert not optional.workers()
             {"field": "first_listed_at", "kind": "age", "text": "Listed {}", "priority": 1, "max_seconds": 3600},))
         listing = home(1)
         listing.first_listed_at = stamp(60)
-        with patch.object(optional, "execution_available", return_value=False), \
+        with patch.object(optional, "execution_available", REAL_EXECUTION_AVAILABLE), \
                 patch.dict(os.environ, {FLAG: "1", "STORAGE": "local", "OPTIONAL_ALLOW_NO_LIMIT": "1"}), \
                 self.assertLogs("pisobot.optional", level="ERROR"):
+            self.assertFalse(optional.execution_available())
             self.assertFalse(optional.enabled_any())
             optional.start()
             optional._ensure_workers()
             optional.after_ack(listing, OWNER, None, {"state": "sent"})
             self.assertEqual(optional.after_cycle(), 0)
             self.assertEqual(optional.extend_card("card", listing, False), "card")
+            mapping, templates = MagicMock(), MagicMock()
+            self.assertEqual(optional.publish_lines(FLAG, mapping), 0)
+            self.assertEqual(optional.publish_templates(FLAG, templates), 0)
+            mapping.items.assert_not_called()
+            templates.__iter__.assert_not_called()
             self.assertEqual(optional.workers(), [])
             self.assertEqual(optional._items, [])
             self.assertEqual(optional.health()["refused"], optional.ISOLATION_REFUSAL)
@@ -784,9 +792,10 @@ class RunnerTests(OptionalBase):
 
         def launch(*args, **kwargs):
             self.assertIsNot(threading.current_thread(), caller)
+            proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
             entered.set()
             release.wait(5)
-            return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+            return proc
 
         with patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True), \
@@ -1008,11 +1017,15 @@ time.sleep(20)
             self.assertIsNotNone(proc.returncode)
             self.assertTrue(wait_for(lambda: all(not _alive(pid) for pid in children), 5))
 
-    def test_the_step_refuses_to_run_without_resource_limits_unless_opted_out(self):
+    def test_the_step_refuses_to_run_without_resource_limits_even_if_opted_out(self):
         from pisobot.optional import step
-        with patch.dict(os.environ, {"STORAGE": "local"}), patch("resource.setrlimit", side_effect=ValueError("no")), \
-                patch.object(step, "load_features", side_effect=AssertionError("loaded features before the limits")):
-            self.assertEqual(step.main(), 3)
+        for opt_out in ("0", "1"):
+            with self.subTest(opt_out=opt_out), open(Path(self.tmp.name) / f"limits-{opt_out}.lock", "w+") as lock, \
+                    patch.object(step, "open_lock", return_value=lock), \
+                    patch.dict(os.environ, {"STORAGE": "local", "OPTIONAL_ALLOW_NO_LIMIT": opt_out}), \
+                    patch("resource.setrlimit", side_effect=ValueError("no")), \
+                    patch.object(step, "load_features", side_effect=AssertionError("loaded features before the limits")):
+                self.assertEqual(step.main(), 3)
 
     def test_the_step_takes_the_single_flight_lock_before_it_loads_any_feature(self):
         from pisobot.optional import step
@@ -2093,6 +2106,20 @@ class OffIsTheReleaseTests(RealSendBase):
         self.assertNotIn("optional.db", " ".join(ours[1]))
         self.assertIsNone(runner.RUNNER.proc)
         self.assertNotIn("Listed", str(ours[0]))                              # the fetch-time seam renders nothing while nothing is published
+
+    def test_a_requested_but_unisolated_feature_has_the_release_trace(self):
+        def requested(stack):
+            stack.enter_context(patch.dict(os.environ, {FLAG: "1"}))
+            optional.register(FLAG, lambda: self.fail("unisolated feature loaded"), templates=[LISTED])
+            self.assertEqual(optional.publish_lines(FLAG, {"rm:2": [(5, "unexpected")]}), 0)
+
+        try:
+            theirs, ours = self.scenario(True), self.scenario(False, requested)
+        except subprocess.CalledProcessError:
+            self.skipTest("release code not available from git")
+        self.assertTrue(any(event[0] == "telegram" for event in ours[0]))
+        self.assertEqual(theirs, ours)
+        self.assertEqual(optional.workers(), [])
 
     # --- the comparison is only worth something if it fails when the bot changes: three mutants of this branch
     def mutant(self, mutate):
