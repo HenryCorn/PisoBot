@@ -898,19 +898,23 @@ class ReadinessBotTests(BotBase):
         self.assertEqual(sum("Your entered advertised rent" in text for text in replies), 1)
         self.assertTrue(any("readiness" in text.lower() and "retry" in text.lower() for text in replies))
 
-    def test_enquiry_draft_still_follows_a_failed_post_send_checkpoint(self):
+    def test_enquiry_checkpoint_retry_never_sends_an_untracked_draft(self):
         item = home(1)
         publish(item)
         record = readydb.record
 
-        for update_id, fail_after in ((1244, "callback"), (1245, "draft")):
-            with self.subTest(fail_after=fail_after):
+        cases = ((1244, "callback", False, 1), (1245, "draft", False, 1),
+                 (1246, "callback", True, 0), (1247, "draft", True, 1))
+        for update_id, fail_after, persistent, expected_drafts in cases:
+            with self.subTest(fail_after=fail_after, persistent=persistent):
                 enquiry = {**press(f"q:{item.short_id}"), "update_id": update_id}
+                failures = []
 
                 def fail_checkpoint(current_id, outbox, at=None):
                     if ((fail_after == "callback" and len(outbox) == 1
                          and outbox[0]["method"] == "sendMessage")
-                            or (fail_after == "draft" and not outbox)):
+                            or (fail_after == "draft" and not outbox)) and (persistent or not failures):
+                        failures.append(True)
                         raise sqlite3.OperationalError("fixture")
                     return record(current_id, outbox, at)
 
@@ -918,8 +922,9 @@ class ReadinessBotTests(BotBase):
                 with patch.object(readydb, "record", side_effect=fail_checkpoint):
                     self.handler.handle(enquiry)
                 replies = self.texts()[before:]
-                self.assertEqual(sum("Enquiry draft" in text for text in replies), 1)
-                self.assertTrue(any("delivery could not be saved" in text.lower() for text in replies))
+                self.assertEqual(sum("Enquiry draft" in text for text in replies), expected_drafts)
+                self.assertEqual(any("delivery could not be saved" in text.lower() for text in replies),
+                                 persistent)
 
     def test_profile_save_warns_when_readiness_reconciliation_fails(self):
         renter.set_field("pets", "cat")

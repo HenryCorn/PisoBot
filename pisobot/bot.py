@@ -445,16 +445,20 @@ class Handler:
                     raise
                 except Exception as error:
                     LOG.warning("Application readiness delivery state failed (%s)", type(error).__name__)
-                    self.reply("⚠️ Application readiness delivery could not be saved; check /ready and retry "
-                               "if the result is incomplete.")
-                    if draft_fallback:
+                    if draft_fallback and update_id is not None:
+                        # Draft outboxes have no prompt bindings; delivered items were already removed.
                         try:
-                            for item in outbox:
-                                self._deliver(item)
+                            readydb.record(update_id, outbox)
+                            self._flush(update_id, outbox)
                         except TelegramError:
                             raise
-                        except Exception:
-                            LOG.warning("Could not provide the remaining enquiry")
+                        except Exception as retry_error:
+                            LOG.warning("Application readiness delivery retry failed (%s)",
+                                        type(retry_error).__name__)
+                        else:
+                            return
+                    self.reply("⚠️ Application readiness delivery could not be saved; check /ready and retry "
+                               "if the result is incomplete.")
             finally:
                 self._state = tracker
             return
