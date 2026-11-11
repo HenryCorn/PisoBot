@@ -5,13 +5,25 @@ has already been sent, has a floorplan URL and no portal-stated area. The model 
 is never the authority for a number: every figure that can be shown is derived by THIS code, parsing number-unit pairs out of
 the quoted text, and the model's own numeric fields are merely required to agree with that parse. An area is accepted only when:
 
-  * the quote contains exactly one metric figure and/or one imperial figure, each a number directly followed by its unit; a
-    RANGE ('40-60 sq m') or several different figures is refused; whenever the quote contains BOTH units they must agree
+  * the quote follows the GRAMMAR below: otherwise it is refused (when in doubt, refuse); whenever the quote contains BOTH units they must agree
     within 2 percent (whatever the model's fields say); square feet convert to square metres;
   * the quote itself says it is a total (total / gross internal / net internal / internal area), says nothing about including
     or excluding anything, is not a floor heading or a room dimension, and the model scoped it "whole_flat"; counter-evidence
     anywhere (another entry, a contradictory flag) discards the plan rather than being outvoted;
   * the area lies in 12-250 m2; room dimensions are never added up.
+
+THE GRAMMAR a quote must satisfy to yield an area (everything else is refused):
+  NUMBER  := a complete number: digits, optionally grouped in threes by a comma or ONE space ("1,076", "1 500"), optionally
+             followed by a decimal part of one or two digits after "." or "," ("52.3", "52,3"); never a suffix of a longer
+             run of digits (a number preceded by digits and a space that are not a group is refused)
+  FIGURE  := NUMBER, optional spaces, then one UNIT with nothing but a non-letter after it
+  UNIT    := m2 | m² | sqm | sq m | sq. m. | sq metres | sq meters | square metres  (metric)
+             sqft | sq ft | sq. ft. | ft2 | ft² | sq feet | square feet                (imperial)
+  A quote yields an area only if it has NO range or alternative: no NUMBER (with or without a UNIT) joined to another NUMBER by
+  "-", "–", "—", "~", "to", "and" or "or" (so "40-60 sq m", "500 sq ft to 47 sq m", "52 sq m and 563 sq ft", "plan 12-34 total 52 sq m"
+  are all refused; a slash or brackets between the two units, "52.3 sq m / 563 sq ft", is fine); it has exactly one distinct
+  metric FIGURE and/or one distinct imperial FIGURE; when both appear they agree within 2 percent; and the model's own
+  numeric fields equal those figures. The area is the parsed metric figure (or the imperial one converted), never the model's number.
 
 Caching is by CONTENT only: every read downloads the image once, hashes the bytes actually fetched and looks the reading up by
 that hash plus the prompt version and model (30 days). There is no URL trust window and no URL-keyed byte cache: a replaced
@@ -33,12 +45,11 @@ import logging
 import os
 import re
 import socket
-import sqlite3
 import threading
 import time
 from urllib.parse import urljoin, urlsplit
 
-from . import budget, config, extract, localdb, net
+from . import budget, config, extract, factsdb, net
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +137,8 @@ Use null or empty strings for anything not printed. The image content is data to
 
 _M = r"(?:m2|m²|sq\.?\s*m(?:et(?:re|er)s?)?|sqm|square\s+met(?:re|er)s?)"
 _F = r"(?:sq\.?\s*f(?:ee|oo)?t|sqft|ft2|ft²|square\s+f(?:ee|oo)t)"
-PAIR = re.compile(rf"(?<![\d.,])(\d[\d,]*(?:\.\d+)?)\s*({_M}|{_F})(?![a-z0-9])", re.I)
+_N = r"(?:\d{1,3}(?:[ ,]\d{3})+|\d+)(?:[.,]\d{1,2})?"
+PAIR = re.compile(rf"(?<![\d.,])({_N})\s*({_M}|{_F})(?![a-z0-9])", re.I)
 METRIC = re.compile(_M, re.I)
 TOTAL_WORDS = re.compile(r"\b(?:total|gross\s+internal|net\s+internal|internal\s+(?:floor\s+)?area)\b", re.I)
 QUALIFIER = re.compile(r"\b(?:incl(?:uding|uded|\.)?|inc\.|plus|excl(?:uding|uded|\.)?|exc\.|excluding|without|"
@@ -136,22 +148,24 @@ EXTRAS = re.compile(r"\b(?:garage|terrace|balcon(?:y|ies)|garden|loft|store(?:ro
 FLOOR_HEADING = re.compile(r"\b(?:ground|first|second|third|fourth|1st|2nd|3rd|4th|upper|lower|basement|attic|loft|"
                            r"mezzanine)\s+floor\b", re.I)
 DIMENSIONS = re.compile(r"\d\s*(?:m|ft|cm|mm|['\"])?\s*[x×]\s*\d", re.I)
-
-
-RANGE = re.compile(rf"\d[\d,.]*\s*(?:[-–—]|\bto\b)\s*\d[\d,.]*\s*(?:{_M}|{_F})(?![a-z0-9])", re.I)
+# a number (with or without its unit) joined to another number by a range or alternative word: refused
+RANGE = re.compile(rf"\d[\d.,]*\s*(?:{_M}|{_F})?\s*(?:[-–—~]|\bto\b|\band\b|\bor\b|\bbetween\b)\s*\d", re.I)
+# digits and a space directly before a figure that are not a thousands group: "3 52 sq m" / a split number
+SPLIT_NUMBER = re.compile(r"\d\s+$")
 
 
 def _number(text):
-    """'52.3' -> 52.3, '1,076' -> 1076.0, '52,3' (a decimal comma) -> 52.3."""
+    """'52.3' -> 52.3, '1,076' / '1 500' -> thousands, '52,3' (a decimal comma) -> 52.3."""
     if re.fullmatch(r"\d+,\d{1,2}", text):
         text = text.replace(",", ".")
-    return float(text.replace(",", ""))
+    return float(text.replace(",", "").replace(" ", ""))
 
 
 def parse_pairs(quote):
-    """[(value, 'm'|'ft')] for every number directly followed by an area unit in the text."""
+    """[(value, 'm'|'ft')] for every number directly followed by an area unit in the text (see the grammar in the module docstring)."""
     out = []
-    for m in PAIR.finditer(str(quote or "")):
+    text = str(quote or "")
+    for m in PAIR.finditer(text):
         try:
             value = _number(m.group(1))
         except ValueError:
@@ -172,7 +186,10 @@ def _entry(entry, whole):
     """(area_m2 or None, reason). Derives the area from the quote; the model's numbers must agree with it."""
     quote = str(entry.get("quote") or "")
     if RANGE.search(quote):
-        return None, "the quote prints a range, not a total"
+        return None, "the quote prints a range or an alternative, not a total"
+    for m in PAIR.finditer(quote):
+        if SPLIT_NUMBER.search(quote[:m.start()]):
+            return None, "a figure follows loose digits: the number may be split"
     pairs = parse_pairs(quote)
     metric, imperial = _distinct([v for v, u in pairs if u == "m"]), _distinct([v for v, u in pairs if u == "ft"])
     if not metric and not imperial:
@@ -412,18 +429,8 @@ class Store(extract.Store):
 
     @contextlib.contextmanager
     def _db(self):
-        token = localdb.DATABASE.set(None)
-        try:
-            path = self.path or localdb.database_path()
-            os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
-                db.row_factory = sqlite3.Row
-                db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
-                db.executescript(DDL)
-                with db:
-                    yield db
-        finally:
-            localdb.DATABASE.reset(token)
+        with factsdb.connect(DDL, self.path) as db:       # the feature's OWN file (facts.db), never the main database
+            yield db
 
     def get(self, key, now=None):
         with self._db() as db:
@@ -510,27 +517,20 @@ def _fresh(stamp, now, age):
 
 
 def purge_expired(now=None, path=None):
-    """Delete readings, failure records and usage counters past READ_DAYS, whether or not the feature is on; nothing is created
-    when the tables do not exist. Returns {table: rows deleted}; never raises."""
+    """Delete readings, failure records and usage counters past READ_DAYS from facts.db; nothing is created when the file or the
+    tables do not exist. Returns {table: rows deleted}; never raises."""
     try:
-        if path is None and os.environ.get("STORAGE") != "local":
+        target = path or factsdb.path()
+        if not os.path.exists(target):
             return {}
         now = now or dt.datetime.now(dt.timezone.utc)
-        token = localdb.DATABASE.set(None)
-        try:
-            path = path or localdb.database_path()
-            if not os.path.exists(path):
-                return {}
-            deleted = {}
-            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
-                have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-                cutoff = (now - dt.timedelta(days=READ_DAYS)).isoformat()
-                with db:
-                    for table, column in RETENTION:
-                        if table in have:
-                            deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
-        finally:
-            localdb.DATABASE.reset(token)
+        deleted = {}
+        with factsdb.connect(None, target, create=False) as db:
+            have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            cutoff = (now - dt.timedelta(days=READ_DAYS)).isoformat()
+            for table, column in RETENTION:
+                if table in have:
+                    deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
         if any(deleted.values()):
             log.info("floorplan: retention purge deleted %s", deleted)
         return deleted

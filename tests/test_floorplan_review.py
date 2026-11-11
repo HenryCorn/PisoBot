@@ -358,9 +358,44 @@ class ParserTests(unittest.TestCase):
                 self.assertIsNone(r["area_sqm"])
         self.assertIn("range", floorplan.interpret(raw([total("Total 40-60 sq m", sqm=60)]))["reason"])
 
-    def test_a_reference_next_to_a_total_does_not_make_a_range(self):
+    def test_a_reference_joined_to_a_number_by_a_dash_is_refused_when_in_doubt(self):
         r = floorplan.interpret(raw([total("Total area 52 sq m (plan 12-34)", sqm=52)]))
-        self.assertEqual(r["area_sqm"], 52)
+        self.assertEqual(r["status"], "discarded")
+        self.assertEqual(floorplan.interpret(raw([total("Total area 52 sq m (plan 12)", sqm=52)]))["area_sqm"], 52)
+
+    # ---- the round-3 reviewer's counterexamples, and the grammar
+    def test_a_space_grouped_number_is_read_whole_or_refused_never_by_its_suffix(self):
+        """re-review (8): 'Total area 1 500 sq ft' with the model's sqft=500 was accepted as 46.5 m2."""
+        self.assertEqual(floorplan.interpret(raw([total("Total area 1 500 sq ft", sqft=500)]))["status"], "discarded")
+        whole = floorplan.interpret(raw([total("Total area 1 500 sq ft", sqft=1500)]))
+        self.assertEqual((whole["status"], whole["area_sqm"]), ("read", 139.4))
+        self.assertEqual(floorplan.interpret(raw([total("Total area 1,500 sq ft", sqft=1500)]))["area_sqm"], 139.4)
+        self.assertEqual(floorplan.parse_pairs("1 500 sq ft"), [(1500.0, "ft")])
+
+    def test_digits_loose_before_a_figure_mean_the_number_may_be_split(self):
+        for quote in ("Total area 3 52 sq m", "Total floor 1 45 sq m", "Total 12 52.3 sq m"):
+            self.assertEqual(floorplan.interpret(raw([total(quote, sqm=52)]))["status"], "discarded", quote)
+
+    def test_a_range_across_units_is_never_a_definite_total(self):
+        """re-review (8): '500 sq ft to 47 sq m' with sqft=500, sqm=47 passed the two-percent agreement and became 47 m2."""
+        for quote in ("Total area 500 sq ft to 47 sq m", "Total area 47 sq m to 500 sq ft", "Total area 47 sq m - 500 sq ft",
+                      "Total 47 sq m or 506 sq ft", "Total 47 sq m and 506 sq ft", "Total area 47~50 sq m", "Total between 40 and 50 sq m"):
+            self.assertEqual(floorplan.interpret(raw([total(quote, sqm=47, sqft=500)]))["status"], "discarded", quote)
+
+    def test_what_the_grammar_accepts(self):
+        for quote, sqm, sqft, area in (("Total area 52.3 sq m", 52.3, None, 52.3), ("Total area 52,3 sq m", 52.3, None, 52.3),
+                                       ("Total 563 sq ft", None, 563, 52.3), ("Total 1,076 sq ft", None, 1076, 100.0),
+                                       ("Total 52.3 sq m / 563 sq ft", 52.3, 563, 52.3), ("Total 52.3 m² (563 sq.ft.)", 52.3, 563, 52.3),
+                                       ("Total 52.3 SQ. METRES (563 SQ. FEET)", 52.3, 563, 52.3), ("Total 52.3 sqm", 52.3, None, 52.3),
+                                       ("Total 563 ft²", None, 563, 52.3)):
+            r = floorplan.interpret(raw([total(quote, sqm=sqm, sqft=sqft)]))
+            self.assertEqual((r["status"], r["area_sqm"]), ("read", area), quote)
+
+    def test_what_the_grammar_refuses(self):
+        for quote in ("Total area", "Total 52.3", "Total 52.3 sq", "Total 52.3 sq mm", "Total area approx fifty two sq m",
+                      "Total 52.3 sq m 70 sq m", "Total 52.3 sq m (700 sq ft)", "Total 40-60 sq m", "Total 1 2 sq m"):
+            r = floorplan.interpret(raw([total(quote, sqm=52.3)]))
+            self.assertEqual(r["status"], "discarded", quote)
 
     def test_a_quote_with_more_than_one_candidate_total_is_refused(self):
         self.assertEqual(floorplan.interpret(raw([total("Total 48 sq m / total 52 sq m", sqm=48)]))["status"], "discarded")
@@ -376,7 +411,9 @@ class StepTests(Base):
         self.env = {"FLOORPLAN_AREA": "1", "STORAGE": "local", "ANTHROPIC_API_KEY": "x"}
 
     def queue(self, listing, chat="100", message_id=900):
-        facts.enqueue([facts.capture(listing, {"result": {"message_id": message_id}}, chat)])
+        facts._buffer.append(facts.capture(listing, {"result": {"message_id": message_id}}, chat))
+        with patch.dict(os.environ, self.env):
+            facts.flush()
 
     def test_a_floorplan_area_is_delivered_as_a_threaded_reply_after_the_alert(self):
         l = advert()
@@ -384,7 +421,7 @@ class StepTests(Base):
         rd = new_reader(fetcher=lambda url: png(300, 100))
         with patch.dict(os.environ, self.env):
             stats = facts.run_step(NOW, 20, lambda c, m, t: self.replies.append((c, m, t)), floorplan_reader=rd, store=epc.Store(
-                os.path.join(tempfile.mkdtemp(), "e.db")))
+                os.path.join(tempfile.mkdtemp(), "e.db")), active=lambda c: True, hidden=lambda *a: False)
         self.assertEqual(stats["sent"], 1)
         chat, mid, text = self.replies[0]
         self.assertEqual((chat, mid), ("100", 900))
@@ -396,7 +433,7 @@ class StepTests(Base):
         answer = raw([total("Total area 52 sq m", sqm=52)], beds=(2, "Bedroom 1, Bedroom 2"))
         rd = new_reader(FakeClient([answer]), fetcher=lambda url: png(300, 100))
         with patch.dict(os.environ, self.env):
-            facts.run_step(NOW, 20, lambda c, m, t: self.replies.append(t), floorplan_reader=rd)
+            facts.run_step(NOW, 20, lambda c, m, t: self.replies.append(t), floorplan_reader=rd, active=lambda c: True, hidden=lambda *a: False)
         self.assertIn("Check advert: floorplan shows 2 bedrooms, advert says 1", self.replies[0])
 
     def test_a_portal_stated_area_is_never_read_from_the_plan(self):
@@ -404,7 +441,8 @@ class StepTests(Base):
         self.queue(l)
         client = FakeClient([GOOD])
         with patch.dict(os.environ, self.env):
-            facts.run_step(NOW, 20, lambda *a: self.replies.append(a), floorplan_reader=new_reader(client))
+            facts.run_step(NOW, 20, lambda *a: self.replies.append(a), floorplan_reader=new_reader(client),
+                           active=lambda c: True, hidden=lambda *a: False)
         self.assertEqual(client.calls, [])
 
     def test_the_alert_path_makes_no_download_and_no_model_request(self):
@@ -456,13 +494,9 @@ class OffTests(unittest.TestCase):
                 patch.object(floorplan, "Reader", side_effect=AssertionError("a Reader was created while off")):
             self.assertFalse(facts.enabled())
             floorplan.annotate(l)
-            facts.purge_expired()
+            self.assertEqual((floorplan.purge_expired(), epc.purge_expired(), facts.pending()), ({}, {}, 0))
         self.assertIsNone(l.area_source)
-        db = Path(state, "pisobot.db")
-        if db.exists():
-            with contextlib.closing(sqlite3.connect(db)) as conn:
-                names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
-            self.assertFalse({n for n in names if n.startswith(("epc_", "floorplan_", "facts_"))})
+        self.assertEqual(os.listdir(state), [])                       # no file of any kind
 
 
 # ---------------------------------------------------------------- the evaluator's ledger
