@@ -112,10 +112,8 @@ def main():
     try:
         log.info("optional step limits: cpu, memory by %s", limit_resources())
     except Exception as ex:
-        if os.environ.get("OPTIONAL_ALLOW_NO_LIMIT") != "1":
-            log.error("optional step refused: could not set its resource limits (%s)", type(ex).__name__)
-            return 3
-        log.warning("optional step running WITHOUT resource limits (OPTIONAL_ALLOW_NO_LIMIT=1)")
+        log.error("optional step refused: could not set its resource limits (%s)", type(ex).__name__)
+        return 3
     signal.alarm(int(runner.STEP_SECONDS + runner.KILL_GRACE_SECONDS - 3))      # the child's own watchdog (default action ends it)
     parent = os.getppid()
 
