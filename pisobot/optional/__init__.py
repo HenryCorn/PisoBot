@@ -580,3 +580,4 @@ def shutdown():
 
 
 from .runner import RUNNER  # noqa: E402,F401  (the class is defined; nothing runs until a feature has queued work)
+from .. import registry_loader  # noqa: E402,F401  (records which features exist; imports none of them)

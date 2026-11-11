@@ -1,2 +1,4 @@
-"""Where the shipped optional features register themselves (G0: none yet). Imported only by the supervised child; the main process
-registers a feature at the point its own module is imported by the release's files (never at import time of `optional`)."""
+"""Where optional features register their loaders and plain startup templates (G0 ships none).
+
+Imported during foundation initialization in the parent and child. Do not import feature modules here: their loaders run on workers.
+"""

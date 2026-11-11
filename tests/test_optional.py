@@ -103,6 +103,31 @@ class OptionalBase(Base):
 # ---------------------------------------------------------------- the registry: off means off
 
 class RegistryTests(OptionalBase):
+    def test_startup_registry_exposes_first_card_templates_without_loading_a_feature(self):
+        code = """
+import datetime, importlib.abc, importlib.util, os, sys, types
+class Finder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "pisobot.registry_loader":
+            return importlib.util.spec_from_loader(fullname, self)
+    def exec_module(self, module):
+        from pisobot import optional
+        def loader():
+            raise AssertionError("feature loaded on the delivery path")
+        optional.register("TEST_TEMPLATE", loader, templates=(
+            {"field": "first_listed_at", "kind": "age", "text": "Listed {} ago",
+             "priority": 1, "max_seconds": 10800},))
+sys.meta_path.insert(0, Finder())
+os.environ["TEST_TEMPLATE"] = "1"
+from pisobot import optional
+stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=40, seconds=20)).isoformat()
+listing = types.SimpleNamespace(first_listed_at=stamp)
+assert optional.extend_card("card", listing, False) == "card\\nListed 40 min ago"
+assert not optional.workers()
+"""
+        child = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=15)
+        self.assertEqual(child.returncode, 0, child.stderr)
+
     def test_a_feature_whose_flag_is_not_one_is_never_loaded_and_no_thread_starts(self):
         loaded, before = [], threading.active_count()
         optional.register(FLAG, lambda: loaded.append(1))
