@@ -452,6 +452,10 @@ class StorageTests(OptionalBase):
         self.assertTrue(store.write(self.DDL, [("INSERT INTO t VALUES (?, ?)", ("a", "1"))]))
         self.assertEqual(store.read("SELECT k, v FROM t"), [{"k": "a", "v": "1"}])
 
+    def test_tables_and_indexes_can_be_created_in_the_optional_file(self):
+        self.assertTrue(store.write("CREATE TABLE IF NOT EXISTS u (k TEXT); CREATE INDEX IF NOT EXISTS u_k ON u (k)", [("INSERT INTO u VALUES ('a')", ())]))
+        self.assertEqual(store.read("SELECT k FROM u"), [{"k": "a"}])
+
     def test_a_contended_database_fails_fast(self):
         store.write(self.DDL, [])
         holder = sqlite3.connect(store.path())
