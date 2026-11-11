@@ -314,7 +314,7 @@ def build(person_id, db_readonly_connection, now):
     cards = []
     for flat in flats:
         url = html.escape(flat["url"], quote=True)
-        photo = (f'<img src="{html.escape(flat["image"], quote=True)}" alt="" loading="lazy">'
+        photo = (f'<img data-remote-src="{html.escape(flat["image"], quote=True)}" alt="" loading="lazy" hidden>'
                  if flat["image"] else "")
         link_start = f'<a href="{url}" rel="noopener noreferrer">' if url else ""
         link_end = "</a>" if url else ""
@@ -350,7 +350,17 @@ def build(person_id, db_readonly_connection, now):
         'complete in-scope sweeps; absence does not prove it was let. If no source sweep/archive '
         'record exists, status is Unknown. The archive cannot verify a portal\'s explicit let-agreed '
         'label, so it is not inferred.</p></header>'
-        + '<main><section><h2>All saved flats</h2><div class="filters">'
+        + '<main><section class="privacy" aria-labelledby="external-heading">'
+        + '<h2 id="external-heading">External content is off</h2>'
+        + '<p>Loading photos and the online map sends your IP address and access time to the photo hosts '
+        + 'listed below, unpkg.com (the Leaflet CDN), OpenStreetMap tile servers (*.tile.openstreetmap.org), '
+        + 'and any redirect destinations. '
+        + 'Tile servers also see the mapped area. Opening an advert link separately contacts that advert site.</p>'
+        + '<p>Photo hosts: <span id="photo-hosts">Unavailable without JavaScript</span></p>'
+        + '<button id="load-external" type="button" disabled>Load external photos and online map</button>'
+        + '<p id="external-status" aria-live="polite">External content is off until you choose to load it.</p>'
+        + '<noscript>JavaScript is required to load external content.</noscript></section>'
+        + '<section><h2>All saved flats</h2><div class="filters">'
         + '<label>Status <select id="status"><option value="all">All</option><option value="available">Available</option>'
         + '<option value="unavailable">No longer available</option><option value="unknown">Unknown</option></select></label>'
         + '<label>Max rent <input id="price" type="number" min="0" placeholder="Any"></label>'
@@ -359,7 +369,7 @@ def build(person_id, db_readonly_connection, now):
         + '<option value="status">Status</option></select></label></div>'
         + '<div id="flats">' + "".join(cards) + '</div></section>'
         + _render_charts(flats, market_rents, price_history, now)
-        + '<section class="chart"><h2>Map</h2><p class="muted">Map tile requests disclose the displayed area to the tile server.</p>'
+        + '<section class="chart"><h2>Map</h2><p class="muted">Local pin map; external tiles are optional.</p>'
         + '<div id="map"><svg id="map-fallback" viewBox="0 0 600 320" role="img" aria-label="Saved flat location pins"></svg></div>'
         + '</section></main><footer>Market comparisons use the locally archived adverts, not all London rentals.</footer>'
         + '<script>const pins=' + json_pins + ';'
@@ -388,18 +398,41 @@ def build(person_id, db_readonly_connection, now):
         + 'c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","7");c.setAttribute("fill",colors[p.status]);'
         + 't.textContent=p.address+" · "+p.rent;c.append(t);fallback.append(c);});}'
         + 'fallbackMap();'
-        + 'const css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.append(css);'
-        + 'const script=document.createElement("script");script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";'
-        + 'script.onload=()=>{try{const map=L.map("map").setView([51.51,-0.1],11),'
+        + 'const photos=[],photoElements=[...document.querySelectorAll("img[data-remote-src]")],'
+        + 'loadButton=document.querySelector("#load-external"),notice=document.querySelector("#external-status");'
+        + 'let invalidPhotos=0;photoElements.forEach(img=>{try{const url=new URL(img.dataset.remoteSrc);'
+        + 'if(url.protocol!=="https:"&&url.protocol!=="http:")throw new Error("Invalid photo URL");'
+        + 'photos.push({img,url:url.href,host:url.host});}catch(e){invalidPhotos++;}});'
+        + 'document.querySelector("#photo-hosts").textContent=[...new Set(photos.map(p=>p.host))].join(", ")||"None";'
+        + 'if(invalidPhotos)notice.textContent="External content is off. Some invalid photo URLs were skipped.";'
+        + 'let requested=false;loadButton.addEventListener("click",()=>{if(requested)return;requested=true;'
+        + 'loadButton.disabled=true;loadButton.textContent="External content enabled";'
+        + 'document.querySelector("#external-heading").textContent="External content enabled";'
+        + 'notice.textContent="Loading external photos and map…";'
+        + 'photos.forEach(p=>{p.img.onerror=()=>{notice.textContent="Some external photos could not be loaded.";};'
+        + 'p.img.src=p.url;p.img.hidden=false;});'
+        + 'let cssReady=false,scriptReady=false,mapStarted=false;'
+        + 'function initMap(){if(!cssReady||!scriptReady||mapStarted)return;mapStarted=true;'
+        + 'try{const map=L.map("map").setView([51.51,-0.1],11),'
         + 'tiles=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);'
         + 'tiles.on("tileload",()=>{fallback.style.display="none";});'
-        + 'tiles.on("tileerror",()=>{fallback.style.display="block";});'
+        + 'tiles.on("tileerror",()=>{fallback.style.display="block";'
+        + 'notice.textContent="Some map tiles could not be loaded; the local map is shown.";});'
         + 'pins.forEach(p=>{const marker=L.circleMarker([p.lat,p.lng],{color:colors[p.status]}).addTo(map);'
         + 'const box=document.createElement("div"),label=document.createElement("strong");label.textContent=p.address;box.append(label,'
         + 'document.createElement("br"),document.createTextNode(p.rent+" · "));if(p.url){const a=document.createElement("a");'
         + 'a.href=p.url;a.textContent="Open advert";a.rel="noopener noreferrer";box.append(a);}marker.bindPopup(box);});'
         + 'if(pins.length){const bounds=L.latLngBounds(pins.map(p=>[p.lat,p.lng]));map.fitBounds(bounds.pad(.15));}'
-        + '}catch(e){fallback.style.display="block";}};document.body.append(script);'
+        + '}catch(e){fallback.style.display="block";notice.textContent="External map unavailable; the local map is shown.";}}'
+        + 'const failed=()=>{fallback.style.display="block";notice.textContent="External map unavailable; the local map is shown.";};'
+        + 'const css=document.createElement("link");css.rel="stylesheet";'
+        + 'css.onload=()=>{cssReady=true;initMap();};css.onerror=failed;'
+        + 'css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.append(css);'
+        + 'const script=document.createElement("script");script.onload=()=>{scriptReady=true;initMap();};script.onerror=failed;'
+        + 'script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";document.body.append(script);'
+        + 'notice.textContent=invalidPhotos?"External content requested; some invalid photo URLs were skipped.":'
+        + '"External content requested for this page.";'
+        + '});loadButton.disabled=false;'
         + '</script>'
     )
     style = """<style>
@@ -415,6 +448,7 @@ header,main,footer{max-width:1000px;margin:auto;padding:16px}h1{margin:.2em 0}h2
 .details{min-width:0}.heading{justify-content:space-between}.available .badge{color:#16803c}.unavailable .badge{color:#888}.unknown .badge{color:#d97706}
 a{color:#2563eb;overflow-wrap:anywhere}.chart{margin:20px 0;padding:14px;border:1px solid var(--line);border-radius:12px}
 .filters label{display:grid;gap:3px}.filters input,.filters select{max-width:180px;padding:7px}
+.privacy{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
 svg{display:block;width:100%;max-height:300px}svg text{fill:var(--fg);font-size:12px}svg circle{stroke:#fff;stroke-width:1}
 .barrow,.barlist>div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:6px}
 .barlist>div{display:block}.weekbar{display:block;background:#2563eb;color:#fff;text-align:right;padding-right:5px;border-radius:4px}

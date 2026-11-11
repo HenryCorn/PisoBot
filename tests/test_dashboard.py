@@ -1,8 +1,11 @@
 import datetime as dt
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,6 +14,27 @@ from pisobot import bot, dashboard
 
 
 NOW = dt.datetime(2026, 11, 11, 12, tzinfo=dt.timezone.utc)
+
+
+class DashboardHTML(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+        self.script = []
+        self.in_script = False
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
+        if tag == "script":
+            self.in_script = True
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.in_script = False
+
+    def handle_data(self, data):
+        if self.in_script:
+            self.script.append(data)
 
 
 def fixture_db():
@@ -62,9 +86,54 @@ class DashboardTests(unittest.TestCase):
 
     def test_untrusted_advert_text_is_escaped(self):
         add_flat(self.db, "unsafe", "active", NOW.isoformat(), address='<img src=x onerror="alert(1)">')
+        image = 'https://example.test/photo.jpg" onerror="alert(1)'
+        self.db.execute("UPDATE adverts SET data=? WHERE key='unsafe'", (json.dumps({"image": image}),))
         page = dashboard.build("101", self.db, NOW)
         self.assertIn("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;", page)
         self.assertNotIn('<img src=x onerror="alert(1)">', page)
+        parsed = DashboardHTML()
+        parsed.feed(page)
+        attrs = next(attrs for tag, attrs in parsed.tags if tag == "img")
+        self.assertEqual(attrs["data-remote-src"], image)
+        self.assertNotIn("onerror", attrs)
+
+    def test_external_content_is_disclosed_and_inert_in_initial_html(self):
+        add_flat(self.db, "a", "active", NOW.isoformat())
+        page = dashboard.build("101", self.db, NOW)
+        parsed = DashboardHTML()
+        parsed.feed(page)
+        images = [attrs for tag, attrs in parsed.tags if tag == "img"]
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0]["data-remote-src"], "https://example.test/photo.jpg")
+        self.assertNotIn("src", images[0])
+        self.assertNotIn("srcset", images[0])
+        self.assertIn("hidden", images[0])
+        self.assertFalse(any(tag == "link" or (tag == "script" and "src" in attrs)
+                             for tag, attrs in parsed.tags))
+        button = next(attrs for tag, attrs in parsed.tags if tag == "button" and attrs.get("id") == "load-external")
+        self.assertIn("disabled", button)
+        for text in ("External content is off", "IP address and access time", "Photo hosts:",
+                     "unpkg.com", "OpenStreetMap tile servers", "*.tile.openstreetmap.org", "redirect destinations"):
+            self.assertIn(text, page)
+        self.assertIn('id="map-fallback"', page)
+        self.assertIn("Flat", page)
+
+    @unittest.skipUnless(shutil.which("node"), "Node is needed for the offline JavaScript check")
+    def test_external_requests_only_start_after_opt_in(self):
+        add_flat(self.db, "a", "active", NOW.isoformat())
+        add_flat(self.db, "b", "active", NOW.isoformat())
+        self.db.execute("UPDATE adverts SET data=? WHERE key='b'",
+                        (json.dumps({"image": "https://images.other.test/photo.jpg?x=1&y=2"}),))
+        parsed = DashboardHTML()
+        parsed.feed(dashboard.build("101", self.db, NOW))
+        images = [attrs["data-remote-src"] for tag, attrs in parsed.tags if tag == "img"]
+        runner = Path(__file__).with_name("dashboard_privacy_check.js")
+        result = subprocess.run(
+            [shutil.which("node"), str(runner)],
+            input=json.dumps({"script": "".join(parsed.script), "images": images}),
+            text=True, capture_output=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_verdicts_are_scoped_to_the_requested_person(self):
         add_flat(self.db, "a", "active", NOW.isoformat())

@@ -161,7 +161,11 @@ On the local-storage VPS, set `DASHBOARD=1` to enable `/dashboard`; the HTML is 
 read-only SQLite data in a worker and sent only to the requesting chat. For a local file, run
 `python -m pisobot.dashboard --person <chat-id> --out dashboard.html`. Availability uses a
 24-hour freshness window, then requires two complete sweeps to label a flat no longer available.
-The map uses OpenStreetMap tiles when online; the tile server sees the displayed map area.
+External photos and the Leaflet/OpenStreetMap map are off until the viewer opts in on each page
+load. The page lists photo hosts and warns that those hosts, unpkg.com, OpenStreetMap tile servers
+(`*.tile.openstreetmap.org`) and redirects may receive the viewer's IP address and access time;
+tile servers also see the map area.
+The local SVG map and listing facts work without opting in.
 
 ## Optional: language-model reading of rental adverts
 
