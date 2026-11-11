@@ -1,0 +1,27 @@
+Destination: oxford-circus (51.5152,-0.1419)
+Exact cache: 545 entries; 380 unique points; 165 duplicate legacy points superseded; 0 skipped
+Station snapshot: 500 stations; complete=False; stale=False; travel date=20261111 08:30 Departing
+Station mode omissions: {"national-rail": "transport_or_json_error"}
+Walking model: 4.8 km/h; detour 1.25; nearest 5 groups
+Requested comparison (legacy-only origins assumed to target Oxford Circus):
+Compared: 380 estimates; 0 unknown; 186 truly reachable (<=40); 194 unreachable (>40)
+Mean absolute error: 6.78 min
+90th-percentile absolute error (nearest rank): 16.30 min
+Limit 40, margin  0: reachable wrongly discarded 85/186 (45.70%); unreachable correctly discarded 186/194 (95.88%)
+Limit 40, margin  5: reachable wrongly discarded 49/186 (26.34%); unreachable correctly discarded 146/194 (75.26%)
+Limit 40, margin 10: reachable wrongly discarded 18/186 (9.68%); unreachable correctly discarded 87/194 (44.85%)
+Limit 40, margin 15: reachable wrongly discarded 7/186 (3.76%); unreachable correctly discarded 52/194 (26.80%)
+Limit 40, margin 20: reachable wrongly discarded 2/186 (1.08%); unreachable correctly discarded 30/194 (15.46%)
+Target (<2% false discards and >50% true discards): NOT MET
+Ground-truth warning: 285 legacy entries have no destination; 247 end their recorded route on Overground (Windrush). Their destination cannot be verified from these summaries.
+Explicit-destination-only comparison (no model/constants changed):
+Compared: 260 estimates; 0 unknown; 113 truly reachable (<=40); 147 unreachable (>40)
+Mean absolute error: 3.67 min
+90th-percentile absolute error (nearest rank): 8.72 min
+Limit 40, margin  0: reachable wrongly discarded 28/113 (24.78%); unreachable correctly discarded 142/147 (96.60%)
+Limit 40, margin  5: reachable wrongly discarded 7/113 (6.19%); unreachable correctly discarded 108/147 (73.47%)
+Limit 40, margin 10: reachable wrongly discarded 2/113 (1.77%); unreachable correctly discarded 52/147 (35.37%)
+Limit 40, margin 15: reachable wrongly discarded 1/113 (0.88%); unreachable correctly discarded 28/147 (19.05%)
+Limit 40, margin 20: reachable wrongly discarded 0/113 (0.00%); unreachable correctly discarded 13/147 (8.84%)
+Target (<2% false discards and >50% true discards): NOT MET
+Limitations: station-only access misses bus-first routes and street barriers; weekday/snapshot and departure times differ from the historical cache; rounded pins and separate NaPTAN groups affect nearest-station selection. No constants fitted to this sample.

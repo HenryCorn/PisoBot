@@ -1,0 +1,9189 @@
+{
+  "destination": {
+    "lat": 51.5152,
+    "lon": -0.1419,
+    "name": "oxford-circus"
+  },
+  "radius_km": 20.0,
+  "results": {
+    "910GABWDXR": {
+      "checked_at": "2026-11-10T08:22:14.976856+00:00",
+      "minutes": 39,
+      "origin": [
+        51.49128,
+        0.12109
+      ],
+      "status": "ok"
+    },
+    "910GACTNCTL": {
+      "checked_at": "2026-11-10T08:22:15.957612+00:00",
+      "minutes": 45,
+      "origin": [
+        51.50872,
+        -0.26297
+      ],
+      "status": "ok"
+    },
+    "910GACTONML": {
+      "checked_at": "2026-11-10T08:22:17.666612+00:00",
+      "minutes": 26,
+      "origin": [
+        51.51718,
+        -0.26676
+      ],
+      "status": "ok"
+    },
+    "910GANERLEY": {
+      "checked_at": "2026-11-10T08:22:18.683967+00:00",
+      "minutes": 55,
+      "origin": [
+        51.41215,
+        -0.06589
+      ],
+      "status": "ok"
+    },
+    "910GBARKING": {
+      "checked_at": "2026-11-10T08:22:21.139485+00:00",
+      "minutes": 44,
+      "origin": [
+        51.5395,
+        0.0809
+      ],
+      "status": "ok"
+    },
+    "910GBARKRIV": {
+      "checked_at": "2026-11-10T08:22:23.198274+00:00",
+      "minutes": 54,
+      "origin": [
+        51.51953,
+        0.11596
+      ],
+      "status": "ok"
+    },
+    "910GBHILLPK": {
+      "checked_at": "2026-11-10T08:22:24.357074+00:00",
+      "minutes": 44,
+      "origin": [
+        51.64152,
+        -0.06922
+      ],
+      "status": "ok"
+    },
+    "910GBLCHSRD": {
+      "checked_at": "2026-11-10T08:22:25.719658+00:00",
+      "minutes": 31,
+      "origin": [
+        51.5866,
+        -0.04124
+      ],
+      "status": "ok"
+    },
+    "910GBONDST": {
+      "checked_at": "2026-11-10T08:22:26.955100+00:00",
+      "minutes": 11,
+      "origin": [
+        51.51369,
+        -0.14952
+      ],
+      "status": "ok"
+    },
+    "910GBRBY": {
+      "checked_at": "2026-11-10T08:22:29.419555+00:00",
+      "minutes": 30,
+      "origin": [
+        51.54517,
+        -0.20231
+      ],
+      "status": "ok"
+    },
+    "910GBRBYPK": {
+      "checked_at": "2026-11-10T08:22:32.116912+00:00",
+      "minutes": 36,
+      "origin": [
+        51.54073,
+        -0.21005
+      ],
+      "status": "ok"
+    },
+    "910GBROCKLY": {
+      "checked_at": "2026-11-10T08:22:33.138104+00:00",
+      "minutes": 42,
+      "origin": [
+        51.46465,
+        -0.03754
+      ],
+      "status": "ok"
+    },
+    "910GBRUCGRV": {
+      "checked_at": "2026-11-10T08:22:34.713887+00:00",
+      "minutes": 34,
+      "origin": [
+        51.59396,
+        -0.06987
+      ],
+      "status": "ok"
+    },
+    "910GBTHNLGR": {
+      "checked_at": "2026-11-10T08:22:36.039968+00:00",
+      "minutes": 32,
+      "origin": [
+        51.52392,
+        -0.05957
+      ],
+      "status": "ok"
+    },
+    "910GCAMHTH": {
+      "checked_at": "2026-11-10T08:22:37.804915+00:00",
+      "minutes": 32,
+      "origin": [
+        51.53197,
+        -0.05728
+      ],
+      "status": "ok"
+    },
+    "910GCANWHRF": {
+      "checked_at": "2026-11-10T08:22:39.160870+00:00",
+      "minutes": 28,
+      "origin": [
+        51.5062,
+        -0.01883
+      ],
+      "status": "ok"
+    },
+    "910GCHDWLHT": {
+      "checked_at": "2026-11-10T08:22:40.839393+00:00",
+      "minutes": 49,
+      "origin": [
+        51.56804,
+        0.12896
+      ],
+      "status": "ok"
+    },
+    "910GCHINGFD": {
+      "checked_at": "2026-11-10T08:22:42.186195+00:00",
+      "minutes": 48,
+      "origin": [
+        51.63309,
+        0.0099
+      ],
+      "status": "ok"
+    },
+    "910GCLAPTON": {
+      "checked_at": "2026-11-10T08:22:43.716534+00:00",
+      "minutes": 42,
+      "origin": [
+        51.56164,
+        -0.05702
+      ],
+      "status": "ok"
+    },
+    "910GCLDNNRB": {
+      "checked_at": "2026-11-10T08:22:45.405719+00:00",
+      "minutes": 28,
+      "origin": [
+        51.54304,
+        -0.11673
+      ],
+      "status": "ok"
+    },
+    "910GCLPHHS": {
+      "checked_at": "2026-11-10T08:22:46.548220+00:00",
+      "minutes": 31,
+      "origin": [
+        51.46548,
+        -0.13252
+      ],
+      "status": "ok"
+    },
+    "910GCLPHMJ1": {
+      "checked_at": "2026-11-10T08:22:48.346804+00:00",
+      "minutes": 35,
+      "origin": [
+        51.46419,
+        -0.17022
+      ],
+      "status": "ok"
+    },
+    "910GCLPHMJC": {
+      "checked_at": "2026-11-10T08:22:49.686908+00:00",
+      "minutes": 36,
+      "origin": [
+        51.46419,
+        -0.17029
+      ],
+      "status": "ok"
+    },
+    "910GCMDNRD": {
+      "checked_at": "2026-11-10T08:22:51.828230+00:00",
+      "minutes": 29,
+      "origin": [
+        51.54179,
+        -0.1387
+      ],
+      "status": "ok"
+    },
+    "910GCNDAW": {
+      "checked_at": "2026-11-10T08:22:53.280183+00:00",
+      "minutes": 30,
+      "origin": [
+        51.49799,
+        -0.04972
+      ],
+      "status": "ok"
+    },
+    "910GCNNB": {
+      "checked_at": "2026-11-10T08:22:54.243462+00:00",
+      "minutes": 28,
+      "origin": [
+        51.54873,
+        -0.09219
+      ],
+      "status": "ok"
+    },
+    "910GCROUCHH": {
+      "checked_at": "2026-11-10T08:22:55.753188+00:00",
+      "minutes": 31,
+      "origin": [
+        51.5713,
+        -0.11715
+      ],
+      "status": "ok"
+    },
+    "910GCRYSTLP": {
+      "checked_at": "2026-11-10T08:22:57.316655+00:00",
+      "minutes": 56,
+      "origin": [
+        51.41811,
+        -0.07261
+      ],
+      "status": "ok"
+    },
+    "910GCSEAH": {
+      "checked_at": "2026-11-10T08:22:59.913854+00:00",
+      "minutes": 36,
+      "origin": [
+        51.47495,
+        -0.18282
+      ],
+      "status": "ok"
+    },
+    "910GCUSTMHS": {
+      "checked_at": "2026-11-10T08:23:00.944413+00:00",
+      "minutes": 32,
+      "origin": [
+        51.50977,
+        0.02673
+      ],
+      "status": "ok"
+    },
+    "910GDALS": {
+      "checked_at": "2026-11-10T08:23:02.328015+00:00",
+      "minutes": 30,
+      "origin": [
+        51.54612,
+        -0.07514
+      ],
+      "status": "ok"
+    },
+    "910GDALSKLD": {
+      "checked_at": "2026-11-10T08:23:05.647022+00:00",
+      "minutes": 30,
+      "origin": [
+        51.54815,
+        -0.0757
+      ],
+      "status": "ok"
+    },
+    "910GDENMRKH": {
+      "checked_at": "2026-11-10T08:23:06.465932+00:00",
+      "minutes": 39,
+      "origin": [
+        51.4682,
+        -0.08936
+      ],
+      "status": "ok"
+    },
+    "910GEALINGB": {
+      "checked_at": "2026-11-10T08:23:08.102892+00:00",
+      "minutes": 28,
+      "origin": [
+        51.51484,
+        -0.30175
+      ],
+      "status": "ok"
+    },
+    "910GEDMNGRN": {
+      "checked_at": "2026-11-10T08:23:09.299106+00:00",
+      "minutes": 40,
+      "origin": [
+        51.62493,
+        -0.06111
+      ],
+      "status": "ok"
+    },
+    "910GENFLDTN": {
+      "checked_at": "2026-11-10T08:23:11.034273+00:00",
+      "minutes": 46,
+      "origin": [
+        51.65203,
+        -0.07933
+      ],
+      "status": "ok"
+    },
+    "910GEUSTON": {
+      "checked_at": "2026-11-10T08:23:12.529377+00:00",
+      "minutes": 20,
+      "origin": [
+        51.52814,
+        -0.13392
+      ],
+      "status": "ok"
+    },
+    "910GFNCHLYR": {
+      "checked_at": "2026-11-10T08:23:13.940026+00:00",
+      "minutes": 30,
+      "origin": [
+        51.55027,
+        -0.18314
+      ],
+      "status": "ok"
+    },
+    "910GFORESTH": {
+      "checked_at": "2026-11-10T08:23:15.625895+00:00",
+      "minutes": 51,
+      "origin": [
+        51.43928,
+        -0.05316
+      ],
+      "status": "ok"
+    },
+    "910GFRNDXR": {
+      "checked_at": "2026-11-10T08:23:17.442806+00:00",
+      "minutes": 22,
+      "origin": [
+        51.52019,
+        -0.10491
+      ],
+      "status": "ok"
+    },
+    "910GFRSTGT": {
+      "checked_at": "2026-11-10T08:23:18.661318+00:00",
+      "minutes": 32,
+      "origin": [
+        51.54943,
+        0.02435
+      ],
+      "status": "ok"
+    },
+    "910GGNRSBRY": {
+      "checked_at": "2026-11-10T08:23:20.347045+00:00",
+      "minutes": 41,
+      "origin": [
+        51.49168,
+        -0.27529
+      ],
+      "status": "ok"
+    },
+    "910GGODMAYS": {
+      "checked_at": "2026-11-10T08:23:22.384166+00:00",
+      "minutes": 44,
+      "origin": [
+        51.56558,
+        0.11081
+      ],
+      "status": "ok"
+    },
+    "910GGOSPLOK": {
+      "checked_at": "2026-11-10T08:23:23.230550+00:00",
+      "minutes": 37,
+      "origin": [
+        51.55533,
+        -0.15077
+      ],
+      "status": "ok"
+    },
+    "910GHACKNYC": {
+      "checked_at": "2026-11-10T08:23:24.847196+00:00",
+      "minutes": 34,
+      "origin": [
+        51.54711,
+        -0.05606
+      ],
+      "status": "ok"
+    },
+    "910GHACKNYW": {
+      "checked_at": "2026-11-10T08:23:26.359545+00:00",
+      "minutes": 42,
+      "origin": [
+        51.54341,
+        -0.02492
+      ],
+      "status": "ok"
+    },
+    "910GHAGGERS": {
+      "checked_at": "2026-11-10T08:23:27.955175+00:00",
+      "minutes": 32,
+      "origin": [
+        51.53871,
+        -0.07567
+      ],
+      "status": "ok"
+    },
+    "910GHAKNYNM": {
+      "checked_at": "2026-11-10T08:23:29.415656+00:00",
+      "minutes": 38,
+      "origin": [
+        51.54876,
+        -0.06082
+      ],
+      "status": "ok"
+    },
+    "910GHANWELL": {
+      "checked_at": "2026-11-10T08:23:31.022923+00:00",
+      "minutes": 32,
+      "origin": [
+        51.51183,
+        -0.33858
+      ],
+      "status": "ok"
+    },
+    "910GHARLSDN": {
+      "checked_at": "2026-11-10T08:23:32.235336+00:00",
+      "minutes": 35,
+      "origin": [
+        51.53629,
+        -0.25767
+      ],
+      "status": "ok"
+    },
+    "910GHAYESAH": {
+      "checked_at": "2026-11-10T08:23:33.707529+00:00",
+      "minutes": 36,
+      "origin": [
+        51.5031,
+        -0.42068
+      ],
+      "status": "ok"
+    },
+    "910GHEDSTNL": {
+      "checked_at": "2026-11-10T08:23:35.149631+00:00",
+      "minutes": 46,
+      "origin": [
+        51.60265,
+        -0.35722
+      ],
+      "status": "ok"
+    },
+    "910GHGHI": {
+      "checked_at": "2026-11-10T08:23:37.522064+00:00",
+      "minutes": 21,
+      "origin": [
+        51.54618,
+        -0.10376
+      ],
+      "status": "ok"
+    },
+    "910GHGHMSPK": {
+      "checked_at": "2026-11-10T08:23:38.234109+00:00",
+      "minutes": 43,
+      "origin": [
+        51.60835,
+        -0.00022
+      ],
+      "status": "ok"
+    },
+    "910GHMPSTDH": {
+      "checked_at": "2026-11-10T08:23:39.865984+00:00",
+      "minutes": 34,
+      "origin": [
+        51.55521,
+        -0.1657
+      ],
+      "status": "ok"
+    },
+    "910GHOMRTON": {
+      "checked_at": "2026-11-10T08:23:43.453315+00:00",
+      "minutes": 34,
+      "origin": [
+        51.54701,
+        -0.04236
+      ],
+      "status": "ok"
+    },
+    "910GHONROPK": {
+      "checked_at": "2026-11-10T08:23:44.652559+00:00",
+      "minutes": 45,
+      "origin": [
+        51.44999,
+        -0.0455
+      ],
+      "status": "ok"
+    },
+    "910GHOXTON": {
+      "checked_at": "2026-11-10T08:23:46.039159+00:00",
+      "minutes": 31,
+      "origin": [
+        51.53151,
+        -0.07568
+      ],
+      "status": "ok"
+    },
+    "910GHRGYGL": {
+      "checked_at": "2026-11-10T08:23:47.397404+00:00",
+      "minutes": 33,
+      "origin": [
+        51.57718,
+        -0.09814
+      ],
+      "status": "ok"
+    },
+    "910GHROW": {
+      "checked_at": "2026-11-10T08:23:48.950513+00:00",
+      "minutes": 38,
+      "origin": [
+        51.59217,
+        -0.33457
+      ],
+      "status": "ok"
+    },
+    "910GHTCHEND": {
+      "checked_at": "2026-11-10T08:23:50.380966+00:00",
+      "minutes": 50,
+      "origin": [
+        51.60942,
+        -0.3686
+      ],
+      "status": "ok"
+    },
+    "910GILFORD": {
+      "checked_at": "2026-11-10T08:23:52.227305+00:00",
+      "minutes": 37,
+      "origin": [
+        51.55912,
+        0.06968
+      ],
+      "status": "ok"
+    },
+    "910GKENOLYM": {
+      "checked_at": "2026-11-10T08:23:53.353047+00:00",
+      "minutes": 35,
+      "origin": [
+        51.4979,
+        -0.21036
+      ],
+      "status": "ok"
+    },
+    "910GKENR": {
+      "checked_at": "2026-11-10T08:23:55.065261+00:00",
+      "minutes": 37,
+      "origin": [
+        51.53455,
+        -0.21996
+      ],
+      "status": "ok"
+    },
+    "910GKENSLG": {
+      "checked_at": "2026-11-10T08:23:56.500102+00:00",
+      "minutes": 30,
+      "origin": [
+        51.53054,
+        -0.22509
+      ],
+      "status": "ok"
+    },
+    "910GKEWGRDN": {
+      "checked_at": "2026-11-10T08:23:57.846337+00:00",
+      "minutes": 45,
+      "origin": [
+        51.47707,
+        -0.28505
+      ],
+      "status": "ok"
+    },
+    "910GKLBRNHR": {
+      "checked_at": "2026-11-10T08:23:59.465132+00:00",
+      "minutes": 29,
+      "origin": [
+        51.53728,
+        -0.19224
+      ],
+      "status": "ok"
+    },
+    "910GKNTSHTW": {
+      "checked_at": "2026-11-10T08:24:02.113313+00:00",
+      "minutes": 31,
+      "origin": [
+        51.54655,
+        -0.14666
+      ],
+      "status": "ok"
+    },
+    "910GKTON": {
+      "checked_at": "2026-11-10T08:24:03.173563+00:00",
+      "minutes": 44,
+      "origin": [
+        51.5818,
+        -0.31698
+      ],
+      "status": "ok"
+    },
+    "910GLEYTNMR": {
+      "checked_at": "2026-11-10T08:24:04.611715+00:00",
+      "minutes": 41,
+      "origin": [
+        51.56972,
+        -0.00805
+      ],
+      "status": "ok"
+    },
+    "910GLIVST": {
+      "checked_at": "2026-11-10T08:24:06.130971+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51799,
+        -0.08143
+      ],
+      "status": "ok"
+    },
+    "910GLIVSTLL": {
+      "checked_at": "2026-11-10T08:24:07.597692+00:00",
+      "minutes": 23,
+      "origin": [
+        51.51772,
+        -0.08204
+      ],
+      "status": "ok"
+    },
+    "910GLONFLDS": {
+      "checked_at": "2026-11-10T08:24:09.085722+00:00",
+      "minutes": 41,
+      "origin": [
+        51.54115,
+        -0.05775
+      ],
+      "status": "ok"
+    },
+    "910GLYTNSHR": {
+      "checked_at": "2026-11-10T08:24:10.728260+00:00",
+      "minutes": 43,
+      "origin": [
+        51.56355,
+        0.00842
+      ],
+      "status": "ok"
+    },
+    "910GMANRPK": {
+      "checked_at": "2026-11-10T08:24:12.480871+00:00",
+      "minutes": 36,
+      "origin": [
+        51.55248,
+        0.04634
+      ],
+      "status": "ok"
+    },
+    "910GMRYLAND": {
+      "checked_at": "2026-11-10T08:24:13.618996+00:00",
+      "minutes": 35,
+      "origin": [
+        51.54608,
+        0.00581
+      ],
+      "status": "ok"
+    },
+    "910GNEWXGTE": {
+      "checked_at": "2026-11-10T08:24:15.126416+00:00",
+      "minutes": 38,
+      "origin": [
+        51.47513,
+        -0.0404
+      ],
+      "status": "ok"
+    },
+    "910GNORWDJ": {
+      "checked_at": "2026-11-10T08:24:17.122535+00:00",
+      "minutes": 45,
+      "origin": [
+        51.39702,
+        -0.07522
+      ],
+      "status": "ok"
+    },
+    "910GNWCRELL": {
+      "checked_at": "2026-11-10T08:24:18.513393+00:00",
+      "minutes": 40,
+      "origin": [
+        51.47634,
+        -0.03244
+      ],
+      "status": "ok"
+    },
+    "910GNWEMBLY": {
+      "checked_at": "2026-11-10T08:24:19.878153+00:00",
+      "minutes": 42,
+      "origin": [
+        51.5626,
+        -0.30398
+      ],
+      "status": "ok"
+    },
+    "910GPADTLL": {
+      "checked_at": "2026-11-10T08:24:21.527148+00:00",
+      "minutes": 22,
+      "origin": [
+        51.51645,
+        -0.17711
+      ],
+      "status": "ok"
+    },
+    "910GPADTON": {
+      "checked_at": "2026-11-10T08:24:22.690403+00:00",
+      "minutes": 22,
+      "origin": [
+        51.516,
+        -0.17617
+      ],
+      "status": "ok"
+    },
+    "910GPCKHMQD": {
+      "checked_at": "2026-11-10T08:24:24.356027+00:00",
+      "minutes": 44,
+      "origin": [
+        51.47357,
+        -0.05731
+      ],
+      "status": "ok"
+    },
+    "910GPCKHMRY": {
+      "checked_at": "2026-11-10T08:24:26.031951+00:00",
+      "minutes": 39,
+      "origin": [
+        51.47003,
+        -0.06941
+      ],
+      "status": "ok"
+    },
+    "910GPENEW": {
+      "checked_at": "2026-11-10T08:24:27.435626+00:00",
+      "minutes": 53,
+      "origin": [
+        51.41756,
+        -0.06084
+      ],
+      "status": "ok"
+    },
+    "910GQPRK": {
+      "checked_at": "2026-11-10T08:24:29.375418+00:00",
+      "minutes": 28,
+      "origin": [
+        51.53397,
+        -0.20499
+      ],
+      "status": "ok"
+    },
+    "910GRCTRYRD": {
+      "checked_at": "2026-11-10T08:24:30.602106+00:00",
+      "minutes": 37,
+      "origin": [
+        51.5585,
+        -0.06827
+      ],
+      "status": "ok"
+    },
+    "910GRICHMND": {
+      "checked_at": "2026-11-10T08:24:32.066809+00:00",
+      "minutes": 45,
+      "origin": [
+        51.46306,
+        -0.30156
+      ],
+      "status": "ok"
+    },
+    "910GRTHERHI": {
+      "checked_at": "2026-11-10T08:24:33.679733+00:00",
+      "minutes": 31,
+      "origin": [
+        51.50082,
+        -0.05205
+      ],
+      "status": "ok"
+    },
+    "910GSACTON": {
+      "checked_at": "2026-11-10T08:24:34.770110+00:00",
+      "minutes": 46,
+      "origin": [
+        51.4997,
+        -0.27016
+      ],
+      "status": "ok"
+    },
+    "910GSBURY": {
+      "checked_at": "2026-11-10T08:24:36.969257+00:00",
+      "minutes": 44,
+      "origin": [
+        51.6487,
+        -0.05244
+      ],
+      "status": "ok"
+    },
+    "910GSEVNSIS": {
+      "checked_at": "2026-11-10T08:24:38.329651+00:00",
+      "minutes": 28,
+      "origin": [
+        51.58227,
+        -0.07527
+      ],
+      "status": "ok"
+    },
+    "910GSHADWEL": {
+      "checked_at": "2026-11-10T08:24:39.183155+00:00",
+      "minutes": 28,
+      "origin": [
+        51.51128,
+        -0.05693
+      ],
+      "status": "ok"
+    },
+    "910GSHMPSTD": {
+      "checked_at": "2026-11-10T08:24:40.934242+00:00",
+      "minutes": 29,
+      "origin": [
+        51.54143,
+        -0.17888
+      ],
+      "status": "ok"
+    },
+    "910GSHPDSB": {
+      "checked_at": "2026-11-10T08:24:42.332880+00:00",
+      "minutes": 23,
+      "origin": [
+        51.50529,
+        -0.21765
+      ],
+      "status": "ok"
+    },
+    "910GSHRDHST": {
+      "checked_at": "2026-11-10T08:24:45.525146+00:00",
+      "minutes": 27,
+      "origin": [
+        51.52338,
+        -0.07525
+      ],
+      "status": "ok"
+    },
+    "910GSIVRST": {
+      "checked_at": "2026-11-10T08:24:46.481145+00:00",
+      "minutes": 37,
+      "origin": [
+        51.61469,
+        -0.06724
+      ],
+      "status": "ok"
+    },
+    "910GSKENTON": {
+      "checked_at": "2026-11-10T08:24:49.309120+00:00",
+      "minutes": 48,
+      "origin": [
+        51.57021,
+        -0.30846
+      ],
+      "status": "ok"
+    },
+    "910GSTFD": {
+      "checked_at": "2026-11-10T08:24:50.543840+00:00",
+      "minutes": 32,
+      "origin": [
+        51.54189,
+        -0.0034
+      ],
+      "status": "ok"
+    },
+    "910GSTHALL": {
+      "checked_at": "2026-11-10T08:24:52.441693+00:00",
+      "minutes": 35,
+      "origin": [
+        51.50596,
+        -0.37861
+      ],
+      "status": "ok"
+    },
+    "910GSTJMSST": {
+      "checked_at": "2026-11-10T08:24:53.501300+00:00",
+      "minutes": 37,
+      "origin": [
+        51.58098,
+        -0.03292
+      ],
+      "status": "ok"
+    },
+    "910GSTKNWNG": {
+      "checked_at": "2026-11-10T08:24:54.689940+00:00",
+      "minutes": 36,
+      "origin": [
+        51.56523,
+        -0.07289
+      ],
+      "status": "ok"
+    },
+    "910GSTMFDHL": {
+      "checked_at": "2026-11-10T08:24:56.536145+00:00",
+      "minutes": 33,
+      "origin": [
+        51.57447,
+        -0.07668
+      ],
+      "status": "ok"
+    },
+    "910GSTNBGPK": {
+      "checked_at": "2026-11-10T08:24:58.586374+00:00",
+      "minutes": 38,
+      "origin": [
+        51.54411,
+        -0.27583
+      ],
+      "status": "ok"
+    },
+    "910GSTOTNHM": {
+      "checked_at": "2026-11-10T08:24:59.332350+00:00",
+      "minutes": 32,
+      "origin": [
+        51.58037,
+        -0.0721
+      ],
+      "status": "ok"
+    },
+    "910GSURREYQ": {
+      "checked_at": "2026-11-10T08:25:00.783950+00:00",
+      "minutes": 36,
+      "origin": [
+        51.4932,
+        -0.04752
+      ],
+      "status": "ok"
+    },
+    "910GSVNKNGS": {
+      "checked_at": "2026-11-10T08:25:03.824565+00:00",
+      "minutes": 42,
+      "origin": [
+        51.56403,
+        0.0971
+      ],
+      "status": "ok"
+    },
+    "910GSYDENHM": {
+      "checked_at": "2026-11-10T08:25:04.646927+00:00",
+      "minutes": 51,
+      "origin": [
+        51.42725,
+        -0.05424
+      ],
+      "status": "ok"
+    },
+    "910GTOTCTRD": {
+      "checked_at": "2026-11-10T08:25:06.697081+00:00",
+      "minutes": 11,
+      "origin": [
+        51.51501,
+        -0.1304
+      ],
+      "status": "ok"
+    },
+    "910GTURKYST": {
+      "checked_at": "2026-11-10T08:25:07.521373+00:00",
+      "minutes": 47,
+      "origin": [
+        51.67263,
+        -0.04722
+      ],
+      "status": "ok"
+    },
+    "910GUPRHLWY": {
+      "checked_at": "2026-11-10T08:25:09.778817+00:00",
+      "minutes": 30,
+      "origin": [
+        51.56363,
+        -0.12951
+      ],
+      "status": "ok"
+    },
+    "910GWAPPING": {
+      "checked_at": "2026-11-10T08:25:10.666975+00:00",
+      "minutes": 32,
+      "origin": [
+        51.50439,
+        -0.05593
+      ],
+      "status": "ok"
+    },
+    "910GWBRMPTN": {
+      "checked_at": "2026-11-10T08:25:12.310579+00:00",
+      "minutes": 30,
+      "origin": [
+        51.48706,
+        -0.19559
+      ],
+      "status": "ok"
+    },
+    "910GWCHAPEL": {
+      "checked_at": "2026-11-10T08:25:16.719660+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51947,
+        -0.05976
+      ],
+      "status": "ok"
+    },
+    "910GWCHAPXR": {
+      "checked_at": "2026-11-10T08:25:17.599592+00:00",
+      "minutes": 27,
+      "origin": [
+        51.52039,
+        -0.06012
+      ],
+      "status": "ok"
+    },
+    "910GWCROYDN": {
+      "checked_at": "2026-11-10T08:25:21.070188+00:00",
+      "minutes": 54,
+      "origin": [
+        51.37843,
+        -0.10258
+      ],
+      "status": "ok"
+    },
+    "910GWDGRNPK": {
+      "checked_at": "2026-11-10T08:25:22.482626+00:00",
+      "minutes": 43,
+      "origin": [
+        51.54926,
+        0.04442
+      ],
+      "status": "ok"
+    },
+    "910GWDST": {
+      "checked_at": "2026-11-10T08:25:24.089346+00:00",
+      "minutes": 42,
+      "origin": [
+        51.58658,
+        -0.00241
+      ],
+      "status": "ok"
+    },
+    "910GWEALING": {
+      "checked_at": "2026-11-10T08:25:26.213995+00:00",
+      "minutes": 30,
+      "origin": [
+        51.51351,
+        -0.32013
+      ],
+      "status": "ok"
+    },
+    "910GWHHRTLA": {
+      "checked_at": "2026-11-10T08:25:27.100998+00:00",
+      "minutes": 36,
+      "origin": [
+        51.60504,
+        -0.07091
+      ],
+      "status": "ok"
+    },
+    "910GWHMDSTD": {
+      "checked_at": "2026-11-10T08:25:28.561168+00:00",
+      "minutes": 26,
+      "origin": [
+        51.54747,
+        -0.19118
+      ],
+      "status": "ok"
+    },
+    "910GWLSDJHL": {
+      "checked_at": "2026-11-10T08:25:30.234245+00:00",
+      "minutes": 35,
+      "origin": [
+        51.5325,
+        -0.24455
+      ],
+      "status": "ok"
+    },
+    "910GWLTHQRD": {
+      "checked_at": "2026-11-10T08:25:31.772067+00:00",
+      "minutes": 38,
+      "origin": [
+        51.5815,
+        -0.02385
+      ],
+      "status": "ok"
+    },
+    "910GWLTWCEN": {
+      "checked_at": "2026-11-10T08:25:33.202061+00:00",
+      "minutes": 33,
+      "origin": [
+        51.58292,
+        -0.01981
+      ],
+      "status": "ok"
+    },
+    "910GWMBY": {
+      "checked_at": "2026-11-10T08:25:34.434302+00:00",
+      "minutes": 41,
+      "origin": [
+        51.55233,
+        -0.29643
+      ],
+      "status": "ok"
+    },
+    "910GWNDSWRD": {
+      "checked_at": "2026-11-10T08:25:36.728211+00:00",
+      "minutes": 33,
+      "origin": [
+        51.47022,
+        -0.13852
+      ],
+      "status": "ok"
+    },
+    "910GWNSTDPK": {
+      "checked_at": "2026-11-10T08:25:37.828310+00:00",
+      "minutes": 36,
+      "origin": [
+        51.55169,
+        0.02621
+      ],
+      "status": "ok"
+    },
+    "910GWOLWXR": {
+      "checked_at": "2026-11-10T08:25:39.255059+00:00",
+      "minutes": 36,
+      "origin": [
+        51.49217,
+        0.07059
+      ],
+      "status": "ok"
+    },
+    "9400ZZLUCWR1": {
+      "checked_at": "2026-11-10T08:25:40.604005+00:00",
+      "minutes": 31,
+      "origin": [
+        51.49795,
+        -0.05027
+      ],
+      "status": "ok"
+    },
+    "9400ZZLUWPL3": {
+      "checked_at": "2026-11-10T08:25:42.420542+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51971,
+        -0.05992
+      ],
+      "status": "ok"
+    },
+    "9400ZZLUWPL4": {
+      "checked_at": "2026-11-10T08:25:43.589933+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51966,
+        -0.05985
+      ],
+      "status": "ok"
+    },
+    "9400ZZLUWR1": {
+      "checked_at": "2026-11-10T08:25:45.605420+00:00",
+      "minutes": 31,
+      "origin": [
+        51.52696,
+        -0.02503
+      ],
+      "status": "ok"
+    },
+    "940GZZBPSUST": {
+      "checked_at": "2026-11-10T08:25:46.770092+00:00",
+      "minutes": 32,
+      "origin": [
+        51.47993,
+        -0.14214
+      ],
+      "status": "ok"
+    },
+    "940GZZDLABR": {
+      "checked_at": "2026-11-10T08:25:51.024394+00:00",
+      "minutes": 39,
+      "origin": [
+        51.53193,
+        0.00374
+      ],
+      "status": "ok"
+    },
+    "940GZZDLALL": {
+      "checked_at": "2026-11-10T08:25:51.993115+00:00",
+      "minutes": 39,
+      "origin": [
+        51.511,
+        -0.01314
+      ],
+      "status": "ok"
+    },
+    "940GZZDLBEC": {
+      "checked_at": "2026-11-10T08:25:53.716774+00:00",
+      "minutes": 47,
+      "origin": [
+        51.51436,
+        0.06145
+      ],
+      "status": "ok"
+    },
+    "940GZZDLBLA": {
+      "checked_at": "2026-11-10T08:25:55.415489+00:00",
+      "minutes": 35,
+      "origin": [
+        51.50799,
+        -0.00697
+      ],
+      "status": "ok"
+    },
+    "940GZZDLBNK": {
+      "checked_at": "2026-11-10T08:25:56.583518+00:00",
+      "minutes": 22,
+      "origin": [
+        51.51323,
+        -0.08851
+      ],
+      "status": "ok"
+    },
+    "940GZZDLBOW": {
+      "checked_at": "2026-11-10T08:25:57.975723+00:00",
+      "minutes": 33,
+      "origin": [
+        51.52786,
+        -0.02094
+      ],
+      "status": "ok"
+    },
+    "940GZZDLBPK": {
+      "checked_at": "2026-11-10T08:25:59.408906+00:00",
+      "minutes": 44,
+      "origin": [
+        51.50879,
+        0.05493
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCAN": {
+      "checked_at": "2026-11-10T08:26:01.064997+00:00",
+      "minutes": 30,
+      "origin": [
+        51.50484,
+        -0.021
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCGT": {
+      "checked_at": "2026-11-10T08:26:02.809735+00:00",
+      "minutes": 41,
+      "origin": [
+        51.51413,
+        0.0081
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCLA": {
+      "checked_at": "2026-11-10T08:26:04.515336+00:00",
+      "minutes": 42,
+      "origin": [
+        51.49573,
+        -0.01461
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCUS": {
+      "checked_at": "2026-11-10T08:26:05.745668+00:00",
+      "minutes": 32,
+      "origin": [
+        51.50972,
+        0.0267
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCUT": {
+      "checked_at": "2026-11-10T08:26:07.084548+00:00",
+      "minutes": 45,
+      "origin": [
+        51.48167,
+        -0.01081
+      ],
+      "status": "ok"
+    },
+    "940GZZDLCYP": {
+      "checked_at": "2026-11-10T08:26:08.952696+00:00",
+      "minutes": 39,
+      "origin": [
+        51.50847,
+        0.06392
+      ],
+      "status": "ok"
+    },
+    "940GZZDLDEP": {
+      "checked_at": "2026-11-10T08:26:10.196209+00:00",
+      "minutes": 43,
+      "origin": [
+        51.47422,
+        -0.02244
+      ],
+      "status": "ok"
+    },
+    "940GZZDLDEV": {
+      "checked_at": "2026-11-10T08:26:12.015024+00:00",
+      "minutes": 42,
+      "origin": [
+        51.52267,
+        -0.01761
+      ],
+      "status": "ok"
+    },
+    "940GZZDLEIN": {
+      "checked_at": "2026-11-10T08:26:17.662671+00:00",
+      "minutes": 34,
+      "origin": [
+        51.50936,
+        -0.00233
+      ],
+      "status": "ok"
+    },
+    "940GZZDLELV": {
+      "checked_at": "2026-11-10T08:26:18.877563+00:00",
+      "minutes": 48,
+      "origin": [
+        51.46907,
+        -0.01673
+      ],
+      "status": "ok"
+    },
+    "940GZZDLGAL": {
+      "checked_at": "2026-11-10T08:26:21.701699+00:00",
+      "minutes": 45,
+      "origin": [
+        51.50894,
+        0.07155
+      ],
+      "status": "ok"
+    },
+    "940GZZDLGRE": {
+      "checked_at": "2026-11-10T08:26:23.045818+00:00",
+      "minutes": 41,
+      "origin": [
+        51.47809,
+        -0.01367
+      ],
+      "status": "ok"
+    },
+    "940GZZDLHEQ": {
+      "checked_at": "2026-11-10T08:26:24.705576+00:00",
+      "minutes": 30,
+      "origin": [
+        51.50338,
+        -0.02142
+      ],
+      "status": "ok"
+    },
+    "940GZZDLISL": {
+      "checked_at": "2026-11-10T08:26:25.573596+00:00",
+      "minutes": 44,
+      "origin": [
+        51.48781,
+        -0.01014
+      ],
+      "status": "ok"
+    },
+    "940GZZDLKGV": {
+      "checked_at": "2026-11-10T08:26:27.645609+00:00",
+      "minutes": 50,
+      "origin": [
+        51.502,
+        0.06262
+      ],
+      "status": "ok"
+    },
+    "940GZZDLLCA": {
+      "checked_at": "2026-11-10T08:26:29.026028+00:00",
+      "minutes": 47,
+      "origin": [
+        51.50342,
+        0.04874
+      ],
+      "status": "ok"
+    },
+    "940GZZDLLDP": {
+      "checked_at": "2026-11-10T08:26:31.762153+00:00",
+      "minutes": 41,
+      "origin": [
+        51.51517,
+        -0.01415
+      ],
+      "status": "ok"
+    },
+    "940GZZDLLEW": {
+      "checked_at": "2026-11-10T08:26:32.757877+00:00",
+      "minutes": 44,
+      "origin": [
+        51.46466,
+        -0.01287
+      ],
+      "status": "ok"
+    },
+    "940GZZDLLIM": {
+      "checked_at": "2026-11-10T08:26:34.503590+00:00",
+      "minutes": 31,
+      "origin": [
+        51.51239,
+        -0.03981
+      ],
+      "status": "ok"
+    },
+    "940GZZDLMUD": {
+      "checked_at": "2026-11-10T08:26:35.731897+00:00",
+      "minutes": 41,
+      "origin": [
+        51.4907,
+        -0.01474
+      ],
+      "status": "ok"
+    },
+    "940GZZDLPDK": {
+      "checked_at": "2026-11-10T08:26:37.385473+00:00",
+      "minutes": 44,
+      "origin": [
+        51.50221,
+        0.03211
+      ],
+      "status": "ok"
+    },
+    "940GZZDLPOP": {
+      "checked_at": "2026-11-10T08:26:39.025538+00:00",
+      "minutes": 32,
+      "origin": [
+        51.50774,
+        -0.01738
+      ],
+      "status": "ok"
+    },
+    "940GZZDLPRE": {
+      "checked_at": "2026-11-10T08:26:40.350501+00:00",
+      "minutes": 37,
+      "origin": [
+        51.50926,
+        0.03416
+      ],
+      "status": "ok"
+    },
+    "940GZZDLPUD": {
+      "checked_at": "2026-11-10T08:26:43.014714+00:00",
+      "minutes": 38,
+      "origin": [
+        51.5343,
+        -0.01276
+      ],
+      "status": "ok"
+    },
+    "940GZZDLRAL": {
+      "checked_at": "2026-11-10T08:26:44.105103+00:00",
+      "minutes": 42,
+      "origin": [
+        51.50836,
+        0.04593
+      ],
+      "status": "ok"
+    },
+    "940GZZDLRVC": {
+      "checked_at": "2026-11-10T08:26:46.204565+00:00",
+      "minutes": 37,
+      "origin": [
+        51.50934,
+        0.0185
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSHA": {
+      "checked_at": "2026-11-10T08:26:47.107501+00:00",
+      "minutes": 28,
+      "origin": [
+        51.51169,
+        -0.05664
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSHS": {
+      "checked_at": "2026-11-10T08:26:48.684336+00:00",
+      "minutes": 35,
+      "origin": [
+        51.5382,
+        -0.00108
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSIT": {
+      "checked_at": "2026-11-10T08:26:50.392955+00:00",
+      "minutes": 36,
+      "origin": [
+        51.54527,
+        -0.00964
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSOQ": {
+      "checked_at": "2026-11-10T08:26:51.926919+00:00",
+      "minutes": 39,
+      "origin": [
+        51.50005,
+        -0.01597
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSTD": {
+      "checked_at": "2026-11-10T08:26:53.889240+00:00",
+      "minutes": 32,
+      "origin": [
+        51.54176,
+        -0.00329
+      ],
+      "status": "ok"
+    },
+    "940GZZDLSTL": {
+      "checked_at": "2026-11-10T08:26:54.704355+00:00",
+      "minutes": 41,
+      "origin": [
+        51.52079,
+        0.00416
+      ],
+      "status": "ok"
+    },
+    "940GZZDLTWG": {
+      "checked_at": "2026-11-10T08:26:56.844056+00:00",
+      "minutes": 33,
+      "origin": [
+        51.51062,
+        -0.07482
+      ],
+      "status": "ok"
+    },
+    "940GZZDLWFE": {
+      "checked_at": "2026-11-10T08:26:58.063717+00:00",
+      "minutes": 32,
+      "origin": [
+        51.50943,
+        -0.02675
+      ],
+      "status": "ok"
+    },
+    "940GZZDLWHM": {
+      "checked_at": "2026-11-10T08:26:59.549950+00:00",
+      "minutes": 38,
+      "origin": [
+        51.52789,
+        0.00448
+      ],
+      "status": "ok"
+    },
+    "940GZZDLWIQ": {
+      "checked_at": "2026-11-10T08:27:01.451026+00:00",
+      "minutes": 30,
+      "origin": [
+        51.50703,
+        -0.02031
+      ],
+      "status": "ok"
+    },
+    "940GZZDLWLA": {
+      "checked_at": "2026-11-10T08:27:02.372665+00:00",
+      "minutes": 40,
+      "origin": [
+        51.49001,
+        0.06913
+      ],
+      "status": "ok"
+    },
+    "940GZZDLWSV": {
+      "checked_at": "2026-11-10T08:27:04.173309+00:00",
+      "minutes": 43,
+      "origin": [
+        51.50284,
+        0.02246
+      ],
+      "status": "ok"
+    },
+    "940GZZLUACT": {
+      "checked_at": "2026-11-10T08:27:05.894653+00:00",
+      "minutes": 37,
+      "origin": [
+        51.50306,
+        -0.28046
+      ],
+      "status": "ok"
+    },
+    "940GZZLUACY": {
+      "checked_at": "2026-11-10T08:27:07.018720+00:00",
+      "minutes": 24,
+      "origin": [
+        51.56548,
+        -0.13482
+      ],
+      "status": "ok"
+    },
+    "940GZZLUADE": {
+      "checked_at": "2026-11-10T08:27:08.363030+00:00",
+      "minutes": 31,
+      "origin": [
+        51.51504,
+        -0.07238
+      ],
+      "status": "ok"
+    },
+    "940GZZLUAGL": {
+      "checked_at": "2026-11-10T08:27:12.757274+00:00",
+      "minutes": 27,
+      "origin": [
+        51.53184,
+        -0.10635
+      ],
+      "status": "ok"
+    },
+    "940GZZLUALD": {
+      "checked_at": "2026-11-10T08:27:13.558234+00:00",
+      "minutes": 30,
+      "origin": [
+        51.51425,
+        -0.07569
+      ],
+      "status": "ok"
+    },
+    "940GZZLUALP": {
+      "checked_at": "2026-11-10T08:27:15.408494+00:00",
+      "minutes": 51,
+      "origin": [
+        51.54063,
+        -0.29961
+      ],
+      "status": "ok"
+    },
+    "940GZZLUASG": {
+      "checked_at": "2026-11-10T08:27:18.688049+00:00",
+      "minutes": 36,
+      "origin": [
+        51.61645,
+        -0.13306
+      ],
+      "status": "ok"
+    },
+    "940GZZLUASL": {
+      "checked_at": "2026-11-10T08:27:20.004333+00:00",
+      "minutes": 30,
+      "origin": [
+        51.55866,
+        -0.10746
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBBB": {
+      "checked_at": "2026-11-10T08:27:20.890554+00:00",
+      "minutes": 34,
+      "origin": [
+        51.52484,
+        -0.01154
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBBN": {
+      "checked_at": "2026-11-10T08:27:22.598799+00:00",
+      "minutes": 23,
+      "origin": [
+        51.52027,
+        -0.09799
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBDS": {
+      "checked_at": "2026-11-10T08:27:25.083017+00:00",
+      "minutes": 33,
+      "origin": [
+        51.60703,
+        -0.12423
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBEC": {
+      "checked_at": "2026-11-10T08:27:26.014097+00:00",
+      "minutes": 51,
+      "origin": [
+        51.54033,
+        0.12702
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBKE": {
+      "checked_at": "2026-11-10T08:27:27.901985+00:00",
+      "minutes": 49,
+      "origin": [
+        51.58569,
+        0.08858
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBKF": {
+      "checked_at": "2026-11-10T08:27:29.160439+00:00",
+      "minutes": 26,
+      "origin": [
+        51.51158,
+        -0.10366
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBKG": {
+      "checked_at": "2026-11-10T08:27:30.617798+00:00",
+      "minutes": 44,
+      "origin": [
+        51.53932,
+        0.08105
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBKH": {
+      "checked_at": "2026-11-10T08:27:32.056805+00:00",
+      "minutes": 48,
+      "origin": [
+        51.6266,
+        0.04676
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBLG": {
+      "checked_at": "2026-11-10T08:27:33.772772+00:00",
+      "minutes": 27,
+      "origin": [
+        51.52722,
+        -0.05551
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBLM": {
+      "checked_at": "2026-11-10T08:27:34.913197+00:00",
+      "minutes": 33,
+      "origin": [
+        51.44329,
+        -0.153
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBLR": {
+      "checked_at": "2026-11-10T08:27:36.608951+00:00",
+      "minutes": 31,
+      "origin": [
+        51.58692,
+        -0.04115
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBMY": {
+      "checked_at": "2026-11-10T08:27:37.862354+00:00",
+      "minutes": 32,
+      "origin": [
+        51.49775,
+        -0.06399
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBND": {
+      "checked_at": "2026-11-10T08:27:41.150355+00:00",
+      "minutes": 10,
+      "origin": [
+        51.5143,
+        -0.14972
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBNK": {
+      "checked_at": "2026-11-10T08:27:41.939461+00:00",
+      "minutes": 22,
+      "origin": [
+        51.51313,
+        -0.09005
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBOR": {
+      "checked_at": "2026-11-10T08:27:44.057931+00:00",
+      "minutes": 29,
+      "origin": [
+        51.5012,
+        -0.09337
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBOS": {
+      "checked_at": "2026-11-10T08:27:45.380894+00:00",
+      "minutes": 49,
+      "origin": [
+        51.49564,
+        -0.32494
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBSC": {
+      "checked_at": "2026-11-10T08:27:46.764560+00:00",
+      "minutes": 30,
+      "origin": [
+        51.49031,
+        -0.21343
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBST": {
+      "checked_at": "2026-11-10T08:27:48.239304+00:00",
+      "minutes": 11,
+      "origin": [
+        51.52288,
+        -0.15713
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBTK": {
+      "checked_at": "2026-11-10T08:27:49.512596+00:00",
+      "minutes": 42,
+      "origin": [
+        51.60277,
+        -0.26405
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBTX": {
+      "checked_at": "2026-11-10T08:27:50.970593+00:00",
+      "minutes": 32,
+      "origin": [
+        51.57665,
+        -0.21362
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBWR": {
+      "checked_at": "2026-11-10T08:27:53.805510+00:00",
+      "minutes": 31,
+      "origin": [
+        51.52694,
+        -0.02513
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBWT": {
+      "checked_at": "2026-11-10T08:27:55.407803+00:00",
+      "minutes": 23,
+      "origin": [
+        51.51228,
+        -0.18794
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBXN": {
+      "checked_at": "2026-11-10T08:27:56.216236+00:00",
+      "minutes": 23,
+      "origin": [
+        51.46262,
+        -0.11489
+      ],
+      "status": "ok"
+    },
+    "940GZZLUBZP": {
+      "checked_at": "2026-11-10T08:27:57.572431+00:00",
+      "minutes": 26,
+      "origin": [
+        51.55031,
+        -0.16465
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCAR": {
+      "checked_at": "2026-11-10T08:27:59.290625+00:00",
+      "minutes": 28,
+      "origin": [
+        51.54852,
+        -0.11849
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCFM": {
+      "checked_at": "2026-11-10T08:28:00.829744+00:00",
+      "minutes": 23,
+      "origin": [
+        51.54412,
+        -0.15339
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCGN": {
+      "checked_at": "2026-11-10T08:28:02.929234+00:00",
+      "minutes": 16,
+      "origin": [
+        51.51309,
+        -0.12444
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCGT": {
+      "checked_at": "2026-11-10T08:28:04.670632+00:00",
+      "minutes": 41,
+      "origin": [
+        51.51358,
+        0.00832
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCHL": {
+      "checked_at": "2026-11-10T08:28:06.233059+00:00",
+      "minutes": 19,
+      "origin": [
+        51.51825,
+        -0.11158
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCHX": {
+      "checked_at": "2026-11-10T08:28:07.132990+00:00",
+      "minutes": 17,
+      "origin": [
+        51.50741,
+        -0.12728
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCKS": {
+      "checked_at": "2026-11-10T08:28:08.474029+00:00",
+      "minutes": 45,
+      "origin": [
+        51.65152,
+        -0.14917
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCND": {
+      "checked_at": "2026-11-10T08:28:10.192965+00:00",
+      "minutes": 36,
+      "origin": [
+        51.59542,
+        -0.24992
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCPC": {
+      "checked_at": "2026-11-10T08:28:12.407897+00:00",
+      "minutes": 26,
+      "origin": [
+        51.46174,
+        -0.13832
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCPK": {
+      "checked_at": "2026-11-10T08:28:14.569368+00:00",
+      "minutes": 43,
+      "origin": [
+        51.6077,
+        -0.29469
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCPN": {
+      "checked_at": "2026-11-10T08:28:15.365954+00:00",
+      "minutes": 27,
+      "origin": [
+        51.46513,
+        -0.13002
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCPS": {
+      "checked_at": "2026-11-10T08:28:16.839229+00:00",
+      "minutes": 31,
+      "origin": [
+        51.45265,
+        -0.14758
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCSD": {
+      "checked_at": "2026-11-10T08:28:18.545544+00:00",
+      "minutes": 36,
+      "origin": [
+        51.41816,
+        -0.17809
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCST": {
+      "checked_at": "2026-11-10T08:28:20.698756+00:00",
+      "minutes": 25,
+      "origin": [
+        51.51151,
+        -0.09043
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCTN": {
+      "checked_at": "2026-11-10T08:51:22.461747+00:00",
+      "error": "http_404",
+      "minutes": null,
+      "origin": [
+        51.53929,
+        -0.14274
+      ],
+      "status": "error"
+    },
+    "940GZZLUCWL": {
+      "checked_at": "2026-11-10T08:28:23.053344+00:00",
+      "minutes": 55,
+      "origin": [
+        51.61792,
+        0.07504
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCWP": {
+      "checked_at": "2026-11-10T08:28:26.123796+00:00",
+      "minutes": 41,
+      "origin": [
+        51.49463,
+        -0.26797
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCWR": {
+      "checked_at": "2026-11-10T08:28:27.194570+00:00",
+      "minutes": 31,
+      "origin": [
+        51.49793,
+        -0.0494
+      ],
+      "status": "ok"
+    },
+    "940GZZLUCYF": {
+      "checked_at": "2026-11-10T08:28:28.466161+00:00",
+      "minutes": 31,
+      "origin": [
+        51.50349,
+        -0.01825
+      ],
+      "status": "ok"
+    },
+    "940GZZLUDOH": {
+      "checked_at": "2026-11-10T08:28:29.952110+00:00",
+      "minutes": 32,
+      "origin": [
+        51.55195,
+        -0.23907
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEAC": {
+      "checked_at": "2026-11-10T08:28:31.544845+00:00",
+      "minutes": 25,
+      "origin": [
+        51.49454,
+        -0.10061
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEAE": {
+      "checked_at": "2026-11-10T08:28:33.153386+00:00",
+      "minutes": 48,
+      "origin": [
+        51.57651,
+        -0.39737
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEAN": {
+      "checked_at": "2026-11-10T08:28:34.590262+00:00",
+      "minutes": 35,
+      "origin": [
+        51.51661,
+        -0.24725
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEBY": {
+      "checked_at": "2026-11-10T08:28:35.931199+00:00",
+      "minutes": 29,
+      "origin": [
+        51.51502,
+        -0.30146
+      ],
+      "status": "ok"
+    },
+    "940GZZLUECM": {
+      "checked_at": "2026-11-10T08:28:37.343024+00:00",
+      "minutes": 34,
+      "origin": [
+        51.51014,
+        -0.28826
+      ],
+      "status": "ok"
+    },
+    "940GZZLUECT": {
+      "checked_at": "2026-11-10T08:28:39.617977+00:00",
+      "minutes": 25,
+      "origin": [
+        51.49206,
+        -0.19338
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEFY": {
+      "checked_at": "2026-11-10T08:28:41.287414+00:00",
+      "minutes": 32,
+      "origin": [
+        51.58713,
+        -0.16501
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEGW": {
+      "checked_at": "2026-11-10T08:28:41.953114+00:00",
+      "minutes": 41,
+      "origin": [
+        51.61365,
+        -0.27493
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEHM": {
+      "checked_at": "2026-11-10T08:28:43.638707+00:00",
+      "minutes": 41,
+      "origin": [
+        51.53895,
+        0.05119
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEMB": {
+      "checked_at": "2026-11-10T08:28:45.466069+00:00",
+      "minutes": 19,
+      "origin": [
+        51.50706,
+        -0.12267
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEPY": {
+      "checked_at": "2026-11-10T08:28:46.565949+00:00",
+      "minutes": 38,
+      "origin": [
+        51.4592,
+        -0.211
+      ],
+      "status": "ok"
+    },
+    "940GZZLUERB": {
+      "checked_at": "2026-11-10T08:28:48.299868+00:00",
+      "minutes": 20,
+      "origin": [
+        51.5203,
+        -0.17015
+      ],
+      "status": "ok"
+    },
+    "940GZZLUERC": {
+      "checked_at": "2026-11-10T08:28:49.583394+00:00",
+      "minutes": 20,
+      "origin": [
+        51.51986,
+        -0.16783
+      ],
+      "status": "ok"
+    },
+    "940GZZLUESQ": {
+      "checked_at": "2026-11-10T08:28:51.193896+00:00",
+      "minutes": 14,
+      "origin": [
+        51.5256,
+        -0.13583
+      ],
+      "status": "ok"
+    },
+    "940GZZLUEUS": {
+      "checked_at": "2026-11-10T08:28:52.614917+00:00",
+      "minutes": 19,
+      "origin": [
+        51.528,
+        -0.13378
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFBY": {
+      "checked_at": "2026-11-10T08:28:54.063905+00:00",
+      "minutes": 30,
+      "origin": [
+        51.48008,
+        -0.19542
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFCN": {
+      "checked_at": "2026-11-10T08:28:55.746552+00:00",
+      "minutes": 22,
+      "origin": [
+        51.52025,
+        -0.10491
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFLP": {
+      "checked_at": "2026-11-10T08:28:57.405357+00:00",
+      "minutes": 51,
+      "origin": [
+        51.59562,
+        0.091
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFPK": {
+      "checked_at": "2026-11-10T08:29:01.847935+00:00",
+      "minutes": 24,
+      "origin": [
+        51.56416,
+        -0.10683
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFYC": {
+      "checked_at": "2026-11-10T08:29:03.819975+00:00",
+      "minutes": 34,
+      "origin": [
+        51.60092,
+        -0.19253
+      ],
+      "status": "ok"
+    },
+    "940GZZLUFYR": {
+      "checked_at": "2026-11-10T08:29:04.664417+00:00",
+      "minutes": 23,
+      "origin": [
+        51.54682,
+        -0.17985
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGBY": {
+      "checked_at": "2026-11-10T08:29:05.952951+00:00",
+      "minutes": 41,
+      "origin": [
+        51.4918,
+        -0.27527
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGDG": {
+      "checked_at": "2026-11-10T08:29:07.694647+00:00",
+      "minutes": 11,
+      "origin": [
+        51.5206,
+        -0.13436
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGFD": {
+      "checked_at": "2026-11-10T08:29:09.036692+00:00",
+      "minutes": 42,
+      "origin": [
+        51.54242,
+        -0.34605
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGGH": {
+      "checked_at": "2026-11-10T08:29:10.609406+00:00",
+      "minutes": 56,
+      "origin": [
+        51.61338,
+        0.09207
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGGN": {
+      "checked_at": "2026-11-10T08:29:13.201072+00:00",
+      "minutes": 29,
+      "origin": [
+        51.57226,
+        -0.19404
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGHK": {
+      "checked_at": "2026-11-10T08:29:13.981082+00:00",
+      "minutes": 33,
+      "origin": [
+        51.502,
+        -0.22671
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGPK": {
+      "checked_at": "2026-11-10T08:29:15.692950+00:00",
+      "minutes": 13,
+      "origin": [
+        51.50695,
+        -0.14279
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGPS": {
+      "checked_at": "2026-11-10T08:29:16.915109+00:00",
+      "minutes": 11,
+      "origin": [
+        51.52384,
+        -0.14426
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGTH": {
+      "checked_at": "2026-11-10T08:29:18.395961+00:00",
+      "minutes": 46,
+      "origin": [
+        51.57654,
+        0.06618
+      ],
+      "status": "ok"
+    },
+    "940GZZLUGTR": {
+      "checked_at": "2026-11-10T08:29:20.233443+00:00",
+      "minutes": 23,
+      "origin": [
+        51.49432,
+        -0.18266
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHAI": {
+      "checked_at": "2026-11-10T08:29:21.712563+00:00",
+      "minutes": 21,
+      "origin": [
+        51.54635,
+        -0.10332
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHAW": {
+      "checked_at": "2026-11-10T08:29:24.015554+00:00",
+      "minutes": 39,
+      "origin": [
+        51.59227,
+        -0.33522
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHBN": {
+      "checked_at": "2026-11-10T08:29:24.785146+00:00",
+      "minutes": 15,
+      "origin": [
+        51.51758,
+        -0.12047
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHBT": {
+      "checked_at": "2026-11-10T08:29:26.383865+00:00",
+      "minutes": 45,
+      "origin": [
+        51.65054,
+        -0.1943
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHCL": {
+      "checked_at": "2026-11-10T08:29:28.445208+00:00",
+      "minutes": 36,
+      "origin": [
+        51.5833,
+        -0.22642
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHGR": {
+      "checked_at": "2026-11-10T08:29:29.328993+00:00",
+      "minutes": 33,
+      "origin": [
+        51.53018,
+        -0.2927
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHGT": {
+      "checked_at": "2026-11-10T08:29:31.088321+00:00",
+      "minutes": 30,
+      "origin": [
+        51.57753,
+        -0.14586
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHLT": {
+      "checked_at": "2026-11-10T08:29:32.450846+00:00",
+      "minutes": 55,
+      "origin": [
+        51.60366,
+        0.09348
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHOH": {
+      "checked_at": "2026-11-10T08:29:34.366818+00:00",
+      "minutes": 38,
+      "origin": [
+        51.57919,
+        -0.33722
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHPC": {
+      "checked_at": "2026-11-10T08:29:35.966943+00:00",
+      "minutes": 17,
+      "origin": [
+        51.50303,
+        -0.15244
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHPK": {
+      "checked_at": "2026-11-10T08:29:36.919969+00:00",
+      "minutes": 23,
+      "origin": [
+        51.50714,
+        -0.20568
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHSC": {
+      "checked_at": "2026-11-10T08:29:38.324011+00:00",
+      "minutes": 36,
+      "origin": [
+        51.49339,
+        -0.22503
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHSD": {
+      "checked_at": "2026-11-10T08:29:40.402887+00:00",
+      "minutes": 33,
+      "origin": [
+        51.4923,
+        -0.22362
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHSK": {
+      "checked_at": "2026-11-10T08:29:41.517633+00:00",
+      "minutes": 26,
+      "origin": [
+        51.50106,
+        -0.19279
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHSN": {
+      "checked_at": "2026-11-10T08:29:44.588365+00:00",
+      "minutes": 36,
+      "origin": [
+        51.53631,
+        -0.25788
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHTD": {
+      "checked_at": "2026-11-10T08:29:45.352473+00:00",
+      "minutes": 30,
+      "origin": [
+        51.55624,
+        -0.17746
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHWC": {
+      "checked_at": "2026-11-10T08:29:46.798842+00:00",
+      "minutes": 57,
+      "origin": [
+        51.47129,
+        -0.36658
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHWE": {
+      "checked_at": "2026-11-10T08:29:49.464141+00:00",
+      "minutes": 57,
+      "origin": [
+        51.47321,
+        -0.35647
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHWT": {
+      "checked_at": "2026-11-10T08:29:50.719374+00:00",
+      "minutes": 61,
+      "origin": [
+        51.47347,
+        -0.38654
+      ],
+      "status": "ok"
+    },
+    "940GZZLUHWY": {
+      "checked_at": "2026-11-10T08:29:52.432033+00:00",
+      "minutes": 32,
+      "origin": [
+        51.5527,
+        -0.11324
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKBN": {
+      "checked_at": "2026-11-10T08:29:53.337463+00:00",
+      "minutes": 28,
+      "origin": [
+        51.54718,
+        -0.20425
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKBY": {
+      "checked_at": "2026-11-10T08:29:54.684414+00:00",
+      "minutes": 39,
+      "origin": [
+        51.58485,
+        -0.27879
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKEN": {
+      "checked_at": "2026-11-10T08:29:56.236015+00:00",
+      "minutes": 44,
+      "origin": [
+        51.58176,
+        -0.31691
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKNB": {
+      "checked_at": "2026-11-10T08:29:57.875707+00:00",
+      "minutes": 22,
+      "origin": [
+        51.50167,
+        -0.16051
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKNG": {
+      "checked_at": "2026-11-10T08:29:59.335154+00:00",
+      "minutes": 27,
+      "origin": [
+        51.48834,
+        -0.10596
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKOY": {
+      "checked_at": "2026-11-10T08:30:01.967375+00:00",
+      "minutes": 35,
+      "origin": [
+        51.49762,
+        -0.21002
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKPK": {
+      "checked_at": "2026-11-10T08:30:03.124164+00:00",
+      "minutes": 27,
+      "origin": [
+        51.53498,
+        -0.19423
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKSH": {
+      "checked_at": "2026-11-10T08:30:04.144263+00:00",
+      "minutes": 23,
+      "origin": [
+        51.55031,
+        -0.14073
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKSL": {
+      "checked_at": "2026-11-10T08:30:05.864414+00:00",
+      "minutes": 30,
+      "origin": [
+        51.53054,
+        -0.22502
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKSX": {
+      "checked_at": "2026-11-10T08:30:07.239849+00:00",
+      "minutes": 18,
+      "origin": [
+        51.53066,
+        -0.12319
+      ],
+      "status": "ok"
+    },
+    "940GZZLUKWG": {
+      "checked_at": "2026-11-10T08:30:08.702969+00:00",
+      "minutes": 43,
+      "origin": [
+        51.47706,
+        -0.28524
+      ],
+      "status": "ok"
+    },
+    "940GZZLULAD": {
+      "checked_at": "2026-11-10T08:30:10.357936+00:00",
+      "minutes": 31,
+      "origin": [
+        51.51745,
+        -0.21039
+      ],
+      "status": "ok"
+    },
+    "940GZZLULBN": {
+      "checked_at": "2026-11-10T08:30:12.168388+00:00",
+      "minutes": 22,
+      "origin": [
+        51.49881,
+        -0.11231
+      ],
+      "status": "ok"
+    },
+    "940GZZLULGN": {
+      "checked_at": "2026-11-10T08:30:14.236669+00:00",
+      "minutes": 52,
+      "origin": [
+        51.64144,
+        0.05548
+      ],
+      "status": "ok"
+    },
+    "940GZZLULGT": {
+      "checked_at": "2026-11-10T08:30:15.131362+00:00",
+      "minutes": 17,
+      "origin": [
+        51.51172,
+        -0.17549
+      ],
+      "status": "ok"
+    },
+    "940GZZLULNB": {
+      "checked_at": "2026-11-10T08:30:16.476568+00:00",
+      "minutes": 29,
+      "origin": [
+        51.50572,
+        -0.08887
+      ],
+      "status": "ok"
+    },
+    "940GZZLULRD": {
+      "checked_at": "2026-11-10T08:30:18.157832+00:00",
+      "minutes": 33,
+      "origin": [
+        51.51339,
+        -0.2178
+      ],
+      "status": "ok"
+    },
+    "940GZZLULSQ": {
+      "checked_at": "2026-11-10T08:30:19.696398+00:00",
+      "minutes": 15,
+      "origin": [
+        51.51139,
+        -0.12843
+      ],
+      "status": "ok"
+    },
+    "940GZZLULVT": {
+      "checked_at": "2026-11-10T08:30:23.322177+00:00",
+      "minutes": 22,
+      "origin": [
+        51.51737,
+        -0.08318
+      ],
+      "status": "ok"
+    },
+    "940GZZLULYN": {
+      "checked_at": "2026-11-10T08:30:25.336350+00:00",
+      "minutes": 37,
+      "origin": [
+        51.55659,
+        -0.00552
+      ],
+      "status": "ok"
+    },
+    "940GZZLULYS": {
+      "checked_at": "2026-11-10T08:30:27.128750+00:00",
+      "minutes": 38,
+      "origin": [
+        51.56832,
+        0.00819
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMBA": {
+      "checked_at": "2026-11-10T08:30:27.905903+00:00",
+      "minutes": 15,
+      "origin": [
+        51.51342,
+        -0.15895
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMDN": {
+      "checked_at": "2026-11-10T08:30:29.370099+00:00",
+      "minutes": 42,
+      "origin": [
+        51.40214,
+        -0.19484
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMED": {
+      "checked_at": "2026-11-10T08:30:31.913035+00:00",
+      "minutes": 29,
+      "origin": [
+        51.52512,
+        -0.03364
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMGT": {
+      "checked_at": "2026-11-10T08:30:32.708500+00:00",
+      "minutes": 23,
+      "origin": [
+        51.51818,
+        -0.08832
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMHL": {
+      "checked_at": "2026-11-10T08:30:34.511185+00:00",
+      "minutes": 38,
+      "origin": [
+        51.60823,
+        -0.20999
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMMT": {
+      "checked_at": "2026-11-10T08:30:35.774802+00:00",
+      "minutes": 28,
+      "origin": [
+        51.5107,
+        -0.08597
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMRH": {
+      "checked_at": "2026-11-10T08:30:37.596127+00:00",
+      "minutes": 27,
+      "origin": [
+        51.57074,
+        -0.09612
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMSH": {
+      "checked_at": "2026-11-10T08:30:38.693899+00:00",
+      "minutes": 27,
+      "origin": [
+        51.51212,
+        -0.09401
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMTC": {
+      "checked_at": "2026-11-10T08:30:40.586232+00:00",
+      "minutes": 23,
+      "origin": [
+        51.53468,
+        -0.13879
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMVL": {
+      "checked_at": "2026-11-10T08:30:42.119656+00:00",
+      "minutes": 23,
+      "origin": [
+        51.52978,
+        -0.18576
+      ],
+      "status": "ok"
+    },
+    "940GZZLUMYB": {
+      "checked_at": "2026-11-10T08:30:43.226861+00:00",
+      "minutes": 17,
+      "origin": [
+        51.52232,
+        -0.16321
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNAN": {
+      "checked_at": "2026-11-10T08:30:44.737552+00:00",
+      "minutes": 30,
+      "origin": [
+        51.52352,
+        -0.25976
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNBP": {
+      "checked_at": "2026-11-10T08:30:46.401687+00:00",
+      "minutes": 54,
+      "origin": [
+        51.57573,
+        0.09
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNDN": {
+      "checked_at": "2026-11-10T08:30:48.469221+00:00",
+      "minutes": 31,
+      "origin": [
+        51.55399,
+        -0.24984
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNEN": {
+      "checked_at": "2026-11-10T08:30:49.201222+00:00",
+      "minutes": 42,
+      "origin": [
+        51.5175,
+        -0.28887
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNFD": {
+      "checked_at": "2026-11-10T08:30:51.016185+00:00",
+      "minutes": 45,
+      "origin": [
+        51.49932,
+        -0.31472
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNGW": {
+      "checked_at": "2026-11-10T08:30:52.516883+00:00",
+      "minutes": 39,
+      "origin": [
+        51.50047,
+        0.00429
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNHA": {
+      "checked_at": "2026-11-10T08:30:54.274148+00:00",
+      "minutes": 41,
+      "origin": [
+        51.58487,
+        -0.36241
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNHG": {
+      "checked_at": "2026-11-10T08:30:57.510754+00:00",
+      "minutes": 24,
+      "origin": [
+        51.50913,
+        -0.1961
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNHT": {
+      "checked_at": "2026-11-10T08:30:58.239463+00:00",
+      "minutes": 41,
+      "origin": [
+        51.54824,
+        -0.3687
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNKP": {
+      "checked_at": "2026-11-10T08:31:00.994722+00:00",
+      "minutes": 40,
+      "origin": [
+        51.57848,
+        -0.31806
+      ],
+      "status": "ok"
+    },
+    "940GZZLUNWY": {
+      "checked_at": "2026-11-10T08:31:01.888199+00:00",
+      "minutes": 42,
+      "origin": [
+        51.56255,
+        -0.304
+      ],
+      "status": "ok"
+    },
+    "940GZZLUOAK": {
+      "checked_at": "2026-11-10T08:31:03.304935+00:00",
+      "minutes": 43,
+      "origin": [
+        51.64773,
+        -0.13218
+      ],
+      "status": "ok"
+    },
+    "940GZZLUODS": {
+      "checked_at": "2026-11-10T08:31:04.958113+00:00",
+      "minutes": 29,
+      "origin": [
+        51.52586,
+        -0.08777
+      ],
+      "status": "ok"
+    },
+    "940GZZLUOSY": {
+      "checked_at": "2026-11-10T08:31:06.668237+00:00",
+      "minutes": 55,
+      "origin": [
+        51.48127,
+        -0.35222
+      ],
+      "status": "ok"
+    },
+    "940GZZLUOVL": {
+      "checked_at": "2026-11-10T08:31:08.659921+00:00",
+      "minutes": 30,
+      "origin": [
+        51.48185,
+        -0.11244
+      ],
+      "status": "ok"
+    },
+    "940GZZLUOXC": {
+      "checked_at": "2026-11-10T08:31:09.564614+00:00",
+      "minutes": 0,
+      "origin": [
+        51.51522,
+        -0.1419
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPAC": {
+      "checked_at": "2026-11-10T08:31:10.584930+00:00",
+      "minutes": 21,
+      "origin": [
+        51.51658,
+        -0.17569
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPAH": {
+      "checked_at": "2026-11-10T08:31:12.432627+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51819,
+        -0.17831
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPCC": {
+      "checked_at": "2026-11-10T08:31:13.917239+00:00",
+      "minutes": 12,
+      "origin": [
+        51.51005,
+        -0.1338
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPCO": {
+      "checked_at": "2026-11-10T08:31:15.352120+00:00",
+      "minutes": 19,
+      "origin": [
+        51.4891,
+        -0.13376
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPKR": {
+      "checked_at": "2026-11-10T08:31:16.858373+00:00",
+      "minutes": 37,
+      "origin": [
+        51.52712,
+        -0.28434
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPLW": {
+      "checked_at": "2026-11-10T08:31:18.717797+00:00",
+      "minutes": 37,
+      "origin": [
+        51.53134,
+        0.01745
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPNR": {
+      "checked_at": "2026-11-10T08:31:20.216356+00:00",
+      "minutes": 43,
+      "origin": [
+        51.5929,
+        -0.38116
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPRD": {
+      "checked_at": "2026-11-10T08:31:21.624490+00:00",
+      "minutes": 38,
+      "origin": [
+        51.57197,
+        -0.29511
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPSG": {
+      "checked_at": "2026-11-10T08:31:23.005012+00:00",
+      "minutes": 34,
+      "origin": [
+        51.47528,
+        -0.20117
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPVL": {
+      "checked_at": "2026-11-10T08:31:24.696868+00:00",
+      "minutes": 36,
+      "origin": [
+        51.53672,
+        -0.32345
+      ],
+      "status": "ok"
+    },
+    "940GZZLUPYB": {
+      "checked_at": "2026-11-10T08:31:26.001164+00:00",
+      "minutes": 35,
+      "origin": [
+        51.46826,
+        -0.20873
+      ],
+      "status": "ok"
+    },
+    "940GZZLUQBY": {
+      "checked_at": "2026-11-10T08:31:27.698425+00:00",
+      "minutes": 43,
+      "origin": [
+        51.59419,
+        -0.28622
+      ],
+      "status": "ok"
+    },
+    "940GZZLUQPS": {
+      "checked_at": "2026-11-10T08:31:29.224333+00:00",
+      "minutes": 28,
+      "origin": [
+        51.53416,
+        -0.20457
+      ],
+      "status": "ok"
+    },
+    "940GZZLUQWY": {
+      "checked_at": "2026-11-10T08:31:30.649388+00:00",
+      "minutes": 21,
+      "origin": [
+        51.51031,
+        -0.18715
+      ],
+      "status": "ok"
+    },
+    "940GZZLURBG": {
+      "checked_at": "2026-11-10T08:31:32.176036+00:00",
+      "minutes": 43,
+      "origin": [
+        51.57624,
+        0.04536
+      ],
+      "status": "ok"
+    },
+    "940GZZLURGP": {
+      "checked_at": "2026-11-10T08:31:35.342609+00:00",
+      "minutes": 12,
+      "origin": [
+        51.52334,
+        -0.14644
+      ],
+      "status": "ok"
+    },
+    "940GZZLURMD": {
+      "checked_at": "2026-11-10T08:31:35.968792+00:00",
+      "minutes": 45,
+      "origin": [
+        51.46324,
+        -0.30134
+      ],
+      "status": "ok"
+    },
+    "940GZZLURSG": {
+      "checked_at": "2026-11-10T08:31:37.920726+00:00",
+      "minutes": 45,
+      "origin": [
+        51.56074,
+        -0.41071
+      ],
+      "status": "ok"
+    },
+    "940GZZLURSM": {
+      "checked_at": "2026-11-10T08:31:39.145243+00:00",
+      "minutes": 50,
+      "origin": [
+        51.5732,
+        -0.41297
+      ],
+      "status": "ok"
+    },
+    "940GZZLURSQ": {
+      "checked_at": "2026-11-10T08:31:40.896381+00:00",
+      "minutes": 26,
+      "origin": [
+        51.52307,
+        -0.12429
+      ],
+      "status": "ok"
+    },
+    "940GZZLURVP": {
+      "checked_at": "2026-11-10T08:31:42.834427+00:00",
+      "minutes": 36,
+      "origin": [
+        51.49412,
+        -0.23588
+      ],
+      "status": "ok"
+    },
+    "940GZZLURVY": {
+      "checked_at": "2026-11-10T08:31:46.337133+00:00",
+      "minutes": 50,
+      "origin": [
+        51.6172,
+        0.04365
+      ],
+      "status": "ok"
+    },
+    "940GZZLURYL": {
+      "checked_at": "2026-11-10T08:31:47.323613+00:00",
+      "minutes": 52,
+      "origin": [
+        51.57515,
+        -0.37113
+      ],
+      "status": "ok"
+    },
+    "940GZZLURYO": {
+      "checked_at": "2026-11-10T08:31:48.982800+00:00",
+      "minutes": 26,
+      "origin": [
+        51.51911,
+        -0.18875
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSBC": {
+      "checked_at": "2026-11-10T08:31:50.623791+00:00",
+      "minutes": 26,
+      "origin": [
+        51.50438,
+        -0.21881
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSBM": {
+      "checked_at": "2026-11-10T08:31:52.091828+00:00",
+      "minutes": 31,
+      "origin": [
+        51.50558,
+        -0.22637
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSEA": {
+      "checked_at": "2026-11-10T08:31:53.317208+00:00",
+      "minutes": 39,
+      "origin": [
+        51.501,
+        -0.30742
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSFB": {
+      "checked_at": "2026-11-10T08:31:55.664712+00:00",
+      "minutes": 39,
+      "origin": [
+        51.49492,
+        -0.2457
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSFS": {
+      "checked_at": "2026-11-10T08:31:57.263255+00:00",
+      "minutes": 40,
+      "origin": [
+        51.44507,
+        -0.2066
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSGN": {
+      "checked_at": "2026-11-10T08:31:58.333708+00:00",
+      "minutes": 28,
+      "origin": [
+        51.52186,
+        -0.0466
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSGP": {
+      "checked_at": "2026-11-10T08:31:59.744272+00:00",
+      "minutes": 39,
+      "origin": [
+        51.54396,
+        -0.27589
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSGT": {
+      "checked_at": "2026-11-10T08:32:01.275539+00:00",
+      "minutes": 40,
+      "origin": [
+        51.63231,
+        -0.12782
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSHH": {
+      "checked_at": "2026-11-10T08:32:03.733616+00:00",
+      "minutes": 48,
+      "origin": [
+        51.56489,
+        -0.35249
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSJP": {
+      "checked_at": "2026-11-10T08:32:04.857659+00:00",
+      "minutes": 21,
+      "origin": [
+        51.49954,
+        -0.13361
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSJW": {
+      "checked_at": "2026-11-10T08:32:06.408212+00:00",
+      "minutes": 20,
+      "origin": [
+        51.53452,
+        -0.17395
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSKS": {
+      "checked_at": "2026-11-10T08:32:07.499248+00:00",
+      "minutes": 21,
+      "origin": [
+        51.49409,
+        -0.17414
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSKT": {
+      "checked_at": "2026-11-10T08:32:09.123615+00:00",
+      "minutes": 48,
+      "origin": [
+        51.57023,
+        -0.30843
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSKW": {
+      "checked_at": "2026-11-10T08:32:10.998705+00:00",
+      "minutes": 22,
+      "origin": [
+        51.47218,
+        -0.12264
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSNB": {
+      "checked_at": "2026-11-10T08:32:12.022276+00:00",
+      "minutes": 40,
+      "origin": [
+        51.58068,
+        0.02144
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSPU": {
+      "checked_at": "2026-11-10T08:32:16.568929+00:00",
+      "minutes": 18,
+      "origin": [
+        51.51494,
+        -0.09757
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSRP": {
+      "checked_at": "2026-11-10T08:32:17.554508+00:00",
+      "minutes": 43,
+      "origin": [
+        51.55685,
+        -0.39892
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSSQ": {
+      "checked_at": "2026-11-10T08:32:19.114913+00:00",
+      "minutes": 21,
+      "origin": [
+        51.49227,
+        -0.15638
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSTD": {
+      "checked_at": "2026-11-10T08:32:20.484573+00:00",
+      "minutes": 32,
+      "origin": [
+        51.54181,
+        -0.00346
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSTM": {
+      "checked_at": "2026-11-10T08:32:21.945420+00:00",
+      "minutes": 45,
+      "origin": [
+        51.61984,
+        -0.30327
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSUH": {
+      "checked_at": "2026-11-10T08:32:23.402386+00:00",
+      "minutes": 60,
+      "origin": [
+        51.55695,
+        -0.33643
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSUT": {
+      "checked_at": "2026-11-10T08:32:27.332889+00:00",
+      "minutes": 53,
+      "origin": [
+        51.55082,
+        -0.31574
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSVS": {
+      "checked_at": "2026-11-10T08:32:28.407431+00:00",
+      "minutes": 28,
+      "origin": [
+        51.58333,
+        -0.07258
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSWC": {
+      "checked_at": "2026-11-10T08:32:36.065846+00:00",
+      "minutes": 23,
+      "origin": [
+        51.54368,
+        -0.17489
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSWF": {
+      "checked_at": "2026-11-10T08:32:36.795779+00:00",
+      "minutes": 43,
+      "origin": [
+        51.59191,
+        0.02734
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSWK": {
+      "checked_at": "2026-11-10T08:32:38.587169+00:00",
+      "minutes": 27,
+      "origin": [
+        51.50427,
+        -0.10533
+      ],
+      "status": "ok"
+    },
+    "940GZZLUSWN": {
+      "checked_at": "2026-11-10T08:32:40.299158+00:00",
+      "minutes": 38,
+      "origin": [
+        51.41531,
+        -0.19201
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTAW": {
+      "checked_at": "2026-11-10T08:32:41.431380+00:00",
+      "minutes": 40,
+      "origin": [
+        51.6306,
+        -0.17921
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTBC": {
+      "checked_at": "2026-11-10T08:32:43.738916+00:00",
+      "minutes": 32,
+      "origin": [
+        51.43568,
+        -0.15974
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTBY": {
+      "checked_at": "2026-11-10T08:32:44.618301+00:00",
+      "minutes": 36,
+      "origin": [
+        51.42763,
+        -0.16837
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTCR": {
+      "checked_at": "2026-11-10T08:32:46.109111+00:00",
+      "minutes": 9,
+      "origin": [
+        51.51643,
+        -0.13041
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTFP": {
+      "checked_at": "2026-11-10T08:32:47.611836+00:00",
+      "minutes": 25,
+      "origin": [
+        51.55682,
+        -0.13843
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTMH": {
+      "checked_at": "2026-11-10T08:32:48.986469+00:00",
+      "minutes": 29,
+      "origin": [
+        51.58811,
+        -0.06024
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTMP": {
+      "checked_at": "2026-11-10T08:32:50.524592+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51101,
+        -0.11426
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTNG": {
+      "checked_at": "2026-11-10T08:32:52.916576+00:00",
+      "minutes": 40,
+      "origin": [
+        51.49515,
+        -0.25455
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTPN": {
+      "checked_at": "2026-11-10T08:32:53.906995+00:00",
+      "minutes": 30,
+      "origin": [
+        51.59027,
+        -0.10295
+      ],
+      "status": "ok"
+    },
+    "940GZZLUTWH": {
+      "checked_at": "2026-11-10T08:32:55.379961+00:00",
+      "minutes": 31,
+      "origin": [
+        51.50997,
+        -0.07655
+      ],
+      "status": "ok"
+    },
+    "940GZZLUUPK": {
+      "checked_at": "2026-11-10T08:32:57.169250+00:00",
+      "minutes": 39,
+      "origin": [
+        51.53534,
+        0.03526
+      ],
+      "status": "ok"
+    },
+    "940GZZLUUPY": {
+      "checked_at": "2026-11-10T08:32:58.421437+00:00",
+      "minutes": 47,
+      "origin": [
+        51.53837,
+        0.10153
+      ],
+      "status": "ok"
+    },
+    "940GZZLUVIC": {
+      "checked_at": "2026-11-10T08:33:00.045331+00:00",
+      "minutes": 18,
+      "origin": [
+        51.49636,
+        -0.1431
+      ],
+      "status": "ok"
+    },
+    "940GZZLUVXL": {
+      "checked_at": "2026-11-10T08:33:01.351181+00:00",
+      "minutes": 22,
+      "origin": [
+        51.48574,
+        -0.1242
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWBN": {
+      "checked_at": "2026-11-10T08:33:02.709001+00:00",
+      "minutes": 31,
+      "origin": [
+        51.48727,
+        -0.1956
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWCY": {
+      "checked_at": "2026-11-10T08:33:05.029287+00:00",
+      "minutes": 25,
+      "origin": [
+        51.51196,
+        -0.2243
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWFN": {
+      "checked_at": "2026-11-10T08:33:05.780957+00:00",
+      "minutes": 38,
+      "origin": [
+        51.60943,
+        -0.18836
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWHM": {
+      "checked_at": "2026-11-10T08:33:07.260887+00:00",
+      "minutes": 36,
+      "origin": [
+        51.52814,
+        0.00505
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWHP": {
+      "checked_at": "2026-11-10T08:33:08.973703+00:00",
+      "minutes": 23,
+      "origin": [
+        51.54664,
+        -0.19106
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWHW": {
+      "checked_at": "2026-11-10T08:33:10.276984+00:00",
+      "minutes": 43,
+      "origin": [
+        51.57971,
+        -0.3534
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWIG": {
+      "checked_at": "2026-11-10T08:33:12.124093+00:00",
+      "minutes": 31,
+      "origin": [
+        51.54915,
+        -0.22154
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWIM": {
+      "checked_at": "2026-11-10T08:33:13.442223+00:00",
+      "minutes": 44,
+      "origin": [
+        51.42121,
+        -0.20657
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWIP": {
+      "checked_at": "2026-11-10T08:33:15.153830+00:00",
+      "minutes": 42,
+      "origin": [
+        51.43457,
+        -0.19972
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWJN": {
+      "checked_at": "2026-11-10T08:33:16.631361+00:00",
+      "minutes": 34,
+      "origin": [
+        51.53226,
+        -0.24428
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWKA": {
+      "checked_at": "2026-11-10T08:33:17.887109+00:00",
+      "minutes": 23,
+      "origin": [
+        51.52326,
+        -0.18378
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWKN": {
+      "checked_at": "2026-11-10T08:33:19.314764+00:00",
+      "minutes": 29,
+      "origin": [
+        51.49046,
+        -0.20664
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWLA": {
+      "checked_at": "2026-11-10T08:33:21.057651+00:00",
+      "minutes": 28,
+      "origin": [
+        51.50967,
+        -0.22453
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWLO": {
+      "checked_at": "2026-11-10T08:33:22.514436+00:00",
+      "minutes": 23,
+      "origin": [
+        51.5033,
+        -0.11478
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWOF": {
+      "checked_at": "2026-11-10T08:33:23.986594+00:00",
+      "minutes": 46,
+      "origin": [
+        51.6069,
+        0.03397
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWOG": {
+      "checked_at": "2026-11-10T08:33:25.525473+00:00",
+      "minutes": 30,
+      "origin": [
+        51.59748,
+        -0.10989
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWOP": {
+      "checked_at": "2026-11-10T08:33:27.228808+00:00",
+      "minutes": 37,
+      "origin": [
+        51.61801,
+        -0.18542
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWPL": {
+      "checked_at": "2026-11-10T08:33:28.821805+00:00",
+      "minutes": 25,
+      "origin": [
+        51.51952,
+        -0.05997
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWRR": {
+      "checked_at": "2026-11-10T08:33:30.143427+00:00",
+      "minutes": 16,
+      "origin": [
+        51.52495,
+        -0.13832
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWSD": {
+      "checked_at": "2026-11-10T08:33:31.448930+00:00",
+      "minutes": 41,
+      "origin": [
+        51.5755,
+        0.02853
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWSM": {
+      "checked_at": "2026-11-10T08:33:33.141228+00:00",
+      "minutes": 24,
+      "origin": [
+        51.50132,
+        -0.12486
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWSP": {
+      "checked_at": "2026-11-10T08:33:34.886349+00:00",
+      "minutes": 29,
+      "origin": [
+        51.52111,
+        -0.20106
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWTA": {
+      "checked_at": "2026-11-10T08:33:36.393560+00:00",
+      "minutes": 32,
+      "origin": [
+        51.518,
+        -0.28098
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWWL": {
+      "checked_at": "2026-11-10T08:33:37.584732+00:00",
+      "minutes": 33,
+      "origin": [
+        51.58297,
+        -0.01988
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWYC": {
+      "checked_at": "2026-11-10T08:33:39.251601+00:00",
+      "minutes": 41,
+      "origin": [
+        51.5523,
+        -0.29685
+      ],
+      "status": "ok"
+    },
+    "940GZZLUWYP": {
+      "checked_at": "2026-11-10T08:33:40.825519+00:00",
+      "minutes": 35,
+      "origin": [
+        51.5632,
+        -0.27926
+      ],
+      "status": "ok"
+    },
+    "940GZZNEUGST": {
+      "checked_at": "2026-11-10T08:33:42.166138+00:00",
+      "minutes": 27,
+      "origin": [
+        51.47991,
+        -0.12848
+      ],
+      "status": "ok"
+    },
+    "HUBABW": {
+      "checked_at": "2026-11-10T08:33:43.990354+00:00",
+      "minutes": 39,
+      "origin": [
+        51.49125,
+        0.12106
+      ],
+      "status": "ok"
+    },
+    "HUBBAL": {
+      "checked_at": "2026-11-10T08:33:45.232631+00:00",
+      "minutes": 32,
+      "origin": [
+        51.44326,
+        -0.15271
+      ],
+      "status": "ok"
+    },
+    "HUBBAN": {
+      "checked_at": "2026-11-10T08:33:46.658157+00:00",
+      "minutes": 22,
+      "origin": [
+        51.5134,
+        -0.08909
+      ],
+      "status": "ok"
+    },
+    "HUBBDS": {
+      "checked_at": "2026-11-10T08:33:49.442092+00:00",
+      "minutes": 11,
+      "origin": [
+        51.51336,
+        -0.1488
+      ],
+      "status": "ok"
+    },
+    "HUBBFR": {
+      "checked_at": "2026-11-10T08:33:50.396947+00:00",
+      "minutes": 26,
+      "origin": [
+        51.50961,
+        -0.10417
+      ],
+      "status": "ok"
+    },
+    "HUBBHO": {
+      "checked_at": "2026-11-10T08:33:52.169086+00:00",
+      "minutes": 31,
+      "origin": [
+        51.58677,
+        -0.04118
+      ],
+      "status": "ok"
+    },
+    "HUBBKG": {
+      "checked_at": "2026-11-10T08:33:53.124843+00:00",
+      "minutes": 44,
+      "origin": [
+        51.53941,
+        0.08099
+      ],
+      "status": "ok"
+    },
+    "HUBBRX": {
+      "checked_at": "2026-11-10T08:33:55.010661+00:00",
+      "minutes": 24,
+      "origin": [
+        51.46296,
+        -0.11453
+      ],
+      "status": "ok"
+    },
+    "HUBCAN": {
+      "checked_at": "2026-11-10T08:33:56.321347+00:00",
+      "minutes": 43,
+      "origin": [
+        51.51403,
+        0.00802
+      ],
+      "status": "ok"
+    },
+    "HUBCAW": {
+      "checked_at": "2026-11-10T08:33:58.050230+00:00",
+      "minutes": 30,
+      "origin": [
+        51.50373,
+        -0.01912
+      ],
+      "status": "ok"
+    },
+    "HUBCHX": {
+      "checked_at": "2026-11-10T08:33:59.319396+00:00",
+      "minutes": 18,
+      "origin": [
+        51.50782,
+        -0.12614
+      ],
+      "status": "ok"
+    },
+    "HUBCLJ": {
+      "checked_at": "2026-11-10T08:34:00.813108+00:00",
+      "minutes": 35,
+      "origin": [
+        51.46372,
+        -0.169
+      ],
+      "status": "ok"
+    },
+    "HUBCST": {
+      "checked_at": "2026-11-10T08:34:02.524645+00:00",
+      "minutes": 26,
+      "origin": [
+        51.51145,
+        -0.09036
+      ],
+      "status": "ok"
+    },
+    "HUBCUS": {
+      "checked_at": "2026-11-10T08:34:04.651049+00:00",
+      "minutes": 49,
+      "origin": [
+        51.51876,
+        0.02742
+      ],
+      "status": "ok"
+    },
+    "HUBCUT": {
+      "checked_at": "2026-11-10T08:34:05.913331+00:00",
+      "minutes": 45,
+      "origin": [
+        51.48168,
+        -0.0108
+      ],
+      "status": "ok"
+    },
+    "HUBCYP": {
+      "checked_at": "2026-11-10T08:34:07.595505+00:00",
+      "minutes": 56,
+      "origin": [
+        51.41811,
+        -0.07261
+      ],
+      "status": "ok"
+    },
+    "HUBEAL": {
+      "checked_at": "2026-11-10T08:34:09.142837+00:00",
+      "minutes": 27,
+      "origin": [
+        51.51499,
+        -0.30213
+      ],
+      "status": "ok"
+    },
+    "HUBEPH": {
+      "checked_at": "2026-11-10T08:34:10.049218+00:00",
+      "minutes": 26,
+      "origin": [
+        51.4945,
+        -0.09918
+      ],
+      "status": "ok"
+    },
+    "HUBEUS": {
+      "checked_at": "2026-11-10T08:34:11.542156+00:00",
+      "minutes": 17,
+      "origin": [
+        51.52737,
+        -0.13275
+      ],
+      "status": "ok"
+    },
+    "HUBFPK": {
+      "checked_at": "2026-11-10T08:34:13.161526+00:00",
+      "minutes": 24,
+      "origin": [
+        51.56478,
+        -0.10588
+      ],
+      "status": "ok"
+    },
+    "HUBGFD": {
+      "checked_at": "2026-11-10T08:34:14.496186+00:00",
+      "minutes": 41,
+      "origin": [
+        51.54266,
+        -0.34579
+      ],
+      "status": "ok"
+    },
+    "HUBGNW": {
+      "checked_at": "2026-11-10T08:34:16.111703+00:00",
+      "minutes": 46,
+      "origin": [
+        51.47823,
+        -0.0141
+      ],
+      "status": "ok"
+    },
+    "HUBGUN": {
+      "checked_at": "2026-11-10T08:34:18.221242+00:00",
+      "minutes": 41,
+      "origin": [
+        51.49175,
+        -0.27528
+      ],
+      "status": "ok"
+    },
+    "HUBHDN": {
+      "checked_at": "2026-11-10T08:34:19.900925+00:00",
+      "minutes": 36,
+      "origin": [
+        51.5363,
+        -0.25777
+      ],
+      "status": "ok"
+    },
+    "HUBHHY": {
+      "checked_at": "2026-11-10T08:34:20.611531+00:00",
+      "minutes": 20,
+      "origin": [
+        51.54627,
+        -0.10354
+      ],
+      "status": "ok"
+    },
+    "HUBHMS": {
+      "checked_at": "2026-11-10T08:34:22.123032+00:00",
+      "minutes": 33,
+      "origin": [
+        51.4923,
+        -0.22362
+      ],
+      "status": "ok"
+    },
+    "HUBHOH": {
+      "checked_at": "2026-11-10T08:34:22.989110+00:00",
+      "minutes": 38,
+      "origin": [
+        51.5792,
+        -0.33723
+      ],
+      "status": "ok"
+    },
+    "HUBHRW": {
+      "checked_at": "2026-11-10T08:34:25.227517+00:00",
+      "minutes": 39,
+      "origin": [
+        51.59222,
+        -0.3349
+      ],
+      "status": "ok"
+    },
+    "HUBIMP": {
+      "checked_at": "2026-11-10T08:34:26.723991+00:00",
+      "minutes": 37,
+      "origin": [
+        51.47555,
+        -0.18308
+      ],
+      "status": "ok"
+    },
+    "HUBKGX": {
+      "checked_at": "2026-11-10T08:34:28.577912+00:00",
+      "minutes": 19,
+      "origin": [
+        51.53168,
+        -0.12354
+      ],
+      "status": "ok"
+    },
+    "HUBKNL": {
+      "checked_at": "2026-11-10T08:34:29.763507+00:00",
+      "minutes": 30,
+      "origin": [
+        51.53054,
+        -0.22505
+      ],
+      "status": "ok"
+    },
+    "HUBKNT": {
+      "checked_at": "2026-11-10T08:34:31.352781+00:00",
+      "minutes": 44,
+      "origin": [
+        51.58179,
+        -0.31695
+      ],
+      "status": "ok"
+    },
+    "HUBKPA": {
+      "checked_at": "2026-11-10T08:34:33.305745+00:00",
+      "minutes": 33,
+      "origin": [
+        51.49616,
+        -0.2105
+      ],
+      "status": "ok"
+    },
+    "HUBKTN": {
+      "checked_at": "2026-11-10T08:34:34.959047+00:00",
+      "minutes": 23,
+      "origin": [
+        51.55041,
+        -0.14055
+      ],
+      "status": "ok"
+    },
+    "HUBKWG": {
+      "checked_at": "2026-11-10T08:34:35.758963+00:00",
+      "minutes": 43,
+      "origin": [
+        51.47707,
+        -0.28515
+      ],
+      "status": "ok"
+    },
+    "HUBLBG": {
+      "checked_at": "2026-11-10T08:34:37.648634+00:00",
+      "minutes": 28,
+      "origin": [
+        51.50588,
+        -0.08681
+      ],
+      "status": "ok"
+    },
+    "HUBLCY": {
+      "checked_at": "2026-11-10T08:34:39.026880+00:00",
+      "minutes": 47,
+      "origin": [
+        51.50342,
+        0.04875
+      ],
+      "status": "ok"
+    },
+    "HUBLEW": {
+      "checked_at": "2026-11-10T08:34:40.781928+00:00",
+      "minutes": 43,
+      "origin": [
+        51.46508,
+        -0.01302
+      ],
+      "status": "ok"
+    },
+    "HUBLHS": {
+      "checked_at": "2026-11-10T08:34:42.404119+00:00",
+      "minutes": 30,
+      "origin": [
+        51.51247,
+        -0.0398
+      ],
+      "status": "ok"
+    },
+    "HUBLST": {
+      "checked_at": "2026-11-10T08:34:43.536167+00:00",
+      "minutes": 24,
+      "origin": [
+        51.51794,
+        -0.08316
+      ],
+      "status": "ok"
+    },
+    "HUBMYB": {
+      "checked_at": "2026-11-10T08:34:45.350516+00:00",
+      "minutes": 16,
+      "origin": [
+        51.5216,
+        -0.16301
+      ],
+      "status": "ok"
+    },
+    "HUBNGW": {
+      "checked_at": "2026-11-10T08:34:46.389374+00:00",
+      "minutes": 39,
+      "origin": [
+        51.50047,
+        0.0043
+      ],
+      "status": "ok"
+    },
+    "HUBNWB": {
+      "checked_at": "2026-11-10T08:34:48.105712+00:00",
+      "minutes": 42,
+      "origin": [
+        51.56258,
+        -0.30399
+      ],
+      "status": "ok"
+    },
+    "HUBNWD": {
+      "checked_at": "2026-11-10T08:34:49.691988+00:00",
+      "minutes": 45,
+      "origin": [
+        51.39702,
+        -0.07522
+      ],
+      "status": "ok"
+    },
+    "HUBNWX": {
+      "checked_at": "2026-11-10T08:34:51.425138+00:00",
+      "minutes": 40,
+      "origin": [
+        51.47635,
+        -0.03243
+      ],
+      "status": "ok"
+    },
+    "HUBNXG": {
+      "checked_at": "2026-11-10T08:34:52.952572+00:00",
+      "minutes": 38,
+      "origin": [
+        51.47513,
+        -0.0404
+      ],
+      "status": "ok"
+    },
+    "HUBOLD": {
+      "checked_at": "2026-11-10T08:34:54.307476+00:00",
+      "minutes": 29,
+      "origin": [
+        51.52607,
+        -0.08819
+      ],
+      "status": "ok"
+    },
+    "HUBPAD": {
+      "checked_at": "2026-11-10T08:34:55.591188+00:00",
+      "minutes": 22,
+      "origin": [
+        51.51698,
+        -0.17616
+      ],
+      "status": "ok"
+    },
+    "HUBQPW": {
+      "checked_at": "2026-11-10T08:34:56.927842+00:00",
+      "minutes": 28,
+      "origin": [
+        51.53444,
+        -0.20488
+      ],
+      "status": "ok"
+    },
+    "HUBRMD": {
+      "checked_at": "2026-11-10T08:34:59.672762+00:00",
+      "minutes": 45,
+      "origin": [
+        51.46315,
+        -0.30145
+      ],
+      "status": "ok"
+    },
+    "HUBRVC": {
+      "checked_at": "2026-11-10T08:35:00.675091+00:00",
+      "minutes": 37,
+      "origin": [
+        51.50934,
+        0.01851
+      ],
+      "status": "ok"
+    },
+    "HUBSBP": {
+      "checked_at": "2026-11-10T08:35:02.164276+00:00",
+      "minutes": 38,
+      "origin": [
+        51.54404,
+        -0.27586
+      ],
+      "status": "ok"
+    },
+    "HUBSDE": {
+      "checked_at": "2026-11-10T08:35:06.677387+00:00",
+      "minutes": 28,
+      "origin": [
+        51.51149,
+        -0.05678
+      ],
+      "status": "ok"
+    },
+    "HUBSOK": {
+      "checked_at": "2026-11-10T08:35:08.971250+00:00",
+      "minutes": 48,
+      "origin": [
+        51.57023,
+        -0.30845
+      ],
+      "status": "ok"
+    },
+    "HUBSPB": {
+      "checked_at": "2026-11-10T08:35:09.967374+00:00",
+      "minutes": 25,
+      "origin": [
+        51.50479,
+        -0.21921
+      ],
+      "status": "ok"
+    },
+    "HUBSRA": {
+      "checked_at": "2026-11-10T08:35:11.232124+00:00",
+      "minutes": 33,
+      "origin": [
+        51.54151,
+        -0.00241
+      ],
+      "status": "ok"
+    },
+    "HUBSRU": {
+      "checked_at": "2026-11-10T08:35:13.640488+00:00",
+      "minutes": 43,
+      "origin": [
+        51.55689,
+        -0.39908
+      ],
+      "status": "ok"
+    },
+    "HUBSVS": {
+      "checked_at": "2026-11-10T08:35:14.592168+00:00",
+      "minutes": 30,
+      "origin": [
+        51.58293,
+        -0.07331
+      ],
+      "status": "ok"
+    },
+    "HUBSYD": {
+      "checked_at": "2026-11-10T08:35:16.123134+00:00",
+      "minutes": 50,
+      "origin": [
+        51.42737,
+        -0.05527
+      ],
+      "status": "ok"
+    },
+    "HUBTCR": {
+      "checked_at": "2026-11-10T08:35:18.131324+00:00",
+      "minutes": 12,
+      "origin": [
+        51.51602,
+        -0.13089
+      ],
+      "status": "ok"
+    },
+    "HUBTOG": {
+      "checked_at": "2026-11-10T08:35:18.915507+00:00",
+      "minutes": 33,
+      "origin": [
+        51.51062,
+        -0.07481
+      ],
+      "status": "ok"
+    },
+    "HUBTOM": {
+      "checked_at": "2026-11-10T08:35:20.846655+00:00",
+      "minutes": 29,
+      "origin": [
+        51.58832,
+        -0.06024
+      ],
+      "status": "ok"
+    },
+    "HUBVIC": {
+      "checked_at": "2026-11-10T08:35:22.316365+00:00",
+      "minutes": 17,
+      "origin": [
+        51.49581,
+        -0.14383
+      ],
+      "status": "ok"
+    },
+    "HUBVXH": {
+      "checked_at": "2026-11-10T08:35:23.806908+00:00",
+      "minutes": 21,
+      "origin": [
+        51.48574,
+        -0.1233
+      ],
+      "status": "ok"
+    },
+    "HUBWAT": {
+      "checked_at": "2026-11-10T08:35:25.034412+00:00",
+      "minutes": 21,
+      "origin": [
+        51.50427,
+        -0.11336
+      ],
+      "status": "ok"
+    },
+    "HUBWBP": {
+      "checked_at": "2026-11-10T08:35:26.838960+00:00",
+      "minutes": 30,
+      "origin": [
+        51.48717,
+        -0.19559
+      ],
+      "status": "ok"
+    },
+    "HUBWCY": {
+      "checked_at": "2026-11-10T08:35:33.382537+00:00",
+      "minutes": 55,
+      "origin": [
+        51.37879,
+        -0.10194
+      ],
+      "status": "ok"
+    },
+    "HUBWEH": {
+      "checked_at": "2026-11-10T08:35:34.671757+00:00",
+      "minutes": 36,
+      "origin": [
+        51.52818,
+        0.005
+      ],
+      "status": "ok"
+    },
+    "HUBWHC": {
+      "checked_at": "2026-11-10T08:35:35.946297+00:00",
+      "minutes": 33,
+      "origin": [
+        51.58295,
+        -0.01984
+      ],
+      "status": "ok"
+    },
+    "HUBWHD": {
+      "checked_at": "2026-11-10T08:35:37.056078+00:00",
+      "minutes": 26,
+      "origin": [
+        51.54753,
+        -0.19136
+      ],
+      "status": "ok"
+    },
+    "HUBWIJ": {
+      "checked_at": "2026-11-10T08:35:38.653222+00:00",
+      "minutes": 35,
+      "origin": [
+        51.53256,
+        -0.24301
+      ],
+      "status": "ok"
+    },
+    "HUBWIM": {
+      "checked_at": "2026-11-10T08:35:40.233916+00:00",
+      "minutes": 44,
+      "origin": [
+        51.42151,
+        -0.20644
+      ],
+      "status": "ok"
+    },
+    "HUBWMB": {
+      "checked_at": "2026-11-10T08:35:42.412476+00:00",
+      "minutes": 41,
+      "origin": [
+        51.55232,
+        -0.29664
+      ],
+      "status": "ok"
+    },
+    "HUBWSM": {
+      "checked_at": "2026-11-10T08:35:43.457774+00:00",
+      "minutes": 20,
+      "origin": [
+        51.5016,
+        -0.12598
+      ],
+      "status": "ok"
+    },
+    "HUBWWA": {
+      "checked_at": "2026-11-10T08:35:47.360342+00:00",
+      "minutes": 40,
+      "origin": [
+        51.48996,
+        0.06917
+      ],
+      "status": "ok"
+    },
+    "HUBZCW": {
+      "checked_at": "2026-11-10T08:35:48.199642+00:00",
+      "minutes": 31,
+      "origin": [
+        51.49805,
+        -0.04967
+      ],
+      "status": "ok"
+    },
+    "HUBZFD": {
+      "checked_at": "2026-11-10T08:35:51.678440+00:00",
+      "minutes": 23,
+      "origin": [
+        51.52021,
+        -0.10505
+      ],
+      "status": "ok"
+    },
+    "HUBZMG": {
+      "checked_at": "2026-11-10T08:35:52.671631+00:00",
+      "minutes": 23,
+      "origin": [
+        51.51834,
+        -0.08863
+      ],
+      "status": "ok"
+    },
+    "HUBZWL": {
+      "checked_at": "2026-11-10T08:35:55.578781+00:00",
+      "minutes": 24,
+      "origin": [
+        51.5195,
+        -0.05986
+      ],
+      "status": "ok"
+    }
+  },
+  "runs": [
+    {
+      "calls": 500,
+      "discovery_calls": 0,
+      "discovery_failed": 0,
+      "failed": 1,
+      "finished_at": "2026-11-10T08:35:56.868728+00:00",
+      "started_at": "2026-11-10T08:22:14.974085+00:00"
+    },
+    {
+      "calls": 1,
+      "discovery_calls": 0,
+      "discovery_failed": 0,
+      "failed": 1,
+      "finished_at": "2026-11-10T08:51:23.300900+00:00",
+      "started_at": "2026-11-10T08:51:22.456331+00:00"
+    }
+  ],
+  "schema": 1,
+  "started_at": "2026-11-10T08:22:14.973406+00:00",
+  "station_fingerprint": "d032ee1feac6481e23c273708927e34e08d41b1333b808e51f4713410a9f1b06",
+  "station_table_errors": {
+    "national-rail": "transport_or_json_error"
+  },
+  "stations": [
+    {
+      "id": "910GABWDXR",
+      "lat": 51.491284,
+      "lon": 0.121087,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Abbey Wood"
+    },
+    {
+      "id": "910GACTNCTL",
+      "lat": 51.508716,
+      "lon": -0.262971,
+      "modes": [
+        "overground"
+      ],
+      "name": "Acton Central Rail Station"
+    },
+    {
+      "id": "910GACTONML",
+      "lat": 51.51718,
+      "lon": -0.266756,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Acton Main Line Rail Station"
+    },
+    {
+      "id": "910GANERLEY",
+      "lat": 51.412153,
+      "lon": -0.065886,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Anerley Rail Station"
+    },
+    {
+      "id": "910GBARKING",
+      "lat": 51.539495,
+      "lon": 0.080903,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Barking Rail Station"
+    },
+    {
+      "id": "910GBARKRIV",
+      "lat": 51.51953,
+      "lon": 0.11596,
+      "modes": [
+        "overground"
+      ],
+      "name": "Barking Riverside"
+    },
+    {
+      "id": "910GBHILLPK",
+      "lat": 51.641519,
+      "lon": -0.069221,
+      "modes": [
+        "overground"
+      ],
+      "name": "Bush Hill Park Rail Station"
+    },
+    {
+      "id": "910GBLCHSRD",
+      "lat": 51.586605,
+      "lon": -0.041236,
+      "modes": [
+        "overground"
+      ],
+      "name": "Blackhorse Road Rail Station"
+    },
+    {
+      "id": "910GBONDST",
+      "lat": 51.51369,
+      "lon": -0.149517,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Bond Street"
+    },
+    {
+      "id": "910GBRBY",
+      "lat": 51.545166,
+      "lon": -0.202309,
+      "modes": [
+        "overground"
+      ],
+      "name": "Brondesbury Rail Station"
+    },
+    {
+      "id": "910GBRBYPK",
+      "lat": 51.540734,
+      "lon": -0.210054,
+      "modes": [
+        "overground"
+      ],
+      "name": "Brondesbury Park Rail Station"
+    },
+    {
+      "id": "910GBROCKLY",
+      "lat": 51.464649,
+      "lon": -0.037537,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Brockley Rail Station"
+    },
+    {
+      "id": "910GBRUCGRV",
+      "lat": 51.593959,
+      "lon": -0.069867,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Bruce Grove Rail Station"
+    },
+    {
+      "id": "910GBTHNLGR",
+      "lat": 51.523917,
+      "lon": -0.059568,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Bethnal Green Rail Station"
+    },
+    {
+      "id": "910GCAMHTH",
+      "lat": 51.531973,
+      "lon": -0.057279,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Cambridge Heath (London) Rail Station"
+    },
+    {
+      "id": "910GCANWHRF",
+      "lat": 51.506203,
+      "lon": -0.018834,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Canary Wharf"
+    },
+    {
+      "id": "910GCHDWLHT",
+      "lat": 51.568039,
+      "lon": 0.128958,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Chadwell Heath Rail Station"
+    },
+    {
+      "id": "910GCHINGFD",
+      "lat": 51.633087,
+      "lon": 0.009897,
+      "modes": [
+        "overground"
+      ],
+      "name": "Chingford Rail Station"
+    },
+    {
+      "id": "910GCLAPTON",
+      "lat": 51.561644,
+      "lon": -0.057025,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Clapton Rail Station"
+    },
+    {
+      "id": "910GCLDNNRB",
+      "lat": 51.543041,
+      "lon": -0.116729,
+      "modes": [
+        "overground"
+      ],
+      "name": "Caledonian Road & Barnsbury Rail Station"
+    },
+    {
+      "id": "910GCLPHHS",
+      "lat": 51.465481,
+      "lon": -0.132522,
+      "modes": [
+        "overground"
+      ],
+      "name": "Clapham High Street Rail Station"
+    },
+    {
+      "id": "910GCLPHMJ1",
+      "lat": 51.464187,
+      "lon": -0.170221,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Clapham Junction Rail Station"
+    },
+    {
+      "id": "910GCLPHMJC",
+      "lat": 51.464188,
+      "lon": -0.170293,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Clapham Junction Rail Station"
+    },
+    {
+      "id": "910GCMDNRD",
+      "lat": 51.541791,
+      "lon": -0.138701,
+      "modes": [
+        "overground"
+      ],
+      "name": "Camden Road Rail Station"
+    },
+    {
+      "id": "910GCNDAW",
+      "lat": 51.49799,
+      "lon": -0.04972,
+      "modes": [
+        "overground"
+      ],
+      "name": "Canada Water Rail Station"
+    },
+    {
+      "id": "910GCNNB",
+      "lat": 51.548732,
+      "lon": -0.092191,
+      "modes": [
+        "overground"
+      ],
+      "name": "Canonbury Rail Station"
+    },
+    {
+      "id": "910GCROUCHH",
+      "lat": 51.571302,
+      "lon": -0.117149,
+      "modes": [
+        "overground"
+      ],
+      "name": "Crouch Hill Rail Station"
+    },
+    {
+      "id": "910GCRYSTLP",
+      "lat": 51.418109,
+      "lon": -0.07261,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Crystal Palace Rail Station"
+    },
+    {
+      "id": "910GCSEAH",
+      "lat": 51.474949,
+      "lon": -0.182823,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Imperial Wharf Rail Station"
+    },
+    {
+      "id": "910GCUSTMHS",
+      "lat": 51.509769,
+      "lon": 0.02673,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Custom House Rail Station"
+    },
+    {
+      "id": "910GDALS",
+      "lat": 51.546116,
+      "lon": -0.075137,
+      "modes": [
+        "overground"
+      ],
+      "name": "Dalston Junction Rail Station"
+    },
+    {
+      "id": "910GDALSKLD",
+      "lat": 51.548148,
+      "lon": -0.075701,
+      "modes": [
+        "overground"
+      ],
+      "name": "Dalston Kingsland Rail Station"
+    },
+    {
+      "id": "910GDENMRKH",
+      "lat": 51.468203,
+      "lon": -0.089361,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Denmark Hill Rail Station"
+    },
+    {
+      "id": "910GEALINGB",
+      "lat": 51.514841,
+      "lon": -0.301752,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Ealing Broadway Rail Station"
+    },
+    {
+      "id": "910GEDMNGRN",
+      "lat": 51.624929,
+      "lon": -0.061112,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Edmonton Green Rail Station"
+    },
+    {
+      "id": "910GENFLDTN",
+      "lat": 51.652026,
+      "lon": -0.079328,
+      "modes": [
+        "overground"
+      ],
+      "name": "Enfield Town Rail Station"
+    },
+    {
+      "id": "910GEUSTON",
+      "lat": 51.528136,
+      "lon": -0.133924,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "London Euston Rail Station"
+    },
+    {
+      "id": "910GFNCHLYR",
+      "lat": 51.550266,
+      "lon": -0.183141,
+      "modes": [
+        "overground"
+      ],
+      "name": "Finchley Road & Frognal Rail Station"
+    },
+    {
+      "id": "910GFORESTH",
+      "lat": 51.43928,
+      "lon": -0.053157,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Forest Hill Rail Station"
+    },
+    {
+      "id": "910GFRNDXR",
+      "lat": 51.520189,
+      "lon": -0.104915,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Farringdon"
+    },
+    {
+      "id": "910GFRSTGT",
+      "lat": 51.549432,
+      "lon": 0.024353,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Forest Gate Rail Station"
+    },
+    {
+      "id": "910GGNRSBRY",
+      "lat": 51.491678,
+      "lon": -0.275286,
+      "modes": [
+        "overground"
+      ],
+      "name": "Gunnersbury Rail Station"
+    },
+    {
+      "id": "910GGODMAYS",
+      "lat": 51.565579,
+      "lon": 0.110807,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Goodmayes Rail Station"
+    },
+    {
+      "id": "910GGOSPLOK",
+      "lat": 51.555335,
+      "lon": -0.15077,
+      "modes": [
+        "overground"
+      ],
+      "name": "Gospel Oak Rail Station"
+    },
+    {
+      "id": "910GHACKNYC",
+      "lat": 51.547105,
+      "lon": -0.056058,
+      "modes": [
+        "overground"
+      ],
+      "name": "Hackney Central Rail Station"
+    },
+    {
+      "id": "910GHACKNYW",
+      "lat": 51.54341,
+      "lon": -0.02492,
+      "modes": [
+        "overground"
+      ],
+      "name": "Hackney Wick Rail Station"
+    },
+    {
+      "id": "910GHAGGERS",
+      "lat": 51.538705,
+      "lon": -0.075666,
+      "modes": [
+        "overground"
+      ],
+      "name": "Haggerston Rail Station"
+    },
+    {
+      "id": "910GHAKNYNM",
+      "lat": 51.548757,
+      "lon": -0.060819,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Hackney Downs Rail Station"
+    },
+    {
+      "id": "910GHANWELL",
+      "lat": 51.511835,
+      "lon": -0.338583,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Hanwell Rail Station"
+    },
+    {
+      "id": "910GHARLSDN",
+      "lat": 51.536289,
+      "lon": -0.257667,
+      "modes": [
+        "overground"
+      ],
+      "name": "Harlesden Rail Station"
+    },
+    {
+      "id": "910GHAYESAH",
+      "lat": 51.503096,
+      "lon": -0.420683,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Hayes & Harlington Rail Station"
+    },
+    {
+      "id": "910GHEDSTNL",
+      "lat": 51.602649,
+      "lon": -0.35722,
+      "modes": [
+        "overground"
+      ],
+      "name": "Headstone Lane Rail Station"
+    },
+    {
+      "id": "910GHGHI",
+      "lat": 51.546177,
+      "lon": -0.103764,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Highbury & Islington Rail Station"
+    },
+    {
+      "id": "910GHGHMSPK",
+      "lat": 51.60835,
+      "lon": -0.000222,
+      "modes": [
+        "overground"
+      ],
+      "name": "Highams Park Rail Station"
+    },
+    {
+      "id": "910GHMPSTDH",
+      "lat": 51.55521,
+      "lon": -0.165705,
+      "modes": [
+        "overground"
+      ],
+      "name": "Hampstead Heath Rail Station"
+    },
+    {
+      "id": "910GHOMRTON",
+      "lat": 51.547012,
+      "lon": -0.04236,
+      "modes": [
+        "overground"
+      ],
+      "name": "Homerton Rail Station"
+    },
+    {
+      "id": "910GHONROPK",
+      "lat": 51.449989,
+      "lon": -0.045505,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Honor Oak Park Rail Station"
+    },
+    {
+      "id": "910GHOXTON",
+      "lat": 51.531512,
+      "lon": -0.075681,
+      "modes": [
+        "overground"
+      ],
+      "name": "Hoxton Rail Station"
+    },
+    {
+      "id": "910GHRGYGL",
+      "lat": 51.577182,
+      "lon": -0.098144,
+      "modes": [
+        "overground"
+      ],
+      "name": "Harringay Green Lanes Rail Station"
+    },
+    {
+      "id": "910GHROW",
+      "lat": 51.592169,
+      "lon": -0.334571,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Harrow & Wealdstone Rail Station"
+    },
+    {
+      "id": "910GHTCHEND",
+      "lat": 51.609417,
+      "lon": -0.368601,
+      "modes": [
+        "overground"
+      ],
+      "name": "Hatch End Rail Station"
+    },
+    {
+      "id": "910GILFORD",
+      "lat": 51.559118,
+      "lon": 0.06968,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Ilford Rail Station"
+    },
+    {
+      "id": "910GKENOLYM",
+      "lat": 51.497899,
+      "lon": -0.210364,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Kensington (Olympia) Rail Station"
+    },
+    {
+      "id": "910GKENR",
+      "lat": 51.534554,
+      "lon": -0.219957,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kensal Rise Rail Station"
+    },
+    {
+      "id": "910GKENSLG",
+      "lat": 51.53054,
+      "lon": -0.225088,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kensal Green Rail Station"
+    },
+    {
+      "id": "910GKEWGRDN",
+      "lat": 51.477073,
+      "lon": -0.285054,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kew Gardens Rail Station"
+    },
+    {
+      "id": "910GKLBRNHR",
+      "lat": 51.537277,
+      "lon": -0.192237,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kilburn High Road Rail Station"
+    },
+    {
+      "id": "910GKNTSHTW",
+      "lat": 51.546548,
+      "lon": -0.146655,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kentish Town West Rail Station"
+    },
+    {
+      "id": "910GKTON",
+      "lat": 51.581802,
+      "lon": -0.316981,
+      "modes": [
+        "overground"
+      ],
+      "name": "Kenton Rail Station"
+    },
+    {
+      "id": "910GLEYTNMR",
+      "lat": 51.569725,
+      "lon": -0.008051,
+      "modes": [
+        "overground"
+      ],
+      "name": "Leyton Midland Road Rail Station"
+    },
+    {
+      "id": "910GLIVST",
+      "lat": 51.517991,
+      "lon": -0.081426,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "overground"
+      ],
+      "name": "London Liverpool Street Rail Station"
+    },
+    {
+      "id": "910GLIVSTLL",
+      "lat": 51.517721,
+      "lon": -0.082043,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Liverpool Street"
+    },
+    {
+      "id": "910GLONFLDS",
+      "lat": 51.541153,
+      "lon": -0.057753,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "London Fields Rail Station"
+    },
+    {
+      "id": "910GLYTNSHR",
+      "lat": 51.563554,
+      "lon": 0.008416,
+      "modes": [
+        "overground"
+      ],
+      "name": "Leytonstone High Road Rail Station"
+    },
+    {
+      "id": "910GMANRPK",
+      "lat": 51.552477,
+      "lon": 0.046342,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Manor Park Rail Station"
+    },
+    {
+      "id": "910GMRYLAND",
+      "lat": 51.546081,
+      "lon": 0.005815,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Maryland Rail Station"
+    },
+    {
+      "id": "910GNEWXGTE",
+      "lat": 51.475128,
+      "lon": -0.040399,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "New Cross Gate Rail Station"
+    },
+    {
+      "id": "910GNORWDJ",
+      "lat": 51.397019,
+      "lon": -0.075221,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Norwood Junction Rail Station"
+    },
+    {
+      "id": "910GNWCRELL",
+      "lat": 51.476344,
+      "lon": -0.032441,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "New Cross ELL Rail Station"
+    },
+    {
+      "id": "910GNWEMBLY",
+      "lat": 51.562596,
+      "lon": -0.303984,
+      "modes": [
+        "overground"
+      ],
+      "name": "North Wembley Rail Station"
+    },
+    {
+      "id": "910GPADTLL",
+      "lat": 51.516449,
+      "lon": -0.177107,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Paddington"
+    },
+    {
+      "id": "910GPADTON",
+      "lat": 51.515996,
+      "lon": -0.176174,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "London Paddington Rail Station"
+    },
+    {
+      "id": "910GPCKHMQD",
+      "lat": 51.473566,
+      "lon": -0.057313,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Queens Road Peckham Rail Station"
+    },
+    {
+      "id": "910GPCKHMRY",
+      "lat": 51.470034,
+      "lon": -0.069414,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Peckham Rye Rail Station"
+    },
+    {
+      "id": "910GPENEW",
+      "lat": 51.417555,
+      "lon": -0.06084,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Penge West Rail Station"
+    },
+    {
+      "id": "910GQPRK",
+      "lat": 51.533966,
+      "lon": -0.204985,
+      "modes": [
+        "overground"
+      ],
+      "name": "Queens Park (London) Rail Station"
+    },
+    {
+      "id": "910GRCTRYRD",
+      "lat": 51.558502,
+      "lon": -0.068267,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Rectory Road Rail Station"
+    },
+    {
+      "id": "910GRICHMND",
+      "lat": 51.463061,
+      "lon": -0.301558,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Richmond (London) Rail Station"
+    },
+    {
+      "id": "910GRTHERHI",
+      "lat": 51.500817,
+      "lon": -0.052048,
+      "modes": [
+        "overground"
+      ],
+      "name": "Rotherhithe Rail Station"
+    },
+    {
+      "id": "910GSACTON",
+      "lat": 51.499695,
+      "lon": -0.270157,
+      "modes": [
+        "overground"
+      ],
+      "name": "South Acton Rail Station"
+    },
+    {
+      "id": "910GSBURY",
+      "lat": 51.648705,
+      "lon": -0.052437,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Southbury Rail Station"
+    },
+    {
+      "id": "910GSEVNSIS",
+      "lat": 51.582268,
+      "lon": -0.07527,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Seven Sisters Rail Station"
+    },
+    {
+      "id": "910GSHADWEL",
+      "lat": 51.511284,
+      "lon": -0.056934,
+      "modes": [
+        "overground"
+      ],
+      "name": "Shadwell Rail Station"
+    },
+    {
+      "id": "910GSHMPSTD",
+      "lat": 51.541432,
+      "lon": -0.178878,
+      "modes": [
+        "overground"
+      ],
+      "name": "South Hampstead Rail Station"
+    },
+    {
+      "id": "910GSHPDSB",
+      "lat": 51.505285,
+      "lon": -0.217654,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Shepherds Bush Rail Station"
+    },
+    {
+      "id": "910GSHRDHST",
+      "lat": 51.523375,
+      "lon": -0.075246,
+      "modes": [
+        "overground"
+      ],
+      "name": "Shoreditch High Street Rail Station"
+    },
+    {
+      "id": "910GSIVRST",
+      "lat": 51.614688,
+      "lon": -0.06724,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Silver Street Rail Station"
+    },
+    {
+      "id": "910GSKENTON",
+      "lat": 51.570214,
+      "lon": -0.308462,
+      "modes": [
+        "overground"
+      ],
+      "name": "South Kenton Rail Station"
+    },
+    {
+      "id": "910GSTFD",
+      "lat": 51.541895,
+      "lon": -0.003397,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "overground"
+      ],
+      "name": "Stratford (London) Rail Station"
+    },
+    {
+      "id": "910GSTHALL",
+      "lat": 51.505957,
+      "lon": -0.37861,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Southall Rail Station"
+    },
+    {
+      "id": "910GSTJMSST",
+      "lat": 51.580981,
+      "lon": -0.032918,
+      "modes": [
+        "overground"
+      ],
+      "name": "St James Street (London) Rail Station"
+    },
+    {
+      "id": "910GSTKNWNG",
+      "lat": 51.565233,
+      "lon": -0.072887,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Stoke Newington Rail Station"
+    },
+    {
+      "id": "910GSTMFDHL",
+      "lat": 51.574467,
+      "lon": -0.076682,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Stamford Hill Rail Station"
+    },
+    {
+      "id": "910GSTNBGPK",
+      "lat": 51.544111,
+      "lon": -0.275828,
+      "modes": [
+        "overground"
+      ],
+      "name": "Stonebridge Park Rail Station"
+    },
+    {
+      "id": "910GSTOTNHM",
+      "lat": 51.580372,
+      "lon": -0.072103,
+      "modes": [
+        "overground"
+      ],
+      "name": "South Tottenham Rail Station"
+    },
+    {
+      "id": "910GSURREYQ",
+      "lat": 51.493196,
+      "lon": -0.047519,
+      "modes": [
+        "overground"
+      ],
+      "name": "Surrey Quays Rail Station"
+    },
+    {
+      "id": "910GSVNKNGS",
+      "lat": 51.564026,
+      "lon": 0.0971,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Seven Kings Rail Station"
+    },
+    {
+      "id": "910GSYDENHM",
+      "lat": 51.427248,
+      "lon": -0.054244,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Sydenham Rail Station"
+    },
+    {
+      "id": "910GTOTCTRD",
+      "lat": 51.515005,
+      "lon": -0.130396,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Tottenham Court Road"
+    },
+    {
+      "id": "910GTURKYST",
+      "lat": 51.672628,
+      "lon": -0.047217,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Turkey Street Rail Station"
+    },
+    {
+      "id": "910GUPRHLWY",
+      "lat": 51.563631,
+      "lon": -0.129513,
+      "modes": [
+        "overground"
+      ],
+      "name": "Upper Holloway Rail Station"
+    },
+    {
+      "id": "910GWAPPING",
+      "lat": 51.504388,
+      "lon": -0.055931,
+      "modes": [
+        "overground"
+      ],
+      "name": "Wapping Rail Station"
+    },
+    {
+      "id": "910GWBRMPTN",
+      "lat": 51.487061,
+      "lon": -0.195593,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "West Brompton Rail Station"
+    },
+    {
+      "id": "910GWCHAPEL",
+      "lat": 51.519469,
+      "lon": -0.059757,
+      "modes": [
+        "overground"
+      ],
+      "name": "Whitechapel Rail Station"
+    },
+    {
+      "id": "910GWCHAPXR",
+      "lat": 51.520392,
+      "lon": -0.060121,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Whitechapel"
+    },
+    {
+      "id": "910GWCROYDN",
+      "lat": 51.378428,
+      "lon": -0.102585,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "West Croydon Rail Station"
+    },
+    {
+      "id": "910GWDGRNPK",
+      "lat": 51.549264,
+      "lon": 0.044423,
+      "modes": [
+        "overground"
+      ],
+      "name": "Woodgrange Park Rail Station"
+    },
+    {
+      "id": "910GWDST",
+      "lat": 51.58658,
+      "lon": -0.002405,
+      "modes": [
+        "overground"
+      ],
+      "name": "Wood Street Rail Station"
+    },
+    {
+      "id": "910GWEALING",
+      "lat": 51.513506,
+      "lon": -0.320133,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "West Ealing Rail Station"
+    },
+    {
+      "id": "910GWHHRTLA",
+      "lat": 51.605037,
+      "lon": -0.070914,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "White Hart Lane Rail Station"
+    },
+    {
+      "id": "910GWHMDSTD",
+      "lat": 51.547468,
+      "lon": -0.191185,
+      "modes": [
+        "overground"
+      ],
+      "name": "West Hampstead Rail Station"
+    },
+    {
+      "id": "910GWLSDJHL",
+      "lat": 51.532497,
+      "lon": -0.244548,
+      "modes": [
+        "overground"
+      ],
+      "name": "Willesden Junction Rail Station"
+    },
+    {
+      "id": "910GWLTHQRD",
+      "lat": 51.581503,
+      "lon": -0.023846,
+      "modes": [
+        "overground"
+      ],
+      "name": "Walthamstow Queens Road Rail Station"
+    },
+    {
+      "id": "910GWLTWCEN",
+      "lat": 51.582919,
+      "lon": -0.019815,
+      "modes": [
+        "overground"
+      ],
+      "name": "Walthamstow Central Rail Station"
+    },
+    {
+      "id": "910GWMBY",
+      "lat": 51.552325,
+      "lon": -0.296433,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Wembley Central Rail Station"
+    },
+    {
+      "id": "910GWNDSWRD",
+      "lat": 51.470216,
+      "lon": -0.13852,
+      "modes": [
+        "overground"
+      ],
+      "name": "Wandsworth Road Rail Station"
+    },
+    {
+      "id": "910GWNSTDPK",
+      "lat": 51.551693,
+      "lon": 0.026213,
+      "modes": [
+        "overground"
+      ],
+      "name": "Wanstead Park Rail Station"
+    },
+    {
+      "id": "910GWOLWXR",
+      "lat": 51.492168,
+      "lon": 0.070593,
+      "modes": [
+        "elizabeth-line"
+      ],
+      "name": "Woolwich"
+    },
+    {
+      "id": "9400ZZLUCWR1",
+      "lat": 51.497954,
+      "lon": -0.050269,
+      "modes": [
+        "tube"
+      ],
+      "name": "Canada Water Underground Station"
+    },
+    {
+      "id": "9400ZZLUWPL3",
+      "lat": 51.519715,
+      "lon": -0.05992,
+      "modes": [
+        "tube"
+      ],
+      "name": "Whitechapel Underground Station"
+    },
+    {
+      "id": "9400ZZLUWPL4",
+      "lat": 51.519659,
+      "lon": -0.05985,
+      "modes": [
+        "tube"
+      ],
+      "name": "Whitechapel Underground Station"
+    },
+    {
+      "id": "9400ZZLUWR1",
+      "lat": 51.526956,
+      "lon": -0.025026,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bow Road Underground Station"
+    },
+    {
+      "id": "940GZZBPSUST",
+      "lat": 51.479932,
+      "lon": -0.142142,
+      "modes": [
+        "tube"
+      ],
+      "name": "Battersea Power Station Underground Station"
+    },
+    {
+      "id": "940GZZDLABR",
+      "lat": 51.531926,
+      "lon": 0.003737,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Abbey Road DLR Station"
+    },
+    {
+      "id": "940GZZDLALL",
+      "lat": 51.511,
+      "lon": -0.013135,
+      "modes": [
+        "dlr"
+      ],
+      "name": "All Saints DLR Station"
+    },
+    {
+      "id": "940GZZDLBEC",
+      "lat": 51.514362,
+      "lon": 0.061453,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Beckton DLR Station"
+    },
+    {
+      "id": "940GZZDLBLA",
+      "lat": 51.507991,
+      "lon": -0.006969,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Blackwall DLR Station"
+    },
+    {
+      "id": "940GZZDLBNK",
+      "lat": 51.513233,
+      "lon": -0.088515,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Bank DLR Station"
+    },
+    {
+      "id": "940GZZDLBOW",
+      "lat": 51.527858,
+      "lon": -0.020936,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Bow Church DLR Station"
+    },
+    {
+      "id": "940GZZDLBPK",
+      "lat": 51.508793,
+      "lon": 0.054932,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Beckton Park DLR Station"
+    },
+    {
+      "id": "940GZZDLCAN",
+      "lat": 51.504838,
+      "lon": -0.020997,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Canary Wharf DLR Station"
+    },
+    {
+      "id": "940GZZDLCGT",
+      "lat": 51.514127,
+      "lon": 0.008101,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Canning Town DLR Station"
+    },
+    {
+      "id": "940GZZDLCLA",
+      "lat": 51.495728,
+      "lon": -0.014606,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Crossharbour DLR Station"
+    },
+    {
+      "id": "940GZZDLCUS",
+      "lat": 51.509716,
+      "lon": 0.026699,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Custom House (for ExCel) DLR Station"
+    },
+    {
+      "id": "940GZZDLCUT",
+      "lat": 51.481671,
+      "lon": -0.01081,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Cutty Sark (for Maritime Greenwich) DLR Station"
+    },
+    {
+      "id": "940GZZDLCYP",
+      "lat": 51.508473,
+      "lon": 0.063925,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Cyprus DLR Station"
+    },
+    {
+      "id": "940GZZDLDEP",
+      "lat": 51.474215,
+      "lon": -0.022438,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Deptford Bridge DLR Station"
+    },
+    {
+      "id": "940GZZDLDEV",
+      "lat": 51.522667,
+      "lon": -0.017615,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Devons Road DLR Station"
+    },
+    {
+      "id": "940GZZDLEIN",
+      "lat": 51.509359,
+      "lon": -0.002326,
+      "modes": [
+        "dlr"
+      ],
+      "name": "East India DLR Station"
+    },
+    {
+      "id": "940GZZDLELV",
+      "lat": 51.469074,
+      "lon": -0.016728,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Elverson Road DLR Station"
+    },
+    {
+      "id": "940GZZDLGAL",
+      "lat": 51.508941,
+      "lon": 0.071555,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Gallions Reach DLR Station"
+    },
+    {
+      "id": "940GZZDLGRE",
+      "lat": 51.478087,
+      "lon": -0.013673,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Greenwich DLR Station"
+    },
+    {
+      "id": "940GZZDLHEQ",
+      "lat": 51.503379,
+      "lon": -0.021421,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Heron Quays DLR Station"
+    },
+    {
+      "id": "940GZZDLISL",
+      "lat": 51.487811,
+      "lon": -0.010139,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Island Gardens DLR Station"
+    },
+    {
+      "id": "940GZZDLKGV",
+      "lat": 51.502003,
+      "lon": 0.062624,
+      "modes": [
+        "dlr"
+      ],
+      "name": "King George V DLR Station"
+    },
+    {
+      "id": "940GZZDLLCA",
+      "lat": 51.503416,
+      "lon": 0.048739,
+      "modes": [
+        "dlr"
+      ],
+      "name": "London City Airport DLR Station"
+    },
+    {
+      "id": "940GZZDLLDP",
+      "lat": 51.515172,
+      "lon": -0.01415,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Langdon Park DLR Station"
+    },
+    {
+      "id": "940GZZDLLEW",
+      "lat": 51.464665,
+      "lon": -0.012874,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Lewisham DLR Station"
+    },
+    {
+      "id": "940GZZDLLIM",
+      "lat": 51.512393,
+      "lon": -0.039809,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Limehouse DLR Station"
+    },
+    {
+      "id": "940GZZDLMUD",
+      "lat": 51.490704,
+      "lon": -0.014738,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Mudchute DLR Station"
+    },
+    {
+      "id": "940GZZDLPDK",
+      "lat": 51.502212,
+      "lon": 0.032115,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Pontoon Dock DLR Station"
+    },
+    {
+      "id": "940GZZDLPOP",
+      "lat": 51.507744,
+      "lon": -0.017384,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Poplar DLR Station"
+    },
+    {
+      "id": "940GZZDLPRE",
+      "lat": 51.509263,
+      "lon": 0.034158,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Prince Regent DLR Station"
+    },
+    {
+      "id": "940GZZDLPUD",
+      "lat": 51.534302,
+      "lon": -0.012755,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Pudding Mill Lane DLR Station"
+    },
+    {
+      "id": "940GZZDLRAL",
+      "lat": 51.508357,
+      "lon": 0.045935,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Royal Albert DLR Station"
+    },
+    {
+      "id": "940GZZDLRVC",
+      "lat": 51.509336,
+      "lon": 0.018497,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Royal Victoria DLR Station"
+    },
+    {
+      "id": "940GZZDLSHA",
+      "lat": 51.511693,
+      "lon": -0.056643,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Shadwell DLR Station"
+    },
+    {
+      "id": "940GZZDLSHS",
+      "lat": 51.538196,
+      "lon": -0.001078,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Stratford High Street DLR Station"
+    },
+    {
+      "id": "940GZZDLSIT",
+      "lat": 51.545265,
+      "lon": -0.009638,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Stratford International DLR Station"
+    },
+    {
+      "id": "940GZZDLSOQ",
+      "lat": 51.50005,
+      "lon": -0.015975,
+      "modes": [
+        "dlr"
+      ],
+      "name": "South Quay DLR Station"
+    },
+    {
+      "id": "940GZZDLSTD",
+      "lat": 51.541758,
+      "lon": -0.003287,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Stratford DLR Station"
+    },
+    {
+      "id": "940GZZDLSTL",
+      "lat": 51.520786,
+      "lon": 0.004156,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Star Lane DLR Station"
+    },
+    {
+      "id": "940GZZDLTWG",
+      "lat": 51.510617,
+      "lon": -0.074818,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Tower Gateway DLR Station"
+    },
+    {
+      "id": "940GZZDLWFE",
+      "lat": 51.509431,
+      "lon": -0.02675,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Westferry DLR Station"
+    },
+    {
+      "id": "940GZZDLWHM",
+      "lat": 51.527894,
+      "lon": 0.004482,
+      "modes": [
+        "dlr"
+      ],
+      "name": "West Ham DLR Station"
+    },
+    {
+      "id": "940GZZDLWIQ",
+      "lat": 51.50703,
+      "lon": -0.020311,
+      "modes": [
+        "dlr"
+      ],
+      "name": "West India Quay DLR Station"
+    },
+    {
+      "id": "940GZZDLWLA",
+      "lat": 51.490009,
+      "lon": 0.069127,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Woolwich Arsenal DLR Station"
+    },
+    {
+      "id": "940GZZDLWSV",
+      "lat": 51.502838,
+      "lon": 0.02246,
+      "modes": [
+        "dlr"
+      ],
+      "name": "West Silvertown DLR Station"
+    },
+    {
+      "id": "940GZZLUACT",
+      "lat": 51.503057,
+      "lon": -0.280462,
+      "modes": [
+        "tube"
+      ],
+      "name": "Acton Town Underground Station"
+    },
+    {
+      "id": "940GZZLUACY",
+      "lat": 51.565478,
+      "lon": -0.134819,
+      "modes": [
+        "tube"
+      ],
+      "name": "Archway Underground Station"
+    },
+    {
+      "id": "940GZZLUADE",
+      "lat": 51.515037,
+      "lon": -0.072384,
+      "modes": [
+        "tube"
+      ],
+      "name": "Aldgate East Underground Station"
+    },
+    {
+      "id": "940GZZLUAGL",
+      "lat": 51.53184,
+      "lon": -0.10635,
+      "modes": [
+        "tube"
+      ],
+      "name": "Angel Underground Station"
+    },
+    {
+      "id": "940GZZLUALD",
+      "lat": 51.514246,
+      "lon": -0.075689,
+      "modes": [
+        "tube"
+      ],
+      "name": "Aldgate Underground Station"
+    },
+    {
+      "id": "940GZZLUALP",
+      "lat": 51.540627,
+      "lon": -0.29961,
+      "modes": [
+        "tube"
+      ],
+      "name": "Alperton Underground Station"
+    },
+    {
+      "id": "940GZZLUASG",
+      "lat": 51.616446,
+      "lon": -0.133062,
+      "modes": [
+        "tube"
+      ],
+      "name": "Arnos Grove Underground Station"
+    },
+    {
+      "id": "940GZZLUASL",
+      "lat": 51.558655,
+      "lon": -0.107457,
+      "modes": [
+        "tube"
+      ],
+      "name": "Arsenal Underground Station"
+    },
+    {
+      "id": "940GZZLUBBB",
+      "lat": 51.524839,
+      "lon": -0.011538,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bromley-by-Bow Underground Station"
+    },
+    {
+      "id": "940GZZLUBBN",
+      "lat": 51.520275,
+      "lon": -0.097993,
+      "modes": [
+        "tube"
+      ],
+      "name": "Barbican Underground Station"
+    },
+    {
+      "id": "940GZZLUBDS",
+      "lat": 51.607034,
+      "lon": -0.124235,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bounds Green Underground Station"
+    },
+    {
+      "id": "940GZZLUBEC",
+      "lat": 51.540331,
+      "lon": 0.127016,
+      "modes": [
+        "tube"
+      ],
+      "name": "Becontree Underground Station"
+    },
+    {
+      "id": "940GZZLUBKE",
+      "lat": 51.585689,
+      "lon": 0.088585,
+      "modes": [
+        "tube"
+      ],
+      "name": "Barkingside Underground Station"
+    },
+    {
+      "id": "940GZZLUBKF",
+      "lat": 51.511581,
+      "lon": -0.103659,
+      "modes": [
+        "tube"
+      ],
+      "name": "Blackfriars Underground Station"
+    },
+    {
+      "id": "940GZZLUBKG",
+      "lat": 51.539321,
+      "lon": 0.081053,
+      "modes": [
+        "tube"
+      ],
+      "name": "Barking Underground Station"
+    },
+    {
+      "id": "940GZZLUBKH",
+      "lat": 51.626605,
+      "lon": 0.046757,
+      "modes": [
+        "tube"
+      ],
+      "name": "Buckhurst Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUBLG",
+      "lat": 51.527222,
+      "lon": -0.055506,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bethnal Green Underground Station"
+    },
+    {
+      "id": "940GZZLUBLM",
+      "lat": 51.443288,
+      "lon": -0.152997,
+      "modes": [
+        "tube"
+      ],
+      "name": "Balham Underground Station"
+    },
+    {
+      "id": "940GZZLUBLR",
+      "lat": 51.586919,
+      "lon": -0.04115,
+      "modes": [
+        "tube"
+      ],
+      "name": "Blackhorse Road Underground Station"
+    },
+    {
+      "id": "940GZZLUBMY",
+      "lat": 51.49775,
+      "lon": -0.063993,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bermondsey Underground Station"
+    },
+    {
+      "id": "940GZZLUBND",
+      "lat": 51.514304,
+      "lon": -0.149723,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bond Street Underground Station"
+    },
+    {
+      "id": "940GZZLUBNK",
+      "lat": 51.513132,
+      "lon": -0.090047,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bank Underground Station"
+    },
+    {
+      "id": "940GZZLUBOR",
+      "lat": 51.501199,
+      "lon": -0.09337,
+      "modes": [
+        "tube"
+      ],
+      "name": "Borough Underground Station"
+    },
+    {
+      "id": "940GZZLUBOS",
+      "lat": 51.495635,
+      "lon": -0.324939,
+      "modes": [
+        "tube"
+      ],
+      "name": "Boston Manor Underground Station"
+    },
+    {
+      "id": "940GZZLUBSC",
+      "lat": 51.490311,
+      "lon": -0.213427,
+      "modes": [
+        "tube"
+      ],
+      "name": "Barons Court Underground Station"
+    },
+    {
+      "id": "940GZZLUBST",
+      "lat": 51.522883,
+      "lon": -0.15713,
+      "modes": [
+        "tube"
+      ],
+      "name": "Baker Street Underground Station"
+    },
+    {
+      "id": "940GZZLUBTK",
+      "lat": 51.602774,
+      "lon": -0.264048,
+      "modes": [
+        "tube"
+      ],
+      "name": "Burnt Oak Underground Station"
+    },
+    {
+      "id": "940GZZLUBTX",
+      "lat": 51.57665,
+      "lon": -0.213622,
+      "modes": [
+        "tube"
+      ],
+      "name": "Brent Cross Underground Station"
+    },
+    {
+      "id": "940GZZLUBWR",
+      "lat": 51.52694,
+      "lon": -0.025128,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bow Road Underground Station"
+    },
+    {
+      "id": "940GZZLUBWT",
+      "lat": 51.512284,
+      "lon": -0.187938,
+      "modes": [
+        "tube"
+      ],
+      "name": "Bayswater Underground Station"
+    },
+    {
+      "id": "940GZZLUBXN",
+      "lat": 51.462618,
+      "lon": -0.114888,
+      "modes": [
+        "tube"
+      ],
+      "name": "Brixton Underground Station"
+    },
+    {
+      "id": "940GZZLUBZP",
+      "lat": 51.550311,
+      "lon": -0.164648,
+      "modes": [
+        "tube"
+      ],
+      "name": "Belsize Park Underground Station"
+    },
+    {
+      "id": "940GZZLUCAR",
+      "lat": 51.548519,
+      "lon": -0.118493,
+      "modes": [
+        "tube"
+      ],
+      "name": "Caledonian Road Underground Station"
+    },
+    {
+      "id": "940GZZLUCFM",
+      "lat": 51.544118,
+      "lon": -0.153388,
+      "modes": [
+        "tube"
+      ],
+      "name": "Chalk Farm Underground Station"
+    },
+    {
+      "id": "940GZZLUCGN",
+      "lat": 51.513093,
+      "lon": -0.124436,
+      "modes": [
+        "tube"
+      ],
+      "name": "Covent Garden Underground Station"
+    },
+    {
+      "id": "940GZZLUCGT",
+      "lat": 51.513584,
+      "lon": 0.008322,
+      "modes": [
+        "tube"
+      ],
+      "name": "Canning Town Underground Station"
+    },
+    {
+      "id": "940GZZLUCHL",
+      "lat": 51.518247,
+      "lon": -0.111583,
+      "modes": [
+        "tube"
+      ],
+      "name": "Chancery Lane Underground Station"
+    },
+    {
+      "id": "940GZZLUCHX",
+      "lat": 51.50741,
+      "lon": -0.127277,
+      "modes": [
+        "tube"
+      ],
+      "name": "Charing Cross Underground Station"
+    },
+    {
+      "id": "940GZZLUCKS",
+      "lat": 51.65152,
+      "lon": -0.149171,
+      "modes": [
+        "tube"
+      ],
+      "name": "Cockfosters Underground Station"
+    },
+    {
+      "id": "940GZZLUCND",
+      "lat": 51.595424,
+      "lon": -0.249919,
+      "modes": [
+        "tube"
+      ],
+      "name": "Colindale Underground Station"
+    },
+    {
+      "id": "940GZZLUCPC",
+      "lat": 51.461742,
+      "lon": -0.138317,
+      "modes": [
+        "tube"
+      ],
+      "name": "Clapham Common Underground Station"
+    },
+    {
+      "id": "940GZZLUCPK",
+      "lat": 51.607701,
+      "lon": -0.294693,
+      "modes": [
+        "tube"
+      ],
+      "name": "Canons Park Underground Station"
+    },
+    {
+      "id": "940GZZLUCPN",
+      "lat": 51.465135,
+      "lon": -0.130016,
+      "modes": [
+        "tube"
+      ],
+      "name": "Clapham North Underground Station"
+    },
+    {
+      "id": "940GZZLUCPS",
+      "lat": 51.452654,
+      "lon": -0.147582,
+      "modes": [
+        "tube"
+      ],
+      "name": "Clapham South Underground Station"
+    },
+    {
+      "id": "940GZZLUCSD",
+      "lat": 51.41816,
+      "lon": -0.178086,
+      "modes": [
+        "tube"
+      ],
+      "name": "Colliers Wood Underground Station"
+    },
+    {
+      "id": "940GZZLUCST",
+      "lat": 51.51151,
+      "lon": -0.090432,
+      "modes": [
+        "tube"
+      ],
+      "name": "Cannon Street Underground Station"
+    },
+    {
+      "id": "940GZZLUCTN",
+      "lat": 51.539292,
+      "lon": -0.14274,
+      "modes": [
+        "tube"
+      ],
+      "name": "Camden Town Underground Station"
+    },
+    {
+      "id": "940GZZLUCWL",
+      "lat": 51.617916,
+      "lon": 0.075041,
+      "modes": [
+        "tube"
+      ],
+      "name": "Chigwell Underground Station"
+    },
+    {
+      "id": "940GZZLUCWP",
+      "lat": 51.494627,
+      "lon": -0.267972,
+      "modes": [
+        "tube"
+      ],
+      "name": "Chiswick Park Underground Station"
+    },
+    {
+      "id": "940GZZLUCWR",
+      "lat": 51.497931,
+      "lon": -0.049405,
+      "modes": [
+        "tube"
+      ],
+      "name": "Canada Water Underground Station"
+    },
+    {
+      "id": "940GZZLUCYF",
+      "lat": 51.503488,
+      "lon": -0.018246,
+      "modes": [
+        "tube"
+      ],
+      "name": "Canary Wharf Underground Station"
+    },
+    {
+      "id": "940GZZLUDOH",
+      "lat": 51.551955,
+      "lon": -0.239068,
+      "modes": [
+        "tube"
+      ],
+      "name": "Dollis Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUEAC",
+      "lat": 51.494536,
+      "lon": -0.100606,
+      "modes": [
+        "tube"
+      ],
+      "name": "Elephant & Castle Underground Station"
+    },
+    {
+      "id": "940GZZLUEAE",
+      "lat": 51.576506,
+      "lon": -0.397373,
+      "modes": [
+        "tube"
+      ],
+      "name": "Eastcote Underground Station"
+    },
+    {
+      "id": "940GZZLUEAN",
+      "lat": 51.516612,
+      "lon": -0.247248,
+      "modes": [
+        "tube"
+      ],
+      "name": "East Acton Underground Station"
+    },
+    {
+      "id": "940GZZLUEBY",
+      "lat": 51.515017,
+      "lon": -0.301457,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ealing Broadway Underground Station"
+    },
+    {
+      "id": "940GZZLUECM",
+      "lat": 51.51014,
+      "lon": -0.288265,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ealing Common Underground Station"
+    },
+    {
+      "id": "940GZZLUECT",
+      "lat": 51.492063,
+      "lon": -0.193378,
+      "modes": [
+        "tube"
+      ],
+      "name": "Earl's Court Underground Station"
+    },
+    {
+      "id": "940GZZLUEFY",
+      "lat": 51.587131,
+      "lon": -0.165012,
+      "modes": [
+        "tube"
+      ],
+      "name": "East Finchley Underground Station"
+    },
+    {
+      "id": "940GZZLUEGW",
+      "lat": 51.613653,
+      "lon": -0.274928,
+      "modes": [
+        "tube"
+      ],
+      "name": "Edgware Underground Station"
+    },
+    {
+      "id": "940GZZLUEHM",
+      "lat": 51.538948,
+      "lon": 0.051186,
+      "modes": [
+        "tube"
+      ],
+      "name": "East Ham Underground Station"
+    },
+    {
+      "id": "940GZZLUEMB",
+      "lat": 51.507058,
+      "lon": -0.122666,
+      "modes": [
+        "tube"
+      ],
+      "name": "Embankment Underground Station"
+    },
+    {
+      "id": "940GZZLUEPY",
+      "lat": 51.459205,
+      "lon": -0.211,
+      "modes": [
+        "tube"
+      ],
+      "name": "East Putney Underground Station"
+    },
+    {
+      "id": "940GZZLUERB",
+      "lat": 51.520299,
+      "lon": -0.17015,
+      "modes": [
+        "tube"
+      ],
+      "name": "Edgware Road (Bakerloo) Underground Station"
+    },
+    {
+      "id": "940GZZLUERC",
+      "lat": 51.519858,
+      "lon": -0.167832,
+      "modes": [
+        "tube"
+      ],
+      "name": "Edgware Road (Circle Line) Underground Station"
+    },
+    {
+      "id": "940GZZLUESQ",
+      "lat": 51.525604,
+      "lon": -0.135829,
+      "modes": [
+        "tube"
+      ],
+      "name": "Euston Square Underground Station"
+    },
+    {
+      "id": "940GZZLUEUS",
+      "lat": 51.527999,
+      "lon": -0.133785,
+      "modes": [
+        "tube"
+      ],
+      "name": "Euston Underground Station"
+    },
+    {
+      "id": "940GZZLUFBY",
+      "lat": 51.480081,
+      "lon": -0.195422,
+      "modes": [
+        "tube"
+      ],
+      "name": "Fulham Broadway Underground Station"
+    },
+    {
+      "id": "940GZZLUFCN",
+      "lat": 51.520252,
+      "lon": -0.104913,
+      "modes": [
+        "tube"
+      ],
+      "name": "Farringdon Underground Station"
+    },
+    {
+      "id": "940GZZLUFLP",
+      "lat": 51.595618,
+      "lon": 0.091004,
+      "modes": [
+        "tube"
+      ],
+      "name": "Fairlop Underground Station"
+    },
+    {
+      "id": "940GZZLUFPK",
+      "lat": 51.564158,
+      "lon": -0.106825,
+      "modes": [
+        "tube"
+      ],
+      "name": "Finsbury Park Underground Station"
+    },
+    {
+      "id": "940GZZLUFYC",
+      "lat": 51.600921,
+      "lon": -0.192527,
+      "modes": [
+        "tube"
+      ],
+      "name": "Finchley Central Underground Station"
+    },
+    {
+      "id": "940GZZLUFYR",
+      "lat": 51.546825,
+      "lon": -0.179845,
+      "modes": [
+        "tube"
+      ],
+      "name": "Finchley Road Underground Station"
+    },
+    {
+      "id": "940GZZLUGBY",
+      "lat": 51.491803,
+      "lon": -0.275267,
+      "modes": [
+        "tube"
+      ],
+      "name": "Gunnersbury Underground Station"
+    },
+    {
+      "id": "940GZZLUGDG",
+      "lat": 51.520599,
+      "lon": -0.134361,
+      "modes": [
+        "tube"
+      ],
+      "name": "Goodge Street Underground Station"
+    },
+    {
+      "id": "940GZZLUGFD",
+      "lat": 51.542424,
+      "lon": -0.34605,
+      "modes": [
+        "tube"
+      ],
+      "name": "Greenford Underground Station"
+    },
+    {
+      "id": "940GZZLUGGH",
+      "lat": 51.613378,
+      "lon": 0.092066,
+      "modes": [
+        "tube"
+      ],
+      "name": "Grange Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUGGN",
+      "lat": 51.572259,
+      "lon": -0.194039,
+      "modes": [
+        "tube"
+      ],
+      "name": "Golders Green Underground Station"
+    },
+    {
+      "id": "940GZZLUGHK",
+      "lat": 51.502005,
+      "lon": -0.226715,
+      "modes": [
+        "tube"
+      ],
+      "name": "Goldhawk Road Underground Station"
+    },
+    {
+      "id": "940GZZLUGPK",
+      "lat": 51.506947,
+      "lon": -0.142787,
+      "modes": [
+        "tube"
+      ],
+      "name": "Green Park Underground Station"
+    },
+    {
+      "id": "940GZZLUGPS",
+      "lat": 51.52384,
+      "lon": -0.144262,
+      "modes": [
+        "tube"
+      ],
+      "name": "Great Portland Street Underground Station"
+    },
+    {
+      "id": "940GZZLUGTH",
+      "lat": 51.576544,
+      "lon": 0.066185,
+      "modes": [
+        "tube"
+      ],
+      "name": "Gants Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUGTR",
+      "lat": 51.494316,
+      "lon": -0.182658,
+      "modes": [
+        "tube"
+      ],
+      "name": "Gloucester Road Underground Station"
+    },
+    {
+      "id": "940GZZLUHAI",
+      "lat": 51.54635,
+      "lon": -0.103324,
+      "modes": [
+        "tube"
+      ],
+      "name": "Highbury & Islington Underground Station"
+    },
+    {
+      "id": "940GZZLUHAW",
+      "lat": 51.592268,
+      "lon": -0.335217,
+      "modes": [
+        "tube"
+      ],
+      "name": "Harrow & Wealdstone Underground Station"
+    },
+    {
+      "id": "940GZZLUHBN",
+      "lat": 51.51758,
+      "lon": -0.120475,
+      "modes": [
+        "tube"
+      ],
+      "name": "Holborn Underground Station"
+    },
+    {
+      "id": "940GZZLUHBT",
+      "lat": 51.650541,
+      "lon": -0.194298,
+      "modes": [
+        "tube"
+      ],
+      "name": "High Barnet Underground Station"
+    },
+    {
+      "id": "940GZZLUHCL",
+      "lat": 51.583301,
+      "lon": -0.226424,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hendon Central Underground Station"
+    },
+    {
+      "id": "940GZZLUHGR",
+      "lat": 51.530177,
+      "lon": -0.292704,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hanger Lane Underground Station"
+    },
+    {
+      "id": "940GZZLUHGT",
+      "lat": 51.577532,
+      "lon": -0.145857,
+      "modes": [
+        "tube"
+      ],
+      "name": "Highgate Underground Station"
+    },
+    {
+      "id": "940GZZLUHLT",
+      "lat": 51.603659,
+      "lon": 0.093482,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hainault Underground Station"
+    },
+    {
+      "id": "940GZZLUHOH",
+      "lat": 51.579195,
+      "lon": -0.337225,
+      "modes": [
+        "tube"
+      ],
+      "name": "Harrow-on-the-Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUHPC",
+      "lat": 51.503035,
+      "lon": -0.152441,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hyde Park Corner Underground Station"
+    },
+    {
+      "id": "940GZZLUHPK",
+      "lat": 51.507143,
+      "lon": -0.205679,
+      "modes": [
+        "tube"
+      ],
+      "name": "Holland Park Underground Station"
+    },
+    {
+      "id": "940GZZLUHSC",
+      "lat": 51.49339,
+      "lon": -0.22503,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hammersmith (H&C Line) Underground Station"
+    },
+    {
+      "id": "940GZZLUHSD",
+      "lat": 51.4923,
+      "lon": -0.22362,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hammersmith (Dist&Picc Line) Underground Station"
+    },
+    {
+      "id": "940GZZLUHSK",
+      "lat": 51.501055,
+      "lon": -0.192792,
+      "modes": [
+        "tube"
+      ],
+      "name": "High Street Kensington Underground Station"
+    },
+    {
+      "id": "940GZZLUHSN",
+      "lat": 51.53631,
+      "lon": -0.257883,
+      "modes": [
+        "tube"
+      ],
+      "name": "Harlesden Underground Station"
+    },
+    {
+      "id": "940GZZLUHTD",
+      "lat": 51.556239,
+      "lon": -0.177464,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hampstead Underground Station"
+    },
+    {
+      "id": "940GZZLUHWC",
+      "lat": 51.471295,
+      "lon": -0.366578,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hounslow Central Underground Station"
+    },
+    {
+      "id": "940GZZLUHWE",
+      "lat": 51.473213,
+      "lon": -0.356474,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hounslow East Underground Station"
+    },
+    {
+      "id": "940GZZLUHWT",
+      "lat": 51.473469,
+      "lon": -0.386544,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hounslow West Underground Station"
+    },
+    {
+      "id": "940GZZLUHWY",
+      "lat": 51.552697,
+      "lon": -0.113244,
+      "modes": [
+        "tube"
+      ],
+      "name": "Holloway Road Underground Station"
+    },
+    {
+      "id": "940GZZLUKBN",
+      "lat": 51.547183,
+      "lon": -0.204248,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kilburn Underground Station"
+    },
+    {
+      "id": "940GZZLUKBY",
+      "lat": 51.584845,
+      "lon": -0.27879,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kingsbury Underground Station"
+    },
+    {
+      "id": "940GZZLUKEN",
+      "lat": 51.581756,
+      "lon": -0.31691,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kenton Underground Station"
+    },
+    {
+      "id": "940GZZLUKNB",
+      "lat": 51.501669,
+      "lon": -0.160508,
+      "modes": [
+        "tube"
+      ],
+      "name": "Knightsbridge Underground Station"
+    },
+    {
+      "id": "940GZZLUKNG",
+      "lat": 51.488337,
+      "lon": -0.105963,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kennington Underground Station"
+    },
+    {
+      "id": "940GZZLUKOY",
+      "lat": 51.497624,
+      "lon": -0.210015,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kensington (Olympia) Underground Station"
+    },
+    {
+      "id": "940GZZLUKPK",
+      "lat": 51.534979,
+      "lon": -0.194232,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kilburn Park Underground Station"
+    },
+    {
+      "id": "940GZZLUKSH",
+      "lat": 51.550312,
+      "lon": -0.140733,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kentish Town Underground Station"
+    },
+    {
+      "id": "940GZZLUKSL",
+      "lat": 51.530539,
+      "lon": -0.225016,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kensal Green Underground Station"
+    },
+    {
+      "id": "940GZZLUKSX",
+      "lat": 51.530663,
+      "lon": -0.123194,
+      "modes": [
+        "tube"
+      ],
+      "name": "King's Cross St. Pancras Underground Station"
+    },
+    {
+      "id": "940GZZLUKWG",
+      "lat": 51.477058,
+      "lon": -0.285241,
+      "modes": [
+        "tube"
+      ],
+      "name": "Kew Gardens Underground Station"
+    },
+    {
+      "id": "940GZZLULAD",
+      "lat": 51.517449,
+      "lon": -0.210391,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ladbroke Grove Underground Station"
+    },
+    {
+      "id": "940GZZLULBN",
+      "lat": 51.498808,
+      "lon": -0.112315,
+      "modes": [
+        "tube"
+      ],
+      "name": "Lambeth North Underground Station"
+    },
+    {
+      "id": "940GZZLULGN",
+      "lat": 51.641443,
+      "lon": 0.055476,
+      "modes": [
+        "tube"
+      ],
+      "name": "Loughton Underground Station"
+    },
+    {
+      "id": "940GZZLULGT",
+      "lat": 51.511723,
+      "lon": -0.175494,
+      "modes": [
+        "tube"
+      ],
+      "name": "Lancaster Gate Underground Station"
+    },
+    {
+      "id": "940GZZLULNB",
+      "lat": 51.505721,
+      "lon": -0.088873,
+      "modes": [
+        "tube"
+      ],
+      "name": "London Bridge Underground Station"
+    },
+    {
+      "id": "940GZZLULRD",
+      "lat": 51.513389,
+      "lon": -0.217799,
+      "modes": [
+        "tube"
+      ],
+      "name": "Latimer Road Underground Station"
+    },
+    {
+      "id": "940GZZLULSQ",
+      "lat": 51.511386,
+      "lon": -0.128426,
+      "modes": [
+        "tube"
+      ],
+      "name": "Leicester Square Underground Station"
+    },
+    {
+      "id": "940GZZLULVT",
+      "lat": 51.517372,
+      "lon": -0.083182,
+      "modes": [
+        "tube"
+      ],
+      "name": "Liverpool Street Underground Station"
+    },
+    {
+      "id": "940GZZLULYN",
+      "lat": 51.556589,
+      "lon": -0.005523,
+      "modes": [
+        "tube"
+      ],
+      "name": "Leyton Underground Station"
+    },
+    {
+      "id": "940GZZLULYS",
+      "lat": 51.568324,
+      "lon": 0.008194,
+      "modes": [
+        "tube"
+      ],
+      "name": "Leytonstone Underground Station"
+    },
+    {
+      "id": "940GZZLUMBA",
+      "lat": 51.513424,
+      "lon": -0.158953,
+      "modes": [
+        "tube"
+      ],
+      "name": "Marble Arch Underground Station"
+    },
+    {
+      "id": "940GZZLUMDN",
+      "lat": 51.402142,
+      "lon": -0.194839,
+      "modes": [
+        "tube"
+      ],
+      "name": "Morden Underground Station"
+    },
+    {
+      "id": "940GZZLUMED",
+      "lat": 51.525122,
+      "lon": -0.03364,
+      "modes": [
+        "tube"
+      ],
+      "name": "Mile End Underground Station"
+    },
+    {
+      "id": "940GZZLUMGT",
+      "lat": 51.518176,
+      "lon": -0.088322,
+      "modes": [
+        "tube"
+      ],
+      "name": "Moorgate Underground Station"
+    },
+    {
+      "id": "940GZZLUMHL",
+      "lat": 51.608229,
+      "lon": -0.209986,
+      "modes": [
+        "tube"
+      ],
+      "name": "Mill Hill East Underground Station"
+    },
+    {
+      "id": "940GZZLUMMT",
+      "lat": 51.5107,
+      "lon": -0.085969,
+      "modes": [
+        "tube"
+      ],
+      "name": "Monument Underground Station"
+    },
+    {
+      "id": "940GZZLUMRH",
+      "lat": 51.570738,
+      "lon": -0.096118,
+      "modes": [
+        "tube"
+      ],
+      "name": "Manor House Underground Station"
+    },
+    {
+      "id": "940GZZLUMSH",
+      "lat": 51.512117,
+      "lon": -0.094009,
+      "modes": [
+        "tube"
+      ],
+      "name": "Mansion House Underground Station"
+    },
+    {
+      "id": "940GZZLUMTC",
+      "lat": 51.534679,
+      "lon": -0.138789,
+      "modes": [
+        "tube"
+      ],
+      "name": "Mornington Crescent Underground Station"
+    },
+    {
+      "id": "940GZZLUMVL",
+      "lat": 51.529777,
+      "lon": -0.185758,
+      "modes": [
+        "tube"
+      ],
+      "name": "Maida Vale Underground Station"
+    },
+    {
+      "id": "940GZZLUMYB",
+      "lat": 51.522322,
+      "lon": -0.163207,
+      "modes": [
+        "tube"
+      ],
+      "name": "Marylebone Underground Station"
+    },
+    {
+      "id": "940GZZLUNAN",
+      "lat": 51.523524,
+      "lon": -0.259755,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Acton Underground Station"
+    },
+    {
+      "id": "940GZZLUNBP",
+      "lat": 51.575726,
+      "lon": 0.090004,
+      "modes": [
+        "tube"
+      ],
+      "name": "Newbury Park Underground Station"
+    },
+    {
+      "id": "940GZZLUNDN",
+      "lat": 51.553986,
+      "lon": -0.249837,
+      "modes": [
+        "tube"
+      ],
+      "name": "Neasden Underground Station"
+    },
+    {
+      "id": "940GZZLUNEN",
+      "lat": 51.517505,
+      "lon": -0.288868,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Ealing Underground Station"
+    },
+    {
+      "id": "940GZZLUNFD",
+      "lat": 51.499319,
+      "lon": -0.314719,
+      "modes": [
+        "tube"
+      ],
+      "name": "Northfields Underground Station"
+    },
+    {
+      "id": "940GZZLUNGW",
+      "lat": 51.50047,
+      "lon": 0.004287,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Greenwich Underground Station"
+    },
+    {
+      "id": "940GZZLUNHA",
+      "lat": 51.584872,
+      "lon": -0.362408,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Harrow Underground Station"
+    },
+    {
+      "id": "940GZZLUNHG",
+      "lat": 51.509128,
+      "lon": -0.196104,
+      "modes": [
+        "tube"
+      ],
+      "name": "Notting Hill Gate Underground Station"
+    },
+    {
+      "id": "940GZZLUNHT",
+      "lat": 51.548236,
+      "lon": -0.368699,
+      "modes": [
+        "tube"
+      ],
+      "name": "Northolt Underground Station"
+    },
+    {
+      "id": "940GZZLUNKP",
+      "lat": 51.578481,
+      "lon": -0.318056,
+      "modes": [
+        "tube"
+      ],
+      "name": "Northwick Park Underground Station"
+    },
+    {
+      "id": "940GZZLUNWY",
+      "lat": 51.562551,
+      "lon": -0.304,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Wembley Underground Station"
+    },
+    {
+      "id": "940GZZLUOAK",
+      "lat": 51.647726,
+      "lon": -0.132182,
+      "modes": [
+        "tube"
+      ],
+      "name": "Oakwood Underground Station"
+    },
+    {
+      "id": "940GZZLUODS",
+      "lat": 51.525864,
+      "lon": -0.08777,
+      "modes": [
+        "tube"
+      ],
+      "name": "Old Street Underground Station"
+    },
+    {
+      "id": "940GZZLUOSY",
+      "lat": 51.481274,
+      "lon": -0.352224,
+      "modes": [
+        "tube"
+      ],
+      "name": "Osterley Underground Station"
+    },
+    {
+      "id": "940GZZLUOVL",
+      "lat": 51.48185,
+      "lon": -0.112439,
+      "modes": [
+        "tube"
+      ],
+      "name": "Oval Underground Station"
+    },
+    {
+      "id": "940GZZLUOXC",
+      "lat": 51.515224,
+      "lon": -0.141903,
+      "modes": [
+        "tube"
+      ],
+      "name": "Oxford Circus Underground Station"
+    },
+    {
+      "id": "940GZZLUPAC",
+      "lat": 51.516581,
+      "lon": -0.175689,
+      "modes": [
+        "tube"
+      ],
+      "name": "Paddington Underground Station"
+    },
+    {
+      "id": "940GZZLUPAH",
+      "lat": 51.518187,
+      "lon": -0.178306,
+      "modes": [
+        "tube"
+      ],
+      "name": "Paddington (H&C Line)-Underground"
+    },
+    {
+      "id": "940GZZLUPCC",
+      "lat": 51.51005,
+      "lon": -0.133798,
+      "modes": [
+        "tube"
+      ],
+      "name": "Piccadilly Circus Underground Station"
+    },
+    {
+      "id": "940GZZLUPCO",
+      "lat": 51.489097,
+      "lon": -0.133761,
+      "modes": [
+        "tube"
+      ],
+      "name": "Pimlico Underground Station"
+    },
+    {
+      "id": "940GZZLUPKR",
+      "lat": 51.527123,
+      "lon": -0.284341,
+      "modes": [
+        "tube"
+      ],
+      "name": "Park Royal Underground Station"
+    },
+    {
+      "id": "940GZZLUPLW",
+      "lat": 51.531341,
+      "lon": 0.017451,
+      "modes": [
+        "tube"
+      ],
+      "name": "Plaistow Underground Station"
+    },
+    {
+      "id": "940GZZLUPNR",
+      "lat": 51.592901,
+      "lon": -0.381161,
+      "modes": [
+        "tube"
+      ],
+      "name": "Pinner Underground Station"
+    },
+    {
+      "id": "940GZZLUPRD",
+      "lat": 51.571972,
+      "lon": -0.295107,
+      "modes": [
+        "tube"
+      ],
+      "name": "Preston Road Underground Station"
+    },
+    {
+      "id": "940GZZLUPSG",
+      "lat": 51.475277,
+      "lon": -0.20117,
+      "modes": [
+        "tube"
+      ],
+      "name": "Parsons Green Underground Station"
+    },
+    {
+      "id": "940GZZLUPVL",
+      "lat": 51.536717,
+      "lon": -0.323446,
+      "modes": [
+        "tube"
+      ],
+      "name": "Perivale Underground Station"
+    },
+    {
+      "id": "940GZZLUPYB",
+      "lat": 51.468262,
+      "lon": -0.208731,
+      "modes": [
+        "tube"
+      ],
+      "name": "Putney Bridge Underground Station"
+    },
+    {
+      "id": "940GZZLUQBY",
+      "lat": 51.594188,
+      "lon": -0.286219,
+      "modes": [
+        "tube"
+      ],
+      "name": "Queensbury Underground Station"
+    },
+    {
+      "id": "940GZZLUQPS",
+      "lat": 51.534158,
+      "lon": -0.204574,
+      "modes": [
+        "tube"
+      ],
+      "name": "Queen's Park Underground Station"
+    },
+    {
+      "id": "940GZZLUQWY",
+      "lat": 51.510312,
+      "lon": -0.187152,
+      "modes": [
+        "tube"
+      ],
+      "name": "Queensway Underground Station"
+    },
+    {
+      "id": "940GZZLURBG",
+      "lat": 51.576243,
+      "lon": 0.04536,
+      "modes": [
+        "tube"
+      ],
+      "name": "Redbridge Underground Station"
+    },
+    {
+      "id": "940GZZLURGP",
+      "lat": 51.523344,
+      "lon": -0.146444,
+      "modes": [
+        "tube"
+      ],
+      "name": "Regent's Park Underground Station"
+    },
+    {
+      "id": "940GZZLURMD",
+      "lat": 51.463237,
+      "lon": -0.301336,
+      "modes": [
+        "tube"
+      ],
+      "name": "Richmond Underground Station"
+    },
+    {
+      "id": "940GZZLURSG",
+      "lat": 51.560736,
+      "lon": -0.41071,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ruislip Gardens Underground Station"
+    },
+    {
+      "id": "940GZZLURSM",
+      "lat": 51.573202,
+      "lon": -0.412973,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ruislip Manor Underground Station"
+    },
+    {
+      "id": "940GZZLURSQ",
+      "lat": 51.523073,
+      "lon": -0.124285,
+      "modes": [
+        "tube"
+      ],
+      "name": "Russell Square Underground Station"
+    },
+    {
+      "id": "940GZZLURVP",
+      "lat": 51.494122,
+      "lon": -0.235881,
+      "modes": [
+        "tube"
+      ],
+      "name": "Ravenscourt Park Underground Station"
+    },
+    {
+      "id": "940GZZLURVY",
+      "lat": 51.617199,
+      "lon": 0.043647,
+      "modes": [
+        "tube"
+      ],
+      "name": "Roding Valley Underground Station"
+    },
+    {
+      "id": "940GZZLURYL",
+      "lat": 51.575147,
+      "lon": -0.371127,
+      "modes": [
+        "tube"
+      ],
+      "name": "Rayners Lane Underground Station"
+    },
+    {
+      "id": "940GZZLURYO",
+      "lat": 51.519113,
+      "lon": -0.188748,
+      "modes": [
+        "tube"
+      ],
+      "name": "Royal Oak Underground Station"
+    },
+    {
+      "id": "940GZZLUSBC",
+      "lat": 51.504376,
+      "lon": -0.218813,
+      "modes": [
+        "tube"
+      ],
+      "name": "Shepherd's Bush (Central) Underground Station"
+    },
+    {
+      "id": "940GZZLUSBM",
+      "lat": 51.505579,
+      "lon": -0.226375,
+      "modes": [
+        "tube"
+      ],
+      "name": "Shepherd's Bush Market Underground Station"
+    },
+    {
+      "id": "940GZZLUSEA",
+      "lat": 51.501003,
+      "lon": -0.307424,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Ealing Underground Station"
+    },
+    {
+      "id": "940GZZLUSFB",
+      "lat": 51.494917,
+      "lon": -0.245704,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stamford Brook Underground Station"
+    },
+    {
+      "id": "940GZZLUSFS",
+      "lat": 51.445073,
+      "lon": -0.206602,
+      "modes": [
+        "tube"
+      ],
+      "name": "Southfields Underground Station"
+    },
+    {
+      "id": "940GZZLUSGN",
+      "lat": 51.521858,
+      "lon": -0.046596,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stepney Green Underground Station"
+    },
+    {
+      "id": "940GZZLUSGP",
+      "lat": 51.543959,
+      "lon": -0.275892,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stonebridge Park Underground Station"
+    },
+    {
+      "id": "940GZZLUSGT",
+      "lat": 51.632315,
+      "lon": -0.127816,
+      "modes": [
+        "tube"
+      ],
+      "name": "Southgate Underground Station"
+    },
+    {
+      "id": "940GZZLUSHH",
+      "lat": 51.564888,
+      "lon": -0.352492,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Harrow Underground Station"
+    },
+    {
+      "id": "940GZZLUSJP",
+      "lat": 51.499544,
+      "lon": -0.133608,
+      "modes": [
+        "tube"
+      ],
+      "name": "St. James's Park Underground Station"
+    },
+    {
+      "id": "940GZZLUSJW",
+      "lat": 51.534521,
+      "lon": -0.173948,
+      "modes": [
+        "tube"
+      ],
+      "name": "St. John's Wood Underground Station"
+    },
+    {
+      "id": "940GZZLUSKS",
+      "lat": 51.494094,
+      "lon": -0.174138,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Kensington Underground Station"
+    },
+    {
+      "id": "940GZZLUSKT",
+      "lat": 51.570232,
+      "lon": -0.308433,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Kenton Underground Station"
+    },
+    {
+      "id": "940GZZLUSKW",
+      "lat": 51.472184,
+      "lon": -0.122644,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stockwell Underground Station"
+    },
+    {
+      "id": "940GZZLUSNB",
+      "lat": 51.580678,
+      "lon": 0.02144,
+      "modes": [
+        "tube"
+      ],
+      "name": "Snaresbrook Underground Station"
+    },
+    {
+      "id": "940GZZLUSPU",
+      "lat": 51.514936,
+      "lon": -0.097567,
+      "modes": [
+        "tube"
+      ],
+      "name": "St. Paul's Underground Station"
+    },
+    {
+      "id": "940GZZLUSRP",
+      "lat": 51.556853,
+      "lon": -0.398915,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Ruislip Underground Station"
+    },
+    {
+      "id": "940GZZLUSSQ",
+      "lat": 51.49227,
+      "lon": -0.156377,
+      "modes": [
+        "tube"
+      ],
+      "name": "Sloane Square Underground Station"
+    },
+    {
+      "id": "940GZZLUSTD",
+      "lat": 51.541806,
+      "lon": -0.003458,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stratford Underground Station"
+    },
+    {
+      "id": "940GZZLUSTM",
+      "lat": 51.619839,
+      "lon": -0.303266,
+      "modes": [
+        "tube"
+      ],
+      "name": "Stanmore Underground Station"
+    },
+    {
+      "id": "940GZZLUSUH",
+      "lat": 51.556946,
+      "lon": -0.336435,
+      "modes": [
+        "tube"
+      ],
+      "name": "Sudbury Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUSUT",
+      "lat": 51.550815,
+      "lon": -0.315745,
+      "modes": [
+        "tube"
+      ],
+      "name": "Sudbury Town Underground Station"
+    },
+    {
+      "id": "940GZZLUSVS",
+      "lat": 51.58333,
+      "lon": -0.072584,
+      "modes": [
+        "tube"
+      ],
+      "name": "Seven Sisters Underground Station"
+    },
+    {
+      "id": "940GZZLUSWC",
+      "lat": 51.543681,
+      "lon": -0.174894,
+      "modes": [
+        "tube"
+      ],
+      "name": "Swiss Cottage Underground Station"
+    },
+    {
+      "id": "940GZZLUSWF",
+      "lat": 51.591907,
+      "lon": 0.027338,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Woodford Underground Station"
+    },
+    {
+      "id": "940GZZLUSWK",
+      "lat": 51.50427,
+      "lon": -0.105331,
+      "modes": [
+        "tube"
+      ],
+      "name": "Southwark Underground Station"
+    },
+    {
+      "id": "940GZZLUSWN",
+      "lat": 51.415309,
+      "lon": -0.192005,
+      "modes": [
+        "tube"
+      ],
+      "name": "South Wimbledon Underground Station"
+    },
+    {
+      "id": "940GZZLUTAW",
+      "lat": 51.630597,
+      "lon": -0.17921,
+      "modes": [
+        "tube"
+      ],
+      "name": "Totteridge & Whetstone Underground Station"
+    },
+    {
+      "id": "940GZZLUTBC",
+      "lat": 51.435678,
+      "lon": -0.159736,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tooting Bec Underground Station"
+    },
+    {
+      "id": "940GZZLUTBY",
+      "lat": 51.42763,
+      "lon": -0.168374,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tooting Broadway Underground Station"
+    },
+    {
+      "id": "940GZZLUTCR",
+      "lat": 51.516426,
+      "lon": -0.13041,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tottenham Court Road Underground Station"
+    },
+    {
+      "id": "940GZZLUTFP",
+      "lat": 51.556822,
+      "lon": -0.138433,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tufnell Park Underground Station"
+    },
+    {
+      "id": "940GZZLUTMH",
+      "lat": 51.588108,
+      "lon": -0.060241,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tottenham Hale Underground Station"
+    },
+    {
+      "id": "940GZZLUTMP",
+      "lat": 51.511006,
+      "lon": -0.11426,
+      "modes": [
+        "tube"
+      ],
+      "name": "Temple Underground Station"
+    },
+    {
+      "id": "940GZZLUTNG",
+      "lat": 51.495148,
+      "lon": -0.254555,
+      "modes": [
+        "tube"
+      ],
+      "name": "Turnham Green Underground Station"
+    },
+    {
+      "id": "940GZZLUTPN",
+      "lat": 51.590272,
+      "lon": -0.102953,
+      "modes": [
+        "tube"
+      ],
+      "name": "Turnpike Lane Underground Station"
+    },
+    {
+      "id": "940GZZLUTWH",
+      "lat": 51.509971,
+      "lon": -0.076546,
+      "modes": [
+        "tube"
+      ],
+      "name": "Tower Hill Underground Station"
+    },
+    {
+      "id": "940GZZLUUPK",
+      "lat": 51.53534,
+      "lon": 0.035263,
+      "modes": [
+        "tube"
+      ],
+      "name": "Upton Park Underground Station"
+    },
+    {
+      "id": "940GZZLUUPY",
+      "lat": 51.538372,
+      "lon": 0.10153,
+      "modes": [
+        "tube"
+      ],
+      "name": "Upney Underground Station"
+    },
+    {
+      "id": "940GZZLUVIC",
+      "lat": 51.496359,
+      "lon": -0.143102,
+      "modes": [
+        "tube"
+      ],
+      "name": "Victoria Underground Station"
+    },
+    {
+      "id": "940GZZLUVXL",
+      "lat": 51.485743,
+      "lon": -0.124204,
+      "modes": [
+        "tube"
+      ],
+      "name": "Vauxhall Underground Station"
+    },
+    {
+      "id": "940GZZLUWBN",
+      "lat": 51.487268,
+      "lon": -0.195599,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Brompton Underground Station"
+    },
+    {
+      "id": "940GZZLUWCY",
+      "lat": 51.511959,
+      "lon": -0.224297,
+      "modes": [
+        "tube"
+      ],
+      "name": "White City Underground Station"
+    },
+    {
+      "id": "940GZZLUWFN",
+      "lat": 51.609426,
+      "lon": -0.188362,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Finchley Underground Station"
+    },
+    {
+      "id": "940GZZLUWHM",
+      "lat": 51.528136,
+      "lon": 0.005055,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Ham Underground Station"
+    },
+    {
+      "id": "940GZZLUWHP",
+      "lat": 51.546638,
+      "lon": -0.191059,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Hampstead Underground Station"
+    },
+    {
+      "id": "940GZZLUWHW",
+      "lat": 51.57971,
+      "lon": -0.3534,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Harrow Underground Station"
+    },
+    {
+      "id": "940GZZLUWIG",
+      "lat": 51.549146,
+      "lon": -0.221537,
+      "modes": [
+        "tube"
+      ],
+      "name": "Willesden Green Underground Station"
+    },
+    {
+      "id": "940GZZLUWIM",
+      "lat": 51.421207,
+      "lon": -0.206573,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wimbledon Underground Station"
+    },
+    {
+      "id": "940GZZLUWIP",
+      "lat": 51.434573,
+      "lon": -0.199719,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wimbledon Park Underground Station"
+    },
+    {
+      "id": "940GZZLUWJN",
+      "lat": 51.532259,
+      "lon": -0.244283,
+      "modes": [
+        "tube"
+      ],
+      "name": "Willesden Junction Underground Station"
+    },
+    {
+      "id": "940GZZLUWKA",
+      "lat": 51.523263,
+      "lon": -0.183783,
+      "modes": [
+        "tube"
+      ],
+      "name": "Warwick Avenue Underground Station"
+    },
+    {
+      "id": "940GZZLUWKN",
+      "lat": 51.490459,
+      "lon": -0.206636,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Kensington Underground Station"
+    },
+    {
+      "id": "940GZZLUWLA",
+      "lat": 51.509669,
+      "lon": -0.22453,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wood Lane Underground Station"
+    },
+    {
+      "id": "940GZZLUWLO",
+      "lat": 51.503299,
+      "lon": -0.11478,
+      "modes": [
+        "tube"
+      ],
+      "name": "Waterloo Underground Station"
+    },
+    {
+      "id": "940GZZLUWOF",
+      "lat": 51.606899,
+      "lon": 0.03397,
+      "modes": [
+        "tube"
+      ],
+      "name": "Woodford Underground Station"
+    },
+    {
+      "id": "940GZZLUWOG",
+      "lat": 51.597479,
+      "lon": -0.109886,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wood Green Underground Station"
+    },
+    {
+      "id": "940GZZLUWOP",
+      "lat": 51.618014,
+      "lon": -0.18542,
+      "modes": [
+        "tube"
+      ],
+      "name": "Woodside Park Underground Station"
+    },
+    {
+      "id": "940GZZLUWPL",
+      "lat": 51.519518,
+      "lon": -0.059971,
+      "modes": [
+        "tube"
+      ],
+      "name": "Whitechapel Underground Station"
+    },
+    {
+      "id": "940GZZLUWRR",
+      "lat": 51.524951,
+      "lon": -0.138321,
+      "modes": [
+        "tube"
+      ],
+      "name": "Warren Street Underground Station"
+    },
+    {
+      "id": "940GZZLUWSD",
+      "lat": 51.575501,
+      "lon": 0.028527,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wanstead Underground Station"
+    },
+    {
+      "id": "940GZZLUWSM",
+      "lat": 51.50132,
+      "lon": -0.124861,
+      "modes": [
+        "tube"
+      ],
+      "name": "Westminster Underground Station"
+    },
+    {
+      "id": "940GZZLUWSP",
+      "lat": 51.52111,
+      "lon": -0.201065,
+      "modes": [
+        "tube"
+      ],
+      "name": "Westbourne Park Underground Station"
+    },
+    {
+      "id": "940GZZLUWTA",
+      "lat": 51.518001,
+      "lon": -0.28098,
+      "modes": [
+        "tube"
+      ],
+      "name": "West Acton Underground Station"
+    },
+    {
+      "id": "940GZZLUWWL",
+      "lat": 51.582965,
+      "lon": -0.019885,
+      "modes": [
+        "tube"
+      ],
+      "name": "Walthamstow Central Underground Station"
+    },
+    {
+      "id": "940GZZLUWYC",
+      "lat": 51.552304,
+      "lon": -0.296852,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wembley Central Underground Station"
+    },
+    {
+      "id": "940GZZLUWYP",
+      "lat": 51.563198,
+      "lon": -0.279262,
+      "modes": [
+        "tube"
+      ],
+      "name": "Wembley Park Underground Station"
+    },
+    {
+      "id": "940GZZNEUGST",
+      "lat": 51.479912,
+      "lon": -0.128476,
+      "modes": [
+        "tube"
+      ],
+      "name": "Nine Elms Underground Station"
+    },
+    {
+      "id": "HUBABW",
+      "lat": 51.491247,
+      "lon": 0.121057,
+      "modes": [
+        "elizabeth-line",
+        "national-rail"
+      ],
+      "name": "Abbey Wood"
+    },
+    {
+      "id": "HUBBAL",
+      "lat": 51.443259,
+      "lon": -0.152707,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Balham"
+    },
+    {
+      "id": "HUBBAN",
+      "lat": 51.513395,
+      "lon": -0.089095,
+      "modes": [
+        "dlr",
+        "tube"
+      ],
+      "name": "Bank"
+    },
+    {
+      "id": "HUBBDS",
+      "lat": 51.513362,
+      "lon": -0.148795,
+      "modes": [
+        "elizabeth-line",
+        "tube"
+      ],
+      "name": "Bond Street"
+    },
+    {
+      "id": "HUBBFR",
+      "lat": 51.509613,
+      "lon": -0.104166,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Blackfriars"
+    },
+    {
+      "id": "HUBBHO",
+      "lat": 51.586768,
+      "lon": -0.041185,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Blackhorse Road"
+    },
+    {
+      "id": "HUBBKG",
+      "lat": 51.539413,
+      "lon": 0.080988,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Barking"
+    },
+    {
+      "id": "HUBBRX",
+      "lat": 51.462961,
+      "lon": -0.114531,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Brixton"
+    },
+    {
+      "id": "HUBCAN",
+      "lat": 51.514029,
+      "lon": 0.008025,
+      "modes": [
+        "dlr",
+        "tube"
+      ],
+      "name": "Canning Town"
+    },
+    {
+      "id": "HUBCAW",
+      "lat": 51.503734,
+      "lon": -0.019121,
+      "modes": [
+        "dlr",
+        "elizabeth-line",
+        "tube"
+      ],
+      "name": "Canary Wharf"
+    },
+    {
+      "id": "HUBCHX",
+      "lat": 51.507819,
+      "lon": -0.126137,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Charing Cross"
+    },
+    {
+      "id": "HUBCLJ",
+      "lat": 51.463724,
+      "lon": -0.168997,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Clapham Junction"
+    },
+    {
+      "id": "HUBCST",
+      "lat": 51.511451,
+      "lon": -0.090357,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Cannon Street"
+    },
+    {
+      "id": "HUBCUS",
+      "lat": 51.518757,
+      "lon": 0.027418,
+      "modes": [
+        "dlr",
+        "elizabeth-line"
+      ],
+      "name": "Custom House"
+    },
+    {
+      "id": "HUBCUT",
+      "lat": 51.481675,
+      "lon": -0.010802,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Cutty Sark"
+    },
+    {
+      "id": "HUBCYP",
+      "lat": 51.418111,
+      "lon": -0.072605,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Crystal Palace"
+    },
+    {
+      "id": "HUBEAL",
+      "lat": 51.514993,
+      "lon": -0.302131,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "tube"
+      ],
+      "name": "Ealing Broadway"
+    },
+    {
+      "id": "HUBEPH",
+      "lat": 51.494505,
+      "lon": -0.099185,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Elephant & Castle"
+    },
+    {
+      "id": "HUBEUS",
+      "lat": 51.527365,
+      "lon": -0.132754,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Euston"
+    },
+    {
+      "id": "HUBFPK",
+      "lat": 51.564778,
+      "lon": -0.105876,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Finsbury Park"
+    },
+    {
+      "id": "HUBGFD",
+      "lat": 51.542657,
+      "lon": -0.345789,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Greenford"
+    },
+    {
+      "id": "HUBGNW",
+      "lat": 51.478235,
+      "lon": -0.014096,
+      "modes": [
+        "dlr",
+        "national-rail"
+      ],
+      "name": "Greenwich"
+    },
+    {
+      "id": "HUBGUN",
+      "lat": 51.491745,
+      "lon": -0.275276,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Gunnersbury"
+    },
+    {
+      "id": "HUBHDN",
+      "lat": 51.536305,
+      "lon": -0.257774,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Harlesden"
+    },
+    {
+      "id": "HUBHHY",
+      "lat": 51.546269,
+      "lon": -0.103538,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Highbury & Islington"
+    },
+    {
+      "id": "HUBHMS",
+      "lat": 51.492304,
+      "lon": -0.223619,
+      "modes": [
+        "tube"
+      ],
+      "name": "Hammersmith"
+    },
+    {
+      "id": "HUBHOH",
+      "lat": 51.579197,
+      "lon": -0.337226,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Harrow-on-the-Hill"
+    },
+    {
+      "id": "HUBHRW",
+      "lat": 51.592216,
+      "lon": -0.334896,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Harrow & Wealdstone"
+    },
+    {
+      "id": "HUBIMP",
+      "lat": 51.47555,
+      "lon": -0.183084,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Imperial Wharf"
+    },
+    {
+      "id": "HUBKGX",
+      "lat": 51.531683,
+      "lon": -0.123538,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "King's Cross & St Pancras International"
+    },
+    {
+      "id": "HUBKNL",
+      "lat": 51.530545,
+      "lon": -0.22505,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Kensal Green"
+    },
+    {
+      "id": "HUBKNT",
+      "lat": 51.581786,
+      "lon": -0.316946,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Kenton"
+    },
+    {
+      "id": "HUBKPA",
+      "lat": 51.496156,
+      "lon": -0.210502,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Kensington (Olympia)"
+    },
+    {
+      "id": "HUBKTN",
+      "lat": 51.550409,
+      "lon": -0.140545,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Kentish Town"
+    },
+    {
+      "id": "HUBKWG",
+      "lat": 51.477069,
+      "lon": -0.285148,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Kew Gardens"
+    },
+    {
+      "id": "HUBLBG",
+      "lat": 51.505881,
+      "lon": -0.086807,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "London Bridge"
+    },
+    {
+      "id": "HUBLCY",
+      "lat": 51.503419,
+      "lon": 0.048749,
+      "modes": [
+        "dlr"
+      ],
+      "name": "London City Airport"
+    },
+    {
+      "id": "HUBLEW",
+      "lat": 51.465081,
+      "lon": -0.013016,
+      "modes": [
+        "dlr",
+        "national-rail"
+      ],
+      "name": "Lewisham"
+    },
+    {
+      "id": "HUBLHS",
+      "lat": 51.512469,
+      "lon": -0.039799,
+      "modes": [
+        "dlr",
+        "national-rail"
+      ],
+      "name": "Limehouse"
+    },
+    {
+      "id": "HUBLST",
+      "lat": 51.51794,
+      "lon": -0.083162,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Liverpool Street"
+    },
+    {
+      "id": "HUBMYB",
+      "lat": 51.521602,
+      "lon": -0.163013,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Marylebone"
+    },
+    {
+      "id": "HUBNGW",
+      "lat": 51.500474,
+      "lon": 0.004295,
+      "modes": [
+        "tube"
+      ],
+      "name": "North Greenwich"
+    },
+    {
+      "id": "HUBNWB",
+      "lat": 51.56258,
+      "lon": -0.303992,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "North Wembley"
+    },
+    {
+      "id": "HUBNWD",
+      "lat": 51.39702,
+      "lon": -0.075216,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Norwood Junction"
+    },
+    {
+      "id": "HUBNWX",
+      "lat": 51.476347,
+      "lon": -0.032427,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "New Cross"
+    },
+    {
+      "id": "HUBNXG",
+      "lat": 51.475132,
+      "lon": -0.040399,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "New Cross Gate"
+    },
+    {
+      "id": "HUBOLD",
+      "lat": 51.526065,
+      "lon": -0.088193,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Old Street"
+    },
+    {
+      "id": "HUBPAD",
+      "lat": 51.516981,
+      "lon": -0.17616,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "tube"
+      ],
+      "name": "Paddington"
+    },
+    {
+      "id": "HUBQPW",
+      "lat": 51.534443,
+      "lon": -0.204882,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Queen's Park"
+    },
+    {
+      "id": "HUBRMD",
+      "lat": 51.463152,
+      "lon": -0.301448,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Richmond"
+    },
+    {
+      "id": "HUBRVC",
+      "lat": 51.50934,
+      "lon": 0.018505,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Royal Victoria"
+    },
+    {
+      "id": "HUBSBP",
+      "lat": 51.544041,
+      "lon": -0.275859,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Stonebridge Park"
+    },
+    {
+      "id": "HUBSDE",
+      "lat": 51.511492,
+      "lon": -0.056782,
+      "modes": [
+        "dlr",
+        "overground"
+      ],
+      "name": "Shadwell"
+    },
+    {
+      "id": "HUBSOK",
+      "lat": 51.570229,
+      "lon": -0.308448,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "South Kenton"
+    },
+    {
+      "id": "HUBSPB",
+      "lat": 51.504791,
+      "lon": -0.219213,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Shepherd's Bush"
+    },
+    {
+      "id": "HUBSRA",
+      "lat": 51.541508,
+      "lon": -0.00241,
+      "modes": [
+        "dlr",
+        "elizabeth-line",
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Stratford"
+    },
+    {
+      "id": "HUBSRU",
+      "lat": 51.556893,
+      "lon": -0.399076,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "South Ruislip"
+    },
+    {
+      "id": "HUBSVS",
+      "lat": 51.582931,
+      "lon": -0.073306,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Seven Sisters"
+    },
+    {
+      "id": "HUBSYD",
+      "lat": 51.427375,
+      "lon": -0.055268,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "Sydenham"
+    },
+    {
+      "id": "HUBTCR",
+      "lat": 51.516018,
+      "lon": -0.130888,
+      "modes": [
+        "elizabeth-line",
+        "tube"
+      ],
+      "name": "Tottenham Court Road"
+    },
+    {
+      "id": "HUBTOG",
+      "lat": 51.510621,
+      "lon": -0.074813,
+      "modes": [
+        "dlr"
+      ],
+      "name": "Tower Gateway"
+    },
+    {
+      "id": "HUBTOM",
+      "lat": 51.588315,
+      "lon": -0.06024,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Tottenham Hale"
+    },
+    {
+      "id": "HUBVIC",
+      "lat": 51.495812,
+      "lon": -0.143826,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Victoria"
+    },
+    {
+      "id": "HUBVXH",
+      "lat": 51.485739,
+      "lon": -0.123303,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Vauxhall"
+    },
+    {
+      "id": "HUBWAT",
+      "lat": 51.504269,
+      "lon": -0.113356,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Waterloo"
+    },
+    {
+      "id": "HUBWBP",
+      "lat": 51.487168,
+      "lon": -0.195593,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "West Brompton"
+    },
+    {
+      "id": "HUBWCY",
+      "lat": 51.378786,
+      "lon": -0.101939,
+      "modes": [
+        "national-rail",
+        "overground"
+      ],
+      "name": "West Croydon"
+    },
+    {
+      "id": "HUBWEH",
+      "lat": 51.528178,
+      "lon": 0.004997,
+      "modes": [
+        "dlr",
+        "national-rail",
+        "tube"
+      ],
+      "name": "West Ham"
+    },
+    {
+      "id": "HUBWHC",
+      "lat": 51.582948,
+      "lon": -0.019842,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Walthamstow Central"
+    },
+    {
+      "id": "HUBWHD",
+      "lat": 51.547533,
+      "lon": -0.191357,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "West Hampstead"
+    },
+    {
+      "id": "HUBWIJ",
+      "lat": 51.532556,
+      "lon": -0.243006,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Willesden Junction"
+    },
+    {
+      "id": "HUBWIM",
+      "lat": 51.421505,
+      "lon": -0.206444,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Wimbledon"
+    },
+    {
+      "id": "HUBWMB",
+      "lat": 51.55232,
+      "lon": -0.296642,
+      "modes": [
+        "national-rail",
+        "overground",
+        "tube"
+      ],
+      "name": "Wembley Central"
+    },
+    {
+      "id": "HUBWSM",
+      "lat": 51.501603,
+      "lon": -0.125984,
+      "modes": [
+        "tube"
+      ],
+      "name": "Westminster"
+    },
+    {
+      "id": "HUBWWA",
+      "lat": 51.489962,
+      "lon": 0.06917,
+      "modes": [
+        "dlr",
+        "national-rail"
+      ],
+      "name": "Woolwich Arsenal"
+    },
+    {
+      "id": "HUBZCW",
+      "lat": 51.498053,
+      "lon": -0.049667,
+      "modes": [
+        "overground",
+        "tube"
+      ],
+      "name": "Canada Water"
+    },
+    {
+      "id": "HUBZFD",
+      "lat": 51.520214,
+      "lon": -0.105054,
+      "modes": [
+        "elizabeth-line",
+        "national-rail",
+        "tube"
+      ],
+      "name": "Farringdon"
+    },
+    {
+      "id": "HUBZMG",
+      "lat": 51.518338,
+      "lon": -0.088627,
+      "modes": [
+        "national-rail",
+        "tube"
+      ],
+      "name": "Moorgate"
+    },
+    {
+      "id": "HUBZWL",
+      "lat": 51.519498,
+      "lon": -0.059858,
+      "modes": [
+        "elizabeth-line",
+        "overground",
+        "tube"
+      ],
+      "name": "Whitechapel"
+    }
+  ],
+  "time": "0830",
+  "time_is": "Departing",
+  "travel_date": "20261111",
+  "updated_at": "2026-11-10T08:51:23.274489+00:00"
+}

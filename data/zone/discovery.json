@@ -1,0 +1,6 @@
+{
+  "calls": 6,
+  "failed": 2,
+  "notes": "One call each for tube, dlr, overground and elizabeth-line. National-rail timed out twice at 40 seconds. Tube probe reused, not fetched again. Raw mode responses are local uncommitted resume files.",
+  "source": "https://api.tfl.gov.uk/StopPoint/Mode/<mode>"
+}

@@ -1,0 +1,39 @@
+{
+  "tube": {
+    "total": 5,
+    "stopPoints": [
+      {"id": "entrance-1", "stationNaptan": "station-a", "commonName": "Alpha Underground Station", "lat": 51.5001, "lon": -0.1001, "modes": ["tube"]},
+      {"id": "platform-1", "stationNaptan": "station-a", "commonName": "Alpha Platform 1", "lat": 51.4999, "lon": -0.0999, "modes": ["tube"]},
+      {"id": "station-a", "stationNaptan": "station-a", "commonName": "Alpha Underground Station", "lat": 51.5, "lon": -0.1, "modes": ["tube"]},
+      {"id": "station-b", "stationNaptan": "station-b", "commonName": "Beta Underground Station", "lat": 51.51, "lon": -0.1, "modes": ["tube"]},
+      {"id": "invalid", "stationNaptan": "invalid", "commonName": "Missing position", "modes": ["tube"]}
+    ]
+  },
+  "dlr": {
+    "total": 1,
+    "stopPoints": [
+      {"id": "dlr-entrance", "stationNaptan": "station-a", "commonName": "Alpha DLR Station", "lat": 51.5002, "lon": -0.1002, "modes": ["dlr", "bus"]}
+    ]
+  },
+  "overground": {
+    "total": 1,
+    "stopPoints": [
+      {"id": "station-c", "stationNaptan": "station-c", "commonName": "Gamma Rail Station", "lat": 51.52, "lon": -0.09, "modes": ["overground"]}
+    ]
+  },
+  "elizabeth-line": {
+    "total": 2,
+    "stopPoints": [
+      {"id": "delta-1", "stationNaptan": "station-d", "commonName": "Delta Station", "lat": 51.53, "lon": -0.08, "modes": ["elizabeth-line"]},
+      {"id": "delta-2", "stationNaptan": "station-d", "commonName": "Delta Station", "lat": 51.531, "lon": -0.081, "modes": ["elizabeth-line"]}
+    ]
+  },
+  "national-rail": {
+    "total": 3,
+    "stopPoints": [
+      {"id": "station-e", "commonName": "Epsilon Rail Station", "lat": 51.49, "lon": -0.11, "modes": ["national-rail"]},
+      {"id": "far-away", "commonName": "Outside London Rail Station", "lat": 53.0, "lon": -1.0, "modes": ["national-rail"]},
+      {"id": "west-of-box", "commonName": "Outside Box Rail Station", "lat": 51.5, "lon": -0.6, "modes": ["national-rail"]}
+    ]
+  }
+}
