@@ -579,9 +579,12 @@ class StorageTests(OptionalBase):
         self.assertEqual(store.read_primary("SELECT v FROM probe"), [])
         # a runaway read is cut by the deadline
         start = time.monotonic()
-        self.assertEqual(store.read_primary("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < 500000000) "
-                                            "SELECT count(*) AS n FROM c"), [])
+        with self.assertLogs("pisobot.optional.store", level="WARNING") as logs:
+            self.assertEqual(store.read_primary("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < 500000000) "
+                                                "SELECT count(*) AS n FROM c"), [])
         self.assertLess(time.monotonic() - start, store.READ_SECONDS + 2.0)
+        self.assertEqual(store.last_primary_error[0], "query interrupted")
+        self.assertIn("bounded primary read did not complete", "\n".join(logs.output))
 
     def test_a_read_does_not_pin_the_primary_wal(self):
         primary = self.primary()
@@ -731,6 +734,24 @@ class RunnerTests(OptionalBase):
                 patch.object(step, "limit_resources", return_value="test"), patch("signal.alarm"), patch.object(threading.Thread, "start"):
             self.assertEqual(step.main(), 0)
         self.assertEqual(held, [True])
+
+    def test_child_gives_has_work_the_remaining_budget_and_logs_a_timeout(self):
+        from pisobot.optional import step
+        bounds = []
+
+        def timed_out(fn, seconds):
+            bounds.append(seconds)
+            return False, None
+
+        with patch.dict(os.environ, {"STORAGE": "local"}), \
+                patch.object(step, "load_features", return_value=[Feature()]), \
+                patch.object(step, "limit_resources", return_value="test"), patch("signal.alarm"), \
+                patch.object(threading.Thread, "start"), patch.object(step, "bounded", side_effect=timed_out), \
+                self.assertLogs("pisobot.optional.step", level="WARNING") as logs:
+            self.assertEqual(step.main(), 0)
+        self.assertEqual(len(bounds), 1)
+        self.assertGreater(bounds[0], 5)
+        self.assertIn("has_work failed or exceeded its time budget", "\n".join(logs.output))
 
     def test_a_second_child_exits_without_loading_anything(self):
         from pisobot.optional import step
@@ -1383,6 +1404,29 @@ step.resident_bytes = failing_monitor"""
         self.assertTrue(wait_for(lambda: kept.batches))
         self.assertTrue(wait_for(lambda: sum(optional.workers()[1].status()[k] for k in ("waiting", "inflight")) == len(kept.batches[0])))   # never in neither
         self.assertTrue(feature.batches)
+
+    def test_a_blocked_has_work_is_reported_as_stuck(self):
+        entered, release = threading.Event(), threading.Event()
+
+        class SlowHasWork:
+            def has_work(self):
+                entered.set()
+                release.wait(5)
+                return False
+
+            def step(self, deadline):
+                pass
+
+        worker = optional.Worker(FLAG, SlowHasWork)
+        worker.start()
+        self.assertTrue(entered.wait(5))
+        with patch.object(optional, "STUCK_SECONDS", 0.01):
+            time.sleep(0.02)
+            self.assertTrue(worker.status()["stuck"])
+        release.set()
+        worker.stop()
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
 
     # P3: publishing consumes no more than the cap, whatever it is handed
     def test_publishing_never_consumes_more_than_its_caps(self):

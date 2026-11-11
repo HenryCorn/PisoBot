@@ -205,8 +205,7 @@ class Worker(threading.Thread):
 
     def status(self):
         with self.lock:
-            waiting, inflight, failed = len(self.inbox), self.inflight, self.failed
-        busy = self.busy_since
+            waiting, inflight, failed, busy = len(self.inbox), self.inflight, self.failed, self.busy_since
         return {"flag": self.flag, "loaded": self.feature is not None, "failed": failed, "waiting": waiting,
                 "inflight": inflight,                   # taken from the inbox, the feature has not settled them yet
                 "stuck": busy is not None and time.monotonic() - busy > STUCK_SECONDS}
@@ -238,10 +237,15 @@ class Worker(threading.Thread):
                 self.inflight = 0
 
     def _refresh(self):
+        with self.lock:
+            self.busy_since = time.monotonic()
         try:
             self.work = bool(self.feature.has_work()) if hasattr(self.feature, "step") else False
         except Exception:
             self.work = False
+        finally:
+            with self.lock:
+                self.busy_since = None
 
     def _take(self):
         now = time.time()
@@ -259,15 +263,17 @@ class Worker(threading.Thread):
 
     def _deliver(self, entries):
         items = tuple(e[0] for e in entries)
-        self.inflight = len(items)
-        self.busy_since = time.monotonic()
+        with self.lock:
+            self.inflight = len(items)
+            self.busy_since = time.monotonic()
         try:
             result = self.feature.after_cycle(items)
             ok = True
         except Exception:
             result, ok = None, False
         finally:
-            self.busy_since = None
+            with self.lock:
+                self.busy_since = None
         try:
             if ok and result is True:
                 keep = {e[0].seq for e in entries}

@@ -16,6 +16,7 @@ What this module guarantees, and what it does not:
 Importing this module does no work.
 """
 import contextlib
+import logging
 import os
 import sqlite3
 import time
@@ -29,6 +30,8 @@ TX_SECONDS = 0.5
 READ_SECONDS = 0.5
 MAX_STATEMENTS = 200
 MAX_ROWS = 5000
+log = logging.getLogger(__name__)
+last_primary_error = [""]
 
 _ALLOWED_WRITE = {sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE, sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ,
                   sqlite3.SQLITE_FUNCTION, sqlite3.SQLITE_CREATE_TABLE, sqlite3.SQLITE_CREATE_INDEX, sqlite3.SQLITE_CREATE_VIEW,
@@ -208,8 +211,10 @@ def read(sql, params=()):
 
 def read_primary(sql, params=(), person=None):
     """Rows (as dicts) from the primary database, or from `person`'s database (a chat id): one SELECT, read-only, authorized for SELECT
-    only, at most MAX_ROWS rows, a statement deadline, and the snapshot is closed before returning. [] on any error or a missing file.
-    There is no write counterpart."""
+    only, at most MAX_ROWS rows, a statement deadline, and the snapshot is closed before returning. [] on any error or a missing file;
+    failures are available in last_primary_error, and SQLite timeouts are logged without exposing query or row data. There is no write
+    counterpart."""
+    last_primary_error[0] = ""
     try:
         from .. import localdb, users
         if person is None:
@@ -220,5 +225,11 @@ def read_primary(sql, params=(), person=None):
         if not os.path.exists(target):
             return []
         return _read(target, sql, params)
-    except Exception:
+    except Exception as ex:
+        message = str(ex).lower()
+        if isinstance(ex, sqlite3.OperationalError) and ("interrupt" in message or "locked" in message or "busy" in message):
+            last_primary_error[0] = "query interrupted" if "interrupt" in message else "database busy"
+            log.warning("bounded primary read did not complete (%s)", last_primary_error[0])
+        else:
+            last_primary_error[0] = type(ex).__name__
         return []

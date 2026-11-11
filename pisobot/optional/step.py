@@ -128,9 +128,14 @@ def main():
         if left <= 0:
             break
         try:
-            ok, has = bounded(feature.has_work, min(left, 5))
-            if ok and has:
-                bounded(lambda f=feature: f.step(deadline), deadline - time.monotonic())
+            ok, has = bounded(feature.has_work, left)
+            if not ok:
+                log.warning("optional feature has_work failed or exceeded its time budget; step skipped")
+                continue
+            if has:
+                ok, _ = bounded(lambda f=feature: f.step(deadline), deadline - time.monotonic())
+                if not ok:
+                    log.warning("optional feature step failed or exceeded its time budget")
         except Exception as ex:
             log.warning("optional feature failed (%s)", type(ex).__name__)
     return 0
