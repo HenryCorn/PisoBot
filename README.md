@@ -155,6 +155,14 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
 
+## Optional: saved-flats dashboard
+
+On the local-storage VPS, set `DASHBOARD=1` to enable `/dashboard`; the HTML is built from
+read-only SQLite data in a worker and sent only to the requesting chat. For a local file, run
+`python -m pisobot.dashboard --person <chat-id> --out dashboard.html`. Availability uses a
+24-hour freshness window, then requires two complete sweeps to label a flat no longer available.
+The map uses OpenStreetMap tiles when online; the tile server sees the displayed map area.
+
 ## Optional: language-model reading of rental adverts
 
 `pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a

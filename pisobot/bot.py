@@ -23,7 +23,7 @@ import time
 
 import requests
 
-from . import archive, config, d1, net, renter, status as reports, tgtext, tracker, users
+from . import archive, config, d1, dashboard, net, renter, status as reports, tgtext, tracker, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
@@ -77,7 +77,8 @@ HELP = (
     "On rental cards (VPS): ✉️ Enquired starts tracking a home, ✍️ Enquiry text drafts a message "
     "for you to send yourself (PisoBot never contacts agents), 📷 More photos sends the rest.\n"
     "/cancel – stop waiting for a typed answer\n"
-    "/help – this message"
+    + ("/dashboard – send your saved-flats dashboard as HTML (VPS)\n" if dashboard.enabled() else "")
+    + "/help – this message"
 )
 SETTINGS_HELP = (
     "\n\n<b>Money</b>: <b>rent</b> is the hard limit on the advertised monthly rent. "
@@ -197,6 +198,26 @@ class TelegramClient:
         info = self.call("getWebhookInfo")
         if not isinstance(info, dict) or info.get("url") != "":
             raise TelegramError("Telegram webhook is not confirmed cleared")
+
+    def send_document(self, chat_id, content, filename):
+        """Upload a bounded generated file using an isolated HTTP session."""
+        try:
+            with requests.Session() as session:
+                response = session.post(
+                    f"https://api.telegram.org/bot{self._token}/sendDocument",
+                    data={"chat_id": chat_id},
+                    files={"document": (filename, content, "text/html")},
+                    timeout=35,
+                    verify=net.VERIFY,
+                )
+                result = response.json()
+        except Exception:
+            raise TelegramError("Telegram document request failed") from None
+        if (not 200 <= response.status_code < 300 or not isinstance(result, dict)
+                or result.get("ok") is not True):
+            raise TelegramError("Telegram document request was not accepted",
+                                permanent=response.status_code in (400, 403))
+        return result.get("result")
 
 
 def _own_chat(chat, chat_id):
@@ -581,6 +602,21 @@ class Handler:
                 self.reply(reports.status_text())
             else:
                 self.reply(reports.whatif_text(self.user or users.User(self.chat_id, owner=True)))
+            return
+        if command == "/dashboard" and dashboard.enabled():
+            if not users.enabled():
+                self.reply("This command is only available on the VPS bot.")
+            else:
+                try:
+                    accepted = dashboard.enqueue(self.client, self.chat, self.chat)
+                except Exception:
+                    LOG.warning("Dashboard request could not be queued")
+                    self.reply("⚠️ I couldn't queue the dashboard. Your saved homes and alerts are unchanged.")
+                    return
+                if accepted:
+                    self.reply("📊 Building your saved-flats dashboard. It will arrive as an HTML file.")
+                else:
+                    self.reply("📊 A dashboard is already being built. Please try again shortly.")
             return
         if command in ("/users", "/removeuser"):
             self.people(words)
