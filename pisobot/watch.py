@@ -115,6 +115,7 @@ class Watcher:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
+            timing.purge_expired()       # retention for alert-delay rows: independent of writes, bounded, never raises
             # Loop/source liveness is separate from lookup health. A successful heartbeat
             # must not hide an enrichment outage, including sweep-only inventory.
             retries = sum(archive.lookup_degraded(p.chat_id or users.owner_chat() or "owner",
@@ -145,15 +146,25 @@ class Watcher:
                 log.warning("Fast poll: %s failed (%s)", name, type(ex).__name__)
         return listings, failures
 
-    def fast_cycle(self, stop_event=None):
+    def fast_cycle(self, stop_event=None, deadline=None):
         """The fast head poll: page 1 of Rightmove and OnTheMarket for everyone, through the SAME per-person
         evaluation (pipeline._run) and the SAME durable delivery path as a full cycle, under the same run lock
         (so it can never overlap a full cycle or a sweep slice: both run inside cycle()). It only runs for a person
         whose quiet baseline is complete (never baselines on partial data), spends at most FAST_POLL_MAX_ALERTS
         alerts per person between two full cycles, writes no funnel record and never counts toward the failure
-        warning. Returns the number of alerts sent, or None when skipped."""
+        warning. It has a HARD DEADLINE (`deadline`, a time.monotonic() value: at most FAST_POLL_MAX_SECONDS from now, and
+        the caller passes the next full cycle's due time minus FAST_POLL_MARGIN_SECONDS): it is passed into the run, which
+        stops between adverts and lookups, leaving the rest (durable intents included) to the next poll or full cycle; it
+        also yields at once when a manual run is queued. Returns the number of alerts sent, or None when skipped."""
         if config.FAST_POLL_MINUTES <= 0:
             return None
+        hard = time.monotonic() + config.FAST_POLL_MAX_SECONDS
+        send_by = hard if deadline is None else min(deadline, hard)
+        deadline = send_by - min(config.FAST_POLL_SEND_RESERVE_SECONDS, (send_by - time.monotonic()) / 2)   # stop judging first
+
+        def clock():                 # a queued manual run makes the deadline pass at once: the poll yields to it
+            return float("inf") if not self.pending.empty() else time.monotonic()
+
         sources = [name for name in self.sources if hasattr(pipeline.SOURCES[name], "fetch_head")]
         if not sources:
             return None
@@ -163,19 +174,22 @@ class Watcher:
             except RuntimeError:
                 return None                          # another run holds the lock: skip, never wait
             people = users.everyone()
-            sent, token = 0, timing.VIA.set("fast")
+            sent, token, failed = 0, timing.VIA.set("fast"), False
             try:
                 for params, group in users.search_groups(people):
                     if stop_event is not None and stop_event.is_set():
                         raise InterruptedError("PisoBot is stopping")
+                    if clock() >= deadline:
+                        break
                     with users.criteria(params):
                         listings, failures = self._fetch_head(sources, stop_event)
+                    failed = failed or bool(failures)        # ANY failed fetch, in any group, counts for the backoff
                     if len(failures) == len(sources):
-                        self.fast_failures += 1
                         continue
-                    self.fast_failures = 0
                     pipeline.archive_adverts(listings)       # no requests: remembers what was fetched
                     for person in group:
+                        if clock() >= deadline:
+                            break
                         if not person.owner and users.get(person.chat_id) is None:
                             continue
                         try:
@@ -186,7 +200,8 @@ class Watcher:
                                     "remaining": config.FAST_POLL_MAX_ALERTS, "attempts": config.FAST_POLL_MAX_ALERTS})
                                 result = pipeline._run(sources, False, self.verbose, rentals=True, watch=True,
                                                        baseline=False, stop_event=stop_event,
-                                                       prefetched=(listings, failures), alert_budget=budget, fast=True)
+                                                       prefetched=(listings, failures), alert_budget=budget, fast=True,
+                                                       deadline=deadline, clock=clock, send_deadline=send_by)
                             sent += result.get("sent", 0)
                         except InterruptedError:
                             raise
@@ -194,15 +209,17 @@ class Watcher:
                             log.error("Fast poll failed for %s (%s)", person.label, type(ex).__name__)
             finally:
                 timing.VIA.reset(token)
+                # one verdict for the whole poll: a success elsewhere never erases a failure being throttled
+                self.fast_failures = min(self.fast_failures + 1, 10) if failed else 0
         return sent
 
     @staticmethod
     def due(now, next_cycle, next_fast):
         """What the idle loop should do at `now`: "full" when the full cycle is due, "fast" when only the fast
-        poll is due and a full cycle is not about to start (within a minute), else None."""
+        poll is due and the next full cycle is more than FAST_POLL_MARGIN_SECONDS away, else None."""
         if now >= next_cycle:
             return "full"
-        if next_fast is not None and now >= next_fast and next_cycle - now > 60:
+        if next_fast is not None and now >= next_fast and next_cycle - now > config.FAST_POLL_MARGIN_SECONDS:
             return "fast"
         return None
 
@@ -315,7 +332,9 @@ class Watcher:
                     if due != "full":
                         if due == "fast":
                             try:
-                                self.fast_cycle(stop_event)
+                                self.fast_cycle(stop_event, deadline=min(
+                                    time.monotonic() + config.FAST_POLL_MAX_SECONDS,
+                                    next_cycle - config.FAST_POLL_MARGIN_SECONDS))
                             except InterruptedError:
                                 if not stop_event.is_set():
                                     raise

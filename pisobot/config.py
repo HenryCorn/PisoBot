@@ -79,6 +79,9 @@ WATCH_FAILURE_LIMIT = _env("WATCH_FAILURE_LIMIT", 3, int)
 # OnTheMarket (newest first) through the normal per-person pipeline and durable delivery. 0 = off (default).
 FAST_POLL_MINUTES = _env("FAST_POLL_MINUTES", 0)
 FAST_POLL_MAX_ALERTS = _env("FAST_POLL_MAX_ALERTS", 10, int)   # per person, shared by all fast polls between two full cycles
+FAST_POLL_MAX_SECONDS = _env("FAST_POLL_MAX_SECONDS", 90)      # hard wall-clock cap on one fast poll (it stops between adverts)
+FAST_POLL_SEND_RESERVE_SECONDS = _env("FAST_POLL_SEND_RESERVE_SECONDS", 15)  # judging stops this long before the poll's hard end, so what was judged can be sent
+FAST_POLL_MARGIN_SECONDS = _env("FAST_POLL_MARGIN_SECONDS", 60)  # a fast poll must end this long before the next full cycle is due
 WATCH_SOURCES = os.environ.get("WATCH_SOURCES", "rm,otmr,orent")
 # VPS deep sweep (sweep.py): a full crawl of Rightmove and OnTheMarket lettings, sliced into price
 # bands, run in short resumable slices inside the watcher. DEEP_SWEEP_HOURS=0 disables it.

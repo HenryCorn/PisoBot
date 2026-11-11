@@ -28,16 +28,19 @@ class TimingTests(Base):
         l.source, l.first_listed_at = source, listed
         return l
 
+    def rec(self, listing, reason="new", via="head", sent_at=NOW, now=NOW):
+        return timing.write([timing.capture(listing, reason, via, sent_at)], now=now)
+
     def test_median_and_p90_per_source_over_seven_days(self):
         # five rm alerts with portal delays of 10, 20, 30, 40, 100 minutes and first-fetch delays of 1..5
         for i, delay in enumerate((10, 20, 30, 40, 100), 1):
             l = self.listing(i, listed=iso(delay))
-            with patch.object(timing, "_first_fetch", return_value=iso(i)):
-                timing.record_alert(OWNER, l, "new", "head", NOW)
-        timing.record_alert(OWNER, self.listing(9, "otmr"), "new", "fast", NOW)     # no portal timestamp
+            archive.upsert([l], "head", at=iso(i))
+            self.rec(l)
+        self.rec(self.listing(9, "otmr"), via="fast")                                   # no portal timestamp
         old = NOW - dt.timedelta(days=8)
-        timing.record_alert(OWNER, self.listing(10, listed=iso(5, old)), "new", "head", old)   # outside 7 days
-        timing.record_alert(OWNER, self.listing(11, listed=iso(5)), "drop", "head", NOW)      # not a new advert
+        self.rec(self.listing(10, listed=iso(5, old)), sent_at=old, now=old)           # outside 7 days
+        self.rec(self.listing(11, listed=iso(5)), reason="drop")                       # not a new advert
         r = timing.report(now=NOW)
         self.assertEqual(r["rm"]["alerts"], 5)
         self.assertEqual((r["rm"]["portal_median"], r["rm"]["portal_p90"], r["rm"]["portal_n"]), (30, 100, 5))
@@ -46,7 +49,7 @@ class TimingTests(Base):
         self.assertIsNone(r["otmr"]["portal_median"])
 
     def test_future_portal_timestamp_is_left_out(self):
-        timing.record_alert(OWNER, self.listing(1, listed=iso(-30)), "new", "head", NOW)
+        self.rec(self.listing(1, listed=iso(-30)))
         self.assertEqual(timing.report(now=NOW)["rm"]["portal_n"], 0)
 
     def test_nearest_rank_percentile(self):
@@ -57,19 +60,30 @@ class TimingTests(Base):
     def test_first_fetch_comes_from_the_archive(self):
         l = self.listing(1, listed=iso(30))
         archive.upsert([l], "head", at=iso(12))
-        timing.record_alert(OWNER, l, "new", "head", NOW)
+        self.rec(l)
         self.assertEqual(timing.report(now=NOW)["rm"]["fetch_median"], 12)
 
     def test_recording_never_raises_and_needs_local_storage(self):
         with patch.object(timing, "_db", side_effect=RuntimeError("db down")):
-            timing.record_alert(OWNER, self.listing(1), "new")
+            self.assertEqual(self.rec(self.listing(1)), 0)
         with patch.dict(os.environ, {"STORAGE": "cloud"}):
-            timing.record_alert(OWNER, self.listing(2), "new")
+            self.assertEqual(self.rec(self.listing(2)), 0)
         self.assertEqual(timing.report(now=NOW), {})
+
+    def test_capture_does_no_io(self):
+        with patch.object(timing, "_db", side_effect=AssertionError("capture touched the database")):
+            row = timing.capture(self.listing(1, listed=iso(5)), "new", "fast", NOW)
+        self.assertEqual((row["source"], row["via"], row["sent_at"]), ("rm", "fast", NOW.isoformat(timespec="seconds")))
+
+    def test_rows_hold_no_person_or_advert_identifier(self):
+        self.rec(self.listing(1, listed=iso(5)))
+        with timing._db() as db:
+            columns = {r[1] for r in db.execute("PRAGMA table_info(alert_timing)")}
+        self.assertEqual(columns, {"id", "source", "reason", "via", "listed_at", "first_fetch_at", "sent_at", "exclusive"})
 
     def test_status_text_shows_the_delay_lines(self):
         for delay in (10, 20, 30):
-            timing.record_alert(OWNER, self.listing(delay, listed=iso(delay)), "new", "fast", NOW)
+            self.rec(self.listing(delay, listed=iso(delay)), via="fast")
         text = "\n".join(timing.status_lines(NOW))
         self.assertIn("Alert delay", text)
         self.assertIn("Rightmove: 3 alerts", text)
@@ -375,7 +389,9 @@ class FastPollTests(FastBase):
         def full(kind="rentals", stop_event=None, dry_run=False, chat_id=None):
             events.append("full")
             return {"matches": 0}
-        def fast(stop_event=None):
+        deadlines = []
+        def fast(stop_event=None, deadline=None):
+            deadlines.append(deadline)
             events.append("fast")
             if events.count("fast") == 3:
                 stop.set()
@@ -390,6 +406,7 @@ class FastPollTests(FastBase):
         self.assertEqual(events[0], "full")
         self.assertEqual(events[:4], ["full", "fast", "fast", "full"][:4])
         self.assertEqual(events.count("fast"), 3)
+        self.assertTrue(all(d is not None for d in deadlines))
 
 
 if __name__ == "__main__":

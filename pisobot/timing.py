@@ -5,12 +5,18 @@ One row per alert Telegram accepted (VPS, STORAGE=local), in the primary SQLite 
   listed_at       the portal's own full listing timestamp (Rightmove firstVisibleDate), when it gives one
   first_fetch_at  when this bot first fetched the advert (the archive's first_seen, which the release
                   already records; this module adds no second copy)
-  sent_at         when Telegram accepted the card (the send call returned)
+  sent_at         when Telegram accepted the card (taken in memory at that instant)
   via             "head" (full cycle), "fast" (fast head poll) or "sweep" (deep-sweep judging)
 
-report() gives the median and 90th percentile of both delays per source, status_lines() the /status
-text. Recording is best effort: it never raises and never delays or blocks an alert. Nothing here sends
-anything or changes any decision.
+DELIVERY COMES FIRST. This telemetry is never written between Telegram accepting a card and the delivery receipt:
+`_run` only CAPTURES a row in memory (capture(), no I/O) at the moment of acceptance and writes the batch with write()
+after its own receipts are saved and acknowledged, at the end of the run. write() uses a short busy timeout (0.25 s
+per step, so it can never wait on a contended writer for long), never raises, and a process killed before it runs
+loses only telemetry. Rows hold no identifier of a person or an advert, only source/reason/path/timestamps, and are
+deleted after RETENTION_DAYS (every write and every watch cycle).
+
+report() gives the median and 90th percentile of both delays per source, status_lines() the /status text. Nothing
+here sends anything or changes any decision.
 """
 import contextlib
 import contextvars
@@ -20,20 +26,21 @@ import math
 import os
 import sqlite3
 
-from . import archive, localdb
+from . import localdb
 
 log = logging.getLogger(__name__)
 
 # Set by the fast head poll for the duration of its run so alerts it sends are labelled "fast".
 VIA = contextvars.ContextVar("pisobot_alert_via", default=None)
 WINDOW_DAYS = 7
+RETENTION_DAYS = 30
+BUSY_SECONDS = 0.25          # telemetry never waits longer than this for the database
 NAMES = {"rm": "Rightmove", "otmr": "OnTheMarket"}
 
 DDL = """
 CREATE TABLE IF NOT EXISTS alert_timing (
-    id INTEGER PRIMARY KEY, chat_id TEXT NOT NULL, key TEXT NOT NULL, source TEXT NOT NULL,
-    reason TEXT NOT NULL, via TEXT NOT NULL, listed_at TEXT, first_fetch_at TEXT, sent_at TEXT NOT NULL,
-    exclusive INTEGER);
+    id INTEGER PRIMARY KEY, source TEXT NOT NULL, reason TEXT NOT NULL, via TEXT NOT NULL, listed_at TEXT,
+    first_fetch_at TEXT, sent_at TEXT NOT NULL, exclusive INTEGER);
 CREATE INDEX IF NOT EXISTS alert_timing_sent ON alert_timing (sent_at);
 """
 
@@ -44,13 +51,14 @@ def _now():
 
 @contextlib.contextmanager
 def _db():
+    """The primary database with a SHORT busy timeout (telemetry is optional: it must not wait on other writers)."""
     token = localdb.DATABASE.set(None)
     try:
         path = localdb.database_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        with contextlib.closing(sqlite3.connect(path, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
+        with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
             db.row_factory = sqlite3.Row
-            db.execute(f"PRAGMA busy_timeout = {localdb.BUSY_TIMEOUT_MS}")
+            db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
             db.executescript(DDL)
             with db:
                 yield db
@@ -58,29 +66,63 @@ def _db():
         localdb.DATABASE.reset(token)
 
 
-def _first_fetch(key):
-    with contextlib.suppress(Exception):
-        with archive._db() as db:
-            row = db.execute("SELECT first_seen FROM adverts WHERE key = ?", (key,)).fetchone()
-            return row["first_seen"] if row else None
-    return None
+def capture(listing, reason, via=None, sent_at=None):
+    """The in-memory record of an accepted alert. NO I/O: safe to call between Telegram and the receipt."""
+    exclusive = getattr(listing, "exclusive", None)
+    return {"key": listing.key, "source": listing.source, "reason": reason, "via": via or VIA.get() or "head",
+            "listed_at": getattr(listing, "first_listed_at", None),
+            "exclusive": None if exclusive is None else int(bool(exclusive)),
+            "sent_at": (sent_at or _now()).isoformat(timespec="seconds")}
 
 
-def record_alert(chat_id, listing, reason, via=None, sent_at=None):
-    """Call right after Telegram accepted a card. Never raises."""
-    if os.environ.get("STORAGE") != "local":
-        return
+def write(rows, now=None):
+    """Write captured rows and apply retention, bounded and best effort. Never raises; returns rows written."""
+    if not rows or os.environ.get("STORAGE") != "local":
+        return 0
     try:
-        sent = (sent_at or _now()).isoformat(timespec="seconds")
-        exclusive = getattr(listing, "exclusive", None)
+        now = now or _now()
+        cutoff = (now - dt.timedelta(days=RETENTION_DAYS)).isoformat(timespec="seconds")
         with _db() as db:
-            db.execute("INSERT INTO alert_timing (chat_id, key, source, reason, via, listed_at, first_fetch_at,"
-                       " sent_at, exclusive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                       (str(chat_id), listing.key, listing.source, reason, via or VIA.get() or "head",
-                        getattr(listing, "first_listed_at", None), _first_fetch(listing.key), sent,
-                        None if exclusive is None else int(bool(exclusive))))
+            have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            for row in rows:
+                first = None
+                if "adverts" in have:
+                    found = db.execute("SELECT first_seen FROM adverts WHERE key = ?", (row["key"],)).fetchone()
+                    first = found["first_seen"] if found else None
+                db.execute("INSERT INTO alert_timing (source, reason, via, listed_at, first_fetch_at, sent_at, exclusive)"
+                           " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                           (row["source"], row["reason"], row["via"], row["listed_at"], first, row["sent_at"],
+                            row["exclusive"]))
+            db.execute("DELETE FROM alert_timing WHERE sent_at < ?", (cutoff,))
+        return len(rows)
     except Exception as ex:
         log.warning("timing: not recorded (%s)", type(ex).__name__)
+        return 0
+
+
+def purge_expired(now=None):
+    """Retention independent of writes: delete rows older than RETENTION_DAYS. Touches nothing when the table does
+    not exist. Never raises."""
+    if os.environ.get("STORAGE") != "local":
+        return 0
+    try:
+        now = now or _now()
+        token = localdb.DATABASE.set(None)
+        try:
+            path = localdb.database_path()
+            if not os.path.exists(path):
+                return 0
+            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
+                if not db.execute("SELECT 1 FROM sqlite_master WHERE name = 'alert_timing'").fetchone():
+                    return 0
+                with db:
+                    return db.execute("DELETE FROM alert_timing WHERE sent_at < ?",
+                                      ((now - dt.timedelta(days=RETENTION_DAYS)).isoformat(timespec="seconds"),)).rowcount
+        finally:
+            localdb.DATABASE.reset(token)
+    except Exception as ex:
+        log.warning("timing: retention failed (%s)", type(ex).__name__)
+        return 0
 
 
 def _minutes(later, earlier):

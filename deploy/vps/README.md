@@ -251,11 +251,29 @@ failed) is stored with the numbers behind it: rent, all-in, commute minutes, cri
 
 **Alert delay and the fast poll (optional).** `/status` shows, per portal, the median and 90th-percentile delay of
 alerts over the last 7 days, from the portal's own listing time (where it publishes a full timestamp: Rightmove does,
-OnTheMarket does not) and from this bot's first sight of the advert. With `FAST_POLL_MINUTES=5` (default `0` = off) the
-watcher also polls page 1 of Rightmove and OnTheMarket between full scans. A fast poll takes the same run lock (it can
-never overlap a scan or a sweep slice), evaluates adverts per person with the same settings, quiet hours and durable
-delivery as a scan, never runs a person's quiet baseline, and shares `FAST_POLL_MAX_ALERTS` (10) per person with the
-other fast polls until the next full scan. Cost: 2 search requests per distinct search per poll (576 a day at 5 minutes).
+OnTheMarket does not) and from this bot's first sight of the advert. The figures come from a small table that holds no
+person or advert identifier (source, reason, path, timestamps) and is deleted after 30 days; it is written only after
+the delivery receipts, with a 0.25 s busy timeout, so telemetry can never sit between Telegram accepting a card and the
+receipt. With `FAST_POLL_MINUTES=5` (default `0` = off) the watcher also polls page 1 of Rightmove and OnTheMarket
+between full scans. A fast poll takes the same run lock (it can never overlap a scan or a sweep slice), evaluates
+adverts per person with the same settings, quiet hours and durable delivery as a scan, never runs a person's quiet
+baseline, shares `FAST_POLL_MAX_ALERTS` (10) per person with the other fast polls until the next full scan, has a hard
+deadline (`FAST_POLL_MAX_SECONDS` 90, and it ends `FAST_POLL_MARGIN_SECONDS` 60 before the next scan is due) and yields at
+once to a queued manual run; anything it did not reach stays for the next poll or scan. Any failed fetch, in any search
+group, backs the next poll off (doubling to at most the scan interval).
+
+*Request cost, from the scheduler's actual behaviour* (the real `serve` loop, no jitter, instantaneous work, one
+search group): a scan resets the poll timer, so with a 15-minute scan and a 5-minute poll the day holds 96 scans and
+**192 polls** (not 288), i.e. 384 extra search requests (2 per poll) on top of 576 for a 3-page Rightmove + OnTheMarket
+scan: **960 a day, +67%**, not +100%. The repository default page cap is 20 (so the relative increase is smaller); three
+pages is the deployment example. Two different search groups (for example studios on for one person) double both figures.
+Jitter, runtime, manual runs, failures and the poll margin move the real numbers; detail-page and TfL lookups are for
+adverts a scan would usually see anyway, but an advert seen only by a poll (gone before the next capped scan) costs
+lookups no scan repeats. Redirects, retries, OpenRent and the deep sweep come on top.
+
+*Inherited limitation:* with the deep sweep OFF, an advert that a fast poll matched but could not deliver (alert
+allowance used up, or a failed send) and that then leaves page 1 stays a durable pending intent that nothing outside the
+sweep drains; with the sweep on, `sweep.judge` delivers it.
 
 After each scan a short slice (`DEEP_SWEEP_STEP_SECONDS`, 120 by default, half crawling and
 half judging) advances the **deep sweep** of Rightmove and OnTheMarket: all rent from

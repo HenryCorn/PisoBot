@@ -410,7 +410,7 @@ def _send_change(l, reason):
 
 def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=False, rentals=False,
          watch=False, baseline=False, stop_event=None, prefetched=None, sweep=False,
-         sweep_keys=(), alert_budget=None, deadline=None, clock=time.monotonic, fast=False):
+         sweep_keys=(), alert_budget=None, deadline=None, clock=time.monotonic, fast=False, send_deadline=None):
     """prefetched: (listings, failures) shared by several people's runs in one cycle; each run
     works on its own copy so per-person refinement and costs never leak between people.
     sweep: the listings come from the market archive (deep sweep), not a portal fetch; the person's
@@ -419,7 +419,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     for report extras. alert_budget is shared by the person\'s whole cycle. deadline yields between
     adverts/lookup stages; it cannot cancel an already-running HTTP/image operation. fast: the fast head poll
     (watch.fast_cycle): page-1 listings through this same evaluation and delivery; it only skips the funnel
-    record, which describes a whole scan."""
+    record, which describes a whole scan. send_deadline (default: deadline) is the later limit for starting an alert, so a
+    run that stopped judging at `deadline` can still deliver what it judged."""
     def check_stop():
         if stop_event is not None and stop_event.is_set():
             raise InterruptedError("PisoBot is stopping")
@@ -751,12 +752,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
+    timing_rows = []       # alert timings captured in memory; written only after the receipts below (never before them)
     for l, reason in to_send:
         attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
         if attempts_left <= 0:
             break
         check_stop()
-        if deadline is not None and clock() >= deadline:
+        if (send_deadline or deadline) is not None and clock() >= (send_deadline or deadline):
             break
         print(f"  + [{reason}] £{l.monthly_cost:,.0f} {l.travel_minutes}min crime={l.crime_score} "
               f"{l.bedrooms}b {l.address[:60]} {l.url}")
@@ -786,7 +788,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             continue
         if send_state == "sent":
             alert_budget["remaining"] -= 1
-            timing.record_alert(person_id, l, reason, "sweep" if sweep or l.key in sweep_keys else None)
+            # the acceptance instant, in memory only: no I/O between Telegram accepting the card and the receipt
+            timing_rows.append(timing.capture(l, reason, "sweep" if sweep or l.key in sweep_keys else None))
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)
@@ -829,6 +832,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    if timing_rows:
+        timing.write(timing_rows)      # optional telemetry, after the receipts and acknowledgements; bounded, never raises
     result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
               "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
               "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
