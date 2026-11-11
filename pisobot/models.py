@@ -91,6 +91,7 @@ class Listing:
     ai_facts: dict = field(default_factory=dict)      # furnished, lift, heating, pets, ... or "unknown"
     # Facts the portals already publish (private rent)
     first_listed: Optional[str] = None           # ISO date the portal first showed the advert
+    exclusive: Optional[bool] = None             # OnTheMarket details "exclusive" flag (meaning unverified; recorded only when ALERT_TIMING=1)
     first_listed_at: Optional[str] = None        # full ISO timestamp of that, when the portal gives one
     update_reason: Optional[str] = None          # "added", "reduced" or "added_or_reduced"
     update_date: Optional[str] = None            # ISO date of that update
