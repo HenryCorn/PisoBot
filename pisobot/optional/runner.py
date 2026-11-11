@@ -71,32 +71,31 @@ class Runner:
             return False
 
     def reap(self):
-        """Collect a finished child, kill an overdue one, retry the ones not yet confirmed dead: "running" or None. Never raises."""
+        """Poll and kill without waiting. An unconfirmed child remains owned and prevents another child from starting."""
         try:
-            self.dying = [p for p in self.dying if p.poll() is None and not self._retry(p)]
+            self.dying = [p for p in self.dying if not self._retry(p)]
             proc = self.proc
             if proc is None:
-                return None
+                return "running" if self.dying else None
             if proc.poll() is not None:
                 self._drop_timer()
                 self.proc = None
-                return None
+                return "running" if self.dying else None
             if time.monotonic() - self.started > STEP_SECONDS + KILL_GRACE_SECONDS:
                 self._drop_timer()
                 self.proc = None
-                self._confirm(proc)
-                return None
+                self.dying.append(proc)
+                self._kill_group(proc)
+                return "running"
             return "running"
         except Exception:
-            return None
+            return "running" if self.proc is not None or self.dying else None
 
     def _retry(self, proc):
-        self._kill_group(proc)
-        try:
-            proc.wait(timeout=0.05)
+        if proc.poll() is not None:
             return True
-        except Exception:
-            return False
+        self._kill_group(proc)
+        return proc.poll() is not None
 
     def _drop_timer(self):
         timer, self.timer = self.timer, None

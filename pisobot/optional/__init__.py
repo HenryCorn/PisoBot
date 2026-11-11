@@ -13,18 +13,19 @@ own worker: it is never started a second time (single flight per feature), its i
   extend_card(text, listing, has_photo)       called by telegram.send_listing with the FINAL card text and the real media outcome; adds a
                                               published line only if the Telegram call plan (kind and number of calls, exactly as
                                               send_card/send_text decide it) is unchanged
-  publish_lines(feature, {advert key: [(priority, text)]})   how a feature publishes card lines (validated, escaped, bounded, atomic)
-  publish_templates(feature, [template])      the seam between fetch and send: a feature DECLARES a line about a fact the listing already
-                                              carries from the fetch (e.g. the portal's timestamp); the foundation renders it at send
-                                              with pure code. See "Fetch-time facts" below.
+  register(flag, loader, templates=())       register a worker and, optionally, declarative fetch-time templates at process startup
+  publish_lines(flag, {advert key: [(priority, text)]})   publish card lines from a feature worker (validated, escaped, bounded, atomic)
+  publish_templates(flag, [template])         replace a feature's templates from its worker. See "Fetch-time facts" below.
 
 Fetch-time facts. A fact known only when the advert is fetched ("Listed 40 min ago") cannot be published per advert before its first
 card: the feature never sees the advert in time, and waiting for it would delay the alert. So nothing is handed to the feature and
 nothing is waited for. The hand-over at fetch is the listing's own plain scalar fields, filled in by the portal parser. A feature
-publishes, once, a declarative Template (field name, kind, text with one "{}", bounds, priority): plain validated data. When the card is
+registers declarative templates (field name, kind, text with one "{}", bounds, priority) as plain data at startup, before its worker
+loads. The template is therefore available even for the first card. When the card is
 built, extend_card reads that one scalar straight from the listing's instance dictionary (no property, no descriptor, exact builtin
 types only), renders it with the pure functions below and offers the result exactly like a published line (same call-plan rule).
-No feature callback, no I/O, no lock, no wait; any problem yields no line.
+Lines and templates are rendered only while their feature flag is "1". No feature callback, no I/O, no lock, no wait; any problem yields
+no line.
 
 Delivery semantics of after_cycle: at least once. A batch is a tuple of Items (each has a unique `seq`); the feature returns None (all
 settled), True (keep all) or the Items/seqs to keep. A kept or failed item is offered again (at most MAX_ATTEMPTS times, at most
@@ -53,6 +54,9 @@ MAX_ATTEMPTS = 3
 STUCK_SECONDS = 30            # a worker inside one feature call for longer is reported as stuck (it is never started twice)
 LINE_MAX = 160
 SNAPSHOT_MAX = 2000           # adverts with published lines, per feature
+PUBLISHERS_MAX = 20          # bound the total snapshot as well as each feature's contribution
+CARD_OFFERS_MAX = 20
+MAX_CARD_CHARS = 8192        # skip optional lines on exceptionally large release cards
 FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms")
 SCALARS = (str, int, float, bool, type(None))
 
@@ -60,22 +64,36 @@ _registry = []                # [(flag, loader)]
 _workers = {}                 # flag -> Worker
 _items = []                   # after_ack items awaiting after_cycle
 _lock = threading.Lock()
-_lines = {}                   # feature name -> {key: ((priority, text), ...)}
-_snapshot = {}                # key -> ((priority, text), ...)  published, replaced atomically, never mutated
-_template_sets = {}           # feature name -> (Template, ...)
+_worker_lock = threading.Lock()
+_lines = {}                   # feature flag -> {key: ((priority, text), ...)}
+_snapshot = {}                # key -> ((priority, text, flag), ...)  published atomically, never mutated
+_template_sets = {}           # feature flag -> (Template, ...)
 _templates = ()               # every published Template; replaced atomically, never mutated
 TEMPLATES_PER_FEATURE = 5
 TEMPLATES_MAX = 20
 TEMPLATE_KINDS = ("age", "value")
 MAX_AGE_TEMPLATE_SECONDS = 7 * 86400
 CLOCK_SKEW_SECONDS = 60       # a portal clock slightly ahead of ours still reads as "under 1 min"
-lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0}   # every loss, by category
+lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0, "contended": 0}   # every loss, by category
 _seq = [0]
 
 
-def register(flag, loader):
-    """Declare a feature: the loader is called (on the feature's own worker thread) only when the environment variable `flag` is "1"."""
+def register(flag, loader, *, templates=()):
+    """Declare a worker and its optional startup templates. The loader runs only on its worker when `flag` is "1".
+
+    Startup templates must be a plain list/tuple of plain dictionaries, not feature callbacks or iterators.
+    """
+    if type(flag) is not str or not 0 < len(flag) <= 80:
+        lost["malformed"] += 1
+        return
     _registry.append((flag, loader))
+    if type(templates) not in (list, tuple):
+        lost["malformed"] += 1
+    elif templates:
+        try:
+            publish_templates(flag, templates)
+        except Exception:
+            lost["malformed"] += 1
 
 
 def reset():
@@ -125,7 +143,7 @@ def message_id(reply):
 
 
 def _scalar(value):
-    return value if isinstance(value, SCALARS) and (not isinstance(value, str) or len(value) <= 500) else None
+    return value if type(value) in SCALARS and (type(value) is not str or len(value) <= 500) else None
 
 
 # ---------------------------------------------------------------- the hook after the acknowledgement
@@ -165,15 +183,20 @@ class Worker(threading.Thread):
 
     # -- called from the watcher thread: data only, never waits, never calls feature code
     def offer(self, items):
-        if self.failed or self.halt.is_set():           # nobody will ever take them: count the loss now instead of keeping them
-            lost["failed"] += len(items)
+        if not self.lock.acquire(blocking=False):
+            lost["contended"] += len(items)
             return
-        with self.lock:
+        try:
+            if self.failed or self.halt.is_set():       # nobody will ever take them
+                lost["failed"] += len(items)
+                return
             for item in items:
                 self.inbox.append([item, 0])
             while len(self.inbox) > BUFFER_LIMIT:
                 self.inbox.popleft()
                 lost["evicted"] += 1
+        finally:
+            self.lock.release()
         self.wake.set()
 
     def stop(self):
@@ -181,33 +204,38 @@ class Worker(threading.Thread):
         self.wake.set()
 
     def status(self):
+        with self.lock:
+            waiting, inflight, failed = len(self.inbox), self.inflight, self.failed
         busy = self.busy_since
-        return {"flag": self.flag, "loaded": self.feature is not None, "failed": self.failed, "waiting": len(self.inbox),
-                "inflight": self.inflight,              # taken from the inbox, the feature has not settled them yet
+        return {"flag": self.flag, "loaded": self.feature is not None, "failed": failed, "waiting": waiting,
+                "inflight": inflight,                   # taken from the inbox, the feature has not settled them yet
                 "stuck": busy is not None and time.monotonic() - busy > STUCK_SECONDS}
 
     # -- the worker thread
     def run(self):
         try:
-            self.feature = self.loader()
-            if self.feature is None:
-                raise ValueError("no feature")
-        except Exception:
-            self.failed = True
-            with self.lock:                              # whatever was offered while it was loading can never be delivered
-                lost["failed"] += len(self.inbox)
-                self.inbox.clear()
-            return
-        self._refresh()
-        while not self.halt.is_set():
-            self.wake.wait(5.0)
-            self.wake.clear()
-            if self.halt.is_set():
-                break
-            batch = self._take()
-            if batch:
-                self._deliver(batch)
+            try:
+                self.feature = self.loader()
+                if self.feature is None:
+                    raise ValueError("no feature")
+            except Exception:
+                return
             self._refresh()
+            while not self.halt.is_set():
+                self.wake.wait(5.0)
+                self.wake.clear()
+                if self.halt.is_set():
+                    break
+                batch = self._take()
+                if batch:
+                    self._deliver(batch)
+                self._refresh()
+        finally:
+            with self.lock:
+                self.failed = True
+                lost["failed"] += len(self.inbox) + self.inflight
+                self.inbox.clear()
+                self.inflight = 0
 
     def _refresh(self):
         try:
@@ -271,12 +299,19 @@ def _ensure_workers():
     """Create and start one worker per enabled registration (no feature code runs on the calling thread). Idempotent."""
     for flag, loader in list(_registry):
         if os.environ.get(flag) == "1" and flag not in _workers:
-            with _lock:
+            if not _worker_lock.acquire(blocking=False):
+                continue
+            try:
                 if flag in _workers:
                     continue
                 worker = Worker(flag, loader)
+                try:
+                    worker.start()
+                except Exception:
+                    worker.failed = True
                 _workers[flag] = worker
-            worker.start()
+            finally:
+                _worker_lock.release()
 
 
 def start():
@@ -307,14 +342,17 @@ def after_cycle(dry_run=False):
     """Called after the run lock was released. Moves the collected items to each enabled feature's inbox and wakes its worker: instant,
     no feature call, no waiting. Nothing in a dry run. Never raises."""
     try:
-        with _lock:
-            fresh = list(_items)
-            _items.clear()
+        fresh = list(_items)
+        _items.clear()
         if dry_run or not _registry or not enabled_any():
             return 0
         _ensure_workers()
-        for worker in workers():
-            if os.environ.get(worker.flag) == "1":
+        for flag in dict.fromkeys(flag for flag, _ in _registry):
+            if os.environ.get(flag) == "1":
+                worker = _workers.get(flag)
+                if worker is None:
+                    lost["failed"] += len(fresh)
+                    continue
                 worker.offer(fresh)
         return len(fresh)
     except Exception:
@@ -323,19 +361,21 @@ def after_cycle(dry_run=False):
 
 # ---------------------------------------------------------------- card lines (published snapshot; no feature code on the delivery thread)
 
-def publish_lines(feature, mapping):
-    """Called by a feature (from its own thread) to publish its card lines: {advert key: [(priority, text), ...]}. Validated and escaped
-    here; the whole mapping replaces that feature's previous one, atomically. Returns the number of adverts published."""
+def publish_lines(flag, mapping):
+    """Publish {advert key: [(priority, text), ...]} from a feature worker, replacing that flag's snapshot atomically."""
     global _snapshot
+    if type(flag) is not str or not 0 < len(flag) <= 80:
+        lost["malformed"] += 1
+        return 0
     clean = {}
     for key, offers in itertools.islice(mapping.items(), SNAPSHOT_MAX):     # never consumes more than the cap, whatever is supplied
-        if not isinstance(key, str) or not 0 < len(key) <= 200:
+        if type(key) is not str or not 0 < len(key) <= 200:
             continue
         good = []
         for offer in itertools.islice(offers, 5):
             try:
                 priority, text = offer
-                if type(priority) is int and isinstance(text, str) and len(text) <= 4 * LINE_MAX:
+                if type(priority) is int and -1_000_000 <= priority <= 1_000_000 and type(text) is str and len(text) <= 4 * LINE_MAX:
                     text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
                     if text and len(text) <= LINE_MAX:
                         good.append((priority, html.escape(text, quote=False)))
@@ -344,11 +384,14 @@ def publish_lines(feature, mapping):
         if good:
             clean[key] = tuple(sorted(good, key=lambda o: -o[0]))
     with _lock:
-        _lines[str(feature)[:40]] = clean
+        if flag not in _lines and len(_lines) >= PUBLISHERS_MAX:
+            lost["malformed"] += 1
+            return 0
+        _lines[flag] = clean
         merged = {}
-        for per_feature in _lines.values():
+        for owner, per_feature in _lines.items():
             for key, offers in per_feature.items():
-                merged[key] = merged.get(key, ()) + offers
+                merged[key] = merged.get(key, ()) + tuple((priority, text, owner) for priority, text in offers)
         _snapshot = {k: tuple(sorted(v, key=lambda o: -o[0])) for k, v in merged.items()}
     return len(clean)
 
@@ -362,19 +405,24 @@ class Template:
     kind: str            # "age": the field is a timestamp, "{}" becomes "40 min" / "2 h 5 min"; "value": "{}" becomes the scalar itself
     text: str
     max_seconds: int     # "age" only: no line once the fact is older than this
+    flag: str            # the feature must still be enabled when the card is sent
 
 
-def publish_templates(feature, templates):
-    """Called by a feature (from its own thread, normally once when it loads) to declare lines the foundation renders at send from facts
-    the listing carries from the fetch. Each template is a dict: {"field", "kind", "text", "priority", "max_seconds"}. Invalid ones are
-    dropped; the feature's previous set is replaced, atomically. Returns the number accepted."""
+def publish_templates(flag, templates):
+    """Replace a flag's templates with validated plain data. For a first alert, pass these to register() at startup instead."""
     global _templates
+    if type(flag) is not str or not 0 < len(flag) <= 80:
+        lost["malformed"] += 1
+        return 0
     good = []
     for raw in itertools.islice(templates, TEMPLATES_PER_FEATURE):
         try:
+            if type(raw) is not dict:
+                continue
             priority, field, kind, text = raw["priority"], raw["field"], raw["kind"], raw["text"]
             limit = raw.get("max_seconds", 0)
-            if type(priority) is not int or type(field) is not str or type(text) is not str or kind not in TEMPLATE_KINDS:
+            if (type(priority) is not int or not -1_000_000 <= priority <= 1_000_000 or type(field) is not str or type(kind) is not str
+                    or type(text) is not str or kind not in TEMPLATE_KINDS):
                 continue
             if len(text) > 4 * LINE_MAX or len(field) > 40:
                 continue
@@ -385,12 +433,15 @@ def publish_templates(feature, templates):
                 continue
             if kind == "age" and (type(limit) is not int or not 0 < limit <= MAX_AGE_TEMPLATE_SECONDS):
                 continue
-            good.append(Template(priority, field, kind, html.escape(text, quote=False), limit if kind == "age" else 0))
+            good.append(Template(priority, field, kind, html.escape(text, quote=False), limit if kind == "age" else 0, flag))
         except Exception:
             continue
     with _lock:
-        _template_sets[str(feature)[:40]] = tuple(good)
-        _templates = tuple(t for group in _template_sets.values() for t in group)[:TEMPLATES_MAX]
+        if flag not in _template_sets and len(_template_sets) >= PUBLISHERS_MAX:
+            lost["malformed"] += 1
+            return 0
+        _template_sets[flag] = tuple(good)
+        _templates = tuple(t for group in _template_sets.values() for t in group)
     return len(good)
 
 
@@ -433,9 +484,13 @@ def render(template, listing, now):
             shown = age_words(max(age, 0))
         else:
             if type(value) is str:
+                if len(value) > 4 * LINE_MAX:
+                    return None
                 shown = re.sub(r"[\x00-\x1f\x7f]", " ", value).strip()
-            elif type(value) is int or (type(value) is float and value == value and abs(value) < 1e15):
-                shown = f"{value:g}" if type(value) is float else str(value)
+            elif type(value) is int and value.bit_length() <= 200:
+                shown = str(value)
+            elif type(value) is float and value == value and abs(value) < 1e15:
+                shown = f"{value:g}"
             else:
                 return None
             if not shown or len(shown) > 60:
@@ -462,15 +517,21 @@ def extend_card(text, listing, has_photo):
     listing; calls no feature code; returns `text` unchanged on any problem."""
     original = text
     try:
-        offers = _snapshot.get(getattr(listing, "key", None)) or ()
-        templates = _templates
+        if len(text) > MAX_CARD_CHARS:
+            return text
+        templates = sorted((t for t in _templates if os.environ.get(t.flag) == "1"), key=lambda t: -t.priority)[:TEMPLATES_MAX]
+        snapshot = _snapshot
+        if not snapshot and not templates:
+            return text
+        offers = ([(priority, line) for priority, line, flag in snapshot.get(getattr(listing, "key", None), ())
+                   if os.environ.get(flag) == "1"] if snapshot else [])
         if templates:
             now = time.time()
             rendered = [(t.priority, line) for t in templates for line in (render(t, listing, now),) if line]
-            if rendered:
-                offers = sorted(list(offers) + rendered, key=lambda o: -o[0])
+            offers.extend(rendered)
         if not offers:
             return text
+        offers = sorted(offers, key=lambda o: -o[0])[:CARD_OFFERS_MAX]
         base, used = plan(has_photo, text), set()
         for _, line in offers:
             if line in used:

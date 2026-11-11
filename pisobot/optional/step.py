@@ -38,8 +38,8 @@ def resident_bytes():
 
 def limit_resources():
     """CPU time is always limited. Memory: the address-space limit where the platform accepts it (Linux); where it does not (macOS
-    rejects RLIMIT_AS), the same ceiling is enforced on resident memory by the watchdog thread in main(). Returns how memory is bounded.
-    Raises when not even that can be arranged."""
+    rejects RLIMIT_AS), a watchdog checks peak resident memory. That polling fallback is best effort, not a hard memory limit: a burst
+    can exceed it before the watchdog runs. Returns the mechanism, or raises when neither can be arranged."""
     import resource
     resource.setrlimit(resource.RLIMIT_CPU, (runner.STEP_SECONDS + 20, runner.STEP_SECONDS + 20))
     resident_bytes()                                                              # the fallback must work on this platform

@@ -1,13 +1,13 @@
 """The optional features' OWN SQLite file (optional.db) and a bounded, read-only window onto the primary database.
 
 What this module guarantees, and what it does not:
-  * optional.db is the ONLY file it opens for writing. Three checks, the last one AFTER the file is open so there is no window between
-    checking and opening: (1) the state directory must be ours and not writable by group or others; (2) the path must be a regular,
-    singly-linked file called optional.db directly inside the real state directory; (3) once SQLite has opened it, SQLite's own report of
-    the file it holds (PRAGMA database_list, which resolves links) must be exactly that path and the entry must still be a plain unlinked
-    file, verified before the first statement that could write. Every writer connection also carries an authorizer that denies
+  * The optional writer validates its own path before and after SQLite opens it: (1) the state directory must be ours and not writable
+    by group or others; (2) the path must be a regular, singly-linked file called optional.db directly inside the real state directory;
+    (3) SQLite's reported path must match and its reserved identity row must match that file's device and inode. New files are seeded
+    through an exclusive no-follow descriptor before SQLite opens them. Every writer connection also carries an authorizer that denies
     ATTACH/DETACH/PRAGMA/transaction control and any schema other than main/temp. SQL cannot reach another file, and a path that is or
-    becomes a link is refused. This is NOT a sandbox against code running as the same user, which can open any file itself.
+    becomes a link is refused. These path checks are not a sandbox against code running as the same user, which can also replace paths
+    or open any file itself; Python's SQLite API does not expose the opened database's file descriptor for an inode check.
   * a write is one small transaction (BEGIN IMMEDIATE ... COMMIT, at most MAX_STATEMENTS statements). A progress handler interrupts long
     computations and the connection is closed on every path. It does NOT make the transaction hard-real-time: a stalled fsync/commit cannot
     be interrupted from here. The protection of the primary database is that the optional writer lives in another file, not a time limit.
@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 NAME = "optional.db"
+IDENTITY_TABLE = "_pisobot_optional_identity"
 BUSY_SECONDS = 0.25
 TX_SECONDS = 0.5
 READ_SECONDS = 0.5
@@ -69,14 +70,44 @@ def _plain(target):
 
 
 def _verify_open(db, target):
-    """After the open, before any write: the file SQLite actually holds must be optional.db in the real state directory (SQLite reports
-    the resolved name, so a link swapped in between the check and the open is seen here) and the entry must still be a plain file."""
+    """Check SQLite's resolved path and the opened database's identity before any write."""
     expected = os.path.join(os.path.realpath(_state()), NAME)
     held = [row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"]
     if len(held) != 1 or not held[0] or os.path.realpath(held[0]) != expected or os.path.basename(held[0]) != NAME:
         raise ValueError("the open file is not optional.db")
     _plain(target)
     _plain(expected)
+    info = os.stat(target, follow_symlinks=False)
+    try:
+        rows = db.execute(f"SELECT device, inode FROM {IDENTITY_TABLE}").fetchall()
+    except sqlite3.Error as ex:
+        raise ValueError("optional.db lacks its identity; refusing the file") from ex
+    if rows != [(str(info.st_dev), str(info.st_ino))]:
+        raise ValueError("optional.db identity does not match the open file")
+
+
+def _create(target):
+    """Create and seed a new optional database through a no-follow, exclusive file descriptor."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(target, flags, 0o600)
+    except FileExistsError:
+        return
+    try:
+        info = os.fstat(fd)
+        with contextlib.closing(sqlite3.connect(":memory:")) as seed:
+            seed.execute(f"CREATE TABLE {IDENTITY_TABLE} (device TEXT NOT NULL, inode TEXT NOT NULL)")
+            seed.execute(f"INSERT INTO {IDENTITY_TABLE} VALUES (?, ?)", (str(info.st_dev), str(info.st_ino)))
+            seed.commit()
+            data = memoryview(seed.serialize())
+        while data:
+            written = os.write(fd, data)
+            if written <= 0:
+                raise OSError("could not initialize optional.db")
+            data = data[written:]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def checked_path():
@@ -99,6 +130,8 @@ def _guard(allowed):
             return sqlite3.SQLITE_DENY
         if db_name not in (None, "main", "temp"):
             return sqlite3.SQLITE_DENY
+        if allowed is _ALLOWED_WRITE and action not in _ALLOWED_READ and IDENTITY_TABLE in (arg1, arg2):
+            return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_OK
     return authorizer
 
@@ -112,6 +145,8 @@ def write(ddl, statements):
     try:
         target = checked_path()
         os.makedirs(os.path.dirname(target), exist_ok=True)
+        target = checked_path()
+        _create(target)
         target = checked_path()
         with contextlib.closing(sqlite3.connect(target, timeout=BUSY_SECONDS, isolation_level=None)) as db:
             _verify_open(db, target)                      # nothing has been written yet; a swapped path is refused here

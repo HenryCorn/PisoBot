@@ -130,7 +130,8 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(seen[b.key]["alerted"])
         self.assertGreater(p["last_report"], "2026-01-01T06:30")
 
-    def test_header_prefers_floorplan_and_can_send_map_without_photos(self):
+    @patch.object(collage, "_gallery_thumb", return_value=None)
+    def test_header_prefers_floorplan_and_can_send_map_without_photos(self, _gallery_thumb):
         photo = Image.new("RGB", (720, 500), "navy")
         location = Image.new("RGB", (480, 500), "grey")
         l = home(1, floorplan="https://example.com/plan.png")

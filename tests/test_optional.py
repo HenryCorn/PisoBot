@@ -336,6 +336,19 @@ class AfterAckTests(OptionalBase):
         self.assertNotEqual(item.get("rent"), 99999)
         self.assertNotIn(l, item.data)
 
+    def test_feature_supplied_scalar_subclasses_are_not_evaluated_in_the_hook(self):
+        self.enable(Feature())
+
+        class SuppliedText(str):
+            def __len__(self):
+                raise AssertionError("feature code ran in the hook")
+
+        listing = home(1)
+        listing.url = SuppliedText("url")
+        optional.after_ack(listing, OWNER, None, {"state": "sent"})
+        self.assertEqual(len(optional._items), 1)
+        self.assertIsNone(optional._items[0].get("url"))
+
     def test_the_buffer_is_bounded_and_the_overflow_is_counted(self):
         self.enable(Feature())
         for i in range(optional.BUFFER_LIMIT + 7):
@@ -488,6 +501,22 @@ class StorageTests(OptionalBase):
         for sql in ("PRAGMA writable_schema = 1", "DETACH DATABASE main", "VACUUM INTO '/tmp/x'", "BEGIN", "SAVEPOINT s"):
             self.assertFalse(store.write("", [(sql, ())]), sql)
 
+    def test_feature_sql_cannot_change_or_drop_the_reserved_identity(self):
+        self.assertTrue(store.write(self.DDL, []))
+        for sql in (f"DELETE FROM {store.IDENTITY_TABLE}", f"UPDATE {store.IDENTITY_TABLE} SET inode = '0'",
+                    f"DROP TABLE {store.IDENTITY_TABLE}", f"ALTER TABLE {store.IDENTITY_TABLE} RENAME TO gone"):
+            self.assertFalse(store.write("", [(sql, ())]), sql)
+        self.assertTrue(store.write("", [("INSERT INTO t VALUES ('still', 'usable')", ())]))
+
+    def test_an_existing_unmarked_optional_file_is_refused_without_modification(self):
+        with sqlite3.connect(store.path()) as db:
+            db.execute("CREATE TABLE legacy(v TEXT)")
+            db.execute("INSERT INTO legacy VALUES ('keep')")
+        self.assertFalse(store.write("", [("DELETE FROM legacy", ())]))
+        self.assertIn("identity", store.last_error[0])
+        with sqlite3.connect(store.path()) as db:
+            self.assertEqual(db.execute("SELECT v FROM legacy").fetchall(), [("keep",)])
+
     def test_the_optional_file_can_never_be_a_primary_file_through_symlinks_hardlinks_or_relative_paths(self):
         primary = self.primary()
         target = store.path()
@@ -633,8 +662,25 @@ class RunnerTests(OptionalBase):
         proc = MagicMock()
         proc.poll.side_effect = OSError("poll failed")
         self.runner.proc = proc
-        self.assertIsNone(self.runner.reap())
+        self.assertEqual(self.runner.reap(), "running")
+        with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
+            self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("lost ownership"))))
+        self.assertIs(self.runner.proc, proc)
         self.runner.stop()
+
+    def test_reaping_an_unconfirmed_child_never_waits_or_starts_another(self):
+        stubborn = FakeProc(stubborn=True)
+        self.runner.proc = stubborn
+        self.runner.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1
+        with patch.object(runner.os, "killpg"), patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True):
+            self.assertEqual(self.runner.reap(), "running")
+            self.assertEqual(stubborn.waited, 0)
+            self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("started another child"))))
+            self.assertEqual(stubborn.waited, 0)
+            self.assertEqual(self.runner.dying, [stubborn])
+            stubborn.stubborn = False
+            self.assertIsNone(self.runner.reap())
 
     def test_the_step_refuses_to_run_without_resource_limits_unless_opted_out(self):
         from pisobot.optional import step
@@ -701,6 +747,7 @@ class CardTests(Base):
         super().setUp()
         optional.reset()
         self.addCleanup(optional.reset)
+        self.enterContext(patch.dict(os.environ, {"f": "1", "a": "1", "b": "1", "probe": "1"}))
 
     def send_card_calls(self, text, photo):
         calls = []
@@ -760,7 +807,7 @@ class CardTests(Base):
         self.assertEqual(n, 1)
         lines = optional._snapshot["rm:1"]
         self.assertEqual(lines[0][1], "bad   control")
-        self.assertIn("&lt;b&gt;bold&lt;/b&gt; &amp; co", [t for _, t in lines])
+        self.assertIn("&lt;b&gt;bold&lt;/b&gt; &amp; co", [t for _, t, _ in lines])
         self.assertEqual(len(lines), 2)
 
     def test_the_snapshot_is_replaced_atomically_and_features_can_replace_their_own_lines(self):
@@ -770,7 +817,26 @@ class CardTests(Base):
         self.assertIn("rm:1", before)                                       # the old snapshot object was never mutated
         self.assertNotIn("rm:1", optional._snapshot)
         optional.publish_lines("b", {"rm:2": [(9, "high")]})
-        self.assertEqual([t for _, t in optional._snapshot["rm:2"]], ["high", "two"])
+        self.assertEqual([t for _, t, _ in optional._snapshot["rm:2"]], ["high", "two"])
+
+    def test_published_lines_stop_appearing_when_their_own_flag_is_disabled(self):
+        optional.publish_lines("a", {"rm:1": [(2, "A")]})
+        optional.publish_lines("b", {"rm:1": [(1, "B")]})
+        with patch.dict(os.environ, {"a": "0"}):
+            self.assertEqual(optional.extend_card("card", home(1), False), "card\nB")
+        with patch.dict(os.environ, {"a": "0", "b": "0"}):
+            self.assertEqual(optional.extend_card("card", home(1), False), "card")
+
+    def test_feature_supplied_string_subclasses_never_reach_the_card_snapshot(self):
+        class SuppliedKey(str):
+            pass
+
+        class SuppliedText(str):
+            pass
+
+        self.assertEqual(optional.publish_lines("f", {SuppliedKey("rm:1"): [(1, "line")]}), 0)
+        self.assertEqual(optional.publish_lines("f", {"rm:1": [(1, SuppliedText("line"))]}), 0)
+        self.assertEqual(optional.extend_card("card", home(1), False), "card")
 
     def test_the_delivery_path_calls_no_feature_code(self):
         class Tripwire:
@@ -808,6 +874,9 @@ class FetchFactTests(Base):
         super().setUp()
         optional.reset()
         self.addCleanup(optional.reset)
+        flags = {"timing": "1", "f": "1"}
+        flags.update({f"{prefix}{n}": "1" for prefix in ("g", "f") for n in range(10)})
+        self.enterContext(patch.dict(os.environ, flags))
 
     def real_send(self, listing, photo):
         calls = []
@@ -826,6 +895,16 @@ class FetchFactTests(Base):
             self.assertEqual([m for m, _ in before], [m for m, _ in after])
             text = lambda calls: calls[0][1].get("caption") or calls[0][1].get("text")
             self.assertEqual(text(after), text(before) + "\n🕒 Listed 40 min ago")
+
+    def test_startup_declarations_work_before_the_feature_worker_has_loaded(self):
+        loader = MagicMock(side_effect=AssertionError("feature loader ran on the alert path"))
+        with patch.dict(os.environ, {FLAG: "1"}):
+            optional.register(FLAG, loader, templates=[LISTED])
+            self.assertEqual(optional.extend_card("card", fresh(), True), "card\n🕒 Listed 40 min ago")
+            self.assertEqual(optional.workers(), [])
+            loader.assert_not_called()
+            with patch.dict(os.environ, {FLAG: "0"}):
+                self.assertEqual(optional.extend_card("card", fresh(), True), "card")
 
     def test_the_age_is_read_at_send_and_only_inside_the_declared_window(self):
         optional.publish_templates("timing", [LISTED])
@@ -851,6 +930,18 @@ class FetchFactTests(Base):
         self.assertEqual(optional.extend_card("card", object(), True), "card")
         self.assertEqual(optional.extend_card("card", None, False), "card")
         self.assertEqual(optional.epoch("2026-11-09T14:03:12Z"), optional.epoch("2026-11-09T14:03:12+00:00"))
+
+    def test_a_template_does_not_read_the_listing_key_when_no_lines_are_published(self):
+        optional.publish_templates("timing", [LISTED])
+
+        class NoKey(type(home())):
+            @property
+            def key(self):
+                raise AssertionError("an unrelated property ran")
+
+        listing = NoKey("rm", "1", "u", "Home", 1, "Private rent")
+        listing.first_listed_at = stamp(40 * 60 + 20)
+        self.assertEqual(optional.extend_card("card", listing, True), "card\n🕒 Listed 40 min ago")
 
     def test_only_the_instance_dictionary_is_read_never_a_property_or_a_feature_object(self):
         optional.publish_templates("f", [dict(LISTED, field="trap"), dict(LISTED, field="key", kind="value", text="k {}")])
@@ -882,7 +973,25 @@ class FetchFactTests(Base):
         self.assertEqual((len(before), len(optional._templates)), (optional.TEMPLATES_PER_FEATURE, 1))
         for n in range(10):
             optional.publish_templates(f"g{n}", [LISTED] * 5)
-        self.assertEqual(len(optional._templates), optional.TEMPLATES_MAX)
+        with patch.object(optional, "render", wraps=optional.render) as render:
+            optional.extend_card("card", fresh(), True)
+        self.assertEqual(render.call_count, optional.TEMPLATES_MAX)
+
+    def test_a_feature_supplied_kind_subclass_is_not_retained(self):
+        class SuppliedKind(str):
+            pass
+
+        self.assertEqual(optional.publish_templates("timing", [dict(LISTED, kind=SuppliedKind("age"))]), 0)
+        self.assertEqual(optional.extend_card("card", fresh(), True), "card")
+
+    def test_optional_work_is_bounded_for_large_cards_and_many_publishers(self):
+        for n in range(optional.PUBLISHERS_MAX + 1):
+            optional.publish_templates(f"feature_{n}", [LISTED] * optional.TEMPLATES_PER_FEATURE)
+        self.assertEqual(len(optional._template_sets), optional.PUBLISHERS_MAX)
+        self.assertGreater(optional.lost["malformed"], 0)
+        with patch.object(optional, "plan", side_effect=AssertionError("large card was planned")):
+            text = "x" * (optional.MAX_CARD_CHARS + 1)
+            self.assertIs(optional.extend_card(text, fresh(), True), text)
 
     def test_a_value_template_escapes_the_fact_and_refuses_anything_that_is_not_a_short_scalar(self):
         optional.publish_templates("f", [{"field": "agent", "kind": "value", "text": "Agent: {}", "priority": 1}])
@@ -891,6 +1000,13 @@ class FetchFactTests(Base):
             listing = home(1)
             listing.agent = value
             self.assertEqual(optional.extend_card("card", listing, False), "card" if expect is None else "card\n" + expect, repr(value))
+
+    def test_an_oversized_value_is_rejected_before_it_is_processed(self):
+        optional.publish_templates("f", [{"field": "agent", "kind": "value", "text": "Agent: {}", "priority": 1}])
+        listing = home(1)
+        listing.agent = "x" * 1_000_000
+        with patch.object(optional.re, "sub", side_effect=AssertionError("processed an unbounded fact")):
+            self.assertEqual(optional.extend_card("card", listing, False), "card")
 
     def test_a_rendered_line_never_changes_the_call_plan_at_any_boundary(self):
         """Defect class (d): the same planning as published lines, against the final text and the real media outcome, through the real sender."""
@@ -999,6 +1115,7 @@ class RereviewTests(OptionalBase):
 
             def race(path, *a, **kw):
                 if Path(path) == target and not swapped:
+                    os.unlink(target)
                     link(primary, target)
                     swapped.append(True)
                 return real_connect(path, *a, **kw)
@@ -1015,6 +1132,25 @@ class RereviewTests(OptionalBase):
                 db.commit()
         self.assertTrue(store.write("CREATE TABLE IF NOT EXISTS t (k TEXT)", [("INSERT INTO t VALUES ('x')", ())]))   # the honest path works
         self.assertEqual(store.last_error[0], "")
+
+    def test_a_hard_link_swapped_during_open_and_then_restored_does_not_write_the_primary(self):
+        primary, target, real_connect = self.primary(), store.path(), sqlite3.connect
+        original = target.with_name("original-optional.db")
+
+        def race(path, *args, **kwargs):
+            if Path(path) != target:
+                return real_connect(path, *args, **kwargs)
+            os.rename(target, original)
+            os.link(primary, target)
+            opened = real_connect(path, *args, **kwargs)
+            os.unlink(target)
+            os.rename(original, target)
+            return opened
+
+        with patch.object(store.sqlite3, "connect", side_effect=race):
+            written = store.write("", [("UPDATE probe SET v='after'", ())])
+        self.assertFalse(written, (self.value(primary), store.last_error[0]))
+        self.assertEqual(self.value(primary), "before")
 
     def test_a_state_directory_others_can_write_is_refused_before_anything_is_created(self):
         os.chmod(localdb.state_dir(), 0o777)
@@ -1074,9 +1210,9 @@ class RereviewTests(OptionalBase):
 
     def test_a_real_child_over_its_memory_ceiling_does_not_survive(self):
         marker = Path(self.tmp.name) / "survived"
-        body = (f"b = bytearray(700_000_000)\n        for i in range(0, len(b), 4096): b[i] = 1\n        time.sleep(3)\n"
+        body = (f"b = bytearray(80_000_000)\n        for i in range(0, len(b), 4096): b[i] = 1\n        time.sleep(3)\n"
                 f"        open({str(marker)!r}, 'w').write('x')")
-        done = self.child(body, setup="step.MEMORY_LIMIT_BYTES = 400_000_000")
+        done = self.child(body, setup="step.MEMORY_LIMIT_BYTES = 50_000_000")
         self.assertFalse(marker.exists(), done.stderr[-300:])
         if sys.platform == "darwin":
             self.assertEqual(done.returncode, 6)                                  # stopped by the resident-memory watchdog
@@ -1106,6 +1242,87 @@ class RereviewTests(OptionalBase):
             self.assertGreater(len(self.sent), n)
             with patch.object(optional.time, "time", return_value=time.time() + 10 * 3600):
                 self.assertEqual(optional.health()["workers"][0]["waiting"], 0)   # nothing left to go stale
+
+    def test_a_loader_failure_cannot_race_an_offer_into_a_dead_inbox(self):
+        loading, fail, entering, proceed = (threading.Event() for _ in range(4))
+        self.addCleanup(fail.set)
+        self.addCleanup(proceed.set)
+        lock = threading.Lock()
+
+        class GateLock:
+            def acquire(self, blocking=True):
+                if threading.current_thread().name == "test-offer":
+                    entering.set()
+                    proceed.wait(5)
+                return lock.acquire(blocking=blocking)
+
+            def release(self):
+                lock.release()
+
+            def __enter__(self):
+                self.acquire()
+
+            def __exit__(self, *args):
+                self.release()
+
+        def loader():
+            loading.set()
+            fail.wait(5)
+            raise RuntimeError("loader failed")
+
+        worker = optional.Worker(FLAG, loader)
+        worker.lock = GateLock()
+        item = optional.Item(1, time.time(), OWNER, None, "new", "sent", "head", ())
+        worker.start()
+        self.assertTrue(loading.wait(5))
+        offer = threading.Thread(target=worker.offer, args=([item],), name="test-offer", daemon=True)
+        offer.start()
+        self.assertTrue(entering.wait(5))
+        fail.set()
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
+        proceed.set()
+        offer.join(5)
+        self.assertFalse(offer.is_alive())
+        self.assertEqual((worker.status()["waiting"], optional.lost["failed"]), (0, 1))
+
+    def test_a_busy_worker_inbox_does_not_block_the_scheduler_and_counts_the_loss(self):
+        worker = optional.Worker(FLAG, lambda: Feature())
+        item = optional.Item(1, time.time(), OWNER, None, "new", "sent", "head", ())
+        with worker.lock:
+            worker.offer([item])
+        self.assertEqual((worker.status()["waiting"], optional.lost["contended"]), (0, 1))
+
+    def test_the_cycle_handoff_does_not_wait_for_snapshot_publication(self):
+        self.enable(Feature())
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
+        done = threading.Event()
+        with optional._lock:
+            handoff = threading.Thread(target=lambda: (optional.after_cycle(), done.set()), daemon=True)
+            handoff.start()
+            self.assertTrue(done.wait(1), "handoff waited for a feature publishing a snapshot")
+        handoff.join(5)
+
+    def test_status_cannot_observe_a_batch_between_inbox_and_inflight(self):
+        worker = optional.Worker(FLAG, lambda: Feature())
+        item = optional.Item(1, time.time(), OWNER, None, "new", "sent", "head", ())
+        worker.inbox.append([item, 0])
+        started, done, observed = threading.Event(), threading.Event(), []
+
+        def read_status():
+            started.set()
+            observed.append(worker.status())
+            done.set()
+
+        with worker.lock:
+            worker.inbox.clear()
+            reader = threading.Thread(target=read_status, daemon=True)
+            reader.start()
+            self.assertTrue(started.wait(5))
+            self.assertFalse(done.wait(0.1))
+            worker.inflight = 1
+        reader.join(5)
+        self.assertEqual((observed[0]["waiting"], observed[0]["inflight"]), (0, 1))
 
     # P3: what a feature is working on right now is visible
     def test_items_taken_but_not_yet_settled_are_reported_in_flight(self):
@@ -1192,9 +1409,16 @@ class RealSendBase(Base):
 
 
 class OffIsTheReleaseTests(RealSendBase):
+    def setUp(self):
+        super().setUp()
+        optional.reset()
+        self.addCleanup(optional.reset)
+
     def scenario(self, release, mutate=None):
         import tempfile
-        state = tempfile.mkdtemp()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        state = directory.name
         trace, listings = [], [(1, 1200)]
         market = Market({i: 1000 + 50 * i for i in range(1, 9)})
         counter = [0]
@@ -1289,8 +1513,13 @@ class OffIsTheReleaseTests(RealSendBase):
             return trace, files, states
 
     def test_the_ordered_trace_and_every_persons_state_are_identical_to_the_releases_with_nothing_enabled(self):
+        def disabled(stack):
+            stack.enter_context(patch.dict(os.environ, {FLAG: "0"}))
+            optional.register(FLAG, lambda: self.fail("disabled loader ran"), templates=[LISTED])
+            optional.publish_lines(FLAG, {"rm:2": [(5, "disabled published line")]})
+
         try:
-            theirs, ours = self.scenario(True), self.scenario(False)
+            theirs, ours = self.scenario(True), self.scenario(False, disabled)
         except subprocess.CalledProcessError:
             self.skipTest("release code not available from git")
         self.assertGreater(len([t for t in ours[0] if t[0] == "telegram"]), 3)
@@ -1342,7 +1571,11 @@ class OffIsTheReleaseTests(RealSendBase):
         with the line removed from the card texts the ordered trace (calls, requests, file writes, SQL) is the release's again."""
         optional.reset()
         self.addCleanup(optional.reset)
-        theirs, mutated = self.mutant(lambda stack: optional.publish_templates("timing", [LISTED]))
+        def enabled_template(stack):
+            stack.enter_context(patch.dict(os.environ, {"timing": "1"}))
+            optional.publish_templates("timing", [LISTED])
+
+        theirs, mutated = self.mutant(enabled_template)
         self.assertNotEqual(theirs, mutated)
         line = "\n🕒 Listed 40 min ago"
         self.assertTrue(any(line in t[3] for t in mutated if t[0] == "telegram"))
