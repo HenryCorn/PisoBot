@@ -1438,6 +1438,8 @@ class OffIsTheReleaseTests(RealSendBase):
         market = Market({i: 1000 + 50 * i for i in range(1, 9)})
         counter = [0]
         real_connect, real_open, real_replace = sqlite3.connect, open, os.replace
+        real_os_open, real_os_write, real_os_close = os.open, os.write, os.close
+        write_fds = {}
 
         def connect(*a, **kw):
             db = real_connect(*a, **kw)
@@ -1454,6 +1456,31 @@ class OffIsTheReleaseTests(RealSendBase):
             if str(dst).startswith(state):
                 trace.append(("replace", mask(os.path.relpath(str(dst), state))))
             return real_replace(src, dst, *a, **kw)
+
+        def open_fd(path, flags, *args, **kwargs):
+            name = os.fsdecode(path)
+            writable = flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND)
+            relative = mask(os.path.relpath(name, state)) if writable and name.startswith(state + os.sep) else None
+            if relative is not None:
+                trace.append(("os-open", relative, flags))
+            fd = real_os_open(path, flags, *args, **kwargs)
+            write_fds.pop(fd, None)
+            if relative is not None:
+                info = os.fstat(fd)
+                write_fds[fd] = (relative, info.st_dev, info.st_ino)
+            return fd
+
+        def write_fd(fd, data):
+            entry = write_fds.get(fd)
+            if entry is not None:
+                info = os.fstat(fd)
+                if (info.st_dev, info.st_ino) == entry[1:]:
+                    trace.append(("os-write", entry[0], len(data)))
+            return real_os_write(fd, data)
+
+        def close_fd(fd):
+            write_fds.pop(fd, None)
+            return real_os_close(fd)
 
         def call(method, **data):
             counter[0] += 1
@@ -1491,6 +1518,9 @@ class OffIsTheReleaseTests(RealSendBase):
             stack.enter_context(patch.object(sqlite3, "connect", connect))
             stack.enter_context(patch("builtins.open", opener))
             stack.enter_context(patch.object(os, "replace", replace))
+            stack.enter_context(patch.object(os, "open", open_fd))
+            stack.enter_context(patch.object(os, "write", write_fd))
+            stack.enter_context(patch.object(os, "close", close_fd))
             if release:
                 r_tel, r_main, r_sweep, r_watch = (release_module(n, f"pisobot/{n}.py") for n in ("telegram", "main", "sweep", "watch"))
                 for module in (r_tel, ):
@@ -1580,6 +1610,24 @@ class OffIsTheReleaseTests(RealSendBase):
         theirs, mutated = self.mutant(lambda stack: stack.enter_context(
             patch.object(main, "fetch_sources", lambda *a, **kw: (real(*a, **kw), real(*a, **kw))[1])))
         self.assertNotEqual(theirs, mutated)
+
+    def test_mutation_a_low_level_file_write_changes_the_trace_even_when_state_is_unchanged(self):
+        real = main.save_seen
+
+        def extra(stack):
+            def save(seen):
+                real(seen)
+                fd = os.open(main.SEEN_PATH, os.O_WRONLY | os.O_APPEND)
+                try:
+                    os.write(fd, b"")
+                finally:
+                    os.close(fd)
+            stack.enter_context(patch.object(main, "save_seen", save))
+
+        theirs, mutated = self.scenario(True), self.scenario(False, extra)
+        self.assertNotEqual(theirs[0], mutated[0])
+        self.assertTrue(any(event[0] == "os-write" for event in mutated[0]))
+        self.assertEqual(theirs[1:], mutated[1:])
 
     def test_mutation_a_template_left_published_changes_the_trace_and_only_by_its_line(self):
         """The scenario really exercises the fetch-to-send seam: a published template shows up in the trace. And it changes NOTHING else:
