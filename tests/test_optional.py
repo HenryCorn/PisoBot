@@ -624,11 +624,70 @@ class FakeProc:
             raise subprocess.TimeoutExpired("x", timeout)
 
 
+class ChildGroupTests(unittest.TestCase):
+    def test_expiry_cannot_signal_after_or_during_the_final_reap(self):
+        entered, release = threading.Event(), threading.Event()
+        proc = types.SimpleNamespace(pid=12345, returncode=None)
+
+        def wait(timeout):
+            entered.set()
+            release.wait(5)
+            proc.returncode = 0
+
+        proc.wait = wait
+        group = runner.ChildGroup(proc, time.monotonic() + 60)
+        with patch.object(runner.os, "waitid", return_value=object()), patch.object(runner.os, "killpg") as killpg:
+            thread = threading.Thread(target=group.finish)
+            thread.start()
+            try:
+                self.assertTrue(entered.wait(2))
+                group.terminate()
+            finally:
+                release.set()
+                thread.join(5)
+            self.assertFalse(thread.is_alive())
+            self.assertTrue(group.done.is_set())
+            group.terminate()
+            killpg.assert_not_called()
+
+    def test_an_externally_reaped_leader_is_never_signalled(self):
+        proc = types.SimpleNamespace(pid=12345, returncode=None)
+        group = runner.ChildGroup(proc, time.monotonic() + 60)
+        with patch.object(runner.os, "waitid", side_effect=ChildProcessError), \
+                patch.object(runner.os, "killpg") as killpg, self.assertLogs("pisobot.optional.runner", level="ERROR"):
+            group.terminate()
+        self.assertTrue(group.lost)
+        self.assertFalse(group.done.is_set())
+        killpg.assert_not_called()
+
+
 class RunnerTests(OptionalBase):
     def setUp(self):
         super().setUp()
         self.runner = runner.Runner()
         self.addCleanup(self.runner.stop)
+
+    def launch(self, code, *, pipe=False):
+        proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE if pipe else subprocess.DEVNULL,
+                                text=True, start_new_session=True)
+
+        def cleanup():
+            group = self.runner.group
+            if group is not None and group.proc is proc:
+                self.runner.stop()
+                group.done.wait(3)
+            elif proc.returncode is None:
+                with contextlib.suppress(ChildProcessError, ProcessLookupError):
+                    os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                    os.killpg(proc.pid, 9)
+                with contextlib.suppress(Exception):
+                    proc.wait(timeout=2)
+            if proc.stdout is not None:
+                proc.stdout.close()
+        self.addCleanup(cleanup)
+        with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
+            self.assertTrue(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
+        return proc, self.runner.group
 
     def test_nothing_is_started_without_an_enabled_feature_that_reports_queued_work(self):
         popen = MagicMock(side_effect=AssertionError("started"))
@@ -641,56 +700,74 @@ class RunnerTests(OptionalBase):
         optional.after_ack(home(1), OWNER, None, {"state": "sent"})
         optional.after_cycle()
         self.assertTrue(wait_for(lambda: optional.workers()[0].work))
-        proc = FakeProc()
-        self.assertTrue(self.runner.maybe_start(popen=MagicMock(return_value=proc)))
+        self.launch("import time; time.sleep(60)")
         self.assertFalse(self.runner.maybe_start(popen=popen))              # one at a time
         self.runner.stop()
 
+    def test_a_child_is_not_started_when_child_reaping_is_not_owned(self):
+        popen = MagicMock()
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), \
+                patch.object(runner.signal, "getsignal", return_value=runner.signal.SIG_IGN), \
+                self.assertLogs("pisobot.optional.runner", level="WARNING"):
+            self.assertFalse(self.runner.maybe_start(popen=popen))
+        popen.assert_not_called()
+
+    def test_timer_start_failure_still_terminates_and_reaps_the_owned_group(self):
+        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), \
+                patch.object(threading.Timer, "start", side_effect=RuntimeError("no timer")), \
+                self.assertLogs("pisobot.optional.runner", level="WARNING"):
+            self.assertFalse(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
+            group = self.runner.group
+            self.assertTrue(group.done.wait(5))
+            self.assertIsNotNone(proc.returncode)
+            self.assertIsNone(self.runner.reap())
+
     def test_an_overdue_child_is_killed_at_the_next_cycle_start_and_ownership_is_kept_until_it_is_dead(self):
-        stubborn = FakeProc(stubborn=True)
-        runner.RUNNER.proc = stubborn
-        runner.RUNNER.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1
-        self.addCleanup(lambda: (setattr(runner.RUNNER, "proc", None), runner.RUNNER.dying.clear()))
-        with patch.object(runner.os, "killpg"):
+        proc, group = self.launch("import time; time.sleep(60)")
+        self.runner.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1
+        with patch.object(optional, "RUNNER", self.runner), patch.object(group, "signal") as signal_group:
             start = time.monotonic()
             self.baseline()
             self.assertLess(time.monotonic() - start, 5)
-        self.assertTrue(stubborn.killed)
-        self.assertIn(stubborn, runner.RUNNER.dying)                         # not confirmed dead: still tracked, retried
+            self.assertTrue(group.stopping.is_set())
+            self.assertTrue(wait_for(lambda: signal_group.called))
+            self.assertIn(proc, self.runner.dying)
 
     def test_a_child_within_its_budget_is_left_alone(self):
-        proc = FakeProc()
-        self.runner.proc, self.runner.started = proc, time.monotonic()
+        proc, group = self.launch("import time; time.sleep(60)")
         self.assertEqual(self.runner.reap(), "running")
-        self.assertFalse(proc.killed)
+        self.assertFalse(group.stopping.is_set())
+        self.assertIsNone(proc.returncode)
 
     def test_the_timer_is_cancelled_when_the_child_is_reaped(self):
-        proc = FakeProc()
-        self.enable(Feature(work=True))
-        optional.start()
-        optional.after_cycle()
-        self.assertTrue(wait_for(lambda: optional.workers()[0].work))
-        self.assertTrue(self.runner.maybe_start(popen=MagicMock(return_value=proc)))
+        proc, group = self.launch("pass")
         timer = self.runner.timer
-        proc.killed = True
+        self.assertTrue(group.done.wait(5))
         self.runner.reap()
         self.assertTrue(timer.finished.is_set())
         self.assertIsNone(self.runner.timer)
+        self.assertIsNotNone(proc.returncode)
 
     def test_shutdown_kills_the_whole_process_group_and_reaps_the_child(self):
-        child = subprocess.Popen([sys.executable, "-c",
-                                  "import subprocess,sys,time;g=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
-                                  "print(g.pid,flush=True);time.sleep(60)"], stdout=subprocess.PIPE, text=True, start_new_session=True)
+        child, group = self.launch(
+            "import subprocess,sys,time;g=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
+            "print(g.pid,flush=True);time.sleep(60)", pipe=True)
         grandchild = int(child.stdout.readline())
-        self.runner.proc, self.runner.started = child, time.monotonic()
         self.runner.stop()
-        self.assertIsNotNone(child.returncode)                                # reaped: no zombie
+        self.assertTrue(group.done.wait(5))
+        self.assertIsNotNone(child.returncode)
         self.assertTrue(wait_for(lambda: not _alive(grandchild)))            # descendants died with the group
 
     def test_the_supervisor_never_raises(self):
         proc = MagicMock()
-        proc.poll.side_effect = OSError("poll failed")
+        group = MagicMock()
+        group.done.is_set.side_effect = OSError("state failed")
+        group.done.wait.side_effect = OSError("state failed")
         self.runner.proc = proc
+        self.runner.group = group
         self.assertEqual(self.runner.reap(), "running")
         with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
             self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("lost ownership"))))
@@ -699,46 +776,68 @@ class RunnerTests(OptionalBase):
 
     def test_reaping_an_unconfirmed_child_never_waits_or_starts_another(self):
         stubborn = FakeProc(stubborn=True)
-        self.runner.proc = stubborn
+        group = types.SimpleNamespace(proc=stubborn, done=threading.Event(), request_stop=MagicMock(), terminate=MagicMock())
+        self.runner.proc, self.runner.group = stubborn, group
         self.runner.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1
-        with patch.object(runner.os, "killpg"), patch.object(runner, "group_alive", return_value=False), \
-                patch.object(optional, "enabled_any", return_value=True), \
+        with patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True):
             self.assertEqual(self.runner.reap(), "running")
             self.assertEqual(stubborn.waited, 0)
             self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("started another child"))))
             self.assertEqual(stubborn.waited, 0)
             self.assertEqual(self.runner.dying, [stubborn])
-            stubborn.stubborn = False
+            group.done.set()
             self.assertIsNone(self.runner.reap())
 
     def test_a_leaders_descendants_are_killed_even_without_another_cycle(self):
         code = ("import subprocess,sys; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(20)']);"
                 "print(p.pid,flush=True)")
+        real_killpg, signals = os.killpg, []
 
-        def launch(*args, **kwargs):
-            return subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True, start_new_session=True)
+        def signal_owned(pgid, sig):
+            os.waitid(os.P_PID, pgid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            signals.append((pgid, sig))
+            return real_killpg(pgid, sig)
 
-        with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
-            self.assertTrue(self.runner.maybe_start(popen=launch))
-            proc = self.runner.proc
-            self.addCleanup(proc.stdout.close)
+        with patch.object(runner.os, "killpg", side_effect=signal_owned):
+            proc, group = self.launch(code, pipe=True)
             self.assertTrue(select.select([proc.stdout], [], [], 5)[0])
             descendant = int(proc.stdout.readline())
-            proc.wait(timeout=5)
             self.assertTrue(wait_for(lambda: not _alive(descendant), 5))
+            self.assertTrue(group.done.wait(5))
+            self.assertTrue(signals)
+            count = len(signals)
+            group.terminate()
+            self.assertEqual(len(signals), count)
             self.assertTrue(wait_for(lambda: self.runner.reap() is None, 5))
 
     def test_a_finished_leader_does_not_release_a_live_group(self):
-        proc = FakeProc()
-        proc.killed = True
-        self.runner.proc = proc
-        with patch.object(runner, "group_alive", return_value=True), patch.object(self.runner, "_kill_group"), \
-                patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
+        proc, group = self.launch(
+            "import subprocess,sys,time; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(20)']);"
+            "print(p.pid,flush=True);time.sleep(.3)", pipe=True)
+        descendant = int(proc.stdout.readline())
+        with patch.object(group, "signal"), patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True):
+            self.assertTrue(wait_for(lambda: os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None))
             self.assertEqual(self.runner.reap(), "running")
             self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("second group"))))
-        with patch.object(runner, "group_alive", return_value=False):
-            self.assertIsNone(self.runner.reap())
+            self.assertTrue(_alive(descendant))
+        group.request_stop()
+        self.assertTrue(group.done.wait(5))
+        self.assertFalse(_alive(descendant))
+
+    def test_a_failed_group_inspection_keeps_the_leader_owned_until_rechecked(self):
+        proc, group = self.launch("import time; time.sleep(60)")
+        with patch.object(runner, "group_usage", side_effect=OSError("inspection failed")) as inspect, \
+                self.assertLogs("pisobot.optional.runner", level="WARNING"):
+            group.request_stop()
+            self.assertTrue(wait_for(lambda: inspect.called))
+            self.assertTrue(wait_for(lambda: os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None))
+            self.assertFalse(group.done.is_set())
+            self.assertIsNone(proc.returncode)
+            self.assertEqual(self.runner.reap(), "running")
+        group.wake.set()
+        self.assertTrue(group.done.wait(5))
 
     def test_aggregate_group_memory_stops_children_that_are_individually_below_the_limit(self):
         code = """
@@ -753,25 +852,33 @@ time.sleep(20)
         proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True, start_new_session=True)
 
         def cleanup():
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(proc.pid, 9)
-            with contextlib.suppress(Exception):
-                proc.wait(timeout=2)
+            group = self.runner.group
+            if group is not None and group.proc is proc:
+                self.runner.stop()
+                group.done.wait(3)
+            elif proc.returncode is None:
+                with contextlib.suppress(ChildProcessError, ProcessLookupError):
+                    os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                    os.killpg(proc.pid, 9)
+                with contextlib.suppress(Exception):
+                    proc.wait(timeout=2)
             proc.stdout.close()
         self.addCleanup(cleanup)
         self.assertTrue(select.select([proc.stdout], [], [], 5)[0])
         children = [int(value) for value in proc.stdout.readline().split()]
         self.assertEqual(len(children), 2)
-        memory, count = runner.group_usage(proc.pid)
+        memory, count, live = runner.group_usage(proc.pid)
         limit = 65_000_000
         self.assertGreater(memory, limit)
         self.assertEqual(count, 3)
+        self.assertEqual(live, 3)
         sizes = subprocess.check_output(["/bin/ps", "-p", ",".join(map(str, [proc.pid, *children])), "-o", "rss="], text=True)
         self.assertTrue(all(int(size) * 1024 < limit for size in sizes.split()))
         with patch.object(runner, "GROUP_MEMORY_BYTES", limit), patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True):
             self.assertTrue(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
-            self.assertTrue(wait_for(lambda: proc.poll() is not None, 5))
+            self.assertTrue(self.runner.group.done.wait(5))
+            self.assertIsNotNone(proc.returncode)
             self.assertTrue(wait_for(lambda: all(not _alive(pid) for pid in children), 5))
 
     def test_the_step_refuses_to_run_without_resource_limits_unless_opted_out(self):
@@ -1296,9 +1403,9 @@ class RereviewTests(OptionalBase):
     # P2: shutdown keeps ownership of a child it could not confirm dead
     def test_shutdown_keeps_a_child_whose_death_is_not_confirmed_and_later_reaps_retry_it(self):
         stubborn, r = FakeProc(stubborn=True), runner.Runner()
-        r.proc, r.started = stubborn, time.monotonic()
-        with patch.object(runner.os, "killpg"), patch.object(runner, "group_alive", return_value=False), \
-                patch.object(runner, "CONFIRM_SECONDS", 0.01):
+        group = types.SimpleNamespace(proc=stubborn, done=threading.Event(), request_stop=MagicMock(), terminate=MagicMock())
+        r.proc, r.group, r.started = stubborn, group, time.monotonic()
+        with patch.object(runner, "CONFIRM_SECONDS", 0.01):
             r.stop()
             self.assertIsNone(r.proc)
             self.assertEqual(r.dying, [stubborn])                                 # still owned
@@ -1306,8 +1413,7 @@ class RereviewTests(OptionalBase):
             self.assertEqual(r.dying, [stubborn])                                 # a second shutdown does not forget it either
             r.reap()
             self.assertEqual(r.dying, [stubborn])
-            stubborn.stubborn = False
-            stubborn.code = -9
+            group.done.set()
             r.reap()
         self.assertEqual(r.dying, [])
 

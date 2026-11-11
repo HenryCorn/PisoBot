@@ -3,14 +3,13 @@
 A feature that needs HTTP or a model has `has_work()` and `step(deadline)`; its worker thread keeps a `work` flag. The watcher starts ONE
 child (`python -m pisobot.optional.step`) after a cycle, only when an enabled feature's flag says work is queued. Everything here is
 non-raising and bounded; the watcher's result or exception is never replaced by anything in this module.
-  * the child is its own session and process group; it is killed as a GROUP, so descendants die with it;
+  * the child is its own session and process group; signalling targets that group, including its remaining descendants;
   * single flight: the child takes an exclusive flock on optional.lock BEFORE it loads any feature;
   * budget: the child's own SIGALRM, a cancellable timer in the watcher, and a check at the start and end of every cycle;
   * ownership: a child that was killed but not yet confirmed dead stays tracked and is re-checked, never forgotten;
   * it never holds the run lock, never runs in a dry run, and is never started without queued work.
 Importing this module does no work.
 """
-import contextlib
 import logging
 import os
 import select
@@ -33,8 +32,8 @@ log = logging.getLogger(__name__)
 
 
 def group_usage(pgid):
-    """Return aggregate RSS and process count for the child's process group."""
-    ps = subprocess.Popen(["/bin/ps", "-g", str(pgid), "-o", "pgid=,rss="],
+    """Return aggregate RSS, process count and non-zombie count for the child's process group."""
+    ps = subprocess.Popen(["/bin/ps", "-g", str(pgid), "-o", "pgid=,rss=,stat="],
                           stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     deadline, output = time.monotonic() + GROUP_CHECK_TIMEOUT, bytearray()
     try:
@@ -58,31 +57,128 @@ def group_usage(pgid):
             ps.wait(timeout=0.1)
         except subprocess.TimeoutExpired:
             log.warning("optional process-group inspector did not exit promptly")
-    total, count = 0, 0
+    total, count, live = 0, 0, 0
     for line in output.splitlines():
-        group, rss = line.split()
+        group, rss, state = line.split()
         if int(group) == pgid:
             total += int(rss) * 1024
             count += 1
-    if not count:
-        raise ProcessLookupError("process group not found")
-    return total, count
+            live += not state.startswith(b"Z")
+    return total, count, live
 
 
-def group_alive(proc):
-    try:
-        os.killpg(proc.pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
+class ChildGroup:
+    """Keep the leader's PID reserved until the group is settled and signalling is disabled."""
+
+    def __init__(self, proc, deadline):
+        self.proc, self.deadline = proc, deadline
+        self.lock = threading.Lock()
+        self.stopping, self.wake, self.done = threading.Event(), threading.Event(), threading.Event()
+        self.closed, self.lost = False, False
+
+    def _exited(self):
+        if self.proc.returncode is not None:
+            raise ChildProcessError("group leader was reaped outside its supervisor")
+        # WNOWAIT retains the zombie and its PID until finish() serializes the final reap with all signals.
+        return os.waitid(os.P_PID, self.proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+
+    def _lost(self):
+        if not self.lost:
+            self.lost = True
+            log.error("optional step leader ownership lost; refusing further group signals")
+
+    def signal(self):
+        if not self.lock.acquire(blocking=False):
+            return
+        try:
+            if self.closed or self.lost:
+                return
+            try:
+                self._exited()
+            except ChildProcessError:
+                self._lost()
+                return
+            except OSError as ex:
+                log.warning("optional step ownership check failed (%s)", type(ex).__name__)
+                return
+            try:
+                os.killpg(self.proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except OSError as ex:
+                log.warning("optional step group could not be signalled (%s)", type(ex).__name__)
+        finally:
+            self.lock.release()
+
+    def request_stop(self):
+        self.stopping.set()
+        self.wake.set()
+
+    def terminate(self):
+        self.request_stop()
+        self.signal()
+
+    def finish(self):
+        with self.lock:
+            if self.closed or self.lost:
+                return self.closed
+            try:
+                if not self._exited():
+                    return False
+                self.proc.wait(timeout=0)
+            except ChildProcessError:
+                self._lost()
+                return False
+            except subprocess.TimeoutExpired:
+                return False
+            self.closed = True
+            self.done.set()
+            return True
+
+    def supervise(self, timer):
+        terminating = failure_reported = False
+        try:
+            while not self.done.is_set() and not self.lost:
+                try:
+                    with self.lock:
+                        exited = self._exited()
+                    terminating = terminating or exited or self.stopping.is_set() or time.monotonic() >= self.deadline
+                    if terminating:
+                        self.signal()
+                    memory, count, live = group_usage(self.proc.pid)
+                    if terminating and exited and not live:
+                        self.finish()
+                    elif not terminating:
+                        if not count:
+                            raise ProcessLookupError("process group not found")
+                        if memory > GROUP_MEMORY_BYTES or count > GROUP_PROCESS_LIMIT:
+                            log.warning("optional step exceeded its process-group resource limit")
+                            terminating = True
+                            self.signal()
+                    failure_reported = False
+                except ChildProcessError:
+                    with self.lock:
+                        self._lost()
+                except Exception as ex:
+                    if not failure_reported:
+                        log.warning("optional step group supervision failed (%s)", type(ex).__name__)
+                        failure_reported = True
+                    terminating = True
+                    self.signal()
+                self.wake.wait(GROUP_CHECK_SECONDS)
+                self.wake.clear()
+        except Exception as ex:
+            log.error("optional step supervisor stopped unexpectedly (%s)", type(ex).__name__)
+            self.terminate()
+        finally:
+            if self.done.is_set() or self.lost:
+                timer.cancel()
 
 
 class Runner:
     def __init__(self):
         self.proc, self.started, self.timer, self.dying = None, 0.0, None, []
-        self.monitor_stop = None
+        self.group = None
 
     @staticmethod
     def has_work():
@@ -97,124 +193,56 @@ class Runner:
             from . import enabled_any
             if not enabled_any() or self.reap() == "running" or not self.has_work():
                 return False
+            if (not all(hasattr(os, name) for name in ("waitid", "P_PID", "WEXITED", "WNOHANG", "WNOWAIT"))
+                    or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL):
+                log.warning("optional step refused: safe child ownership is unavailable")
+                return False
+            started = time.monotonic()
             proc = popen([sys.executable, "-m", "pisobot.optional.step"], stdin=subprocess.DEVNULL, start_new_session=True,
                          cwd=str(Path(__file__).resolve().parents[2]))
-            self.proc, self.started = proc, time.monotonic()
-            self.timer = threading.Timer(STEP_SECONDS + KILL_GRACE_SECONDS, self._kill_group, args=(proc,))
+            self.proc, self.started = proc, started
+            self.group = ChildGroup(proc, self.started + STEP_SECONDS + KILL_GRACE_SECONDS)
+            self.timer = threading.Timer(STEP_SECONDS + KILL_GRACE_SECONDS, self.group.terminate)
             self.timer.daemon = True
-            self.timer.start()
-            self.monitor_stop = threading.Event()
-            monitor = threading.Thread(target=self._monitor, args=(proc, self.timer, self.monitor_stop), daemon=True)
+            monitor = threading.Thread(target=self.group.supervise, args=(self.timer,), daemon=True)
             monitor.start()
+            self.timer.start()
             return True
         except Exception as ex:
             log.warning("optional step could not start or be supervised (%s)", type(ex).__name__)
-            if self.proc is not None:
-                self._kill_group(self.proc)
+            if self.group is not None:
+                self.group.terminate()
             return False
 
-    @staticmethod
-    def _kill_group(proc):
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except Exception as ex:
-            log.warning("optional step group could not be signalled (%s)", type(ex).__name__)
-        with contextlib.suppress(Exception):
-            if proc.poll() is None:
-                proc.kill()
-
-    def _monitor(self, proc, timer, stop):
-        terminating = False
-        while not stop.wait(GROUP_CHECK_SECONDS):
-            try:
-                if proc.poll() is not None:
-                    terminating = True
-                if terminating:
-                    if proc.poll() is not None and not group_alive(proc):
-                        timer.cancel()
-                        return
-                    self._kill_group(proc)
-                    continue
-                memory, count = group_usage(proc.pid)
-                if memory > GROUP_MEMORY_BYTES or count > GROUP_PROCESS_LIMIT:
-                    log.warning("optional step exceeded its process-group resource limit")
-                    terminating = True
-                    self._kill_group(proc)
-            except Exception as ex:
-                if not terminating:
-                    log.warning("optional step group supervision failed (%s)", type(ex).__name__)
-                terminating = True
-                self._kill_group(proc)
-
-    def _confirm(self, proc):
-        """Kill the group and wait a bounded time for the exit; a child not confirmed dead stays in `dying` and is retried."""
-        if proc.poll() is not None and not group_alive(proc):
-            return True
-        self._kill_group(proc)
-        try:
-            proc.wait(timeout=CONFIRM_SECONDS)
-            if not group_alive(proc):
-                return True
-        except Exception:
-            pass
-        self.dying.append(proc)
-        return False
-
     def reap(self):
-        """Poll and kill without waiting. An unconfirmed child remains owned and prevents another child from starting."""
+        """Check supervisor state without waiting; an unconfirmed group prevents another child from starting."""
         try:
-            self.dying = [p for p in self.dying if not self._retry(p)]
-            proc = self.proc
-            if proc is None:
-                if self.dying:
-                    return "running"
-                self._drop_timer()
-                return None
-            if proc.poll() is not None:
-                self.proc = None
-                if not self._retry(proc):
-                    self.dying.append(proc)
-                if self.dying:
-                    return "running"
-                self._drop_timer()
+            group = self.group
+            if group is None:
+                return "running" if self.proc is not None or self.dying else None
+            if group.done.is_set():
+                self.proc, self.group, self.dying = None, None, []
+                if self.timer is not None:
+                    self.timer.cancel()
+                    self.timer = None
                 return None
             if time.monotonic() - self.started > STEP_SECONDS + KILL_GRACE_SECONDS:
-                self.proc = None
-                self.dying.append(proc)
-                self._kill_group(proc)
-                return "running"
+                group.request_stop()
+                self.proc, self.dying = None, [group.proc]
             return "running"
         except Exception:
-            return "running" if self.proc is not None or self.dying else None
-
-    def _retry(self, proc):
-        if proc.poll() is not None and not group_alive(proc):
-            return True
-        self._kill_group(proc)
-        return proc.poll() is not None and not group_alive(proc)
-
-    def _drop_timer(self):
-        timer, self.timer = self.timer, None
-        if timer is not None:
-            timer.cancel()
-        monitor_stop, self.monitor_stop = self.monitor_stop, None
-        if monitor_stop is not None:
-            monitor_stop.set()
+            return "running" if self.group is not None or self.proc is not None or self.dying else None
 
     def stop(self):
-        """Kill and reap the group, retaining supervision if its exit cannot be confirmed. Never raises."""
+        """Request group termination and wait boundedly; retain any unconfirmed child."""
         try:
-            proc, self.proc = self.proc, None
-            waiting, self.dying = [*([proc] if proc is not None else []), *self.dying], []
-            for p in waiting:
-                try:
-                    self._confirm(p)                     # retains the group if its exit is not confirmed
-                except Exception:
-                    self.dying.append(p)
-            if not self.dying:
-                self._drop_timer()
+            group = self.group
+            if group is not None:
+                group.terminate()
+                if group.done.wait(CONFIRM_SECONDS):
+                    self.reap()
+                else:
+                    self.proc, self.dying = None, [group.proc]
         except Exception:
             pass
 
