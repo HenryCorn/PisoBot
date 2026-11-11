@@ -7,11 +7,14 @@ the enquiry is a draft the person copies into the portal or their own email.
 """
 import datetime as dt
 import html
+import logging
 import math
+import os
 import re
 
 from . import archive, config, ranking, tracker
 
+LOG = logging.getLogger(__name__)
 FIELDS = {   # name: (label, example)
     "name": ("Name", "Alex Smith"),
     "movein": ("Move-in", "1 Dec, 1/12-15/12, December, late December or asap"),
@@ -35,6 +38,10 @@ NEAR_DAYS = 14         # available this close to the move-in window still counts
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 PART = {"early": (1, 10), "beginning of": (1, 10), "start of": (1, 10), "mid": (11, 20),
         "middle of": (11, 20), "late": (21, 31), "end of": (21, 31)}   # day ranges of a month part
+
+
+def ready_enabled():
+    return os.environ.get("READY_PACK") == "1"
 
 
 def field_name(word):
@@ -187,16 +194,39 @@ def draft(listing, today=None):
     "url"}) plus, when archived, "available". The draft is plain text in <pre> so Telegram shows a
     copy button; facts missing from the profile become [placeholders]."""
     today = today or _today()
+    if ready_enabled():
+        try:
+            return _draft(listing, today, readiness=True)
+        except Exception:
+            LOG.warning("Application readiness draft unavailable; using a generic enquiry")
+            return ("⚠️ Application readiness is unavailable; this generic draft contains no profile details. "
+                    "Try /ready again.\n✍️ <b>Enquiry draft</b>\n"
+                    "<pre>Hello,\n\nI'm interested in your advertised rental. Is it still available, "
+                    "and when can I view it?\n\nMany thanks,\n[your name]</pre>\n"
+                    "<i>Copy it yourself; PisoBot never contacts agents.</i>", ["name"])
+    return _draft(listing, today)
+
+
+def _draft(listing, today, readiness=False):
     facts = profile()
+    pack = None
+    if readiness:
+        from . import ready
+        pack = ready.load(facts)
+        # Free-form profile text can contain rental bids or extra rent in advance. Only the
+        # validated readiness facts and parsed dates are safe to put into a copyable draft.
+        facts = {name: None for name in FIELDS}
+        facts["movein"] = "set" if pack.movein else None
     missing = [FIELDS[name][0].lower() for name in ("name", "movein", "job", "household") if not facts[name]]
-    address = (listing.get("address") or "the property").split(",")[0].strip()
-    span = window(today)
-    day = _available(listing.get("available"), today)
+    address = ("[property address]" if readiness else
+               (listing.get("address") or "the property").split(",")[0].strip())
+    span = pack.movein if readiness else window(today)
+    day = None if readiness else _available(listing.get("available"), today)
     lines = ["Hello,", "",
              f"I'm interested in renting {address}, which I saw on {_portal(listing.get('key'))}. "
              "Is it still available?"]
     if span:
-        want = show_window(*span)
+        want = ready.movein_text(span) if readiness else show_window(*span)
         if day:
             lines.append(f"I see it is available from {_day(max(day, today))}; I'm looking to move in {want}.")
         else:
@@ -204,7 +234,9 @@ def draft(listing, today=None):
     else:
         lines.append("Could you confirm the date it is available from? I'm looking to move in [move-in date].")
     about = []
-    if facts["job"]:
+    if readiness:
+        about.append("Occupation: [if applicable]")
+    elif facts["job"]:
         about.append(f"I work as {facts['job']}" if not facts["job"].lower().startswith(("i ", "a ", "an "))
                      else facts["job"])
     else:
@@ -218,13 +250,21 @@ def draft(listing, today=None):
         about.append(f"References: {facts['references']}")
     if facts["notes"]:
         about.append(facts["notes"])
-    lines += ["", "A little about me:", *[f"- {item}" for item in about], "",
-              "Could you let me know your earliest available viewing slots? I'm flexible and can view at "
-              "short notice.", "", "Many thanks,", facts["name"] or "[your name]"]
+    lines += ["", "A little about me:", *[f"- {item}" for item in about]]
+    if readiness:
+        lines += ["", ready.application_summary(pack)]
+    lines += ["", ("Could you let me know your earliest available viewing slots?" if readiness else
+                   "Could you let me know your earliest available viewing slots? I'm flexible and can view at "
+                   "short notice."), "", "Many thanks,", facts["name"] or "[your name]"]
     text = "\n".join(lines)
-    out = (f"✍️ <b>Enquiry draft</b> · {html.escape(address[:60])}\n<pre>{html.escape(text, quote=False)}</pre>\n"
+    title = "selected property" if readiness else html.escape(address[:60])
+    out = (f"✍️ <b>Enquiry draft</b> · {title}\n<pre>{html.escape(text, quote=False)}</pre>\n"
            "<i>Copy it into the portal's contact form or your email; PisoBot never contacts agents.</i>")
-    if missing:
+    if readiness:
+        out += ("\n<i>Free-text profile details are omitted for safety; fill placeholders yourself. "
+                "Do not bid above the advertised rent or offer more than one month's rent in advance.</i>"
+                + ready.extras(pack, listing.get("ready_rent")))
+    elif missing:
         out += f"\nAdd {', '.join(missing)} with /profile to fill the gaps."
     return out, missing
 
@@ -233,6 +273,8 @@ def show_profile():
     facts = profile()
     lines = ["<b>👤 Renter profile</b> <i>(used for enquiry drafts and move-in fit)</i>"]
     for name, (label, example) in FIELDS.items():
+        if name == "notes" and ready_enabled():
+            example = "anything important"
         current = facts[name]
         if name == "movein" and current:
             span = window()
@@ -240,6 +282,9 @@ def show_profile():
         shown = html.escape(current) if current else f"<i>not set</i> (e.g. {html.escape(example)})"
         lines.append(f"{label}: {shown}  <code>/profile {name}</code>")
     lines.append("\nSet one with <code>/profile name Alex Smith</code>; <code>/profile pets clear</code> removes it.")
+    if ready_enabled():
+        lines.append("Use /ready for application details and affordability. The readiness draft omits "
+                     "free-text profile details; fill its placeholders yourself.")
     return "\n".join(lines)
 
 

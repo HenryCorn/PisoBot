@@ -109,6 +109,32 @@ network outage.
 No public map is published in local mode. Unless you separately configure a
 valid `MAP_URL`, rental digests omit the old GitHub Pages map link.
 
+## Optional application readiness
+
+Set `READY_PACK=1` in the service environment to enable the pack; it is off by
+default. In a private bot chat, `/ready` shows the checklist and asks for missing
+answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to stop.
+Use `/ready status` to view it without starting questions, `/ready income` (or
+another field shown in the checklist) to change one answer, and `clear` to remove it.
+
+Tapping **Enquiry text** on a rental card selects that home for `/ready`. The
+check uses its last archived advertised rent, not the all-in cost; confirm that
+the current advert has not changed. Alternatively, `/ready rent 1600` checks a
+manually entered advertised monthly rent. The illustrative rule is annual gross
+household income of at least 30 times monthly rent (2.5 times monthly gross);
+some agents use 3 times, and their guarantor requirements vary. A band crossing
+the threshold is inconclusive rather than assumed to pass or fail.
+
+The pack uses the existing per-person profile database, stored as plaintext
+like the other profile fields; protect and back up that state accordingly.
+Each person's facts are separate, and the pack and its drafts are available
+only in private chats. Enquiry drafts, the call script and portal fields are
+for the person to copy: PisoBot does not contact agents or fetch an advert for
+this feature. To avoid inserting unsafe rent or advance offers, free-text profile
+details and property addresses are omitted from the copyable draft; fill the
+marked placeholders and check the text yourself. The pack does not change
+alerts or the search.
+
 ## Rental filtering and diagnostics
 
 Rental text exclusions use word boundaries and context: "bedroom in", "over

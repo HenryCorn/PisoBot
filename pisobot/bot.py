@@ -320,6 +320,7 @@ class Handler:
         self._outbox = None                # replies queued while an update is applied
         self._update = None                # the update id being applied
         self._reply_to = None              # the message a typed answer replied to
+        self._private_chat = False
 
     @property
     def chat(self):
@@ -460,10 +461,13 @@ class Handler:
             target = target.get("message_id") if isinstance(target, dict) else None
             with users.use(person):
                 self.user, self._reply_to = person, target if type(target) is int else None
+                chat = message.get("chat")
+                self._private_chat = isinstance(chat, dict) and chat.get("type") == "private"
                 try:
                     self._apply(update_id, lambda: self.command(message["text"]))
                 finally:
                     self.user, self._reply_to = None, None
+                    self._private_chat = False
 
     def _request(self, kind):
         if self.user is None or self.user.owner:
@@ -567,9 +571,23 @@ class Handler:
         if command in ("/settings", "/search", "/set"):
             self.settings(words if command == "/set" else words[:1])
             return
+        if command == "/ready" and renter.ready_enabled():
+            if not users.enabled():
+                self.reply("This command is only available on the VPS bot.")
+            elif not self._private_chat:
+                self.reply("For privacy, use /ready in a private chat with the bot.")
+            else:
+                try:
+                    self.ready(words)
+                except Exception:
+                    LOG.warning("Application readiness command failed")
+                    self.reply("⚠️ Application readiness is unavailable. Check /ready and try again.")
+            return
         if command in ("/pipeline", "/profile", "/onboard", "/cancel"):
             if not users.enabled():
                 self.reply("This command is only available on the VPS bot.")
+            elif command == "/profile" and renter.ready_enabled() and not self._private_chat:
+                self.reply("For privacy, use /profile in a private chat with the bot.")
             else:
                 {"/pipeline": self.pipeline, "/profile": self.profile, "/onboard": self.onboard,
                  "/cancel": self.cancel}[command](words)
@@ -637,7 +655,8 @@ class Handler:
             if command == "/start" and self._new_person():
                 self.onboard(words)
             else:
-                self.reply(HELP)
+                self.reply(HELP + ("\n/ready – private application checklist and affordability"
+                                   if renter.ready_enabled() and users.enabled() else ""))
 
     def callback(self, query, message):
         data, query_id = query.get("data"), query.get("id")
@@ -789,7 +808,9 @@ class Handler:
             return
         raw = " ".join(words[2:]).strip()
         if not raw:
-            self.ask("profile", name, f"{renter.FIELDS[name][0]}?", renter.FIELDS[name][1])
+            example = ("anything important" if name == "notes" and renter.ready_enabled()
+                       else renter.FIELDS[name][1])
+            self.ask("profile", name, f"{renter.FIELDS[name][0]}?", example)
             return
         self._profile_answer(name, raw)
 
@@ -810,6 +831,78 @@ class Handler:
             self.reply(f"✅ {label} saved.")
         return True
 
+    def ready(self, words):
+        from . import ready
+        name = words[1].lower() if len(words) > 1 else ""
+        if name in ready.FIELDS:
+            raw = " ".join(words[2:]).strip()
+            if raw:
+                self._ready_answer(f"single:{name}", raw, direct=True)
+            else:
+                self._ready_ask(name, flow=False)
+            return
+        rent = None
+        if name == "rent":
+            try:
+                rent = ready.rent_amount(" ".join(words[2:]))
+            except ValueError as error:
+                self.reply(f"⚠️ {html.escape(str(error))}. Use <code>/ready rent 1600</code>.")
+                return
+        elif name not in ("", "status"):
+            self.reply("Use /ready to fill the checklist, <code>/ready status</code> to view it, or "
+                       "<code>/ready rent 1600</code> to check a flat's advertised monthly rent.")
+            return
+        pack = ready.load()
+        self.reply(self._ready_checklist(pack, rent, manual=name == "rent"))
+        todo = ready.missing(pack)
+        if name != "status" and todo:
+            self._ready_ask(todo[0], flow=True)
+
+    def _ready_checklist(self, pack, rent=None, manual=False):
+        from . import ready
+        if manual:
+            return ready.checklist(pack, rent)
+        key = tracker.value("profile.ready_listing")
+        if not key:
+            return ready.checklist(pack)
+        data = self._advert(key)
+        address = data.get("address")
+        address = " ".join(address.split()) if isinstance(address, str) else ""
+        address = address or "selected home"
+        rent = data.get("rent") if data.get("tenure") == "rent" else None
+        return ready.checklist(pack, rent, archived=True, selected=address)
+
+    def _ready_ask(self, name, flow):
+        from . import ready
+        _, question, example = ready.FIELDS[name]
+        self.ask("ready", f"{'flow' if flow else 'single'}:{name}",
+                 question + "\nReply <code>skip</code> to leave this answer as it is.", example)
+
+    def _ready_answer(self, key, raw, direct=False):
+        from . import ready
+        mode, _, name = key.partition(":")
+        if mode not in ("flow", "single") or name not in ready.FIELDS:
+            self._done()
+            self.reply("⚠️ That readiness question is no longer available; use /ready.")
+            return
+        skipped = raw.strip().lower() == "skip"
+        if not skipped:
+            try:
+                ready.set_field(name, raw)
+            except ValueError as error:
+                retry = (f"Use <code>/ready {name}</code> to answer." if direct else
+                         "Try again, or /cancel.")
+                self.reply(f"⚠️ {html.escape(str(error))}. {retry}")
+                return
+        pack = ready.load()
+        todo = ready.missing(pack, after=name) if mode == "flow" else []
+        if todo:
+            self.reply("⏭ Skipped." if skipped else f"✅ {ready.FIELDS[name][0]} saved.")
+            self._ready_ask(todo[0], flow=True)
+            return
+        self._done()
+        self.reply(("⏭ Skipped.\n" if skipped else "✅ Readiness updated.\n") + self._ready_checklist(pack))
+
     def text_reply(self, text):
         pending = tracker.expected()
         if pending is None:
@@ -827,6 +920,16 @@ class Handler:
             return
         if kind == "profile":
             self._profile_answer(key, text)
+            return
+        if kind == "ready" and renter.ready_enabled():
+            if not self._private_chat:
+                self.reply("For privacy, answer readiness questions in a private chat with the bot.")
+                return
+            try:
+                self._ready_answer(key, text)
+            except Exception:
+                LOG.warning("Application readiness answer failed")
+                self.reply("⚠️ Could not finish that readiness answer. Check /ready before retrying.")
             return
         row = tracker.get(key)
         if row is None:
@@ -890,6 +993,17 @@ class Handler:
             return
         listing = listings[0]
         if kind == "q":
+            chat = message.get("chat")
+            if (renter.ready_enabled() and
+                    (not isinstance(chat, dict) or chat.get("type") != "private")):
+                answer("For privacy, request the draft in a private chat")
+                return
+            if renter.ready_enabled():
+                try:
+                    tracker.put("profile.ready_listing", listing["key"])
+                except Exception:
+                    LOG.warning("Could not remember the selected home for application readiness")
+                    self.reply("⚠️ This home could not be remembered for /ready; the draft still follows.")
             answer("✍️ Draft below")
             self.send(self._draft(listing))
             return
@@ -992,7 +1106,10 @@ class Handler:
 
     def _draft(self, listing):
         data = self._advert(listing["key"])
-        text, _ = renter.draft({**listing, "available": data.get("available")})
+        details = {**listing, "available": data.get("available")}
+        if renter.ready_enabled():
+            details["ready_rent"] = data.get("rent") if data.get("tenure") == "rent" else None
+        text, _ = renter.draft(details)
         return text
 
     def _photos(self, listing, message_id, answer):
