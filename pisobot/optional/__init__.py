@@ -42,6 +42,7 @@ import dataclasses
 import datetime
 import html
 import itertools
+import logging
 import os
 import re
 import threading
@@ -52,6 +53,7 @@ BUFFER_LIMIT = 500            # items waiting in the main process, and in each f
 MAX_AGE_SECONDS = 6 * 3600    # an item older than this is dropped (counted) rather than retried
 MAX_ATTEMPTS = 3
 STUCK_SECONDS = 30            # a worker inside one feature call for longer is reported as stuck (it is never started twice)
+DRAIN_SECONDS = 5
 LINE_MAX = 160
 SNAPSHOT_MAX = 2000           # adverts with published lines, per feature
 PUBLISHERS_MAX = 20          # bound the total snapshot as well as each feature's contribution
@@ -63,6 +65,7 @@ SCALARS = (str, int, float, bool, type(None))
 _registry = []                # [(flag, loader)]
 _workers = {}                 # flag -> Worker
 _items = []                   # after_ack items awaiting after_cycle
+_handoff = [0]                # items between the cycle buffer and the worker inboxes
 _lock = threading.Lock()
 _worker_lock = threading.Lock()
 _lines = {}                   # feature flag -> {key: ((priority, text), ...)}
@@ -74,8 +77,9 @@ TEMPLATES_MAX = 20
 TEMPLATE_KINDS = ("age", "value")
 MAX_AGE_TEMPLATE_SECONDS = 7 * 86400
 CLOCK_SKEW_SECONDS = 60       # a portal clock slightly ahead of ours still reads as "under 1 min"
-lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0, "contended": 0}   # every loss, by category
+lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0, "contended": 0, "shutdown": 0}
 _seq = [0]
+log = logging.getLogger(__name__)
 
 
 def register(flag, loader, *, templates=()):
@@ -102,6 +106,7 @@ def reset():
     with _lock:
         workers = list(_workers.values())
         _registry.clear(), _workers.clear(), _items.clear(), _lines.clear(), _template_sets.clear()
+        _handoff[0] = 0
         _snapshot, _templates = {}, ()
         for key in lost:
             lost[key] = 0
@@ -241,8 +246,9 @@ class Worker(threading.Thread):
             self.busy_since = time.monotonic()
         try:
             self.work = bool(self.feature.has_work()) if hasattr(self.feature, "step") else False
-        except Exception:
+        except Exception as ex:
             self.work = False
+            log.warning("optional feature %s has_work failed (%s)", self.flag, type(ex).__name__)
         finally:
             with self.lock:
                 self.busy_since = None
@@ -258,7 +264,8 @@ class Worker(threading.Thread):
                 lost["expired"] += 1
             else:
                 fresh.append(entry)
-        self.inflight = len(fresh)
+        with self.lock:
+            self.inflight = len(fresh)
         return fresh
 
     def _deliver(self, entries):
@@ -267,38 +274,39 @@ class Worker(threading.Thread):
             self.inflight = len(items)
             self.busy_since = time.monotonic()
         try:
-            result = self.feature.after_cycle(items)
-            ok = True
-        except Exception:
-            result, ok = None, False
+            try:
+                result = self.feature.after_cycle(items)
+                if result is True:
+                    keep = {e[0].seq for e in entries}
+                elif result is not None:
+                    returned = list(itertools.islice(result, BUFFER_LIMIT + 1))
+                    if len(returned) > BUFFER_LIMIT:
+                        raise ValueError("too many returned items")
+                    keep = {getattr(x, "seq", x) for x in returned}
+                else:
+                    keep = None
+                ok = True
+            except Exception:
+                keep, ok = None, False
+            retry = []
+            for entry in entries:
+                wanted = (keep is not None and entry[0].seq in keep) or (keep is None and not ok)
+                if not wanted:
+                    continue
+                entry[1] += 1
+                if entry[1] >= MAX_ATTEMPTS:
+                    lost["failed"] += 1
+                else:
+                    retry.append(entry)
+            with self.lock:
+                self.inbox.extendleft(reversed(retry))
+                while len(self.inbox) > BUFFER_LIMIT:
+                    self.inbox.pop()
+                    lost["evicted"] += 1
+                self.inflight = 0
         finally:
             with self.lock:
                 self.busy_since = None
-        try:
-            if ok and result is True:
-                keep = {e[0].seq for e in entries}
-            elif ok and result is not None:
-                keep = {getattr(x, "seq", x) for x in result}
-            else:
-                keep = None
-        except Exception:
-            keep, ok = None, False
-        retry = []
-        for entry in entries:
-            wanted = (keep is not None and entry[0].seq in keep) or (keep is None and not ok)
-            if not wanted:
-                continue
-            entry[1] += 1
-            if entry[1] >= MAX_ATTEMPTS:
-                lost["failed"] += 1
-            else:
-                retry.append(entry)
-        with self.lock:                                  # one step: an item is always counted in the inbox or in flight
-            self.inbox.extendleft(reversed(retry))
-            while len(self.inbox) > BUFFER_LIMIT:
-                self.inbox.pop()
-                lost["evicted"] += 1
-            self.inflight = 0
 
 
 def _ensure_workers():
@@ -337,7 +345,8 @@ def health():
     """What /status may show: loss counts and per-feature state. Reads only."""
     try:
         from . import store
-        return {"lost": dict(lost), "workers": [w.status() for w in workers()], "storage": store.last_error[0]}
+        return {"lost": dict(lost), "workers": [w.status() for w in workers()], "storage": store.last_error[0],
+                "pending": len(_items) + _handoff[0]}
     except Exception:
         return {"lost": {}, "workers": []}
 
@@ -349,6 +358,7 @@ def after_cycle(dry_run=False):
     no feature call, no waiting. Nothing in a dry run. Never raises."""
     try:
         fresh = list(_items)
+        _handoff[0] = len(fresh)
         _items.clear()
         if dry_run or not _registry or not enabled_any():
             return 0
@@ -363,6 +373,8 @@ def after_cycle(dry_run=False):
         return len(fresh)
     except Exception:
         return 0
+    finally:
+        _handoff[0] = 0
 
 
 # ---------------------------------------------------------------- card lines (published snapshot; no feature code on the delivery thread)
@@ -576,13 +588,48 @@ def maybe_start_step():
 
 
 def shutdown():
-    """Bounded and non-raising: stop the workers' loops and terminate and reap the child and its process group."""
+    """Drain accepted work within one shutdown budget, then stop workers and the supervised group."""
     try:
-        for worker in workers():
-            worker.stop()
+        deadline = time.monotonic() + DRAIN_SECONDS
+        if _items and enabled_any():
+            after_cycle()
+        active = workers()
         RUNNER.stop()
-    except Exception:
-        pass
+        while active:
+            pending, unknown = 0, 0
+            for worker in active:
+                if not worker.lock.acquire(timeout=max(0, deadline - time.monotonic())):
+                    unknown += 1
+                    continue
+                try:
+                    pending += len(worker.inbox) + worker.inflight
+                finally:
+                    worker.lock.release()
+                worker.wake.set()
+            if not pending and not unknown:
+                break
+            if time.monotonic() >= deadline:
+                queued = inflight = 0
+                for worker in active:
+                    if worker.lock.acquire(blocking=False):
+                        try:
+                            queued += len(worker.inbox)
+                            inflight += worker.inflight
+                            worker.inbox.clear()
+                        finally:
+                            worker.lock.release()
+                lost["shutdown"] += queued
+                log.warning("optional shutdown timed out: %s queued dropped, %s in flight and %s worker(s) unverified",
+                            queued, inflight, unknown)
+                break
+            time.sleep(min(0.02, max(0, deadline - time.monotonic())))
+        for worker in active:
+            worker.stop()
+        for worker in active:
+            if worker.ident is not None:
+                worker.join(max(0, deadline - time.monotonic()))
+    except Exception as ex:
+        log.warning("optional shutdown failed (%s)", type(ex).__name__)
 
 
 from .runner import RUNNER  # noqa: E402,F401  (the class is defined; nothing runs until a feature has queued work)
