@@ -104,6 +104,8 @@ AREAS_INCLUDE = ()          # if non-empty, only these districts match
 # (and STORAGE=local); on any error the keyword rules decide exactly as before.
 EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "claude-haiku-5-5")
 EXTRACT_DAILY_LIMIT = _env("EXTRACT_DAILY_LIMIT", 400, int)   # API requests per UTC day, cached results are free
+FLOORPLAN_DAILY_LIMIT = _env("FLOORPLAN_DAILY_LIMIT", 60, int)  # floorplan images read by the model per UTC day (floorplan.py)
+FLOORPLAN_DAILY_DOWNLOADS = _env("FLOORPLAN_DAILY_DOWNLOADS", 150, int)  # image downloads attempted for reading, per UTC day
 EXTRACT_TIMEOUT_S = _env("EXTRACT_TIMEOUT_S", 20)
 EXTRACT_MAX_TOKENS = _env("EXTRACT_MAX_TOKENS", 2500, int)    # includes any thinking at low effort
 

@@ -328,6 +328,8 @@ CREATE TABLE IF NOT EXISTS extraction_disagreements (
 class Store:
     """The extraction tables in the primary SQLite database (or an explicit file, for the evaluation)."""
 
+    ddl = None          # subclasses (floorplan.py) bring their own tables; None: the extraction tables
+
     def __init__(self, path=None):
         self.path = path
 
@@ -340,7 +342,7 @@ class Store:
             with contextlib.closing(sqlite3.connect(path, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
                 db.row_factory = sqlite3.Row
                 db.execute(f"PRAGMA busy_timeout = {localdb.BUSY_TIMEOUT_MS}")
-                db.executescript(DDL)
+                db.executescript(self.ddl or DDL)
                 with db:
                     yield db
         finally:
