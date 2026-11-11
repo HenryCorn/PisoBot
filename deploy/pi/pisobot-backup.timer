@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly PisoBot off-box backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+Unit=pisobot-backup.service
+
+[Install]
+WantedBy=timers.target
