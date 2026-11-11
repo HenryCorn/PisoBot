@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, optional, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +52,15 @@ class Watcher:
             return True
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
+        """One cycle; then, with the run lock already released, the optional features' turn (never raises, never in a dry run)."""
+        optional.RUNNER.reap()
+        try:
+            return self._cycle(kind, stop_event, dry_run, chat_id)
+        finally:
+            optional.after_cycle(dry_run)
+            optional.RUNNER.reap()
+
+    def _cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
         """Share identical portal searches, then apply each person's criteria and delivery."""
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
@@ -240,9 +249,11 @@ class Watcher:
                 finally:
                     with self.guard:
                         self.running = False
+                optional.RUNNER.maybe_start()        # after the cycle and its after_cycle; never holds the run lock
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
         finally:
             stop_event.set()
+            optional.RUNNER.stop()
             listener.join(timeout=40)
         if poll_errors:
             raise RuntimeError("Telegram listener failed; service restart required")
