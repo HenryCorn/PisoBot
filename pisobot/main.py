@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
-               prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
+               prefs, ranking, renter, rental_text, taste, telegram, timing, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -748,6 +748,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
+    timing_rows = []       # alert timings captured in memory at acceptance; parked for the watcher to write after the run lock
     for l, reason in to_send:
         attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
         if attempts_left <= 0:
@@ -783,6 +784,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             continue
         if send_state == "sent":
             alert_budget["remaining"] -= 1
+            # the acceptance instant, in memory only: no I/O between Telegram accepting the card and the receipt
+            timing_rows.append(timing.capture(l, reason, "sweep" if sweep or l.key in sweep_keys else "head"))
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)
@@ -825,6 +828,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    if timing_rows:
+        timing.defer(timing_rows)      # memory only; written by the watcher once the run lock is released
     result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
               "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
               "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,

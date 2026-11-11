@@ -154,9 +154,35 @@ def age_text(l, today=None):
     return f"{verb} " + ("today" if days == 0 else "yesterday" if days == 1 else f"{days} days ago")
 
 
-def portal_line(l, today=None):
+LISTED_AGO_HOURS = 3
+
+
+def listed_ago(l, now=None):
+    """'Listed 40 min ago' when the portal gave a full listing timestamp and the advert is under three hours
+    old; '' otherwise (no timestamp, in the future, or older). Exact and time-of-reading, never cached."""
+    if not getattr(l, "first_listed_at", None):
+        return ""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    try:
+        listed = dt.datetime.fromisoformat(l.first_listed_at)
+        if listed.tzinfo is None:
+            return ""
+        minutes = int((now - listed).total_seconds() // 60)
+    except (TypeError, ValueError):
+        return ""
+    if minutes < 0 or minutes >= LISTED_AGO_HOURS * 60:
+        return ""
+    if minutes < 1:
+        return "Listed just now"
+    if minutes < 60:
+        return f"Listed {minutes} min ago"
+    hours, rest = divmod(minutes, 60)
+    return f"Listed {hours} h" + (f" {rest} min" if rest else "") + " ago"
+
+
+def portal_line(l, today=None, now=None):
     """Age, letting agent and the agent's published number (plain text, never a call button)."""
-    age = age_text(l, today)
+    age = listed_ago(l, now) or age_text(l, today)
     parts = [f"🕒 {e(age)}" if age else "", f"🏢 {e(l.agent[:60])}" if l.agent else "",
              f"☎️ {e(l.agent_phone[:24])}" if l.agent_phone else ""]
     return " · ".join(p for p in parts if p)

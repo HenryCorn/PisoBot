@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, timing, users
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +103,8 @@ class Watcher:
                     log.error("Deep sweep step failed (%s)", type(ex).__name__)
                     errors.append(ex)
                     totals["complete"] = False
+        timing.flush()                   # alert-delay telemetry, written only now that the run lock is released (bounded, never raises)
+        timing.purge_expired()           # its 30-day retention, whether or not this cycle succeeded
         if errors:
             raise errors[0]
         if not totals["complete"]:
