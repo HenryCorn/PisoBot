@@ -115,15 +115,26 @@ Set `READY_PACK=1` in the service environment to enable the pack; it is off by
 default. In a private bot chat, `/ready` shows the checklist and asks for missing
 answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to stop.
 Use `/ready status` to view it without starting questions, `/ready income` (or
-another field shown in the checklist) to change one answer, and `clear` to remove it.
+another field shown in the checklist) to change one answer, and `clear` to clear
+its current readiness value, subject to the legacy-copy warning below.
 
-**Not ready to enable:** profile changes made while the pack is off and then
-restored to their original values can leave stale employment length, pets or
-references. A storage error can also leave tenure stale; replaying an enquiry
-after disabling the pack can send a duplicate draft, and a persistent readiness
-outbox error can stall later Telegram updates. Disabling before a final answer
-is replayed can suppress its result, even though its pending rent remains until
-the prompt expires.
+**Not ready to enable:** clearing a migrated answer leaves its old plaintext in
+the alert database, and recreating `readiness.db` can import it again. The bot
+warns when it finds such a copy, but the warning does not delete it. Pets and
+references can differ between enabled and disabled modes. Profile changes made
+while the pack is off and then restored can leave stale employment length, pets
+or references; failed tenure invalidation can also leave stale tenure despite a
+warning. Some pre-sidecar cancellation replays cannot be distinguished from
+core cancellations and still write the alert database. Replaying an enquiry
+after disabling the pack can send a duplicate draft. Disabling before a final
+answer is replayed can suppress its result, even though its pending rent remains
+until the prompt expires.
+
+Applying a readiness update is attempted at most twice and a persistent storage
+failure is reported; when Telegram accepts that warning, later updates can
+proceed. Retry the request after storage recovers. A failed post-send checkpoint
+is also reported; a crash or replay may duplicate a reply or leave later replies
+unsent.
 
 Tapping **Enquiry text** on a rental card selects that home for `/ready`. The
 check uses its last archived advertised rent, not the all-in cost; confirm that
@@ -148,8 +159,8 @@ legacy employment lengths must be reconfirmed. These databases contain plaintext
 personal information like the existing profiles; protect and back up both.
 Readiness edits to pets and references appear in `/profile` while the pack is
 enabled. To retain those answers in the original profile when the pack is off,
-set them through `/profile`. Profile edits take precedence while enabled, or
-when the saved value differs from the value seen by the pack.
+set them through `/profile`. Successful profile edits take precedence while
+enabled; failed reconciliation is reported and may leave an older value visible.
 Each person's facts are separate, and the pack and its drafts are available
 only in private chats. Enquiry drafts, the call script and portal fields are
 for the person to copy: PisoBot does not contact agents or fetch an advert for

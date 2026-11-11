@@ -199,7 +199,12 @@ def _employment_context(employment, job):
     return json.dumps([employment, fingerprint], separators=(",", ":"))
 
 
-def _store(name, text):
+def _store(name, text, warnings=None):
+    if text is None and warnings is not None and readydb.primary_value(f"profile.{_key(name)}") is not None:
+        warning = ("An older value remains in the original database. This did not fully delete it, "
+                   "and it may reappear if the pack is disabled or its storage is recreated.")
+        if warning not in warnings:
+            warnings.append(warning)
     if name in SHARED_FIELDS:
         readydb.put_shared(name, text)
     elif text is None:
@@ -208,7 +213,7 @@ def _store(name, text):
         readydb.put(f"profile.{_key(name)}", text)
 
 
-def set_field(name, raw):
+def set_field(name, raw, *, warnings=None):
     """Validate and atomically save readiness facts outside the alert database."""
     if name not in FIELDS:
         raise ValueError("Unknown readiness field")
@@ -216,11 +221,11 @@ def set_field(name, raw):
     with readydb.transaction():
         if text.lower() == "clear":
             if name == "guarantor":
-                _store("guarantor_income", None)
+                _store("guarantor_income", None, warnings)
             elif name == "employment":
-                _store("employment_length", None)
+                _store("employment_length", None, warnings)
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
-            _store(name, None)
+            _store(name, None, warnings)
             if name == "employment_length":
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
             return None
@@ -242,7 +247,7 @@ def set_field(name, raw):
         elif name == "references":
             stored = value_text(name, value)
         if name == "guarantor" and value == "no":
-            _store("guarantor_income", None)
+            _store("guarantor_income", None, warnings)
         if name == "employment":
             previous = readydb.value(f"profile.{_key(name)}")
             try:
@@ -250,7 +255,7 @@ def set_field(name, raw):
             except ValueError:
                 changed = True
             if changed:
-                _store("employment_length", None)
+                _store("employment_length", None, warnings)
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
         _store(name, stored)
         if name == "employment_length":

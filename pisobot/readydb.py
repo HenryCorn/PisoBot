@@ -2,6 +2,7 @@
 import contextlib
 import contextvars
 import datetime as dt
+import hashlib
 import json
 import os
 import sqlite3
@@ -11,7 +12,15 @@ from . import localdb, tracker, users
 
 _ACTIVE = contextvars.ContextVar("pisobot_ready_database", default=None)
 _MIGRATED = "_legacy_migrated"
+_LEGACY_PROMPT = "_legacy_prompt"
 _SHARED = ("pets", "references")
+# Old completion markers do not identify their feature; only distinctive replies are safe to migrate.
+_LEGACY_READY_ERRORS = (
+    "⚠️ That readiness question is no longer available; use /ready.",
+    "⚠️ The one-off rent could not be recovered; use /ready rent 1600 again.",
+    "⚠️ Application readiness is unavailable. Check /ready and try again.",
+    "⚠️ Could not finish that readiness answer. Check /ready before retrying.",
+)
 EMPLOYMENT_LENGTH_FOR = "profile.ready_employment_length_for"
 _DDL = """
 CREATE TABLE IF NOT EXISTS renter (name TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -56,7 +65,7 @@ def _read(pathname, table, sql, *params):
     if not _is_database(pathname):
         return []
     with contextlib.closing(sqlite3.connect(pathname.resolve().as_uri() + "?mode=ro",
-                                           uri=True, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
+                                           uri=True, timeout=0)) as db:
         db.row_factory = sqlite3.Row
         if not db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone():
             return []
@@ -72,19 +81,35 @@ def primary_value(name):
     return _primary_renter("SELECT name, value FROM renter WHERE name = ?", name).get(name)
 
 
-def _pending(raw, at=None):
+def _decode(raw):
     try:
         pending = json.loads(raw)
-        if (isinstance(pending, dict) and
-                dt.datetime.fromisoformat(pending["until"]) >= (at or tracker.now())):
+    except (ValueError, TypeError):
+        return None
+    return pending if isinstance(pending, dict) else None
+
+
+def _pending(raw, at=None):
+    pending = _decode(raw)
+    try:
+        if pending and dt.datetime.fromisoformat(pending["until"]) >= (at or tracker.now()):
             return pending
     except (ValueError, KeyError, TypeError):
         pass
     return None
 
 
+def primary_pending():
+    return _pending(primary_value("_await"))
+
+
+def primary_legacy_prompt():
+    pending = _decode(primary_value("_await"))
+    return pending if pending and pending.get("kind") == "ready" else None
+
+
 def primary_expected():
-    pending = _pending(primary_value("_await"))
+    pending = primary_pending()
     return pending if pending and pending.get("kind") != "done" else None
 
 
@@ -93,8 +118,84 @@ def primary_completed(update_id):
                       "SELECT update_id FROM handled WHERE update_id = ? AND outbox = '[]'", update_id))
 
 
+def primary_outbox(update_id):
+    rows = _read(localdb.database_path(), "handled",
+                 "SELECT outbox FROM handled WHERE update_id = ?", update_id)
+    if not rows:
+        return None
+    outbox = json.loads(rows[0]["outbox"])
+    if not isinstance(outbox, list):
+        raise ValueError("Invalid legacy outbox")
+    return outbox
+
+
+def primary_ready_outbox(update_id):
+    outbox = primary_outbox(update_id)
+    if outbox is None:
+        return None
+    if any(isinstance(item, dict) and item.get("method") == "sendMessage"
+           and isinstance(item.get("body"), dict)
+           and isinstance(item["body"].get("text"), str)
+           and ("<b>📋 Application readiness</b>" in item["body"]["text"]
+                or item["body"]["text"] in _LEGACY_READY_ERRORS)
+           for item in outbox):
+        return outbox
+    return None
+
+
+def primary_unjournaled_completion(update_id, pending):
+    if update_id is None:
+        return False
+    return bool(pending and pending.get("kind") == "done" and pending.get("update") == update_id
+                and primary_outbox(update_id) is None)
+
+
+def _prompt_token(pending):
+    text = json.dumps(pending, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _peek(sql, *params):
+    pathname = path()
+    if not _is_database(pathname):
+        return []
+    _check_isolation(pathname)
+    return _read(pathname, "renter", sql, *params)
+
+
+def peek_pending():
+    rows = _peek("SELECT value FROM renter WHERE name = '_await'")
+    return _pending(rows[0]["value"]) if rows else None
+
+
+def peek_handled(update_id):
+    pathname = path()
+    if not _is_database(pathname):
+        return None
+    _check_isolation(pathname)
+    rows = _read(pathname, "handled", "SELECT outbox FROM handled WHERE update_id = ?", update_id)
+    return json.loads(rows[0]["outbox"]) if rows else None
+
+
+def legacy_prompt_retired(primary):
+    rows = _peek("SELECT name, value FROM renter WHERE name IN (?, ?, '_await')", _MIGRATED, _LEGACY_PROMPT)
+    values = {row["name"]: row["value"] for row in rows}
+    if values.get(_LEGACY_PROMPT) == _prompt_token(primary):
+        return True
+    pending = _decode(values.get("_await"))
+    return bool(values.get(_MIGRATED) and pending and pending.get("kind") == "done"
+                and type(pending.get("update")) is int and type(primary.get("update")) is int
+                and pending["update"] > primary["update"])
+
+
 def _migrate(db):
     if db.execute("SELECT 1 FROM renter WHERE name = ?", (_MIGRATED,)).fetchone():
+        if not db.execute("SELECT 1 FROM renter WHERE name = ?", (_LEGACY_PROMPT,)).fetchone():
+            primary = primary_pending()
+            row = db.execute("SELECT value FROM renter WHERE name = '_await'").fetchone()
+            if primary and primary.get("kind") == "ready" and row and _pending(row["value"]) == primary:
+                db.execute("INSERT INTO renter (name, value) VALUES (?, ?)",
+                           (_LEGACY_PROMPT, _prompt_token(primary)))
         return
     legacy = _primary_renter("SELECT name, value FROM renter "
                              "WHERE name GLOB 'profile.ready_*' OR name = '_await'")
@@ -102,6 +203,7 @@ def _migrate(db):
     pending = _pending(legacy.get("_await"))
     if pending and pending.get("kind") == "ready":
         rows.append(("_await", legacy["_await"]))
+        rows.append((_LEGACY_PROMPT, _prompt_token(pending)))
         update = pending.get("update")
         if type(update) is int:
             handled = _read(localdb.database_path(), "handled",
@@ -137,8 +239,7 @@ def transaction():
     else:
         os.close(fd)
     _check_isolation(pathname)
-    with contextlib.closing(sqlite3.connect(pathname, timeout=localdb.BUSY_TIMEOUT_MS / 1000,
-                                           isolation_level=None)) as db:
+    with contextlib.closing(sqlite3.connect(pathname, timeout=0, isolation_level=None)) as db:
         db.row_factory = sqlite3.Row
         db.executescript(_DDL)
         db.execute("BEGIN IMMEDIATE")

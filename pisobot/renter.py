@@ -53,7 +53,7 @@ def profile():
     return {name: tracker.value(f"profile.{name}") for name in FIELDS}
 
 
-def set_field(name, raw, today=None):
+def set_field(name, raw, today=None, *, warnings=None):
     """Store one profile fact; 'clear' removes it. Returns the stored text. The move-in answer is
     normalised to 'YYYY-MM-DD..YYYY-MM-DD' (ValueError if it cannot be read)."""
     raw = " ".join(raw.split())[:300]
@@ -63,6 +63,8 @@ def set_field(name, raw, today=None):
             readydb.invalidate_tenure()
         except Exception:
             LOG.warning("Could not invalidate readiness tenure for a job change")
+            if warnings is not None:
+                warnings.append("readiness tenure could not be invalidated; re-enter it before relying on it")
     if raw.lower() == "clear" or not raw:
         tracker.drop(f"profile.{name}")
         raw = None
@@ -76,6 +78,8 @@ def set_field(name, raw, today=None):
             readydb.clear_shared(name)
         except Exception:
             LOG.warning("Could not reconcile a shared readiness field with the profile")
+            if warnings is not None:
+                warnings.append("readiness could not reconcile this field and may show an older value")
     return raw
 
 
