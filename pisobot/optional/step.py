@@ -69,8 +69,11 @@ def bounded(fn, seconds):
 
 def load_features():
     """Load every enabled feature (in this child only)."""
-    from . import _registry
+    from . import _registry, execution_available
     from .. import registry_loader  # noqa: F401  (registers the shipped features)
+    if not execution_available():
+        log.error("optional feature loading refused: enforceable isolation is unavailable")
+        return []
     out = []
     for flag, loader in list(_registry):
         if os.environ.get(flag) == "1":
@@ -88,6 +91,12 @@ def main():
     import signal
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if os.environ.get("STORAGE") != "local":
+        return 0
+    from . import execution_available, requested_any
+    if not execution_available():
+        if requested_any():
+            log.error("optional step refused: enforceable isolation is unavailable")
+            return 3
         return 0
     from . import store
     try:

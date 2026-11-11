@@ -91,7 +91,7 @@ class ChildGroup:
         if not self.lock.acquire(blocking=False):
             return
         try:
-            if self.closed or self.lost:
+            if self.closed or self.lost or self.proc is None:
                 return
             try:
                 self._exited()
@@ -179,6 +179,7 @@ class Runner:
     def __init__(self):
         self.proc, self.started, self.timer, self.dying = None, 0.0, None, []
         self.group = None
+        self.launch_lock = threading.Lock()
 
     @staticmethod
     def has_work():
@@ -188,41 +189,53 @@ class Runner:
         return any(w.work and w.feature is not None for w in workers())
 
     def maybe_start(self, popen=subprocess.Popen):
-        """Start the child if an enabled feature has queued work and none is running. Never raises."""
+        """Schedule a child launch without waiting for process creation. Never raises."""
+        if not self.launch_lock.acquire(blocking=False):
+            return False
         try:
-            from . import enabled_any
-            if not enabled_any() or self.reap() == "running" or not self.has_work():
+            from . import enabled_any, execution_available
+            if not execution_available() or not enabled_any() or self.reap() == "running" or not self.has_work():
                 return False
             if (not all(hasattr(os, name) for name in ("waitid", "P_PID", "WEXITED", "WNOHANG", "WNOWAIT"))
                     or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL):
                 log.warning("optional step refused: safe child ownership is unavailable")
                 return False
-            group, ready = ChildGroup(None, 0), threading.Event()
+            started = time.monotonic()
+            group = ChildGroup(None, started + STEP_SECONDS + KILL_GRACE_SECONDS)
             timer = threading.Timer(STEP_SECONDS + KILL_GRACE_SECONDS, group.terminate)
             timer.daemon = True
 
-            def supervise_when_started():
-                ready.wait()
-                if group.proc is not None:
-                    group.supervise(timer)
+            def launch_and_supervise():
+                try:
+                    proc = popen([sys.executable, "-m", "pisobot.optional.step"], stdin=subprocess.DEVNULL,
+                                 start_new_session=True, cwd=str(Path(__file__).resolve().parents[2]))
+                except Exception as ex:
+                    log.warning("optional step could not start (%s)", type(ex).__name__)
+                    timer.cancel()
+                    with group.lock:
+                        group.closed = True
+                        group.done.set()
+                    return
+                with group.lock:
+                    group.proc = self.proc = proc
+                group.supervise(timer)
 
-            monitor = threading.Thread(target=supervise_when_started, daemon=True)
-            monitor.start()
+            monitor = threading.Thread(target=launch_and_supervise, daemon=True)
+            self.started, self.group, self.timer = started, group, timer
             try:
-                started = time.monotonic()
-                proc = popen([sys.executable, "-m", "pisobot.optional.step"], stdin=subprocess.DEVNULL, start_new_session=True,
-                             cwd=str(Path(__file__).resolve().parents[2]))
-                group.proc, group.deadline = proc, started + STEP_SECONDS + KILL_GRACE_SECONDS
-                self.proc, self.started, self.group, self.timer = proc, started, group, timer
-            finally:
-                ready.set()
-            timer.start()
+                timer.start()
+                monitor.start()
+            except Exception:
+                timer.cancel()
+                group.done.set()
+                self.reap()
+                raise
             return True
         except Exception as ex:
             log.warning("optional step could not start or be supervised (%s)", type(ex).__name__)
-            if self.group is not None:
-                self.group.terminate()
             return False
+        finally:
+            self.launch_lock.release()
 
     def reap(self):
         """Check supervisor state without waiting; an unconfirmed group prevents another child from starting."""
@@ -238,7 +251,7 @@ class Runner:
                 return None
             if time.monotonic() - self.started > STEP_SECONDS + KILL_GRACE_SECONDS:
                 group.request_stop()
-                self.proc, self.dying = None, [group.proc]
+                self.proc, self.dying = None, [group.proc] if group.proc is not None else []
             return "running"
         except Exception:
             return "running" if self.group is not None or self.proc is not None or self.dying else None
@@ -252,7 +265,7 @@ class Runner:
                 if group.done.wait(CONFIRM_SECONDS):
                     self.reap()
                 else:
-                    self.proc, self.dying = None, [group.proc]
+                    self.proc, self.dying = None, [group.proc] if group.proc is not None else []
         except Exception:
             pass
 
