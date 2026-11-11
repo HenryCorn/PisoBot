@@ -131,6 +131,5 @@ EXCLUDE_KEYWORDS = [
     "short term let",
     "sheltered", "care staff", "extra care", "warden", "over 60", "aged 60", "aged 55",
 ]
-# Optional per-advert facts in the alert path (enrichment.py): a hard wall-clock budget so they can never hold up a card.
-ENRICH_ADVERT_SECONDS = _env("ENRICH_ADVERT_SECONDS", 10)    # per advert (all optional lookups together)
-ENRICH_WINDOW_SECONDS = _env("ENRICH_WINDOW_SECONDS", 40)    # per rolling WATCH_INTERVAL_MIN window, all adverts and people
+# Optional facts about an alerted home (facts.py) are delivered AFTER the alert by a supervised post-cycle step; there is no
+# optional work in the alert path. FACTS_STEP_SECONDS (env) bounds one step.
