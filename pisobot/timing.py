@@ -12,6 +12,7 @@ thread, after the run lock is released, never on the delivery or watcher thread.
 `/status` only reads: it never creates the file or the table. Importing this module does no work.
 """
 import datetime as dt
+import html
 import logging
 import math
 import os
@@ -166,10 +167,15 @@ def status_lines(now=None):
             lines.append(f"• {name}: {r['alerts']} alerts · {portal} · "
                          f"{_fmt(r['fetch_median'])} / {_fmt(r['fetch_p90'])} from our first sight")
     health = optional.health()
-    waiting = sum(w["waiting"] for w in health["workers"] if w["flag"] == "ALERT_TIMING")
+    mine = [w for w in health["workers"] if w["flag"] == "ALERT_TIMING"]
+    waiting = sum(w["waiting"] for w in mine)
+    writing = sum(w.get("inflight", 0) for w in mine)       # taken by the worker, the write has not settled yet
     lost = sum(health["lost"].values())
-    if stats["retried"] or waiting or lost:
-        text = (f"{waiting} waiting for a free database, {stats['retried']} retried since start, {lost} dropped "
+    refused = health.get("storage") or ""
+    if stats["retried"] or waiting or writing or lost or refused:
+        text = (f"{waiting} waiting for a free database, {writing} being written now, {stats['retried']} retried since start, {lost} dropped "
                 f"({', '.join(f'{k} {v}' for k, v in health['lost'].items() if v) or 'none'})")
+        if refused:
+            text += f" · storage refused: {html.escape(refused)}"
         lines.append(("• not recorded yet: " if data else "\n<b>Alert delay</b>: ") + text)
     return lines
