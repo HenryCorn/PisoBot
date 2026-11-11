@@ -116,8 +116,11 @@ def main():
             try:
                 if resident_bytes() > MEMORY_LIMIT_BYTES:
                     os._exit(6)                                                   # over the memory ceiling (every platform)
-            except Exception:
-                os._exit(7)                                                       # cannot supervise memory: stop optional work
+            except Exception as ex:
+                try:
+                    log.error("optional step memory supervision failed (%s)", type(ex).__name__)
+                finally:
+                    os._exit(7)
     threading.Thread(target=watchdog, daemon=True).start()
     deadline = time.monotonic() + runner.STEP_SECONDS
     for feature in load_features():

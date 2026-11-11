@@ -1229,6 +1229,7 @@ def failing_monitor():
 step.resident_bytes = failing_monitor"""
         done = self.child(f"time.sleep(3)\n        open({str(marker)!r}, 'w').write('x')", setup=setup)
         self.assertEqual(done.returncode, 7, done.stderr[-300:])
+        self.assertIn(b"memory supervision failed", done.stderr)
         self.assertFalse(marker.exists())
 
     # P3: a feature whose loader failed keeps nothing
