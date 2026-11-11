@@ -117,7 +117,7 @@ def main():
                 if resident_bytes() > MEMORY_LIMIT_BYTES:
                     os._exit(6)                                                   # over the memory ceiling (every platform)
             except Exception:
-                pass
+                os._exit(7)                                                       # cannot supervise memory: stop optional work
     threading.Thread(target=watchdog, daemon=True).start()
     deadline = time.monotonic() + runner.STEP_SECONDS
     for feature in load_features():

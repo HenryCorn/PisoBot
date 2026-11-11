@@ -1217,6 +1217,20 @@ class RereviewTests(OptionalBase):
         if sys.platform == "darwin":
             self.assertEqual(done.returncode, 6)                                  # stopped by the resident-memory watchdog
 
+    def test_a_child_stops_if_memory_supervision_fails(self):
+        marker = Path(self.tmp.name) / "survived"
+        setup = """reads = [0]
+original = step.resident_bytes
+def failing_monitor():
+    reads[0] += 1
+    if reads[0] > 1:
+        raise OSError("monitor failed")
+    return original()
+step.resident_bytes = failing_monitor"""
+        done = self.child(f"time.sleep(3)\n        open({str(marker)!r}, 'w').write('x')", setup=setup)
+        self.assertEqual(done.returncode, 7, done.stderr[-300:])
+        self.assertFalse(marker.exists())
+
     # P3: a feature whose loader failed keeps nothing
     def test_a_failed_loader_keeps_no_items_and_every_one_is_counted(self):
         gate = threading.Event()
