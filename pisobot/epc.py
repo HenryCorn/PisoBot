@@ -648,8 +648,8 @@ def card_line(listing, today=None):
     source = getattr(listing, "area_source", None)
     if area and source == "epc":
         parts.append(f"{area:g} m² (EPC {_year(result.get('date'))})")
-    elif area and source == "advert":
-        parts.append(f"{area:g} m² (advert)")
+    elif area and source in ("advert", "floorplan"):
+        parts.append(f"{area:g} m² ({source})")
         if result.get("match") == "exact" and result.get("advert_area") and \
                 abs(result["low"] - result["advert_area"]) > max(4, 0.15 * result["advert_area"]):
             parts.append(f"⚠ EPC says {result['low']:g} m²")
