@@ -58,8 +58,15 @@ class Watcher:
             return True
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
-        """Share identical portal searches, then apply each person's criteria and delivery."""
-        facts.purge_expired()        # retention for the optional features' stored data: whether or not this cycle succeeds
+        """Share identical portal searches, then apply each person's criteria and delivery. An overdue facts child is killed at the
+        start and at the end of every cycle (its own timer and watchdog also do, whatever the cycle is doing)."""
+        self.reap_facts()
+        try:
+            return self._cycle(kind, stop_event, dry_run, chat_id)
+        finally:
+            self.reap_facts()
+
+    def _cycle(self, kind, stop_event, dry_run, chat_id):
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
         totals, errors = {"matches": 0, "complete": True, "people": {}, "degraded": 0}, []
@@ -110,6 +117,8 @@ class Watcher:
                     log.error("Deep sweep step failed (%s)", type(ex).__name__)
                     errors.append(ex)
                     totals["complete"] = False
+        if not dry_run:
+            facts.flush()                # optional facts wanted: the main process's only write to facts.db, after every person's sends
         if errors:
             raise errors[0]
         if not totals["complete"]:
@@ -139,11 +148,21 @@ class Watcher:
         if not facts.enabled() or self.reap_facts() == "running" or not facts.pending():
             return
         try:
-            self._facts_proc = subprocess.Popen([sys.executable, "-m", "pisobot.facts"], stdin=subprocess.DEVNULL,
-                                                cwd=str(Path(__file__).resolve().parents[1]))
-            self._facts_started = time.monotonic()
+            proc = subprocess.Popen([sys.executable, "-m", "pisobot.facts"], stdin=subprocess.DEVNULL,
+                                    cwd=str(Path(__file__).resolve().parents[1]))
+            self._facts_proc, self._facts_started = proc, time.monotonic()
+            timer = threading.Timer(facts.STEP_SECONDS + facts.KILL_GRACE_SECONDS, self._kill_facts, args=(proc,))
+            timer.daemon = True          # its own timer: kills the child whatever the watcher is doing (a long cycle, a sweep)
+            timer.start()
         except OSError as ex:
             log.warning("facts step could not start (%s)", type(ex).__name__)
+
+    @staticmethod
+    def _kill_facts(proc):
+        if proc.poll() is None:
+            log.warning("facts step exceeded its budget; killed by its timer")
+            with contextlib.suppress(Exception):
+                proc.kill()
 
     def reap_facts(self):
         """Collect a finished facts step, or kill one that outlived its budget (a hung read). Returns "running" or None."""

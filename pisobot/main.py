@@ -748,7 +748,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
-    facts_rows = []        # optional post-alert facts wanted, captured in memory only; queued after the receipts below
+    accepted_cards = []    # (listing, Telegram reply) of the new-advert cards accepted: ONLY a list append happens before the receipt
     for l, reason in to_send:
         attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
         if attempts_left <= 0:
@@ -784,10 +784,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             continue
         if send_state == "sent":
             alert_budget["remaining"] -= 1
-            if reason == "new" and facts.enabled():           # env checks and memory only: no I/O before the receipt
-                row = facts.capture(l, sent_card, person_id)
-                if row:
-                    facts_rows.append(row)
+            if reason == "new" and facts.enabled():           # an environment check and a list append: nothing that can fail
+                accepted_cards.append((l, sent_card))
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)
@@ -830,8 +828,11 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
-    if facts_rows:
-        facts.enqueue(facts_rows)      # after the receipts and acknowledgements; short busy timeout, skipped on contention
+    if accepted_cards:
+        try:
+            facts.defer(accepted_cards, person_id)    # after the receipts and acknowledgements; capture and serialisation, in memory
+        except Exception as ex:
+            print(f"optional facts not queued: {type(ex).__name__}", file=sys.stderr)
     result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
               "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
               "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,

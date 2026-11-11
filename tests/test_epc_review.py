@@ -175,15 +175,12 @@ class RetentionAndCapTests(unittest.TestCase):
             budget.DEADLINE.reset(token)
         self.assertEqual(fake.calls, [])
 
-    def test_certificate_rows_keep_addresses_in_the_primary_database(self):
-        override = localdb.DATABASE.set(os.path.join(tempfile.mkdtemp(), "person", "pisobot.db"))
-        try:
-            with patch.dict(os.environ, {"PISOBOT_STATE_DIR": tempfile.mkdtemp()}):
-                epc.Store().search_put("N7 6DJ", BUILDING, NOW)
-                primary = Path(os.environ["PISOBOT_STATE_DIR"], "pisobot.db")
-                self.assertTrue(primary.exists())
-        finally:
-            localdb.DATABASE.reset(override)
+    def test_certificate_rows_live_in_the_features_own_file_not_the_main_database(self):
+        state = tempfile.mkdtemp()
+        with patch.dict(os.environ, {"PISOBOT_STATE_DIR": state}):
+            epc.Store().search_put("N7 6DJ", BUILDING, NOW)
+            self.assertTrue(Path(state, "facts.db").exists())
+            self.assertFalse(Path(state, "pisobot.db").exists())
 
 
 # ---------------------------------------------------------------- finding 4/value: comparables are portal-stated
@@ -243,13 +240,9 @@ class OffTests(unittest.TestCase):
         with patch.dict(os.environ, {"STORAGE": "local", "PISOBOT_STATE_DIR": state}, clear=True), boom:
             self.assertFalse(facts.enabled())
             self.assertEqual(facts.pending(), 0)
-            facts.purge_expired()
+            self.assertEqual(epc.purge_expired(), {})
             epc.annotate(advert())
-        db = Path(state, "pisobot.db")
-        if db.exists():
-            with contextlib.closing(sqlite3.connect(db)) as conn:
-                names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
-            self.assertFalse({n for n in names if n.startswith(("epc_", "floorplan_", "facts_"))})
+        self.assertEqual(os.listdir(state), [])                       # no file of any kind
 
 
 if __name__ == "__main__":

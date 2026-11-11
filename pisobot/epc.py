@@ -28,7 +28,7 @@ import statistics
 import threading
 import time
 
-from . import budget, config, localdb
+from . import budget, config, factsdb
 
 log = logging.getLogger(__name__)
 
@@ -158,25 +158,15 @@ def cert_address(summary):
 # ---------------------------------------------------------------- storage
 
 class Store:
-    """The EPC tables in the primary SQLite database (or an explicit file, for tests and the evaluation)."""
+    """The EPC tables in the feature's OWN database file, facts.db (or an explicit file, for tests and the evaluation)."""
 
     def __init__(self, path=None):
         self.path = path
 
     @contextlib.contextmanager
     def _db(self):
-        token_ = localdb.DATABASE.set(None)
-        try:
-            path = self.path or localdb.database_path()
-            os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
-                db.row_factory = sqlite3.Row
-                db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
-                db.executescript(DDL)
-                with db:
-                    yield db
-        finally:
-            localdb.DATABASE.reset(token_)
+        with factsdb.connect(DDL, self.path) as db:
+            yield db
 
     @staticmethod
     def _fresh(stamp, now):
@@ -620,28 +610,20 @@ def value_for(listing, store=None, now=None):
 # ---------------------------------------------------------------- retention (independent of use)
 
 def purge_expired(now=None, path=None):
-    """Delete certificate/address rows (and comparables) older than the retention window, whether or not the feature is
-    on or any cache is being read. Touches nothing when the tables do not exist (so a never-enabled install is not
-    changed). Returns {table: rows deleted}; logs when it deleted something; never raises."""
+    """Delete certificate/address rows, comparables and usage counters older than the retention window from facts.db. Touches nothing
+    when the file or the tables do not exist. Returns {table: rows deleted}; never raises."""
     try:
-        if path is None and os.environ.get("STORAGE") != "local":
+        target = path or factsdb.path()
+        if not os.path.exists(target):
             return {}
         now = now or dt.datetime.now(dt.timezone.utc)
-        token_ = localdb.DATABASE.set(None)
-        try:
-            path = path or localdb.database_path()
-            if not os.path.exists(path):
-                return {}
-            deleted = {}
-            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
-                have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-                cutoff = (now - dt.timedelta(days=CACHE_DAYS)).isoformat()
-                with db:
-                    for table, column in RETENTION_TABLES:
-                        if table in have:
-                            deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
-        finally:
-            localdb.DATABASE.reset(token_)
+        deleted = {}
+        with factsdb.connect(None, target, create=False) as db:
+            have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            cutoff = (now - dt.timedelta(days=CACHE_DAYS)).isoformat()
+            for table, column in RETENTION_TABLES:
+                if table in have:
+                    deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
         if any(deleted.values()):
             log.info("epc: retention purge deleted %s", deleted)
         return deleted
