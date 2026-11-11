@@ -249,6 +249,8 @@ Every advert a scan fetches is remembered in the primary database (tables `adver
 changed). Each person's outcome for each advert (`matched`, or the first check it
 failed) is stored with the numbers behind it: rent, all-in, commute minutes, crime score.
 
+**Alert delay.** `/status` shows, per portal, the median and 90th-percentile delay of new-advert alerts over the last 7 days, from the portal's own listing time (where it publishes a full timestamp: Rightmove does, OnTheMarket only gives text such as "Added today", so only first sight to Telegram is measured there) and from this bot's first sight of the advert. A card for an advert listed under three hours ago says "Listed 40 min ago". The figures come from a small table (`alert_timing`: source, reason, path, timestamps, and OnTheMarket's details `exclusive` flag, whose meaning is unverified and which is never shown) with no person or advert identifier, deleted after 30 days. Telemetry is captured in memory when Telegram accepts a card and written only after the cycle has released the run lock (0.25 s busy timeout, skipped on contention), so it can never sit between a card and its receipt or delay the next person, the sweep or a queued run.
+
 After each scan a short slice (`DEEP_SWEEP_STEP_SECONDS`, 120 by default, half crawling and
 half judging) advances the **deep sweep** of Rightmove and OnTheMarket: all rent from
 `RENT_MIN` to 110% of the highest rent cap within `DEEP_SWEEP_MILES`, in price bands that

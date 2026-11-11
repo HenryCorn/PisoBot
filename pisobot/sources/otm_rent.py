@@ -169,6 +169,7 @@ def refine(listing):
         d = {"description": text(f"{'Students only. ' if p.get('student') else ''}{lets}. {feats} "
                                  f"{p.get('description', '')}"),
              "deposit": money(deposit[1]) if deposit else None,
-             "floor_area_m2": round(area, 2) if area else None, "floorplan": plans[0] if plans else None}
+             "floor_area_m2": round(area, 2) if area else None, "floorplan": plans[0] if plans else None,
+             "exclusive": p["exclusive"] if isinstance(p.get("exclusive"), bool) else None}
         cache.put("otmr_detail", listing.id, d)
     return apply_rent_details(listing, d)
