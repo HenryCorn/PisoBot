@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, net, ranking, tgtext, users
+from . import collage, config, net, optional, ranking, tgtext, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -300,6 +300,7 @@ def send_listing(l, reason="new"):
     jpeg = collage.build(l, sources=shown)
     if not jpeg:
         text += "\n📷 Header unavailable · use Open listing to view the media"
+    text = optional.extend_card(text, l, bool(jpeg))      # a published line, only if the Telegram call plan is unchanged
     result = send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]), loud=_loud(l))
     remember_photos(l.key, result, shown if jpeg else [])
     return result

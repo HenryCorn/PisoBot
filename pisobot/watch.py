@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, main as pipeline, net, optional, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +52,15 @@ class Watcher:
             return True
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
+        """One cycle. The optional features' turn comes after it, with the run lock already released; everything it does is non-raising,
+        takes no feature code and no time, so the cycle's own result or exception always propagates unchanged."""
+        optional.cycle_start()
+        try:
+            return self._cycle(kind, stop_event, dry_run, chat_id)
+        finally:
+            optional.cycle_end(dry_run)
+
+    def _cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
         """Share identical portal searches, then apply each person's criteria and delivery."""
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
@@ -195,8 +204,9 @@ class Watcher:
             else:
                 _put_meta("watch_warned", "1")
 
-    def serve(self, stop_event, poll):
+    def serve(self, stop_event, poll, *, cleanup=True):
         poll_errors = []
+        optional.start()                      # features load on their own worker threads, from process start
 
         def listen():
             try:
@@ -240,9 +250,12 @@ class Watcher:
                 finally:
                     with self.guard:
                         self.running = False
+                optional.maybe_start_step()          # after the cycle and its after_cycle; never holds the run lock
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
         finally:
             stop_event.set()
+            if cleanup:
+                optional.shutdown()
             listener.join(timeout=40)
         if poll_errors:
             raise RuntimeError("Telegram listener failed; service restart required")
@@ -262,13 +275,16 @@ def main():
     stop = threading.Event()
     for signum in (signal.SIGTERM, signal.SIGINT):
         signal.signal(signum, lambda *_: stop.set())
-    with pipeline.run_lock("watch"):
-        watcher = Watcher(verbose=args.verbose)
-        if args.once:
-            watcher.cycle(stop_event=stop, dry_run=args.dry_run)
-        else:
-            from . import bot
-            watcher.serve(stop, bot.poll)
+    try:
+        with pipeline.run_lock("watch"):
+            watcher = Watcher(verbose=args.verbose)
+            if args.once:
+                watcher.cycle(stop_event=stop, dry_run=args.dry_run)
+            else:
+                from . import bot
+                watcher.serve(stop, bot.poll, cleanup=False)
+    finally:
+        optional.shutdown()
 
 
 if __name__ == "__main__":

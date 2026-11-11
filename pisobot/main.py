@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
+from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models, optional,
                prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
@@ -763,9 +763,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if reason == "new" and archive.enabled():
             _set_urgency(l)
         alert_budget["attempts"] = attempts_left - 1
+        sent_card = None
         try:
             if reason == "new":
-                telegram.send_listing(l, reason)
+                sent_card = telegram.send_listing(l, reason)
                 send_state = "sent"
             else:
                 send_state = _send_change(l, reason)
@@ -793,6 +794,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if local_rentals:
             archive.record_verdicts(person_id, [_verdict_row(l, None)], settings, acknowledged=True)
         delivered.add(l.key)
+        try:
+            optional.after_ack(l, person_id, sent_card, reason=reason, state=send_state)
+        except Exception:
+            try:
+                optional.lost["malformed"] += 1
+            except Exception:
+                pass
         if send_state == "sent":
             telegram.throttle()
     if live:
