@@ -725,6 +725,16 @@ class RunnerTests(OptionalBase):
             self.assertIsNotNone(proc.returncode)
             self.assertIsNone(self.runner.reap())
 
+    def test_monitor_start_failure_does_not_launch_a_child(self):
+        popen = MagicMock()
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), \
+                patch.object(threading.Thread, "start", side_effect=RuntimeError("no monitor")), \
+                self.assertLogs("pisobot.optional.runner", level="WARNING"):
+            self.assertFalse(self.runner.maybe_start(popen=popen))
+        popen.assert_not_called()
+        self.assertIsNone(self.runner.proc)
+
     def test_an_overdue_child_is_killed_at_the_next_cycle_start_and_ownership_is_kept_until_it_is_dead(self):
         proc, group = self.launch("import time; time.sleep(60)")
         self.runner.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1

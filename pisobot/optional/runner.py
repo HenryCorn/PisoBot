@@ -197,16 +197,26 @@ class Runner:
                     or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL):
                 log.warning("optional step refused: safe child ownership is unavailable")
                 return False
-            started = time.monotonic()
-            proc = popen([sys.executable, "-m", "pisobot.optional.step"], stdin=subprocess.DEVNULL, start_new_session=True,
-                         cwd=str(Path(__file__).resolve().parents[2]))
-            self.proc, self.started = proc, started
-            self.group = ChildGroup(proc, self.started + STEP_SECONDS + KILL_GRACE_SECONDS)
-            self.timer = threading.Timer(STEP_SECONDS + KILL_GRACE_SECONDS, self.group.terminate)
-            self.timer.daemon = True
-            monitor = threading.Thread(target=self.group.supervise, args=(self.timer,), daemon=True)
+            group, ready = ChildGroup(None, 0), threading.Event()
+            timer = threading.Timer(STEP_SECONDS + KILL_GRACE_SECONDS, group.terminate)
+            timer.daemon = True
+
+            def supervise_when_started():
+                ready.wait()
+                if group.proc is not None:
+                    group.supervise(timer)
+
+            monitor = threading.Thread(target=supervise_when_started, daemon=True)
             monitor.start()
-            self.timer.start()
+            try:
+                started = time.monotonic()
+                proc = popen([sys.executable, "-m", "pisobot.optional.step"], stdin=subprocess.DEVNULL, start_new_session=True,
+                             cwd=str(Path(__file__).resolve().parents[2]))
+                group.proc, group.deadline = proc, started + STEP_SECONDS + KILL_GRACE_SECONDS
+                self.proc, self.started, self.group, self.timer = proc, started, group, timer
+            finally:
+                ready.set()
+            timer.start()
             return True
         except Exception as ex:
             log.warning("optional step could not start or be supervised (%s)", type(ex).__name__)
