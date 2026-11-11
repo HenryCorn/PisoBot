@@ -69,6 +69,7 @@ class Feature:
 class OptionalBase(Base):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(optional, "execution_available", return_value=True))
         optional.reset()
         self.addCleanup(optional.reset)
         for target in (patch.object(main.enrich, "geocode"), patch.object(main.enrich, "assign_crime_percentiles"),
@@ -121,6 +122,7 @@ class Finder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 sys.meta_path.insert(0, Finder())
 os.environ["TEST_TEMPLATE"] = "1"
 from pisobot import optional
+optional.execution_available = lambda: True  # exercise template rendering independently of the isolation gate
 stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=40, seconds=20)).isoformat()
 listing = types.SimpleNamespace(first_listed_at=stamp)
 assert optional.extend_card("card", listing, False) == "card\\nListed 40 min ago"
@@ -168,6 +170,39 @@ assert not optional.workers()
         self.assertEqual(optional.message_id({"result": {"message_id": 5}}), 5)
         for bad in (None, {}, {"result": {}}, {"result": {"message_id": "5"}}, "x", {"result": None}):
             self.assertIsNone(optional.message_id(bad))
+
+    def test_requested_execution_is_refused_without_enforceable_isolation(self):
+        from pisobot.optional import step
+        loaded = []
+        optional.register(FLAG, lambda: loaded.append(True), templates=(
+            {"field": "first_listed_at", "kind": "age", "text": "Listed {}", "priority": 1, "max_seconds": 3600},))
+        listing = home(1)
+        listing.first_listed_at = stamp(60)
+        with patch.object(optional, "execution_available", return_value=False), \
+                patch.dict(os.environ, {FLAG: "1", "STORAGE": "local", "OPTIONAL_ALLOW_NO_LIMIT": "1"}), \
+                self.assertLogs("pisobot.optional", level="ERROR"):
+            self.assertFalse(optional.enabled_any())
+            optional.start()
+            optional._ensure_workers()
+            optional.after_ack(listing, OWNER, None, {"state": "sent"})
+            self.assertEqual(optional.after_cycle(), 0)
+            self.assertEqual(optional.extend_card("card", listing, False), "card")
+            self.assertEqual(optional.workers(), [])
+            self.assertEqual(optional._items, [])
+            self.assertEqual(optional.health()["refused"], optional.ISOLATION_REFUSAL)
+            popen = MagicMock()
+            self.assertFalse(runner.Runner().maybe_start(popen=popen))
+            popen.assert_not_called()
+            worker = optional.Worker(FLAG, lambda: loaded.append(True))
+            worker.start()
+            worker.join(5)
+            self.assertTrue(worker.failed)
+            with patch.object(step, "load_features", side_effect=AssertionError("feature loaded")), \
+                    patch.object(step, "open_lock", side_effect=AssertionError("lock opened")):
+                self.assertEqual(step.main(), 3)
+            self.assertEqual(step.load_features(), [])
+        self.assertEqual(loaded, [])
+        self.assertFalse(store.exists())
 
 
 # ---------------------------------------------------------------- P1-1: no feature code on the delivery or watcher thread
@@ -687,7 +722,9 @@ class RunnerTests(OptionalBase):
         self.addCleanup(cleanup)
         with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
             self.assertTrue(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
-        return proc, self.runner.group
+        group = self.runner.group
+        self.assertTrue(wait_for(lambda: group.proc is proc))
+        return proc, group
 
     def test_nothing_is_started_without_an_enabled_feature_that_reports_queued_work(self):
         popen = MagicMock(side_effect=AssertionError("started"))
@@ -713,27 +750,95 @@ class RunnerTests(OptionalBase):
             self.assertFalse(self.runner.maybe_start(popen=popen))
         popen.assert_not_called()
 
-    def test_timer_start_failure_still_terminates_and_reaps_the_owned_group(self):
-        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+    def test_timer_start_failure_prevents_process_launch(self):
+        popen = MagicMock()
         with patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True), \
                 patch.object(threading.Timer, "start", side_effect=RuntimeError("no timer")), \
                 self.assertLogs("pisobot.optional.runner", level="WARNING"):
-            self.assertFalse(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
-            group = self.runner.group
-            self.assertTrue(group.done.wait(5))
-            self.assertIsNotNone(proc.returncode)
+            self.assertFalse(self.runner.maybe_start(popen=popen))
             self.assertIsNone(self.runner.reap())
+        popen.assert_not_called()
 
     def test_monitor_start_failure_does_not_launch_a_child(self):
         popen = MagicMock()
+        original_start = threading.Thread.start
+
+        def start(thread):
+            if isinstance(thread, threading.Timer):
+                return original_start(thread)
+            raise RuntimeError("no monitor")
+
         with patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True), \
-                patch.object(threading.Thread, "start", side_effect=RuntimeError("no monitor")), \
+                patch.object(threading.Thread, "start", autospec=True, side_effect=start), \
                 self.assertLogs("pisobot.optional.runner", level="WARNING"):
             self.assertFalse(self.runner.maybe_start(popen=popen))
         popen.assert_not_called()
         self.assertIsNone(self.runner.proc)
+
+    def test_stalled_launch_does_not_block_and_a_late_child_is_killed_after_timeout(self):
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        caller = threading.current_thread()
+
+        def launch(*args, **kwargs):
+            self.assertIsNot(threading.current_thread(), caller)
+            entered.set()
+            release.wait(5)
+            return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), \
+                patch.object(runner, "STEP_SECONDS", 0.05), patch.object(runner, "KILL_GRACE_SECONDS", 0.05):
+            started = time.monotonic()
+            self.assertTrue(self.runner.maybe_start(popen=launch))
+            self.assertLess(time.monotonic() - started, 1)
+            self.assertTrue(entered.wait(2))
+            group = self.runner.group
+            self.assertTrue(group.stopping.wait(2))
+            self.assertIsNone(group.proc)
+            self.assertEqual(self.runner.reap(), "running")
+            another = MagicMock()
+            self.assertFalse(self.runner.maybe_start(popen=another))
+            another.assert_not_called()
+            release.set()
+            self.assertTrue(group.done.wait(5))
+            self.assertIsNotNone(group.proc.returncode)
+            self.assertIsNone(self.runner.reap())
+
+    def test_shutdown_retains_a_pending_launch_and_stops_its_late_child(self):
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+
+        def launch(*args, **kwargs):
+            entered.set()
+            release.wait(5)
+            return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), patch.object(runner, "CONFIRM_SECONDS", 0.01):
+            self.assertTrue(self.runner.maybe_start(popen=launch))
+            self.assertTrue(entered.wait(2))
+            group = self.runner.group
+            self.runner.stop()
+            self.assertIs(self.runner.group, group)
+            self.assertTrue(group.stopping.is_set())
+            release.set()
+            self.assertTrue(group.done.wait(5))
+            self.assertIsNotNone(group.proc.returncode)
+            self.assertIsNone(self.runner.reap())
+
+    def test_failed_background_launch_is_reported_and_releases_ownership(self):
+        with patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True), \
+                self.assertLogs("pisobot.optional.runner", level="WARNING") as logs:
+            self.assertTrue(self.runner.maybe_start(popen=MagicMock(side_effect=OSError("private detail"))))
+            group = self.runner.group
+            self.assertTrue(group.done.wait(5))
+            self.assertIsNone(self.runner.reap())
+        self.assertIn("could not start (OSError)", "\n".join(logs.output))
+        self.assertNotIn("private detail", "\n".join(logs.output))
 
     def test_an_overdue_child_is_killed_at_the_next_cycle_start_and_ownership_is_kept_until_it_is_dead(self):
         proc, group = self.launch("import time; time.sleep(60)")
@@ -984,6 +1089,7 @@ def _alive(pid):
 class CardTests(Base):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(optional, "execution_available", return_value=True))
         optional.reset()
         self.addCleanup(optional.reset)
         self.enterContext(patch.dict(os.environ, {"f": "1", "a": "1", "b": "1", "probe": "1"}))
@@ -1111,6 +1217,7 @@ def fresh(i=1, seconds_ago=40 * 60 + 20, rent=1200):
 class FetchFactTests(Base):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(optional, "execution_available", return_value=True))
         optional.reset()
         self.addCleanup(optional.reset)
         flags = {"timing": "1", "f": "1"}
@@ -1315,7 +1422,9 @@ class FetchFactTests(Base):
 
 CHILD = """
 import os, sys, time
+from pisobot import optional
 from pisobot.optional import step
+optional.execution_available = lambda: True  # exercise the existing child watchdog in isolation
 class F:
     def has_work(self): return True
     def step(self, deadline):
@@ -1636,6 +1745,26 @@ step.resident_bytes = failing_monitor"""
         worker.stop()
         worker.join(5)
         self.assertFalse(worker.is_alive())
+
+    def test_a_blocked_loader_is_reported_as_stuck(self):
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+
+        def loader():
+            entered.set()
+            release.wait(5)
+            return Feature()
+
+        worker = optional.Worker(FLAG, loader)
+        worker.start()
+        self.assertTrue(entered.wait(5))
+        with patch.object(optional, "STUCK_SECONDS", 0):
+            self.assertTrue(worker.status()["stuck"])
+        release.set()
+        worker.stop()
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertFalse(worker.status()["stuck"])
 
     def test_a_has_work_exception_is_logged(self):
         class BadWork:
@@ -2022,6 +2151,7 @@ class OffIsTheReleaseTests(RealSendBase):
         self.addCleanup(optional.reset)
         def enabled_template(stack):
             stack.enter_context(patch.dict(os.environ, {"timing": "1"}))
+            stack.enter_context(patch.object(optional, "execution_available", return_value=True))
             optional.publish_templates("timing", [LISTED])
 
         theirs, mutated = self.mutant(enabled_template)

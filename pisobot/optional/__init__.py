@@ -37,6 +37,8 @@ durable and swallowing termination would stop the service from stopping).
 
 Importing this package does no work. With nothing enabled nothing is imported that does work, no file or table exists, no thread or
 process is started, and the cycle is the release's.
+
+Optional execution is refused until the whole feature, including its loader and descendants, has enforceable resource isolation.
 """
 import dataclasses
 import datetime
@@ -78,6 +80,7 @@ TEMPLATES_MAX = 20
 TEMPLATE_KINDS = ("age", "value")
 MAX_AGE_TEMPLATE_SECONDS = 7 * 86400
 CLOCK_SKEW_SECONDS = 60       # a portal clock slightly ahead of ours still reads as "under 1 min"
+ISOLATION_REFUSAL = "enforceable optional resource isolation is unavailable"
 lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0, "contended": 0, "shutdown": 0}
 _seq = [0]
 log = logging.getLogger(__name__)
@@ -117,9 +120,18 @@ def reset():
         worker.stop()
 
 
-def enabled_any():
-    """Is any registered feature switched on? Environment checks only: no import, no I/O, cannot raise."""
+def execution_available():
+    """No supported backend yet isolates workers and all their descendants from the watcher."""
+    return False
+
+
+def requested_any():
     return any(os.environ.get(flag) == "1" for flag, _ in _registry)
+
+
+def enabled_any():
+    """Is a registered feature both requested and safe to execute? No import or I/O."""
+    return execution_available() and requested_any()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -226,12 +238,21 @@ class Worker(threading.Thread):
     # -- the worker thread
     def run(self):
         try:
+            if not execution_available():
+                log.error("optional feature %s refused: %s", self.flag, ISOLATION_REFUSAL)
+                return
+            with self.lock:
+                self.busy_since = time.monotonic()
             try:
                 self.feature = self.loader()
                 if self.feature is None:
                     raise ValueError("no feature")
-            except Exception:
+            except Exception as ex:
+                log.warning("optional feature %s failed to load (%s)", self.flag, type(ex).__name__)
                 return
+            finally:
+                with self.lock:
+                    self.busy_since = None
             self._refresh()
             while not self.halt.is_set():
                 self.wake.wait(5.0)
@@ -326,6 +347,8 @@ class Worker(threading.Thread):
 
 def _ensure_workers():
     """Create and start one worker per enabled registration (no feature code runs on the calling thread). Idempotent."""
+    if not execution_available():
+        return
     for flag, loader in list(_registry):
         if os.environ.get(flag) == "1" and flag not in _workers:
             if not _worker_lock.acquire(blocking=False):
@@ -346,8 +369,11 @@ def _ensure_workers():
 def start():
     """Start the workers at process start (serve). Never raises; with nothing enabled it starts nothing."""
     try:
-        if _registry and enabled_any():
-            _ensure_workers()
+        if _registry and requested_any():
+            if execution_available():
+                _ensure_workers()
+            else:
+                log.error("optional execution refused: %s", ISOLATION_REFUSAL)
     except Exception:
         pass
 
@@ -361,7 +387,8 @@ def health():
     try:
         from . import store
         return {"lost": dict(lost), "workers": [w.status() for w in workers()], "storage": store.last_error[0],
-                "pending": len(_items) + _handoff[0]}
+                "pending": len(_items) + _handoff[0],
+                "refused": ISOLATION_REFUSAL if requested_any() and not execution_available() else ""}
     except Exception:
         return {"lost": {}, "workers": []}
 
@@ -550,6 +577,8 @@ def extend_card(text, listing, has_photo):
     listing; calls no feature code; returns `text` unchanged on any problem."""
     original = text
     try:
+        if not execution_available():
+            return text
         if len(text) > MAX_CARD_CHARS:
             return text
         templates = sorted((t for t in _templates if os.environ.get(t.flag) == "1"), key=lambda t: -t.priority)[:TEMPLATES_MAX]
