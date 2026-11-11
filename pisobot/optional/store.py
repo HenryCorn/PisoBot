@@ -209,12 +209,18 @@ def read(sql, params=()):
         return []
 
 
-def read_primary(sql, params=(), person=None):
-    """Rows (as dicts) from the primary database, or from `person`'s database (a chat id): one SELECT, read-only, authorized for SELECT
-    only, at most MAX_ROWS rows, a statement deadline, and the snapshot is closed before returning. [] on any error or a missing file;
-    failures are available in last_primary_error, and SQLite timeouts are logged without exposing query or row data. There is no write
-    counterpart."""
-    last_primary_error[0] = ""
+def read_checked(sql, params=()):
+    """Return bounded read-only rows and an error, distinguishing an absent file from a failed read."""
+    try:
+        if not exists():
+            return [], None
+        return _read(checked_path(), sql, params, own=True), None
+    except Exception as ex:
+        return None, ex
+
+
+def read_primary_checked(sql, params=(), person=None):
+    """Return bounded primary rows and an error without creating a database."""
     try:
         from .. import localdb, users
         if person is None:
@@ -223,9 +229,20 @@ def read_primary(sql, params=(), person=None):
             owner = str(person) == os.environ.get("TELEGRAM_CHAT_ID", "").strip()
             target = localdb.state_dir() / "pisobot.db" if owner else users.User(str(person), owner=False).directory / "pisobot.db"
         if not os.path.exists(target):
-            return []
-        return _read(target, sql, params)
+            return [], None
+        return _read(target, sql, params), None
     except Exception as ex:
+        return None, ex
+
+
+def read_primary(sql, params=(), person=None):
+    """Rows (as dicts) from the primary database, or from `person`'s database (a chat id): one SELECT, read-only, authorized for SELECT
+    only, at most MAX_ROWS rows, a statement deadline, and the snapshot is closed before returning. [] on any error or a missing file;
+    failures are available in last_primary_error, and SQLite timeouts are logged without exposing query or row data. There is no write
+    counterpart."""
+    last_primary_error[0] = ""
+    rows, ex = read_primary_checked(sql, params, person)
+    if ex is not None:
         message = str(ex).lower()
         if isinstance(ex, sqlite3.OperationalError) and ("interrupt" in message or "locked" in message or "busy" in message):
             last_primary_error[0] = "query interrupted" if "interrupt" in message else "database busy"
@@ -233,3 +250,4 @@ def read_primary(sql, params=(), person=None):
         else:
             last_primary_error[0] = type(ex).__name__
         return []
+    return rows

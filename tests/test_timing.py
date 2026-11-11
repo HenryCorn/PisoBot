@@ -2,12 +2,14 @@
 import datetime as dt
 import os
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
 import unittest
 from unittest.mock import patch
 
-from pisobot import optional, registry_loader, status, telegram, timing, users
+from pisobot import archive, main, optional, registry_loader, status, telegram, timing, users
 from pisobot.optional import store
 from pisobot.sources import rightmove
 import test_optional
@@ -25,10 +27,11 @@ def iso(minutes_ago):
 class TimingBase(OptionalBase):
     def setUp(self):
         super().setUp()
-        timing.stats.update(retried=0, written=0)
+        timing.stats.update(retried=0, written=0, recovery_error="", recovery_more=False)
+        timing._SCAN.update(state=None, after=0)
         self.baseline()
         optional.reset()
-        optional.register("ALERT_TIMING", lambda: timing.FEATURE, templates=registry_loader.TIMING_TEMPLATES)
+        optional.register("ALERT_TIMING", lambda: timing.FEATURE, templates=registry_loader.TIMING_TEMPLATES, empty_cycle=True)
         patcher = patch.dict(os.environ, {"ALERT_TIMING": "1"})
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -38,7 +41,8 @@ class TimingBase(OptionalBase):
 
     def settle(self, count=None):
         """Wait for the feature's worker to have written (or kept) everything handed to it."""
-        wait_for(lambda: all(w["waiting"] == 0 and not w["stuck"] for w in optional.health()["workers"]) and
+        wait_for(lambda: all(w["waiting"] == 0 and w["inflight"] == 0 and not w["cycle_pending"] and not w["stuck"]
+                             for w in optional.health()["workers"]) and
                  (count is None or len(self.rows()) >= count))
 
 
@@ -50,8 +54,9 @@ class StatisticsTests(unittest.TestCase):
         self.assertIsNone(timing.median([]))
 
     def test_the_90th_percentile_needs_enough_alerts(self):
-        with patch.object(timing.store, "read", return_value=[
-                {"source": "rm", "via": "head", "listed_at": iso(60 + i), "first_fetch_at": iso(50), "sent_at": iso(i)} for i in range(4)]):
+        rows = [{"source": "rm", "via": "head", "listed_at": iso(60 + i), "first_fetch_at": iso(50), "sent_at": iso(i)}
+                for i in range(4)]
+        with patch.object(timing.store, "read_checked", return_value=(rows, None)):
             row = timing.report(now=NOW)["rm"]
         self.assertEqual((row["portal_median"], row["portal_p90"]), (60, None))
 
@@ -95,6 +100,126 @@ class RecordingTests(TimingBase):
         self.assertEqual(len(self.rows()), sent)  # no duplicates
         self.assertIn("retried since start", "\n".join(timing.status_lines()))
 
+    def test_a_later_chunk_exception_and_whole_batch_retry_do_not_duplicate_committed_rows(self):
+        items = [optional.Item(i, time.time(), OWNER, None, "new", "sent", "head",
+                               (("key", f"rm:{i}"), ("source", "rm"))) for i in range(1, timing.BATCH + 3)]
+        write, calls = store.write, [0]
+
+        def partial(ddl, statements):
+            calls[0] += 1
+            if calls[0] == 2:
+                raise RuntimeError("later transaction failed")
+            return write(ddl, statements)
+
+        with patch.object(timing, "first_seen", return_value={}), patch.object(store, "write", side_effect=partial):
+            with self.assertRaises(RuntimeError):
+                timing.FEATURE.after_cycle(items)
+            self.assertEqual(len(self.rows()), timing.BATCH)
+            self.assertIsNone(timing.FEATURE.after_cycle(items))
+        self.assertEqual(len(self.rows()), len(items))
+
+    def test_receipt_identity_survives_process_instances(self):
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": "unique-receipt"})
+        item = optional._items[-1]
+        with patch.object(timing, "_INSTANCE", "first"):
+            first = timing.row_for(item)["event_key"]
+        with patch.object(timing, "_INSTANCE", "second"):
+            second = timing.row_for(item)["event_key"]
+        self.assertEqual(first, second)
+        self.assertNotIn("unique-receipt", first)
+
+    def test_existing_timing_rows_survive_the_idempotency_tables_being_added(self):
+        legacy = ("CREATE TABLE IF NOT EXISTS alert_timing (id INTEGER PRIMARY KEY, source TEXT NOT NULL, "
+                  "reason TEXT NOT NULL, via TEXT NOT NULL, listed_at TEXT, first_fetch_at TEXT, "
+                  "sent_at TEXT NOT NULL, exclusive INTEGER)")
+        self.assertTrue(store.write(legacy, [
+            ("INSERT INTO alert_timing (source, reason, via, sent_at) VALUES ('rm', 'new', 'head', ?)", (iso(1),))]))
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": "new-receipt"})
+        item = optional._items[-1]
+        timing.FEATURE.after_cycle([item])
+        timing.FEATURE.after_cycle([item])
+        self.assertEqual(len(self.rows()), 2)
+
+    def test_receipt_ack_recovery_is_recorded_after_the_cycle_without_another_alert(self):
+        self.full = [home(1, 1200), home(2, 1250)]
+        original, failed, scans = archive.record_verdicts, [False], []
+        real_scan = timing.recover_receipts
+
+        def fail_first_ack(chat, rows, *args, **kwargs):
+            if chat == OWNER and kwargs.get("acknowledged") and not failed[0]:
+                failed[0] = True
+                raise RuntimeError("ack interrupted")
+            return original(chat, rows, *args, **kwargs)
+
+        def scan():
+            with main.run_lock():
+                scans.append(len(self.sent))
+            return real_scan()
+
+        with patch.object(timing, "recover_receipts", side_effect=scan), \
+                patch.object(archive, "record_verdicts", side_effect=fail_first_ack):
+            with self.assertRaises(RuntimeError):
+                self.watcher.cycle()
+            self.settle(1)
+        self.assertTrue(failed[0])
+        sent = list(self.sent)
+        self.assertEqual(len(sent), 2)
+        optional.shutdown()
+        optional.reset()
+        optional.register("ALERT_TIMING", lambda: timing.FEATURE, templates=registry_loader.TIMING_TEMPLATES, empty_cycle=True)
+        timing._SCAN.update(state=None, after=0)
+        with patch.object(timing, "recover_receipts", side_effect=scan):
+            self.watcher.cycle()
+            self.assertTrue(wait_for(lambda: len(store.read("SELECT * FROM alert_timing_unmeasured")) == 1, 5))
+            self.settle()
+        self.assertEqual(self.sent, sent)
+        self.assertEqual(len(self.rows()), 1)
+        self.assertTrue(scans and all(count == len(sent) for count in scans))
+        self.assertIn("recorded without an available send time", "\n".join(timing.status_lines()))
+
+    def test_a_later_timed_event_replaces_the_unmeasured_receipt(self):
+        token = "unique-receipt"
+        key = timing.receipt_key(token)
+        self.assertTrue(store.write(timing.DDL, [
+            ("INSERT INTO alert_timing_unmeasured (event_key, source, observed_at) VALUES (?, ?, ?)", (key, "rm", iso(0)))]))
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": token})
+        timing.FEATURE.after_cycle([optional._items[-1]])
+        self.assertEqual(len(self.rows()), 1)
+        self.assertEqual(store.read("SELECT * FROM alert_timing_unmeasured"), [])
+
+    def test_receipt_recovery_pages_through_bounded_work_without_starvation(self):
+        rows = [{"rid": n, "chat_id": OWNER, "key": f"rm:{n}", "intent_id": f"token-{n}", "source": "rm"}
+                for n in range(1, 4)]
+        seen = {f"rm:{n}": {"delivery_intent": f"token-{n}"} for n in range(1, 4)}
+
+        def read_page(sql, params):
+            return [row for row in rows if row["rid"] > params[0]][:params[2]], None
+
+        with patch.object(timing, "RECOVERY_PAGE", 1), patch.object(store, "read_primary_checked", side_effect=read_page), \
+                patch.object(timing, "_seen_for", return_value=seen):
+            timing.recover_receipts(now=NOW)
+            self.assertTrue(timing.stats["recovery_more"])
+            timing.recover_receipts(now=NOW)
+            timing.recover_receipts(now=NOW)
+        self.assertFalse(timing.stats["recovery_more"])
+        self.assertEqual(len(store.read("SELECT * FROM alert_timing_unmeasured")), 3)
+
+    def test_receipt_recovery_ignores_a_stale_receipt_from_an_older_obligation(self):
+        rows = [{"rid": 1, "chat_id": OWNER, "key": "rm:1", "intent_id": "new-token", "source": "rm"}]
+        seen = {"rm:1": {"delivery_intent": "old-token"}}
+        with patch.object(store, "read_primary_checked", return_value=(rows, None)), \
+                patch.object(timing, "_seen_for", return_value=seen):
+            timing.recover_receipts(now=NOW)
+        self.assertEqual(store.read("SELECT * FROM alert_timing_unmeasured"), [])
+
+    def test_receipt_recovery_failure_is_reported_and_retried(self):
+        with patch.object(store, "read_primary_checked", return_value=(None, sqlite3.OperationalError("busy"))), \
+                self.assertLogs("pisobot.timing", level="WARNING"):
+            timing.FEATURE.after_cycle(())
+        self.assertIn("receipt recovery unavailable", "\n".join(timing.status_lines()))
+        timing.FEATURE.after_cycle(())
+        self.assertEqual(timing.stats["recovery_error"], "")
+
     def test_dropped_rows_are_visible(self):
         optional.lost["evicted"] = 4
         self.assertIn("evicted 4", "\n".join(timing.status_lines()))
@@ -125,10 +250,65 @@ class RecordingTests(TimingBase):
 
 
 class StatusTests(TimingBase):
+    def test_status_import_is_disabled_and_optional_failures_preserve_the_baseline(self):
+        with patch.dict(os.environ, {"ALERT_TIMING": "0"}), \
+                patch.object(status.importlib, "import_module", side_effect=AssertionError("imported while off")):
+            baseline = status.status_text(now=NOW)
+        with patch.object(status.importlib, "import_module", side_effect=ImportError("private")), \
+                self.assertLogs("pisobot.status", level="WARNING"):
+            self.assertEqual(status.status_text(now=NOW), baseline)
+        with patch.object(timing, "status_lines", side_effect=RuntimeError("private")), \
+                self.assertLogs("pisobot.status", level="WARNING"):
+            self.assertEqual(status.status_text(now=NOW), baseline)
+        with patch.object(timing, "status_lines", return_value=["partial", object()]), \
+                self.assertLogs("pisobot.status", level="WARNING"):
+            self.assertEqual(status.status_text(now=NOW), baseline)
+
+    def test_the_status_module_does_not_import_timing_in_a_disabled_process(self):
+        code = """
+import importlib.abc, os, sys
+os.environ['ALERT_TIMING'] = '0'
+class Block(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'pisobot.timing':
+            raise ImportError('timing is unavailable')
+sys.meta_path.insert(0, Block())
+from pisobot import status
+assert 'pisobot.timing' not in sys.modules
+"""
+        child = subprocess.run([sys.executable, "-c", code], cwd=test_optional.ROOT, capture_output=True, text=True, timeout=15)
+        self.assertEqual(child.returncode, 0, child.stderr)
+
     def test_status_never_creates_the_file_or_the_table(self):
         self.assertEqual(timing.status_lines(), [])
         status.status_text()
         self.assertFalse(store.exists())
+
+    def test_a_missing_timing_table_is_valid_emptiness_and_is_not_created_by_status(self):
+        self.assertTrue(store.write("CREATE TABLE IF NOT EXISTS unrelated (id INTEGER)", []))
+        self.assertEqual(timing.status_lines(now=NOW), [])
+        self.assertEqual(store.read("SELECT name FROM sqlite_master WHERE name LIKE 'alert_timing%'"), [])
+
+    def test_an_acknowledged_event_before_cycle_handoff_is_visible(self):
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
+        self.assertEqual(optional.health()["pending"], 1)
+        self.assertIn("1 awaiting cycle handoff", status.status_text(now=NOW))
+
+    def test_read_failures_are_distinct_from_an_empty_timing_database(self):
+        with patch.object(store, "read_checked", return_value=(None, sqlite3.OperationalError("disk I/O error"))), \
+                self.assertLogs("pisobot.timing", level="WARNING"):
+            self.assertIn("unavailable (timing database read failed)", "\n".join(timing.status_lines(now=NOW)))
+        self.assertEqual(timing.status_lines(now=NOW), [])
+
+    def test_more_than_the_read_cap_reports_a_capped_nonempty_sample(self):
+        self.assertTrue(store.write(timing.DDL, []))
+        with sqlite3.connect(store.path()) as db:
+            db.executemany("INSERT INTO alert_timing (source, reason, via, sent_at) VALUES ('rm', 'new', 'head', ?)",
+                           [(iso(5),)] * (store.MAX_ROWS + 1))
+        result = timing.report(now=NOW)
+        self.assertTrue(result.capped)
+        self.assertEqual(result["rm"]["alerts"], timing.REPORT_ROWS)
+        self.assertIn("results are capped", "\n".join(timing.status_lines(now=NOW)))
 
     def test_status_shows_the_delay_once_alerts_are_recorded(self):
         l = home(1)
@@ -220,7 +400,8 @@ class ListedAgoTests(TimingBase):
         with patch.object(timing, "row_for", side_effect=tripwire), patch.object(timing, "write_rows", side_effect=tripwire), \
                 patch.object(timing.Feature, "after_cycle", side_effect=tripwire), \
                 patch.object(store, "write", side_effect=tripwire), patch.object(store, "read", side_effect=tripwire), \
-                patch.object(store, "read_primary", side_effect=tripwire):
+                patch.object(store, "read_checked", side_effect=tripwire), patch.object(store, "read_primary", side_effect=tripwire), \
+                patch.object(store, "read_primary_checked", side_effect=tripwire):
             self.assertIn("Listed 5 min ago", self.text(self.card(fresh)))
         self.assertEqual(optional.workers(), [])
 

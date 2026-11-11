@@ -2,12 +2,16 @@
 own records; makes no requests."""
 import datetime as dt
 import html
+import importlib
 import json
+import logging
+import os
 
-from . import archive, config, timing, users
+from . import archive, config, users
 
 WHATIF_DAYS = 7
 NAMES = {"rm": "Rightmove", "otmr": "OnTheMarket"}
+log = logging.getLogger(__name__)
 
 
 def _primary(sql, *params):
@@ -84,7 +88,15 @@ def status_text(now=None):
                 st = running["state"]
                 lines.append(f"• {name}: running, {running['requests']}/{config.DEEP_SWEEP_MAX_REQUESTS} requests, "
                              f"{len(st.get('queue', []))} price band(s) queued, {running['adverts_seen']:,} adverts so far")
-    lines.extend(timing.status_lines(now))
+    if os.environ.get("ALERT_TIMING") == "1":
+        try:
+            timing = importlib.import_module(".timing", __package__)
+            extra = timing.status_lines(now)
+            if type(extra) not in (list, tuple) or len(extra) > 20 or any(type(line) is not str for line in extra):
+                raise ValueError("invalid optional status")
+            lines.extend(extra)
+        except Exception as ex:
+            log.warning("optional timing status unavailable (%s)", type(ex).__name__)
     counts = archive.counts()
     lines.append(f"\n<b>Archive</b>: {counts.get('active', 0):,} active adverts · {counts.get('unseen', 0):,} unseen")
     return "\n".join(lines)

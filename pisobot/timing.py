@@ -12,10 +12,14 @@ thread, after the run lock is released, never on the delivery or watcher thread.
 `/status` only reads: it never creates the file or the table. Importing this module does no work.
 """
 import datetime as dt
+import hashlib
 import html
+import json
 import logging
 import math
 import os
+import sqlite3
+import uuid
 
 from . import optional
 from .optional import store
@@ -26,15 +30,26 @@ NAME = "alert_timing"
 WINDOW_DAYS = 7
 RETENTION_DAYS = 30
 MIN_FOR_P90 = 10             # a 90th percentile of fewer alerts than this is the maximum: not shown
-BATCH = 100
+BATCH = 65
+REPORT_ROWS = store.MAX_ROWS - 1
+RECOVERY_PAGE = 100
+RECOVERY_PEOPLE = 4
+SEEN_BYTES = 4_000_000
 NAMES = {"rm": "Rightmove", "otmr": "OnTheMarket"}
 DDL = """
 CREATE TABLE IF NOT EXISTS alert_timing (
     id INTEGER PRIMARY KEY, source TEXT NOT NULL, reason TEXT NOT NULL, via TEXT NOT NULL, listed_at TEXT,
     first_fetch_at TEXT, sent_at TEXT NOT NULL, exclusive INTEGER);
 CREATE INDEX IF NOT EXISTS alert_timing_sent ON alert_timing (sent_at);
+CREATE TABLE IF NOT EXISTS alert_timing_keys (event_key TEXT PRIMARY KEY, sent_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS alert_timing_keys_sent ON alert_timing_keys (sent_at);
+CREATE TABLE IF NOT EXISTS alert_timing_unmeasured (
+    event_key TEXT PRIMARY KEY, source TEXT NOT NULL, observed_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS alert_timing_unmeasured_observed ON alert_timing_unmeasured (observed_at);
 """
-stats = {"retried": 0, "written": 0}      # in memory; how many rows had to wait for a later cycle / were written
+stats = {"retried": 0, "written": 0, "recovery_error": "", "recovery_more": False}
+_INSTANCE = uuid.uuid4().hex
+_SCAN = {"state": None, "after": 0}
 
 
 def _now():
@@ -45,14 +60,21 @@ def enabled():
     return os.environ.get("ALERT_TIMING") == "1"
 
 
+def receipt_key(token):
+    return "receipt:" + hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def row_for(item):
     """The row an after_ack Item stands for, or None when it was not a card Telegram accepted."""
     if item.state != "sent":
         return None
     exclusive = item.get("exclusive")
+    token = item.get("receipt_token")
+    event_key = receipt_key(token) if type(token) is str and token else f"instance:{_INSTANCE}:{item.seq}"
     return {"key": item.get("key"), "source": item.get("source"), "reason": item.reason or "new", "via": item.via or "head",
             "listed_at": item.get("first_listed_at"), "exclusive": None if exclusive is None else int(bool(exclusive)),
-            "sent_at": dt.datetime.fromtimestamp(item.at, dt.timezone.utc).isoformat(timespec="seconds"), "seq": item.seq}
+            "sent_at": dt.datetime.fromtimestamp(item.at, dt.timezone.utc).isoformat(timespec="seconds"), "seq": item.seq,
+            "event_key": event_key}
 
 
 def first_seen(keys):
@@ -72,16 +94,97 @@ def write_rows(rows, now=None):
     left = []
     for start in range(0, len(rows), BATCH):
         chunk = rows[start:start + BATCH]
-        statements = [("INSERT INTO alert_timing (source, reason, via, listed_at, first_fetch_at, sent_at, exclusive)"
-                       " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       (r["source"], r["reason"], r["via"], r["listed_at"], seen.get(r["key"]), r["sent_at"], r["exclusive"]))
-                      for r in chunk]
+        statements = []
+        for r in chunk:
+            statements.append(("INSERT INTO alert_timing (source, reason, via, listed_at, first_fetch_at, sent_at, exclusive) "
+                               "SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS "
+                               "(SELECT 1 FROM alert_timing_keys WHERE event_key = ?)",
+                               (r["source"], r["reason"], r["via"], r["listed_at"], seen.get(r["key"]), r["sent_at"],
+                                r["exclusive"], r["event_key"])))
+            statements.append(("INSERT OR IGNORE INTO alert_timing_keys (event_key, sent_at) VALUES (?, ?)",
+                               (r["event_key"], r["sent_at"])))
+            statements.append(("DELETE FROM alert_timing_unmeasured WHERE event_key = ?", (r["event_key"],)))
         statements.append(("DELETE FROM alert_timing WHERE sent_at < ?", (cutoff,)))
+        statements.append(("DELETE FROM alert_timing_keys WHERE sent_at < ?", (cutoff,)))
+        statements.append(("DELETE FROM alert_timing_unmeasured WHERE observed_at < ?", (cutoff,)))
         if store.write(DDL, statements):
             stats["written"] += len(chunk)
         else:
             left.extend(chunk)
     return left
+
+
+def _seen_for(chat, owner):
+    from . import localdb, users
+    with users.use(users.User(chat, owner=chat == owner)):
+        target = users.seen_path(str(localdb.state_dir() / "seen.json"))
+        try:
+            with open(target, "rb") as source:
+                data = source.read(SEEN_BYTES + 1)
+        except FileNotFoundError:
+            return {}
+    if len(data) > SEEN_BYTES:
+        raise ValueError("seen receipt file exceeds recovery limit")
+    seen = json.loads(data)
+    if type(seen) is not dict:
+        raise ValueError("invalid seen receipt file")
+    return seen
+
+
+def recover_receipts(now=None):
+    """Find settled receipt tokens not recorded by the hook, without inventing their send times."""
+    from . import localdb, users
+    state = str(localdb.state_dir())
+    if _SCAN["state"] != state:
+        _SCAN.update(state=state, after=0)
+    owner = users.owner_chat() or "owner"
+    rows, error = store.read_primary_checked(
+        "SELECT w.rowid AS rid, w.chat_id, w.key, w.intent_id, a.source FROM advert_work w "
+        "JOIN adverts a ON a.key = w.key WHERE w.rowid > ? AND w.state = 'done' AND w.notify = 0 "
+        "AND (w.chat_id = ? OR EXISTS (SELECT 1 FROM users u WHERE u.chat_id = w.chat_id AND u.active = 1)) "
+        "ORDER BY w.rowid LIMIT ?", (_SCAN["after"], owner, RECOVERY_PAGE + 1))
+    if error is not None:
+        raise RuntimeError("receipt recovery read failed") from error
+    more = len(rows) > RECOVERY_PAGE
+    people, candidates, processed = {}, {}, []
+    for row in rows[:RECOVERY_PAGE]:
+        chat = row["chat_id"]
+        if chat not in people:
+            if len(people) >= RECOVERY_PEOPLE:
+                more = True
+                break
+            people[chat] = _seen_for(chat, owner)
+        processed.append(row)
+        receipt = people[chat].get(row["key"])
+        token = receipt.get("delivery_intent") if type(receipt) is dict else None
+        if (type(token) is str and 0 < len(token) <= 128
+                and (row["intent_id"] is None or token == row["intent_id"])):
+            candidates[receipt_key(token)] = row["source"]
+    if candidates:
+        keys = tuple(candidates)
+        marks = ",".join("?" for _ in keys)
+        sql = (f"SELECT event_key FROM alert_timing_keys WHERE event_key IN ({marks}) UNION "
+               f"SELECT event_key FROM alert_timing_unmeasured WHERE event_key IN ({marks})")
+        known, error = store.read_checked(sql, keys + keys)
+        if isinstance(error, sqlite3.OperationalError) and str(error).startswith("no such table: alert_timing_"):
+            if not store.write(DDL, []):
+                raise RuntimeError("receipt recovery schema unavailable")
+            known, error = store.read_checked(sql, keys + keys)
+        if error is not None:
+            raise RuntimeError("receipt recovery index read failed") from error
+        known = {row["event_key"] for row in known}
+        observed = (now or _now()).isoformat(timespec="seconds")
+        statements = [
+            ("INSERT OR IGNORE INTO alert_timing_unmeasured (event_key, source, observed_at) "
+             "SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM alert_timing_keys WHERE event_key = ?)",
+             (key, source, observed, key)) for key, source in candidates.items() if key not in known]
+        if statements:
+            cutoff = ((now or _now()) - dt.timedelta(days=RETENTION_DAYS)).isoformat(timespec="seconds")
+            statements.append(("DELETE FROM alert_timing_unmeasured WHERE observed_at < ?", (cutoff,)))
+            if not store.write(DDL, statements):
+                raise RuntimeError("receipt recovery write failed")
+    _SCAN["after"] = processed[-1]["rid"] if more and processed else 0
+    stats["recovery_more"] = more
 
 
 class Feature:
@@ -90,9 +193,13 @@ class Feature:
 
     def after_cycle(self, items):
         rows = [r for r in (row_for(i) for i in items) if r]
-        if not rows:
-            return None
-        left = write_rows(rows)
+        left = write_rows(rows) if rows else []
+        try:
+            recover_receipts()
+            stats["recovery_error"] = ""
+        except Exception as ex:
+            stats["recovery_error"] = type(ex).__name__
+            log.warning("timing receipt recovery failed (%s)", type(ex).__name__)
         if not left:
             return None
         stats["retried"] += len(left)
@@ -126,13 +233,27 @@ def percentile(values, q):
     return ordered[max(0, math.ceil(q / 100 * len(ordered)) - 1)]
 
 
+class Report(dict):
+    def __init__(self, *, capped=False, error=False):
+        super().__init__()
+        self.capped, self.error = capped, error
+
+
 def report(days=WINDOW_DAYS, now=None):
     """{source: {...}} over the last `days`, new-advert alerts only; delays in minutes. READ-ONLY: {} when optional.db or the table does
     not exist (nothing is created). A delay below zero is left out of the figures."""
     now = now or _now()
     since = (now - dt.timedelta(days=days)).isoformat(timespec="seconds")
-    rows = store.read("SELECT source, via, listed_at, first_fetch_at, sent_at FROM alert_timing WHERE reason = 'new' AND sent_at >= ?", (since,))
-    out = {}
+    rows, error = store.read_checked(
+        "SELECT source, via, listed_at, first_fetch_at, sent_at FROM alert_timing "
+        "WHERE reason = 'new' AND sent_at >= ? ORDER BY sent_at DESC, id DESC LIMIT ?", (since, REPORT_ROWS + 1))
+    if error is not None:
+        if isinstance(error, sqlite3.OperationalError) and str(error) == "no such table: alert_timing":
+            return Report()
+        log.warning("alert timing report read failed (%s)", type(error).__name__)
+        return Report(error=True)
+    out = Report(capped=len(rows) > REPORT_ROWS)
+    rows = rows[:REPORT_ROWS]
     for source in sorted({r["source"] for r in rows}):
         mine = [r for r in rows if r["source"] == source]
         portal = [m for r in mine if (m := _minutes(r["sent_at"], r["listed_at"])) is not None and m >= 0]
@@ -151,31 +272,62 @@ def _fmt(minutes):
     return f"{minutes:.0f} min" if minutes < 120 else f"{minutes / 60:.1f} h"
 
 
+def unmeasured_count(now):
+    since = (now - dt.timedelta(days=WINDOW_DAYS)).isoformat(timespec="seconds")
+    rows, error = store.read_checked("SELECT COUNT(*) AS n FROM alert_timing_unmeasured WHERE observed_at >= ?", (since,))
+    if isinstance(error, sqlite3.OperationalError) and str(error) == "no such table: alert_timing_unmeasured":
+        return 0, None
+    if error is not None:
+        log.warning("timing receipt recovery status failed (%s)", type(error).__name__)
+        return 0, error
+    return (rows[0]["n"] if rows else 0), None
+
+
 def status_lines(now=None):
     """Lines for /status. Nothing (and nothing created) when the feature is off, or no alert was ever recorded."""
     if not enabled():
         return []
     from . import optional
+    now = now or _now()
     data = report(now=now)
     lines = []
+    if data.error:
+        lines.append("\n<b>Alert delay</b>: unavailable (timing database read failed)")
     if data:
         lines.append(f"\n<b>Alert delay</b> (last {WINDOW_DAYS} days, median / 90th percentile; 90th shown from {MIN_FOR_P90} alerts)")
+        if data.capped:
+            lines.append(f"• showing only the latest {REPORT_ROWS:,} alerts; results are capped")
         for source, r in data.items():
             name = NAMES.get(source, source)
             portal = (f"{_fmt(r['portal_median'])} / {_fmt(r['portal_p90'])} from the portal's listing time ({r['portal_n']} timed)"
                       if r["portal_n"] else "portal listing time not published")
             lines.append(f"• {name}: {r['alerts']} alerts · {portal} · "
                          f"{_fmt(r['fetch_median'])} / {_fmt(r['fetch_p90'])} from our first sight")
+    unmeasured, recovery_read_error = unmeasured_count(now)
+    if unmeasured:
+        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        lines.append(f"{prefix}{unmeasured} acknowledged receipt(s) recorded without an available send time")
+    if recovery_read_error or stats["recovery_error"]:
+        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        lines.append(prefix + "receipt recovery unavailable; it will retry after a cycle")
+    elif stats["recovery_more"]:
+        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        lines.append(prefix + "receipt recovery scan continues in later cycles")
     health = optional.health()
     mine = [w for w in health["workers"] if w["flag"] == "ALERT_TIMING"]
     waiting = sum(w["waiting"] for w in mine)
     writing = sum(w.get("inflight", 0) for w in mine)       # taken by the worker, the write has not settled yet
+    scanning = any(w.get("cycle_pending") for w in mine)
+    pending = health.get("pending", 0)
     lost = sum(health["lost"].values())
     refused = health.get("storage") or ""
-    if stats["retried"] or waiting or writing or lost or refused:
-        text = (f"{waiting} waiting for a free database, {writing} being written now, {stats['retried']} retried since start, {lost} dropped "
+    if stats["retried"] or pending or waiting or writing or lost or refused:
+        text = (f"{pending} awaiting cycle handoff, {waiting} waiting for a free database, {writing} being written now, "
+                f"{stats['retried']} retried since start, {lost} dropped "
                 f"({', '.join(f'{k} {v}' for k, v in health['lost'].items() if v) or 'none'})")
         if refused:
             text += f" · storage refused: {html.escape(refused)}"
-        lines.append(("• not recorded yet: " if data else "\n<b>Alert delay</b>: ") + text)
+        lines.append(("• not recorded yet: " if lines else "\n<b>Alert delay</b>: ") + text)
+    if scanning:
+        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "receipt recovery scan pending or in progress")
     return lines

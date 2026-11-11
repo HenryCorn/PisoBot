@@ -63,6 +63,7 @@ FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at"
 SCALARS = (str, int, float, bool, type(None))
 
 _registry = []                # [(flag, loader)]
+_empty_cycles = set()         # features that request a worker callback even on an empty cycle
 _workers = {}                 # flag -> Worker
 _items = []                   # after_ack items awaiting after_cycle
 _handoff = [0]                # items between the cycle buffer and the worker inboxes
@@ -82,7 +83,7 @@ _seq = [0]
 log = logging.getLogger(__name__)
 
 
-def register(flag, loader, *, templates=()):
+def register(flag, loader, *, templates=(), empty_cycle=False):
     """Declare a worker and its optional startup templates. The loader runs only on its worker when `flag` is "1".
 
     Startup templates must be a plain list/tuple of plain dictionaries, not feature callbacks or iterators.
@@ -91,6 +92,8 @@ def register(flag, loader, *, templates=()):
         lost["malformed"] += 1
         return
     _registry.append((flag, loader))
+    if empty_cycle is True:
+        _empty_cycles.add(flag)
     if type(templates) not in (list, tuple):
         lost["malformed"] += 1
     elif templates:
@@ -105,7 +108,7 @@ def reset():
     global _snapshot, _templates
     with _lock:
         workers = list(_workers.values())
-        _registry.clear(), _workers.clear(), _items.clear(), _lines.clear(), _template_sets.clear()
+        _registry.clear(), _empty_cycles.clear(), _workers.clear(), _items.clear(), _lines.clear(), _template_sets.clear()
         _handoff[0] = 0
         _snapshot, _templates = {}, ()
         for key in lost:
@@ -166,7 +169,8 @@ def after_ack(listing, person, reply, context):
         ctx = context if isinstance(context, dict) else {}
         _items.append(Item(
             _seq[0], time.time(), str(person), message_id(reply), str(ctx.get("reason", "")), str(ctx.get("state", "")),
-            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)))
+            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)
+            + (("receipt_token", _scalar(ctx.get("receipt_token"))),)))
     except Exception:
         try:
             lost["malformed"] += 1
@@ -179,12 +183,13 @@ def after_ack(listing, person, reply, context):
 class Worker(threading.Thread):
     """Everything about one feature: loads it, delivers batches one at a time, refreshes its has_work flag. Single flight by construction."""
 
-    def __init__(self, flag, loader):
+    def __init__(self, flag, loader, *, empty_cycle=False):
         super().__init__(name=f"optional-{flag}", daemon=True)
         self.flag, self.loader = flag, loader
         self.feature, self.failed, self.work = None, False, False
         self.inbox, self.lock, self.wake, self.halt = deque(), threading.Lock(), threading.Event(), threading.Event()
         self.busy_since, self.inflight = None, 0
+        self.empty_cycle, self.cycle_waiting, self.cycle_inflight = empty_cycle, False, False
 
     # -- called from the watcher thread: data only, never waits, never calls feature code
     def offer(self, items):
@@ -195,6 +200,8 @@ class Worker(threading.Thread):
             if self.failed or self.halt.is_set():       # nobody will ever take them
                 lost["failed"] += len(items)
                 return
+            if self.empty_cycle:
+                self.cycle_waiting = True
             for item in items:
                 self.inbox.append([item, 0])
             while len(self.inbox) > BUFFER_LIMIT:
@@ -211,8 +218,10 @@ class Worker(threading.Thread):
     def status(self):
         with self.lock:
             waiting, inflight, failed, busy = len(self.inbox), self.inflight, self.failed, self.busy_since
+            cycle_pending = self.cycle_waiting or self.cycle_inflight
         return {"flag": self.flag, "loaded": self.feature is not None, "failed": failed, "waiting": waiting,
                 "inflight": inflight,                   # taken from the inbox, the feature has not settled them yet
+                "cycle_pending": cycle_pending,
                 "stuck": busy is not None and time.monotonic() - busy > STUCK_SECONDS}
 
     # -- the worker thread
@@ -230,16 +239,20 @@ class Worker(threading.Thread):
                 self.wake.clear()
                 if self.halt.is_set():
                     break
-                batch = self._take()
-                if batch:
+                batch, cycle = self._take()
+                if batch or cycle:
                     self._deliver(batch)
                 self._refresh()
         finally:
             with self.lock:
                 self.failed = True
                 lost["failed"] += len(self.inbox) + self.inflight
+                unfinished_cycle = self.cycle_waiting or self.cycle_inflight
                 self.inbox.clear()
                 self.inflight = 0
+                self.cycle_waiting = self.cycle_inflight = False
+            if unfinished_cycle:
+                log.warning("optional feature %s did not finish its cycle callback", self.flag)
 
     def _refresh(self):
         with self.lock:
@@ -258,6 +271,8 @@ class Worker(threading.Thread):
         with self.lock:
             taken, self.inbox = list(self.inbox), deque()
             self.inflight = len(taken)                  # same step as leaving the inbox: never in neither
+            cycle, self.cycle_waiting = self.cycle_waiting, False
+            self.cycle_inflight = cycle
         fresh = []
         for entry in taken:
             if now - entry[0].at > MAX_AGE_SECONDS:
@@ -266,7 +281,7 @@ class Worker(threading.Thread):
                 fresh.append(entry)
         with self.lock:
             self.inflight = len(fresh)
-        return fresh
+        return fresh, cycle
 
     def _deliver(self, entries):
         items = tuple(e[0] for e in entries)
@@ -307,6 +322,7 @@ class Worker(threading.Thread):
         finally:
             with self.lock:
                 self.busy_since = None
+                self.cycle_inflight = False
 
 
 def _ensure_workers():
@@ -318,7 +334,7 @@ def _ensure_workers():
             try:
                 if flag in _workers:
                     continue
-                worker = Worker(flag, loader)
+                worker = Worker(flag, loader, empty_cycle=flag in _empty_cycles)
                 try:
                     worker.start()
                 except Exception:
@@ -602,25 +618,26 @@ def shutdown():
                     unknown += 1
                     continue
                 try:
-                    pending += len(worker.inbox) + worker.inflight
+                    pending += len(worker.inbox) + worker.inflight + int(worker.cycle_waiting) + int(worker.cycle_inflight)
                 finally:
                     worker.lock.release()
                 worker.wake.set()
             if not pending and not unknown:
                 break
             if time.monotonic() >= deadline:
-                queued = inflight = 0
+                queued = inflight = cycles = 0
                 for worker in active:
                     if worker.lock.acquire(blocking=False):
                         try:
                             queued += len(worker.inbox)
                             inflight += worker.inflight
+                            cycles += int(worker.cycle_waiting) + int(worker.cycle_inflight)
                             worker.inbox.clear()
                         finally:
                             worker.lock.release()
                 lost["shutdown"] += queued
-                log.warning("optional shutdown timed out: %s queued dropped, %s in flight and %s worker(s) unverified",
-                            queued, inflight, unknown)
+                log.warning("optional shutdown timed out: %s queued dropped, %s in flight and %s worker(s) unverified; "
+                            "%s cycle callback(s) unsettled", queued, inflight, unknown, cycles)
                 break
             time.sleep(min(0.02, max(0, deadline - time.monotonic())))
         for worker in active:
