@@ -3,6 +3,7 @@ import html
 import json
 import os
 import re
+import sys
 import time
 from zoneinfo import ZoneInfo
 
@@ -224,6 +225,13 @@ def format_listing(l, reason="new", rank=None, flags=""):
     if move_in_line(l):
         lines.append(move_in_line(l))
     place_facts = getattr(l, "place_facts", None)
+    if not place_facts and config.PLACE_FACTS_ENABLED:
+        try:
+            place_facts = place.cached_facts(l.lat, l.lng) or {}
+            l.place_facts = place_facts
+        except Exception as error:
+            print(f"place cache read failed for {l.key}: {type(error).__name__}: {error}",
+                  file=sys.stderr)
     if place_facts:
         line = place.card_line(place_facts)
         if line:

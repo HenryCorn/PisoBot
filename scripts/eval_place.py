@@ -43,6 +43,8 @@ def main(argv=None, out=print, facts_for=place.facts, sleep=time.sleep):
     parser.add_argument("--sample", type=int, default=20)
     parser.add_argument("--indices",
                         help="comma-separated 1-based coordinate positions; evaluates only these")
+    parser.add_argument("--offline", action="store_true",
+                        help="read only the local map index and existing SQLite caches")
     parser.add_argument("--interval", type=float, default=10,
                         help="minimum seconds between location evaluations (default: 10)")
     args = parser.parse_args(argv)
@@ -69,9 +71,10 @@ def main(argv=None, out=print, facts_for=place.facts, sleep=time.sleep):
         return 1
     out(f"Place facts for {len(selected)} selected cached advert coordinates")
     failures = 0
+    provider = place.cached_facts if args.offline else facts_for
     for selected_position, (index, (lat, lng)) in enumerate(selected):
         try:
-            facts = facts_for(lat, lng)
+            facts = provider(lat, lng)
             out(f"{index:02d}. {place.card_line(facts) or 'No mapped place facts'}")
             main_road = facts.get("main_road") if facts else None
             road_text = (f"{main_road['class']} ~{main_road['distance_m']}m"
@@ -90,14 +93,15 @@ def main(argv=None, out=print, facts_for=place.facts, sleep=time.sleep):
                 f"Defra Lnight 2021/4m: road {road_value}, rail {rail_value}")
             band = place.noise_band(place._night_noise(facts))
             out(f"    label/noise: {place.street_label(facts)} / {band or 'unknown'}")
-            cache.save()
+            if not args.offline:
+                cache.save()
         except Exception as error:
             failures += 1
             out(f"{index:02d}. Place facts unavailable ({type(error).__name__}: {error})")
-        if place.noise_backoff_active():
+        if not args.offline and place.noise_backoff_active():
             out("Defra rate-limit backoff active; stopping the remaining evaluation points.")
             break
-        if selected_position + 1 < len(selected):
+        if selected_position + 1 < len(selected) and not args.offline:
             sleep(args.interval)
     return 1 if failures else 0
 

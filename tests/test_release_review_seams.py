@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 import test_wp23_final_review_repros as old
-from pisobot import archive, bot, config, costs, d1, extract, main, net, prefs, renter, sweep, telegram, tracker, users, watch
+from pisobot import archive, bot, config, costs, d1, extract, main, net, place, prefs, renter, sweep, telegram, tracker, users, watch
 from pisobot.sources import rightmove
 from test_archive import advert, at
 from test_extract import FakeClient, record
@@ -38,6 +38,58 @@ def execute(c, items, baseline=False):
 
 
 class ReleaseSeams(unittest.TestCase):
+    def test_place_network_enrichment_runs_after_send_seen_and_archive_ack(self):
+        with old.case(JudgingBase) as c:
+            item = advert(901, 1400)
+            events = []
+            original_save_seen = main.save_seen
+            original_record_verdicts = archive.record_verdicts
+
+            def save_seen(seen):
+                events.append("seen")
+                return original_save_seen(seen)
+
+            def record_verdicts(*args, **kwargs):
+                result = original_record_verdicts(*args, **kwargs)
+                if kwargs.get("acknowledged"):
+                    events.append("ack")
+                return result
+
+            def forbidden_http(*_args, **_kwargs):
+                events.append("http")
+                raise AssertionError("Place HTTP must not run before the card is sent")
+
+            def send_listing(listing, reason):
+                self.assertIn("🏘", telegram.format_listing(listing, reason))
+                events.append("send")
+
+            def refresh_network(*_args):
+                self.assertIn("send", events)
+                self.assertIn("seen", events)
+                self.assertIn("ack", events)
+                events.append("network")
+
+            facts = {
+                "street": {"class": "residential", "distance_m": 20},
+                "main_road": None, "railway": None, "amenities": {},
+            }
+            with patch.object(config, "PLACE_FACTS_ENABLED", True), \
+                    patch.object(place, "cached_facts",
+                                 side_effect=lambda *_args: events.append("local") or facts), \
+                    patch.object(place, "refresh_network", side_effect=refresh_network), \
+                    patch.object(place.requests, "get", side_effect=forbidden_http), \
+                    patch.object(main, "save_seen", side_effect=save_seen), \
+                    patch.object(archive, "record_verdicts", side_effect=record_verdicts), \
+                    patch.object(telegram, "send_listing", side_effect=send_listing):
+                execute(c, [item])
+
+            send_index = events.index("send")
+            self.assertIn("local", events[:send_index])
+            self.assertNotIn("http", events[:send_index])
+            self.assertLess(send_index, events.index("seen"))
+            self.assertLess(events.index("seen"), events.index("ack"))
+            self.assertLess(events.index("ack"), events.index("network"))
+
     def test_repeat_unseen_when_reappearance_is_sweep_only_or_filtered(self):
         results = []
         for filtered_head in (False, True):

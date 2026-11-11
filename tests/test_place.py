@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from pisobot import cache, place
+from pisobot import place
 from pisobot.models import Listing
 from pisobot.telegram import format_listing
 from scripts import eval_place
@@ -72,6 +72,37 @@ class PlaceFactsTests(unittest.TestCase):
                 tfl.assert_not_called()
                 noise.assert_not_called()
 
+    def test_cached_card_facts_read_sqlite_without_network(self):
+        osm = {
+            "street": {"class": "residential", "distance_m": 10},
+            "main_road": None, "railway": None, "amenities": {},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "facts.sqlite3")
+            db = sqlite3.connect(path)
+            db.executescript("""
+                CREATE TABLE transit_answers (cell TEXT PRIMARY KEY, fetched_at REAL, value TEXT);
+                CREATE TABLE noise_answers (cell TEXT, layer TEXT, value REAL, PRIMARY KEY (cell, layer));
+            """)
+            cell = place._cell(51.5, -0.1)
+            db.execute("INSERT INTO transit_answers VALUES (?, ?, ?)",
+                       (cell, 1000, json.dumps({"rail_lines": 2, "bus_routes": 3})))
+            db.executemany("INSERT INTO noise_answers VALUES (?, ?, ?)", [
+                (cell, place.NOISE_SERVICES[0][1], 42.0),
+                (cell, place.NOISE_SERVICES[1][1], 47.0),
+            ])
+            db.commit()
+            db.close()
+            with patch.object(place, "NOISE_CACHE_PATH", path), \
+                    patch.object(place, "local_osm_facts", return_value=osm), \
+                    patch.object(place, "_tfl", side_effect=AssertionError("network call")), \
+                    patch.object(place, "_noise", side_effect=AssertionError("network call")), \
+                    patch.object(place.requests, "get", side_effect=AssertionError("HTTP call")):
+                facts = place.cached_facts(51.5, -0.1, now=1001)
+
+        self.assertEqual(facts["transit"], {"rail_lines": 2, "bus_routes": 3})
+        self.assertEqual(facts["noise"], {"road_lnight_db": 42.0, "rail_lnight_db": 47.0})
+
     def test_tfl_counts_distinct_lines_and_bus_routes_with_distance_limits(self):
         data = {"stopPoints": [
             {"distance": 200, "modes": ["tube", "bus"],
@@ -85,14 +116,14 @@ class PlaceFactsTests(unittest.TestCase):
         self.assertIn("stopTypes=NaptanPublicBusCoachTram,NaptanMetroStation,NaptanRailStation",
                       place._tfl_url(51.5, -0.1))
     def test_facts_use_cache_and_refresh_after_ttl(self):
-        cache._data = {}
-        self.addCleanup(setattr, cache, "_data", {})
         osm = {
             "street": {"class": "residential", "distance_m": 10},
             "main_road": None, "railway": None, "amenities": {},
         }
-        with tempfile.NamedTemporaryFile() as index, \
+        with tempfile.TemporaryDirectory() as directory, \
+                tempfile.NamedTemporaryFile() as index, \
                 patch.object(place, "LOCAL_INDEX_PATH", index.name), \
+                patch.object(place, "NOISE_CACHE_PATH", os.path.join(directory, "facts.sqlite3")), \
                 patch.object(place, "local_osm_facts", return_value=osm) as local, \
                 patch.object(place, "_tfl", return_value={"stopPoints": []}) as tfl, \
                 patch.object(place, "_noise", return_value={"road_lnight_db": 42.0,
@@ -100,21 +131,21 @@ class PlaceFactsTests(unittest.TestCase):
             first = place.facts(51.5, -0.1, now=1000)
             second = place.facts(51.5001, -0.1001, now=1001)
             self.assertEqual(first, second)
-            local.assert_called_once()
+            self.assertEqual(local.call_count, 4)
             tfl.assert_called_once()
             self.assertEqual(noise.call_count, 2)
             place.facts(51.5, -0.1, now=1000 + place.CACHE_TTL_SECONDS + 1)
-            self.assertEqual(local.call_count, 2)
+            self.assertEqual(local.call_count, 6)
+            self.assertEqual(tfl.call_count, 2)
 
     def test_tfl_and_noise_failures_preserve_local_osm_facts(self):
-        cache._data = {}
-        self.addCleanup(setattr, cache, "_data", {})
         osm = {
             "street": {"class": "residential", "distance_m": 10},
             "main_road": None, "railway": None, "amenities": {},
         }
-        with tempfile.NamedTemporaryFile() as index, \
+        with tempfile.TemporaryDirectory() as directory, tempfile.NamedTemporaryFile() as index, \
                 patch.object(place, "LOCAL_INDEX_PATH", index.name), \
+                patch.object(place, "NOISE_CACHE_PATH", os.path.join(directory, "facts.sqlite3")), \
                 patch.object(place, "local_osm_facts", return_value=osm), \
                 patch.object(place, "_tfl", side_effect=place.requests.Timeout("TfL timeout")), \
                 patch.object(place, "_noise", side_effect=place.requests.Timeout("Defra timeout")):
@@ -219,7 +250,7 @@ class PlaceFactsTests(unittest.TestCase):
             "noise": {"road_lnight_db": 46, "rail_lnight_db": None},
         }
         self.assertEqual(place.street_label(facts), "Busy road nearby")
-        self.assertEqual(place.card_line(facts), "🏘 Busy road nearby · night noise moderate")
+        self.assertEqual(place.card_line(facts), "🏘 Night noise moderate")
         facts["main_road"]["distance_m"] = 301
         self.assertEqual(place.street_label(facts), "Residential street")
         facts["noise"]["road_lnight_db"] = 44
@@ -258,13 +289,28 @@ class PlaceFactsTests(unittest.TestCase):
         }
         rendered = format_listing(listing)
         line = next(row for row in rendered.splitlines() if row.startswith("🏘"))
-        self.assertEqual(line, "🏘 Quiet residential street · night noise low · 2 rail/tube lines · Lidl ~250m")
+        self.assertEqual(line, "🏘 Night noise low · 2 rail/tube lines · Lidl ~250m")
         self.assertLessEqual(len(line), 90)
         details = place.detail_lines(listing.place_facts)
         self.assertTrue(any("primary (~550 m)" in row for row in details))
         self.assertTrue(any("Lnight (2021 model year, 4 m receptor" in row for row in details))
         listing.place_facts = {}
         self.assertNotIn("🏘", format_listing(listing))
+
+    def test_known_noise_leads_and_only_very_close_roads_or_rail_are_named(self):
+        facts = {
+            "street": {"class": "residential", "distance_m": 20},
+            "main_road": {"class": "primary", "distance_m": 49},
+            "railway": {"distance_m": 60},
+            "noise": {"road_lnight_db": 40, "rail_lnight_db": 42},
+        }
+        self.assertEqual(place.card_line(facts),
+                         "🏘 Night noise low · Primary road ~49m · Railway ~60m")
+        facts["main_road"]["distance_m"] = 51
+        facts["railway"]["distance_m"] = 61
+        self.assertEqual(place.card_line(facts), "🏘 Night noise low")
+        facts["noise"] = {}
+        self.assertEqual(place.card_line(facts), "🏘 Busy road and railway nearby")
 
     def test_evaluation_reports_provider_failures_and_returns_nonzero(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -287,6 +333,40 @@ class PlaceFactsTests(unittest.TestCase):
         self.assertEqual(delays, [10])
         self.assertEqual(sum("Place facts unavailable" in row for row in output), 2)
         self.assertTrue(any("TimeoutError: fixture timeout" in row for row in output))
+
+    def test_evaluation_offline_reads_caches_without_network_or_waiting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "cache.json")
+            with open(path, "w", encoding="utf-8") as file:
+                json.dump({"rent_search": {"x": {"listings": [
+                    {"lat": 51.5, "lng": -0.1}, {"lat": 51.6, "lng": -0.2},
+                ]}}}, file)
+            output, queried = [], []
+            facts = {
+                "street": {"class": "residential", "distance_m": 10},
+                "main_road": None, "railway": None, "amenities": {},
+                "noise": {"road_lnight_db": 42.0, "rail_lnight_db": 43.0},
+            }
+
+            def cached(lat, lng):
+                queried.append((lat, lng))
+                return facts
+
+            with patch.object(place, "cached_facts", side_effect=cached), \
+                    patch.object(place, "facts", side_effect=AssertionError("network provider used")), \
+            patch.object(place, "noise_backoff_active") as backoff, \
+            patch.object(eval_place.cache, "save") as save, \
+                    patch.object(eval_place.cache, "PATH", os.path.join(directory, "eval-cache.json")):
+                result = eval_place.main(
+                    ["--cache", path, "--sample", "2", "--offline"], out=output.append,
+                    sleep=lambda _delay: self.fail("offline evaluation must not wait"),
+                )
+            save.assert_not_called()
+            backoff.assert_not_called()
+        self.assertEqual(result, 0)
+        self.assertEqual(len(queried), 2)
+        self.assertEqual(sum(row.startswith("01. 🏘 Night noise low") for row in output), 1)
+        self.assertEqual(sum(row.startswith("02. 🏘 Night noise low") for row in output), 1)
 
     def test_evaluation_can_select_original_coordinate_indices_and_stops_on_429(self):
         with tempfile.TemporaryDirectory() as directory:

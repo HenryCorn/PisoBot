@@ -1,6 +1,7 @@
 """Cached, additive place facts from OpenStreetMap and TfL."""
-import math
+import json
 import logging
+import math
 import os
 import re
 import sqlite3
@@ -13,8 +14,6 @@ from pathlib import Path
 
 import requests
 
-from . import cache
-
 TFL_URL = "https://api.tfl.gov.uk/StopPoint"
 NOISE_SERVICES = (
     ("https://environment.data.gov.uk/spatialdata/road-noise-all-metrics-england-round-4/wms",
@@ -23,7 +22,6 @@ NOISE_SERVICES = (
      "Rail_Noise_Lnight_England_Round_4_All", "rail_lnight_db"),
 )
 CACHE_TTL_SECONDS = 90 * 24 * 60 * 60
-CACHE_NAMESPACE = "place_facts_v3"
 LOCAL_INDEX_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                 "state", "place-index.sqlite3")
 NOISE_CACHE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -32,10 +30,13 @@ LOCAL_ROAD_RADIUS_M = 800
 LOCAL_AMENITY_RADIUS_M = 600
 MAJOR_ROAD_LABEL_M = 200
 RAILWAY_LABEL_M = 100
+CARD_MAIN_ROAD_M = 50
+CARD_SURFACE_RAIL_M = 60
 QUIET_ROAD_CLEAR_M = 300
 QUIET_RAIL_CLEAR_M = 100
 LOW_NOISE_MAX_DB = 45
 MODERATE_NOISE_MAX_DB = 55
+LOCAL_SQLITE_BUSY_TIMEOUT_MS = 100
 NOISE_REQUEST_INTERVAL_SECONDS = 10
 NOISE_RATE_LIMIT_BACKOFF_SECONDS = 24 * 60 * 60
 NOISE_FAILURE_RETRY_SECONDS = 24 * 60 * 60
@@ -86,13 +87,19 @@ def _index_grid_bounds(db, lat, lng, radius_m):
             math.floor(y / cell_size) - span, math.floor(y / cell_size) + span)
 
 
+def _readonly_db(path):
+    uri = Path(path).resolve().as_uri() + "?mode=ro"
+    db = sqlite3.connect(uri, uri=True, timeout=LOCAL_SQLITE_BUSY_TIMEOUT_MS / 1000)
+    db.execute(f"PRAGMA busy_timeout = {LOCAL_SQLITE_BUSY_TIMEOUT_MS}")
+    return db
+
+
 def local_osm_facts(lat, lng, index_path=None):
     """Read nearby OSM features from the optional, standard-library SQLite index."""
     path = Path(index_path or LOCAL_INDEX_PATH)
     if not path.is_file():
         return None
-    uri = path.resolve().as_uri() + "?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as db:
+    with closing(_readonly_db(path)) as db:
         x1, x2, y1, y2 = _index_grid_bounds(db, lat, lng, LOCAL_ROAD_RADIUS_M)
         rows = db.execute("""
             SELECT DISTINCT f.id, f.kind, f.class, f.name, f.osm_id,
@@ -232,6 +239,13 @@ def _noise_database():
             layer TEXT NOT NULL,
             retry_after REAL NOT NULL,
             PRIMARY KEY (cell, layer)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS transit_answers (
+            cell TEXT PRIMARY KEY,
+            fetched_at REAL NOT NULL,
+            value TEXT NOT NULL
         )
     """)
     return db
@@ -376,41 +390,97 @@ def _noise(lat, lng):
     return values
 
 
-def facts(lat, lng, now=None):
-    """Return independent OSM, TfL and Defra facts for a matched advert."""
+def cached_facts(lat, lng, now=None):
+    """Read only local SQLite facts; this is the bounded path used while building a card."""
     if lat is None or lng is None:
         return None
-    try:
-        index_version = os.stat(LOCAL_INDEX_PATH).st_mtime_ns
-    except FileNotFoundError:
-        return None
     now = time.time() if now is None else now
-    key = f"{_cell(lat, lng)}:{index_version}"
-    hit = cache.get(CACHE_NAMESPACE, key)
-    if hit and now - hit.get("fetched_at", 0) < CACHE_TTL_SECONDS:
-        osm = hit["osm"]
-        transit = hit.get("transit")
-    else:
+    try:
         osm = local_osm_facts(lat, lng)
-        if osm is None:
-            return None
-        transit = None
+    except (OSError, sqlite3.Error) as error:
+        _logger.warning("Place facts local OSM read failed: %s", error)
+        return None
+    if osm is None:
+        return None
+    result = {**osm}
+    path = Path(NOISE_CACHE_PATH)
+    if not path.is_file():
+        return result
+    try:
+        with closing(_readonly_db(path)) as db:
+            cell = _cell(lat, lng)
+            try:
+                transit = db.execute(
+                    "SELECT fetched_at, value FROM transit_answers WHERE cell = ?", (cell,)
+                ).fetchone()
+                if transit and now - transit[0] < CACHE_TTL_SECONDS:
+                    try:
+                        result["transit"] = json.loads(transit[1])
+                    except json.JSONDecodeError as error:
+                        _logger.warning("Place facts local TfL cache is invalid: %s", error)
+            except sqlite3.OperationalError:
+                pass
+            try:
+                layers = dict(db.execute(
+                    "SELECT layer, value FROM noise_answers WHERE cell = ?", (cell,)
+                ))
+            except sqlite3.OperationalError:
+                layers = {}
+            noise = {}
+            for layer, key in ((NOISE_SERVICES[0][1], NOISE_SERVICES[0][2]),
+                               (NOISE_SERVICES[1][1], NOISE_SERVICES[1][2])):
+                if layer in layers:
+                    noise[key] = layers[layer]
+            if noise:
+                result["noise"] = noise
+    except (OSError, sqlite3.Error) as error:
+        _logger.warning("Place facts local cache read failed: %s", error)
+    return result
 
-    if transit is None:
+
+def refresh_network(lat, lng, now=None):
+    """Best-effort TfL/Defra refresh. Call only after this cycle's sends and acknowledgements."""
+    if lat is None or lng is None or not Path(LOCAL_INDEX_PATH).is_file():
+        return
+    now = time.time() if now is None else now
+    cell = _cell(lat, lng)
+    try:
+        with closing(_noise_database()) as db:
+            transit = db.execute(
+                "SELECT fetched_at FROM transit_answers WHERE cell = ?", (cell,)
+            ).fetchone()
+    except (OSError, sqlite3.Error) as error:
+        _logger.warning("Place facts TfL cache read failed: %s", error)
+        transit = None
+    if transit is None or now - transit[0] >= CACHE_TTL_SECONDS:
         try:
-            transit = parse_tfl(_tfl(lat, lng))
+            value = parse_tfl(_tfl(lat, lng))
         except requests.RequestException as error:
             _logger.warning("Place facts TfL lookup failed: %s", error)
-
-    cache.put(CACHE_NAMESPACE, key, {"fetched_at": now, "osm": osm, "transit": transit})
-    result = {**osm}
-    if transit is not None:
-        result["transit"] = transit
+        else:
+            try:
+                with closing(_noise_database()) as db:
+                    db.execute(
+                        "INSERT OR REPLACE INTO transit_answers (cell, fetched_at, value) "
+                        "VALUES (?, ?, ?)",
+                        (cell, now, json.dumps(value, sort_keys=True)),
+                    )
+                    db.commit()
+            except (OSError, sqlite3.Error) as error:
+                _logger.warning("Place facts TfL cache write failed: %s", error)
     try:
-        result["noise"] = _noise(lat, lng)
+        _noise(lat, lng)
     except (requests.RequestException, OSError, sqlite3.Error) as error:
         _logger.warning("Place facts Defra cache unavailable: %s", error)
-    return result
+
+
+def facts(lat, lng, now=None):
+    """Return local and cached facts, refreshing external sources for offline evaluation."""
+    result = cached_facts(lat, lng, now=now)
+    if result is None:
+        return None
+    refresh_network(lat, lng, now=now)
+    return cached_facts(lat, lng, now=now) or result
 
 
 def noise_band(decibels):
@@ -463,16 +533,23 @@ def street_label(facts):
 
 
 def card_line(facts):
-    """A prioritized place summary capped at 90 characters."""
+    """Put modelled night noise first; mention nearby roads/rail only at close range."""
     if not facts:
         return ""
     parts = []
-    street = street_label(facts)
-    if street:
-        parts.append(street)
     band = noise_band(_night_noise(facts))
     if band:
-        parts.append(f"night noise {band}")
+        parts.append(f"Night noise {band}")
+        main = facts.get("main_road")
+        if main and main["distance_m"] <= CARD_MAIN_ROAD_M:
+            parts.append(f"{main['class'].title()} road ~{round(main['distance_m'])}m")
+        rail = facts.get("railway")
+        if rail and rail["distance_m"] <= CARD_SURFACE_RAIL_M:
+            parts.append(f"Railway ~{round(rail['distance_m'])}m")
+    else:
+        street = street_label(facts)
+        if street:
+            parts.append(street)
     transit = facts.get("transit") or {}
     lines = transit.get("rail_lines", 0)
     if lines:
@@ -484,6 +561,8 @@ def card_line(facts):
         if nearest:
             name = nearest.get("name", label.title()).strip()[:12]
             nearby.append(f"{name} ~{nearest['distance_m']}m")
+    if not parts:
+        return ""
     text = "🏘 " + " · ".join(parts)
     for item in nearby:
         candidate = text + " · " + item

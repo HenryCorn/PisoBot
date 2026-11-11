@@ -574,12 +574,6 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if baseline and not sweep and (failures or (enrich_failures and not local_rentals)):
         raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
-    if config.PLACE_FACTS_ENABLED:
-        for listing in matches:
-            try:
-                listing.place_facts = place.facts(listing.lat, listing.lng) or {}
-            except Exception as ex:
-                print(f"place facts unavailable for {listing.key}: {type(ex).__name__}", file=sys.stderr)
 
     # 2. Saved/hidden choices (recorded instantly by the Worker) apply to these matches
     today = dt.date.today().isoformat()
@@ -831,6 +825,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    if live and config.PLACE_FACTS_ENABLED:
+        for listing in matches:
+            try:
+                place.refresh_network(listing.lat, listing.lng)
+            except Exception as ex:
+                print(f"place facts refresh failed for {listing.key}: {type(ex).__name__}: {ex}",
+                      file=sys.stderr)
     result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
               "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
               "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
