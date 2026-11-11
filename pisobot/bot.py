@@ -23,7 +23,7 @@ import time
 
 import requests
 
-from . import archive, config, d1, net, renter, status as reports, tgtext, tracker, users
+from . import archive, config, d1, net, renter, signals, status as reports, tgtext, tracker, users
 
 LOG = logging.getLogger(__name__)
 OFFSET_KEY = "telegram_update_offset"
@@ -689,6 +689,7 @@ class Handler:
             label = "✓ Noted: " + REASON_LABELS[reason]
             markup = _update_keyboard(markup, action, sid, label)
         else:
+            signals.log_action(users.current_chat() or users.owner_chat(), listing["key"], action)   # G3: best effort, off unless SIGNALS=1
             if action == "s":
                 info = {name: listing.get(name) for name in ("lat", "lng", "url", "address", "cost")}
                 info["missing"] = 0
