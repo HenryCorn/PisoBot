@@ -1,10 +1,12 @@
 """Offline tests for the optional application readiness pack."""
 import datetime as dt
 import os
+import sqlite3
+import threading
 import unittest
 from unittest.mock import patch
 
-from pisobot import archive, bot, d1, ready, renter, telegram, tracker, users
+from pisobot import archive, bot, d1, localdb, main, ready, readydb, renter, telegram, tracker, users, watch
 from test_users import FRIEND, OWNER, Base, home, message
 from test_wp3 import BotBase, press, publish, shown_units
 
@@ -58,7 +60,7 @@ class ReadinessTests(ReadyBase):
         self.assertEqual(pack.values["income"].text, "£40,000–£50,000")
         self.assertEqual(ready.value_text("cash", pack.values["cash"]), "£3,000")
         self.assertIsNone(pack.values["guarantor"])
-        tracker.put("profile.ready_income", "corrupt")
+        readydb.put("profile.ready_income", "corrupt")
         self.assertIn("unrecognised; re-enter", ready.checklist(ready.load()))
 
     def test_existing_references_are_honest_and_a_new_job_clears_old_tenure(self):
@@ -72,6 +74,21 @@ class ReadinessTests(ReadyBase):
         ready.set_field("employment", "self-employed")
         self.assertIsNone(ready.load().values["employment_length"])
 
+    def test_shared_fields_follow_later_profile_edits_and_clears(self):
+        renter.set_field("pets", "cat")
+        ready.set_field("pets", "dog")
+        self.assertIn("Pets: dog", renter.show_profile())
+        renter.set_field("pets", "cat")
+        self.assertEqual(ready.load().values["pets"], "cat")
+        ready.set_field("pets", "clear")
+        self.assertIsNone(ready.load().values["pets"])
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("pets", "dog")
+        self.assertEqual(ready.load().values["pets"], "dog")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("pets", "cat")
+        self.assertEqual(ready.load().values["pets"], "cat")
+
     def test_cleared_or_unassociated_employment_never_reuses_tenure(self):
         ready.set_field("employment", "employed")
         ready.set_field("employment_length", "2 years")
@@ -83,16 +100,91 @@ class ReadinessTests(ReadyBase):
         self.assertNotIn("24 months", ready.application_summary(ready.load()))
 
         # A legacy tenure has no evidence tying it to the currently saved employment.
-        tracker.put("profile.ready_employment_length", "24 months")
+        readydb.put("profile.ready_employment_length", "24 months")
         pack = ready.load()
         self.assertIsNone(pack.values["employment_length"])
         self.assertIn("re-enter", ready.checklist(pack))
         self.assertNotIn("24 months", ready.application_summary(pack))
+        renter.set_field("job", "nurse")
+        self.assertIsNone(ready.load().values["employment_length"])
         ready.set_field("employment_length", "6 months")
         ready.set_field("employment", "unemployed")
-        self.assertIn("time in employment: 6 months", ready.application_summary(ready.load()))
+        self.assertIn("time unemployed: 6 months", ready.application_summary(ready.load()))
         ready.set_field("employment", "contractor")
         self.assertIsNone(ready.load().values["employment_length"])
+
+    def test_tenure_is_reconfirmed_for_the_current_job_and_status(self):
+        renter.set_field("job", "nurse")
+        ready.set_field("employment", "employed")
+        ready.set_field("employment_length", "2 years")
+        self.assertIn("time in employment: 24 months", ready.application_summary(ready.load()))
+        renter.set_field("job", "nurse")
+        self.assertIsNone(ready.load().values["employment_length"])
+        ready.set_field("employment_length", "2 years")
+
+        renter.set_field("job", "teacher")
+        pack = ready.load()
+        self.assertIsNone(pack.values["employment_length"])
+        self.assertIn("re-enter", ready.checklist(pack))
+        self.assertNotIn("24 months", ready.application_summary(pack))
+
+        ready.set_field("employment", "unemployed")
+        ready.set_field("employment_length", "6 months")
+        summary = ready.application_summary(ready.load())
+        self.assertIn("time unemployed: 6 months", summary)
+        self.assertNotIn("time in employment: 6 months", summary)
+        for status, label in (("student", "time as a student"), ("retired", "time retired"),
+                              ("other", "time in current status")):
+            with self.subTest(status=status):
+                ready.set_field("employment", status)
+                ready.set_field("employment_length", "6 months")
+                self.assertIn(f"{label}: 6 months", ready.application_summary(ready.load()))
+
+    def test_tenure_is_not_reused_if_the_job_changes_while_disabled(self):
+        renter.set_field("job", "nurse")
+        ready.set_field("employment", "employed")
+        ready.set_field("employment_length", "2 years")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("job", "teacher")
+        self.assertIsNone(ready.load().values["employment_length"])
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("job", "nurse")
+        self.assertIsNone(ready.load().values["employment_length"])
+
+    def test_tenure_is_invalidated_before_a_job_save_can_crash(self):
+        renter.set_field("job", "nurse")
+        ready.set_field("employment", "employed")
+        ready.set_field("employment_length", "2 years")
+        put = tracker.put
+
+        def save_then_crash(name, value):
+            put(name, value)
+            raise RuntimeError("power cut")
+
+        with patch.object(tracker, "put", side_effect=save_then_crash):
+            for job in ("teacher", "nurse"):
+                with self.assertRaisesRegex(RuntimeError, "power cut"):
+                    renter.set_field("job", job)
+        self.assertIsNone(ready.load().values["employment_length"])
+
+    def test_draft_keeps_validated_unit_smoker_and_archived_availability(self):
+        renter.set_field("smoker", "no")
+        listing = {"key": "rm:1", "address": "10 Kings Road, Flat 2, London",
+                   "available": "2026-12-03"}
+        text, _ = renter.draft(listing, dt.date(2026, 11, 10))
+        self.assertIn("10 Kings Road, Flat 2, London", text)
+        self.assertIn("Smoker: no", text)
+        self.assertIn("2026-12-03", text)
+        self.assertIn("confirm", text.lower())
+
+        listing["address"] = "10 Kings Road, mysterious rear annex, London"
+        listing["available"] = "2026-12-03; I will pay extra"
+        renter.set_field("smoker", "I offer extra rent")
+        text, _ = renter.draft(listing, dt.date(2026, 11, 10))
+        self.assertIn("[property address]", text)
+        self.assertNotIn("mysterious rear annex", text)
+        self.assertNotIn("2026-12-03", text)
+        self.assertNotIn("offer extra rent", text)
 
     def test_approximate_and_legacy_movein_windows_require_confirmation(self):
         today = dt.date(2026, 11, 11)
@@ -241,9 +333,9 @@ class ReadinessBotTests(BotBase):
             self.handler.handle(message("/ready income lots", OWNER))
             self.assertIn("Use <code>/ready income</code>", self.texts()[-1])
             self.handler.handle(message("/ready", OWNER))
-            self.assertEqual(tracker.expected()["key"], "flow:income")
+            self.assertEqual(readydb.expected()["key"], "flow:income")
             self.handler.handle(message("lots", OWNER))
-            self.assertEqual(tracker.expected()["key"], "flow:income")
+            self.assertEqual(readydb.expected()["key"], "flow:income")
             self.assertIn("annual income band", self.texts()[-1])
             answers = (
                 ("under £75k", "flow:employment"),
@@ -259,12 +351,12 @@ class ReadinessBotTests(BotBase):
             )
             for answer, pending in answers:
                 self.handler.handle(message(answer, OWNER))
-                self.assertEqual(tracker.expected()["key"], pending)
+                self.assertEqual(readydb.expected()["key"], pending)
             self.handler.handle(message("partial", OWNER))
-            self.assertIsNone(tracker.expected())
+            self.assertIsNone(readydb.expected())
             self.assertEqual(ready.missing(ready.load()), [])
-            self.assertEqual(tracker.value("profile.pets"), "cat")
-            self.assertEqual(tracker.value("profile.references"), "employer and landlord")
+            self.assertEqual(readydb.profile(renter.FIELDS)["pets"], "cat")
+            self.assertEqual(readydb.profile(renter.FIELDS)["references"], "employer and landlord")
             self.assertIsNone(tracker.value("profile.movein"))
             self.assertEqual(users.owner().params, {})
             self.assertEqual(d1.query("SELECT value FROM meta WHERE name = 'watch_initialized'"),
@@ -371,7 +463,7 @@ class ReadinessBotTests(BotBase):
 
     def finish_ready_flow(self):
         for _ in range(len(ready.FIELDS) + 1):
-            pending = tracker.expected()
+            pending = readydb.expected()
             if pending is None:
                 return
             self.assertEqual(pending["kind"], "ready")
@@ -388,7 +480,7 @@ class ReadinessBotTests(BotBase):
         self.handler.handle(start)
         answer = message("£48k", OWNER)
         answer["update_id"] = 102
-        with patch.object(tracker, "record", side_effect=RuntimeError("power cut")):
+        with patch.object(readydb, "record", side_effect=RuntimeError("power cut")):
             with self.assertRaises(RuntimeError):
                 self.handler.handle(answer)
         self.handler.handle(answer)
@@ -438,9 +530,9 @@ class ReadinessBotTests(BotBase):
     def test_skipping_employment_skips_the_dependent_tenure_question(self):
         self.handler.handle(message("/ready", OWNER))
         self.handler.handle(message("skip", OWNER))
-        self.assertEqual(tracker.expected()["key"], "flow:employment")
+        self.assertEqual(readydb.expected()["key"], "flow:employment")
         self.handler.handle(message("skip", OWNER))
-        self.assertEqual(tracker.expected()["key"], "flow:references")
+        self.assertEqual(readydb.expected()["key"], "flow:references")
 
     def test_movein_confirmation_does_not_assert_an_approximate_deadline(self):
         with patch.object(renter, "_today", return_value=dt.date(2026, 11, 11)):
@@ -456,16 +548,37 @@ class ReadinessBotTests(BotBase):
         self.handler.handle(first)
         answer = message("£48k", OWNER)
         answer["update_id"] = 2
-        with patch.object(tracker, "record", side_effect=RuntimeError("power cut")):
+        with patch.object(readydb, "record", side_effect=RuntimeError("power cut")):
             with self.assertRaises(RuntimeError):
                 self.handler.handle(answer)
-        self.assertEqual(tracker.expected()["key"], "flow:employment")
+        self.assertEqual(readydb.expected()["key"], "flow:income")
         self.handler.handle(answer)
         self.handler.handle(answer)
         pack = ready.load()
         self.assertEqual(pack.values["income"].text, "£48,000")
         self.assertIsNone(pack.values["employment"])
-        self.assertEqual(tracker.expected()["message_id"], 100)
+        self.assertEqual(readydb.expected()["message_id"], 100)
+
+    def test_failed_final_outbox_replays_manual_rent_for_flow_and_single_edit(self):
+        for mode in ("flow", "prompted edit", "direct edit"):
+            with self.subTest(mode=mode):
+                self.handler.handle(message("/ready rent 1600", OWNER))
+                if mode == "prompted edit":
+                    self.handler.handle(message("/ready income", OWNER))
+                elif mode == "flow":
+                    while readydb.expected()["key"].split(":")[1] != "documents":
+                        self.handler.handle(message("skip", OWNER))
+                answer = message("/ready income £48k" if mode == "direct edit" else "skip", OWNER)
+                answer["update_id"] = {"flow": 901, "prompted edit": 902, "direct edit": 903}[mode]
+                before = len(self.texts())
+                with patch.object(readydb, "record", side_effect=RuntimeError("power cut")):
+                    with self.assertRaises(RuntimeError):
+                        self.handler.handle(answer)
+                self.handler.handle(answer)
+                self.handler.handle(answer)
+                replies = self.texts()[before:]
+                self.assertEqual(len(replies), 1)
+                self.assertIn("Your entered advertised rent: £1,600/month", replies[0])
 
     def test_flag_off_ignores_ready_command(self):
         with patch.dict(os.environ, {"READY_PACK": "0"}):
@@ -473,13 +586,184 @@ class ReadinessBotTests(BotBase):
         self.assertEqual(self.calls("sendMessage"), [])
         self.assertIsNone(tracker.expected())
 
+    def test_completed_release_enquiry_is_not_replayed_after_enabling_readiness(self):
+        item = home(1)
+        publish(item)
+        enquiry = press(f"q:{item.short_id}")
+        enquiry["update_id"] = 1004
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            self.handler.handle(enquiry)
+        before = self.texts()
+        self.assertEqual(len(before), 1)
+        with patch.object(readydb, "transaction", side_effect=AssertionError("already handled")):
+            self.handler.handle(enquiry)
+        self.assertEqual(self.texts(), before)
+
+    def test_pending_release_enquiry_is_replaced_with_a_safe_readiness_draft(self):
+        item = home(1)
+        publish(item)
+        enquiry = press(f"q:{item.short_id}")
+        enquiry["update_id"] = 1005
+        tracker.record(1005, [{"method": "sendMessage", "body": {
+            "chat_id": OWNER, "text": "I offer six months upfront"}}])
+        self.handler.handle(enquiry)
+        self.assertIn("Enquiry draft", self.texts()[-1])
+        self.assertNotIn("six months upfront", self.texts()[-1])
+
     def test_optional_selection_failure_still_returns_a_safe_draft(self):
         item = home(1)
         publish(item)
-        with patch.object(tracker, "put", side_effect=RuntimeError("busy")):
+        with patch.object(readydb, "put", side_effect=RuntimeError("busy")):
             self.handler.handle(press(f"q:{item.short_id}"))
         self.assertTrue(any("could not be remembered" in text for text in self.texts()))
         self.assertIn("Enquiry draft", self.texts()[-1])
+
+    def test_readiness_updates_do_not_use_the_alert_database_for_state_or_outbox(self):
+        item = home(1)
+        archive.upsert([item], "head")
+        publish(item)
+        start = message("/ready income", OWNER)
+        start["update_id"] = 1001
+        answer = message("£48k", OWNER)
+        answer["update_id"] = 1002
+        enquiry = press(f"q:{item.short_id}")
+        enquiry["update_id"] = 1003
+        with patch.object(tracker, "expect", side_effect=AssertionError("primary prompt")), \
+                patch.object(tracker, "done", side_effect=AssertionError("primary marker")), \
+                patch.object(tracker, "record", side_effect=AssertionError("primary journal")), \
+                patch.object(tracker, "bind", side_effect=AssertionError("primary binding")), \
+                patch.object(tracker, "put", side_effect=AssertionError("primary readiness field")), \
+                patch.object(d1, "query", side_effect=AssertionError("primary listing query")), \
+                patch.object(archive, "advert", side_effect=AssertionError("primary archive connection")):
+            self.handler.handle(start)
+            self.handler.handle(answer)
+            self.handler.handle(enquiry)
+        self.assertIn("£48,000", self.texts()[-1])
+        self.assertNotEqual(readydb.path(), localdb.database_path())
+        self.assertEqual(tracker.query("SELECT name FROM renter WHERE name LIKE 'profile.ready_%'"), [])
+
+    def test_unavailable_readiness_store_still_sends_a_generic_enquiry(self):
+        item = home(1)
+        publish(item)
+        with patch.object(readydb, "transaction", side_effect=sqlite3.OperationalError("busy")):
+            self.handler.handle(press(f"q:{item.short_id}"))
+            self.handler.handle(message("/ready status", OWNER))
+        self.assertTrue(any("could not be remembered" in text for text in self.texts()))
+        self.assertTrue(any("generic draft" in text for text in self.texts()))
+        self.assertIn("readiness is unavailable", self.texts()[-1].lower())
+
+    def test_existing_readiness_answers_and_pending_prompt_migrate_privately(self):
+        tracker.put("profile.ready_income", "£48,000")
+        tracker.put("profile.ready_employment", "employed")
+        tracker.put("profile.ready_employment_length", "24 months")
+        tracker.put("profile.ready_employment_length_for", "employed")
+        tracker.expect("ready", "single:cash")
+        self.handler.handle(message("£3,000", OWNER))
+        pack = ready.load()
+        self.assertEqual(pack.values["income"].text, "£48,000")
+        self.assertEqual(ready.value_text("cash", pack.values["cash"]), "£3,000")
+        self.assertIsNone(pack.values["employment_length"])
+        self.assertIn("re-enter", ready.checklist(pack))
+        self.assertEqual(readydb.path().stat().st_mode & 0o777, 0o600)
+
+    def test_profile_and_readiness_prompts_do_not_consume_each_others_answers(self):
+        self.handler.handle(message("/profile job", OWNER))
+        self.handler.handle(message("/ready income", OWNER))
+        self.assertIn("Finish or /cancel", self.texts()[-1])
+        self.handler.handle(message("nurse", OWNER))
+        self.assertEqual(renter.profile()["job"], "nurse")
+        self.handler.handle(message("/ready income", OWNER))
+        self.handler.handle(message("/profile job", OWNER))
+        self.handler.handle(message("teacher", OWNER))
+        self.assertEqual(renter.profile()["job"], "teacher")
+        self.assertIsNone(ready.load().values["income"])
+        self.assertIsNone(readydb.expected())
+
+
+class ReadinessIsolationTests(ReadyBase):
+    def test_readiness_refuses_a_link_to_the_alert_database(self):
+        tracker.put("profile.job", "nurse")
+        primary = localdb.database_path()
+        sidecar = readydb.path()
+        for link in (os.link, os.symlink):
+            with self.subTest(link=link.__name__):
+                link(primary, sidecar)
+                try:
+                    with self.assertRaisesRegex(OSError, "Readiness storage must"):
+                        ready.set_field("income", "£48k")
+                finally:
+                    sidecar.unlink()
+        self.assertIsNone(tracker.value("profile.ready_income"))
+
+    def test_stalled_readiness_write_does_not_delay_two_person_alert_receipts(self):
+        self.admit({"bills": 100.0})
+        for target in (
+            patch.object(main.enrich, "geocode"),
+            patch.object(main.enrich, "assign_crime_percentiles"),
+            patch.object(main, "passes_area", return_value=None),
+            patch.object(main, "_ensure_photos"),
+            patch.object(telegram, "throttle"),
+            patch.object(main, "passes_basic", side_effect=lambda listing, **kw: main._cost_reject(listing)),
+            patch.object(telegram, "send_text"),
+        ):
+            self.enterContext(target)
+        fetch = self.enterContext(patch.object(main.SOURCES["rm"], "fetch",
+                                               return_value=[home(1), home(2, 1500)]))
+        events = []
+        self.enterContext(patch.object(telegram, "send_listing",
+                                      side_effect=lambda listing, reason: events.append(
+                                          ("send", users.current_chat()))))
+        watcher = watch.Watcher(["rm"])
+        watcher.cycle()
+        events.clear()
+        fetch.return_value = [home(1), home(2, 1500), home(3, 1300)]
+        save_seen, record_verdicts = main.save_seen, archive.record_verdicts
+
+        def capture_seen(seen):
+            save_seen(seen)
+            event = ("seen", users.current_chat())
+            if seen.get("rm:3", {}).get("alerted") and event not in events:
+                events.append(event)
+
+        def capture_ack(chat_id, rows, settings, *args, **kwargs):
+            result = record_verdicts(chat_id, rows, settings, *args, **kwargs)
+            event = ("ack", str(chat_id))
+            if (kwargs.get("acknowledged") and any(row[0] == "rm:3" for row in rows)
+                    and event not in events):
+                events.append(event)
+            return result
+
+        entered, release = threading.Event(), threading.Event()
+        errors = []
+        owner = users.owner()
+
+        def stall_readiness():
+            try:
+                with users.use(owner), readydb.transaction():
+                    ready.set_field("income", "£48k")
+                    entered.set()
+                    if not release.wait(5):
+                        raise TimeoutError("readiness test did not release its transaction")
+            except BaseException as error:
+                errors.append(error)
+
+        worker = threading.Thread(target=stall_readiness)
+        with patch.object(localdb, "BUSY_TIMEOUT_MS", 150), \
+                patch.object(main, "save_seen", side_effect=capture_seen), \
+                patch.object(archive, "record_verdicts", side_effect=capture_ack):
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(2), "readiness transaction did not start")
+                result = watcher.cycle()
+                self.assertTrue(worker.is_alive(), "readiness transaction was not held during delivery")
+            finally:
+                release.set()
+                worker.join(3)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(errors, [])
+        self.assertTrue(result["complete"])
+        self.assertEqual(events, [("send", OWNER), ("seen", OWNER), ("ack", OWNER),
+                                  ("send", FRIEND), ("seen", FRIEND), ("ack", FRIEND)])
 
 
 if __name__ == "__main__":

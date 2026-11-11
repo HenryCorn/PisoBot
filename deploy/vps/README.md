@@ -117,6 +117,14 @@ answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to sto
 Use `/ready status` to view it without starting questions, `/ready income` (or
 another field shown in the checklist) to change one answer, and `clear` to remove it.
 
+**Not ready to enable:** profile changes made while the pack is off and then
+restored to their original values can leave stale employment length, pets or
+references. A storage error can also leave tenure stale; replaying an enquiry
+after disabling the pack can send a duplicate draft, and a persistent readiness
+outbox error can stall later Telegram updates. Disabling before a final answer
+is replayed can suppress its result, even though its pending rent remains until
+the prompt expires.
+
 Tapping **Enquiry text** on a rental card selects that home for `/ready`. The
 check uses its last archived advertised rent, not the all-in cost; confirm that
 the current advert has not changed. Alternatively, `/ready rent 1600` checks a
@@ -127,18 +135,28 @@ rent (2.5 times monthly gross); some agents use 3 times, and their guarantor
 requirements vary. A band crossing the threshold is inconclusive rather than
 assumed to pass or fail.
 
-Employment length must be re-entered when employment changes; older lengths
-without a confirmed association also need reconfirmation. A stored 30-day
-move-in window may be an approximation of an ASAP answer, so confirm the intended
-date or range in the draft instead of assuming its end date.
+Employment length must be re-entered when the employment type changes or
+`/profile job` is saved while the pack is enabled; older lengths without a
+confirmed association also need reconfirmation.
+A stored 30-day move-in window may be an approximation of an ASAP answer, so
+confirm the intended date or range in the draft instead of assuming its end date.
 
-The pack uses the existing per-person profile database, stored as plaintext
-like the other profile fields; protect and back up that state accordingly.
+The pack stores its answers and prompt/replay state separately from the alert
+database: `readiness.db` in the owner's state directory and in each person's
+`users/<chat_id>/` directory. Existing readiness answers are copied on first use;
+legacy employment lengths must be reconfirmed. These databases contain plaintext
+personal information like the existing profiles; protect and back up both.
+Readiness edits to pets and references appear in `/profile` while the pack is
+enabled. To retain those answers in the original profile when the pack is off,
+set them through `/profile`. Profile edits take precedence while enabled, or
+when the saved value differs from the value seen by the pack.
 Each person's facts are separate, and the pack and its drafts are available
 only in private chats. Enquiry drafts, the call script and portal fields are
 for the person to copy: PisoBot does not contact agents or fetch an advert for
-this feature. Only strictly checked names, occupations, households and selected
-addresses are copied; ambiguous details and free-text notes remain placeholders.
+this feature. Only strictly checked names, occupations, households, smoking
+answers and selected addresses are copied; ambiguous details and free-text notes
+remain placeholders. Advertised availability is labelled as archived and should
+be confirmed.
 Review and edit the details before sending. The pack does not change alerts or
 the search.
 

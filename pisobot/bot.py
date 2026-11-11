@@ -19,6 +19,7 @@ import logging
 import math
 import os
 import re
+import sqlite3
 import time
 
 import requests
@@ -321,6 +322,7 @@ class Handler:
         self._update = None                # the update id being applied
         self._reply_to = None              # the message a typed answer replied to
         self._private_chat = False
+        self._state = tracker              # readiness updates use their separate database
 
     @property
     def chat(self):
@@ -352,7 +354,7 @@ class Handler:
                 return None
             raise
         if item.get("nonce") and isinstance(result, dict) and type(result.get("message_id")) is int:
-            tracker.bind(item["nonce"], result["message_id"])
+            self._state.bind(item["nonce"], result["message_id"])
         return result
 
     def _flush(self, update_id, outbox):
@@ -363,17 +365,66 @@ class Handler:
                     self._deliver(outbox[0])
                 except TelegramError:
                     if update_id is not None:
-                        tracker.record(update_id, outbox)
+                        self._state.record(update_id, outbox)
                     raise
                 outbox.pop(0)
                 if update_id is not None:
-                    tracker.record(update_id, outbox)
+                    self._state.record(update_id, outbox)
         finally:
             self._flushing = False
 
-    def _apply(self, update_id, work):
+    def _apply(self, update_id, work, readiness=False, draft_fallback=False):
         if not users.enabled():
             work()
+            return
+        if readiness:
+            from . import readydb
+            self._state = readydb
+            try:
+                opened = False
+                # The answer, next prompt or completion marker, and complete outbox commit together.
+                try:
+                    if update_id is not None and readydb.primary_completed(update_id):
+                        return
+                    with readydb.transaction():
+                        opened = True
+                        left = readydb.handled(update_id) if update_id is not None else None
+                        if left is not None:
+                            outbox = left
+                        else:
+                            pending = readydb.applied(update_id)
+                            if pending is not None:
+                                ask = pending.get("ask") if pending.get("kind") != "done" else None
+                                if isinstance(ask, dict):
+                                    outbox = [{"method": "sendMessage", "body": ask,
+                                               "nonce": pending.get("nonce")}]
+                                else:
+                                    outbox = [{"method": "sendMessage", "body": {
+                                        "chat_id": self.chat,
+                                        "text": "⚠️ The previous readiness result could not be recovered; "
+                                                "use /ready again.",
+                                        "parse_mode": "HTML", "disable_web_page_preview": True}}]
+                            else:
+                                self._outbox, self._update = [], update_id
+                                try:
+                                    work()
+                                    outbox = self._outbox
+                                finally:
+                                    self._outbox, self._update = None, None
+                            if update_id is not None:
+                                readydb.record(update_id, outbox)
+                except (OSError, sqlite3.Error):
+                    if opened:
+                        raise
+                    LOG.warning("Application readiness storage is unavailable")
+                    if draft_fallback:
+                        work()
+                    else:
+                        self.reply("⚠️ Application readiness is unavailable; try /ready again.")
+                    return
+                self._flush(update_id, outbox)
+            finally:
+                self._state = tracker
             return
         if update_id is not None:
             left = tracker.handled(update_id)
@@ -397,6 +448,36 @@ class Handler:
         if update_id is not None:
             tracker.record(update_id, outbox)
         self._flush(update_id, outbox)
+
+    def _ready_message(self, text, update_id):
+        if not renter.ready_enabled() or not users.enabled():
+            return False
+        from . import readydb
+        words = text.split()
+        command = words[0].split("@")[0].lower() if words else ""
+        if command == "/ready":
+            return True
+        if command.startswith("/") and command != "/cancel":
+            return False
+        try:
+            if readydb.exists():
+                if update_id is not None and readydb.handled(update_id) is not None:
+                    return True
+                pending = readydb.expected()
+            else:
+                pending = readydb.primary_expected()
+            if not pending or pending.get("kind") != "ready":
+                return False
+            primary = readydb.primary_expected()
+            return not primary or primary.get("kind") == "ready"
+        except Exception:
+            LOG.warning("Could not check the pending readiness question")
+            try:
+                primary = readydb.primary_expected()
+            except Exception:
+                LOG.warning("Could not check the existing profile question")
+                return None
+            return False if primary and primary.get("kind") != "ready" else None
 
     def reply(self, text, chat_id=None):
         self.send(text, chat_id=chat_id)
@@ -448,7 +529,10 @@ class Handler:
             with users.use(person):
                 self.user = person
                 try:
-                    self._apply(update_id, lambda: self.callback(query, message))
+                    data = query.get("data")
+                    readiness = (renter.ready_enabled() and isinstance(data, str) and data.startswith("q:"))
+                    self._apply(update_id, lambda: self.callback(query, message), readiness=readiness,
+                                draft_fallback=readiness)
                 finally:
                     self.user = None
             return
@@ -464,7 +548,11 @@ class Handler:
                 chat = message.get("chat")
                 self._private_chat = isinstance(chat, dict) and chat.get("type") == "private"
                 try:
-                    self._apply(update_id, lambda: self.command(message["text"]))
+                    readiness = self._ready_message(message["text"], update_id)
+                    if readiness is None:
+                        self.reply("⚠️ Application readiness is unavailable; try /ready again.")
+                    else:
+                        self._apply(update_id, lambda: self.command(message["text"]), readiness=readiness)
                 finally:
                     self.user, self._reply_to = None, None
                     self._private_chat = False
@@ -748,6 +836,12 @@ class Handler:
         return result
 
     def _prompt(self, kind, key, text, placeholder=None, markup=None):
+        if kind != "ready" and renter.ready_enabled():
+            from . import readydb
+            try:
+                readydb.cancel_pending()
+            except Exception:
+                LOG.warning("Could not cancel an earlier readiness question")
         if markup is None:
             text += "\n<i>/cancel to skip</i>"
             markup = {"force_reply": True,
@@ -762,11 +856,17 @@ class Handler:
         belongs to this question: only a reply to this message, or a plain message, answers it.
         This must be the update's last state change (a crash-replay relies on it)."""
         prompt = self._prompt(kind, key, text, placeholder, markup)
-        tracker.expect(kind, key, update=self._update, nonce=prompt["nonce"], ask=prompt["body"])
+        self._state.expect(kind, key, update=self._update, nonce=prompt["nonce"], ask=prompt["body"])
         self._out(**prompt)
 
     def _done(self):
-        tracker.done(update=self._update)
+        if self._state is tracker and renter.ready_enabled():
+            from . import readydb
+            try:
+                readydb.cancel_pending()
+            except Exception:
+                LOG.warning("Could not cancel an earlier readiness question")
+        self._state.done(update=self._update)
 
     def _edit_markup(self, message, markup):
         self._out("editMessageReplyMarkup", {"chat_id": message["chat"]["id"],
@@ -793,7 +893,7 @@ class Handler:
         self.send(text, markup)
 
     def cancel(self, words):
-        pending = tracker.expected()
+        pending = self._state.expected()
         self._done()
         self.reply("OK, cancelled." if pending else "Nothing to cancel.")
 
@@ -841,7 +941,7 @@ class Handler:
         name = words[1].lower() if len(words) > 1 else ""
         if name in ready.FIELDS:
             raw = " ".join(words[2:]).strip()
-            pending = tracker.expected()
+            pending = self._state.expected()
             previous = pending.get("key") if pending and pending.get("kind") == "ready" else None
             parts = previous.split(":", 2) if isinstance(previous, str) else []
             context = parts[2] if len(parts) == 3 and parts[0] in ("flow", "single") else None
@@ -859,7 +959,7 @@ class Handler:
             except ValueError as error:
                 self.reply(f"⚠️ {html.escape(str(error))}. Use <code>/ready rent 1600</code>.")
                 return
-            context = f"{rent}:{tracker.value('profile.ready_listing') or ''}"
+            context = f"{rent}:{self._state.value('profile.ready_listing') or ''}"
         elif name not in ("", "status"):
             self.reply("Use /ready to fill the checklist, <code>/ready status</code> to view it, or "
                        "<code>/ready rent 1600</code> to check a flat's advertised monthly rent.")
@@ -874,7 +974,7 @@ class Handler:
         from . import ready
         if manual:
             return ready.checklist(pack, rent)
-        key = tracker.value("profile.ready_listing")
+        key = self._state.value("profile.ready_listing")
         if not key:
             return ready.checklist(pack)
         data = self._advert(key)
@@ -885,8 +985,17 @@ class Handler:
         return ready.checklist(pack, rent, archived=True, selected=address)
 
     def _ready_ask(self, name, flow, context=None):
-        from . import ready
+        from . import ready, readydb
+        pending = readydb.primary_expected()
+        if pending and pending.get("kind") != "ready":
+            self.reply("Finish or /cancel your current question before starting a readiness question.")
+            return
         _, question, example = ready.FIELDS[name]
+        if name == "employment_length":
+            pack = ready.load()
+            if pack.values["employment"] in ("unemployed", "retired", "student", "other"):
+                question = ("How long in your current status? Reply e.g. <code>2 years</code>, "
+                            "<code>6 months</code> or <code>not applicable</code>.")
         key = f"{'flow' if flow else 'single'}:{name}"
         if context is not None:
             # The one-off rent and selected home travel only with this pending prompt.
@@ -925,12 +1034,14 @@ class Handler:
         pack = ready.load()
         todo = ready.missing(pack, after=name) if mode == "flow" else []
         if todo:
-            self.reply("⏭ Skipped." if skipped else f"✅ {ready.FIELDS[name][0]} saved.")
+            label = (ready.employment_length_label(pack).capitalize() if name == "employment_length"
+                     else ready.FIELDS[name][0])
+            self.reply("⏭ Skipped." if skipped else f"✅ {label} saved.")
             self._ready_ask(todo[0], flow=True, context=context)
             return
         self._done()
         prefix = "⏭ Skipped.\n" if skipped else "✅ Readiness updated.\n"
-        if context is not None and (tracker.value("profile.ready_listing") or "") != parts[3]:
+        if context is not None and (self._state.value("profile.ready_listing") or "") != parts[3]:
             prefix += ("⚠️ The selected home changed; the one-off rent was discarded. "
                        "Use <code>/ready rent &lt;amount&gt;</code> to check it again.\n")
             checklist = self._ready_checklist(pack)
@@ -939,7 +1050,7 @@ class Handler:
         self.reply(prefix + checklist)
 
     def text_reply(self, text):
-        pending = tracker.expected()
+        pending = self._state.expected()
         if pending is None:
             return
         bound = pending.get("message_id")
@@ -957,6 +1068,9 @@ class Handler:
             self._profile_answer(key, text)
             return
         if kind == "ready" and renter.ready_enabled():
+            if self._state is tracker:
+                self.reply("⚠️ That older readiness question is no longer active; use /ready again.")
+                return
             if not self._private_chat:
                 self.reply("For privacy, answer readiness questions in a private chat with the bot.")
                 return
@@ -1022,7 +1136,11 @@ class Handler:
         if not sid:
             answer()
             return
-        listings = d1.query("SELECT * FROM listings WHERE sid = ?", sid)
+        if kind == "q" and self._state is not tracker:
+            listing = self._state.listing(sid)
+            listings = [listing] if listing else []
+        else:
+            listings = d1.query("SELECT * FROM listings WHERE sid = ?", sid)
         if not listings:
             answer("Listing no longer tracked")
             return
@@ -1035,7 +1153,7 @@ class Handler:
                 return
             if renter.ready_enabled():
                 try:
-                    tracker.put("profile.ready_listing", listing["key"])
+                    self._state.put("profile.ready_listing", listing["key"])
                 except Exception:
                     LOG.warning("Could not remember the selected home for application readiness")
                     self.reply("⚠️ This home could not be remembered for /ready; the draft still follows.")
@@ -1132,6 +1250,12 @@ class Handler:
     def _advert(self, key):
         if not archive.enabled():
             return {}
+        if self._state is not tracker:
+            try:
+                return self._state.advert(key)
+            except Exception:
+                LOG.warning("Could not read the archived home for application readiness")
+                return {}
         try:
             ad = archive.advert(key)
             data = json.loads(ad["data"]) if ad else {}

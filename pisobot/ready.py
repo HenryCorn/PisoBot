@@ -1,10 +1,13 @@
 """User-entered application facts and an offline, illustrative affordability check."""
+import datetime as dt
+import hashlib
 import html
+import json
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
-from . import renter, tracker
+from . import readydb, renter
 
 
 FIELDS = {
@@ -77,7 +80,7 @@ DISPLAY = {
 }
 MONEY = r"£?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?\s*[kK]?"
 MAX_AMOUNT = Decimal("1000000000")
-EMPLOYMENT_LENGTH_FOR = "profile.ready_employment_length_for"
+EMPLOYMENT_LENGTH_FOR = readydb.EMPLOYMENT_LENGTH_FOR
 
 
 @dataclass(frozen=True)
@@ -191,60 +194,81 @@ def value_text(name, value):
     return DISPLAY.get(name, {}).get(value, value)
 
 
+def _employment_context(employment, job):
+    fingerprint = hashlib.sha256(job.encode("utf-8")).hexdigest() if job else None
+    return json.dumps([employment, fingerprint], separators=(",", ":"))
+
+
+def _store(name, text):
+    if name in SHARED_FIELDS:
+        readydb.put_shared(name, text)
+    elif text is None:
+        readydb.drop(f"profile.{_key(name)}")
+    else:
+        readydb.put(f"profile.{_key(name)}", text)
+
+
 def set_field(name, raw):
-    """Validate first, then use the existing per-person profile storage."""
+    """Validate and atomically save readiness facts outside the alert database."""
     if name not in FIELDS:
         raise ValueError("Unknown readiness field")
     text = " ".join(raw.split())
-    if text.lower() == "clear":
-        if name == "guarantor":
-            renter.set_field(_key("guarantor_income"), "clear")
-        elif name == "employment":
-            renter.set_field(_key("employment_length"), "clear")
-            tracker.drop(EMPLOYMENT_LENGTH_FOR)
-        renter.set_field(_key(name), "clear")
+    with readydb.transaction():
+        if text.lower() == "clear":
+            if name == "guarantor":
+                _store("guarantor_income", None)
+            elif name == "employment":
+                _store("employment_length", None)
+                readydb.drop(EMPLOYMENT_LENGTH_FOR)
+            _store(name, None)
+            if name == "employment_length":
+                readydb.drop(EMPLOYMENT_LENGTH_FOR)
+            return None
+        if name == "guarantor_income" and readydb.value("profile.ready_guarantor") != "yes":
+            raise ValueError("Set guarantor to yes before entering their income")
+        employment = None
         if name == "employment_length":
-            tracker.drop(EMPLOYMENT_LENGTH_FOR)
-        return None
-    if name == "guarantor_income" and tracker.value("profile.ready_guarantor") != "yes":
-        raise ValueError("Set guarantor to yes before entering their income")
-    employment = None
-    if name == "employment_length":
-        previous = tracker.value(f"profile.{_key('employment')}")
-        try:
-            employment = _parse("employment", previous or "")
-        except ValueError:
-            raise ValueError("Set employment before entering its length") from None
-    value = _parse(name, text)
-    stored = value.text if isinstance(value, Band) else (
-        f"{value} months" if name in ("employment_length", "tenancy") and value != "n/a"
-        else str(value))
-    if name == "cash":
-        stored = money_text(value)
-    elif name == "references":
-        stored = value_text(name, value)
-    if name == "guarantor" and value == "no":
-        renter.set_field(_key("guarantor_income"), "clear")
-    if name == "employment":
-        previous = tracker.value(f"profile.{_key(name)}")
-        try:
-            changed = not previous or _parse(name, previous) != value
-        except ValueError:
-            changed = True
-        if changed:
-            renter.set_field(_key("employment_length"), "clear")
-            tracker.drop(EMPLOYMENT_LENGTH_FOR)
-    renter.set_field(_key(name), stored)
-    if name == "employment_length":
-        tracker.put(EMPLOYMENT_LENGTH_FOR, employment)
-    return value
+            previous = readydb.value(f"profile.{_key('employment')}")
+            try:
+                employment = _parse("employment", previous or "")
+            except ValueError:
+                raise ValueError("Set employment before entering its length") from None
+        value = _parse(name, text)
+        stored = value.text if isinstance(value, Band) else (
+            f"{value} months" if name in ("employment_length", "tenancy") and value != "n/a"
+            else str(value))
+        if name == "cash":
+            stored = money_text(value)
+        elif name == "references":
+            stored = value_text(name, value)
+        if name == "guarantor" and value == "no":
+            _store("guarantor_income", None)
+        if name == "employment":
+            previous = readydb.value(f"profile.{_key(name)}")
+            try:
+                changed = not previous or _parse(name, previous) != value
+            except ValueError:
+                changed = True
+            if changed:
+                _store("employment_length", None)
+                readydb.drop(EMPLOYMENT_LENGTH_FOR)
+        _store(name, stored)
+        if name == "employment_length":
+            job = readydb.profile(renter.FIELDS)["job"]
+            readydb.put(EMPLOYMENT_LENGTH_FOR, _employment_context(employment, job))
+        return value
 
 
 def load(facts=None):
-    facts = renter.profile() if facts is None else facts
+    with readydb.transaction():
+        return _load(facts)
+
+
+def _load(facts):
+    facts = readydb.profile(renter.FIELDS) if facts is None else facts
     values, invalid = {}, set()
     for name in FIELDS:
-        raw = facts.get(name) if name in SHARED_FIELDS else tracker.value(f"profile.{_key(name)}")
+        raw = facts.get(name) if name in SHARED_FIELDS else readydb.value(f"profile.{_key(name)}")
         if not raw:
             values[name] = None
             continue
@@ -253,13 +277,21 @@ def load(facts=None):
         except ValueError:
             values[name] = None
             invalid.add(name)
-    # Legacy durations have no evidence tying them to the currently saved employment.
+    # Legacy durations have no evidence tying them to both the employment and the job.
     if (values["employment_length"] is not None and
             (values["employment"] is None or
-             tracker.value(EMPLOYMENT_LENGTH_FOR) != values["employment"])):
+             readydb.value(EMPLOYMENT_LENGTH_FOR) !=
+             _employment_context(values["employment"], facts.get("job")))):
         values["employment_length"] = None
         invalid.add("employment_length")
-    span = renter.window() if facts.get("movein") else None
+        readydb.drop(EMPLOYMENT_LENGTH_FOR)
+    span = None
+    if facts.get("movein"):
+        try:
+            start, end = facts["movein"].split("..")
+            span = dt.date.fromisoformat(start), dt.date.fromisoformat(end)
+        except (ValueError, TypeError):
+            pass
     if span and span[1] < span[0]:
         span = None
     invalid_movein = bool(facts.get("movein") and not span)
@@ -327,6 +359,8 @@ def checklist(pack, rent=None, archived=False, selected=None):
     if selected:
         lines.append("Last selected home: " + html.escape(selected[:100]))
     for name, (label, _, _) in FIELDS.items():
+        if name == "employment_length":
+            label = employment_length_label(pack).capitalize()
         value = pack.values[name]
         if name == "employment_length" and pack.values["employment"] is None:
             shown = "answer employment first"
@@ -335,7 +369,7 @@ def checklist(pack, rent=None, archived=False, selected=None):
         elif value is not None:
             shown = value_text(name, value)
         elif name == "employment_length" and name in pack.invalid:
-            shown = "unconfirmed for this employment; re-enter"
+            shown = "unconfirmed for this job or status; re-enter"
         else:
             shown = "unrecognised; re-enter" if name in pack.invalid else "missing"
         lines.append(f"{label}: {html.escape(shown)}  <code>/ready {name}</code>")
@@ -350,11 +384,17 @@ def checklist(pack, rent=None, archived=False, selected=None):
     return "\n".join(lines)
 
 
+def employment_length_label(pack):
+    return {"unemployed": "time unemployed", "student": "time as a student",
+            "retired": "time retired", "other": "time in current status"}.get(
+                pack.values["employment"], "time in employment")
+
+
 def _known(pack):
     labels = {
         "income": "gross annual household income",
         "employment": "employment",
-        "employment_length": "time in employment",
+        "employment_length": employment_length_label(pack),
         "references": "references",
         "guarantor": "guarantor available",
         "guarantor_income": "guarantor gross annual income",
@@ -388,7 +428,7 @@ def extras(pack, rent, details):
               "Phone: [your phone number]", f"Household: {details['household'] or '[who will live there]'}",
               f"Occupation: {details['job'] or '[if applicable]'}"]
     known = dict(_known(pack))
-    for label in ("gross annual household income", "employment", "time in employment", "references",
+    for label in ("gross annual household income", "employment", employment_length_label(pack), "references",
                   "guarantor available", "guarantor gross annual income",
                   "cash available for deposit and one month's rent", "move-in date", "pets",
                   "tenancy length wanted", "documents"):

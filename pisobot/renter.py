@@ -57,12 +57,25 @@ def set_field(name, raw, today=None):
     """Store one profile fact; 'clear' removes it. Returns the stored text. The move-in answer is
     normalised to 'YYYY-MM-DD..YYYY-MM-DD' (ValueError if it cannot be read)."""
     raw = " ".join(raw.split())[:300]
+    if ready_enabled() and name == "job":
+        from . import readydb
+        try:
+            readydb.invalidate_tenure()
+        except Exception:
+            LOG.warning("Could not invalidate readiness tenure for a job change")
     if raw.lower() == "clear" or not raw:
         tracker.drop(f"profile.{name}")
-        return None
-    if name == "movein":
-        raw = "..".join(d.isoformat() for d in parse_window(raw, today))
-    tracker.put(f"profile.{name}", raw)
+        raw = None
+    else:
+        if name == "movein":
+            raw = "..".join(d.isoformat() for d in parse_window(raw, today))
+        tracker.put(f"profile.{name}", raw)
+    if ready_enabled() and name in ("pets", "references"):
+        from . import readydb
+        try:
+            readydb.clear_shared(name)
+        except Exception:
+            LOG.warning("Could not reconcile a shared readiness field with the profile")
     return raw
 
 
@@ -255,25 +268,44 @@ def _safe_address(raw):
     if not isinstance(raw, str) or len(raw) > 200:
         return None
     parts = [" ".join(part.split()) for part in raw.split(",")]
-    unit = bool(re.fullmatch(r"(?:flat|apartment|unit|studio)\s+[a-z0-9-]{1,6}", parts[0], re.I))
-    index = 1 if unit else 0
-    if len(parts) <= index:
-        return None
-    street = parts[index]
     pattern = (rf"(?:\d{{1,4}}[a-z]?(?:-\d{{1,4}}[a-z]?)?\s+)?"
                rf"{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,4}}\s+(?:{_STREET_TYPES})\.?")
-    if _UNSAFE_DRAFT_WORDS.search(street) or not re.fullmatch(pattern, street, re.I):
+    streets = units = 0
+    for part in parts:
+        if re.fullmatch(r"(?:flat|apartment|unit|studio)\s+[a-z0-9-]{1,6}", part, re.I):
+            units += 1
+        elif not _UNSAFE_DRAFT_WORDS.search(part) and re.fullmatch(pattern, part, re.I):
+            streets += 1
+        elif part.lower() != "london" and not re.fullmatch(r"[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}", part, re.I):
+            return None
+    return ", ".join(parts) if streets == 1 and units <= 1 else None
+
+
+def _safe_smoker(raw):
+    if not isinstance(raw, str):
         return None
-    address = parts[:index + 1]
-    for part in parts[index + 1:]:
-        if part.lower() == "london" or re.fullmatch(r"[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}", part, re.I):
-            address.append(part)
-    return ", ".join(address)
+    return {"yes": "yes", "smoker": "yes", "no": "no", "non-smoker": "no",
+            "non smoker": "no", "nonsmoker": "no"}.get(" ".join(raw.lower().split()))
+
+
+def _safe_availability(raw):
+    if not isinstance(raw, str):
+        return None
+    text = raw.strip().lower()
+    if text in ("now", "immediately", "available now"):
+        return "available immediately"
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return None
+    try:
+        return "available from " + dt.date.fromisoformat(text).isoformat()
+    except ValueError:
+        return None
 
 
 def _ready_details(facts, listing):
     return {"name": _safe_name(facts["name"]), "job": _safe_occupation(facts["job"]),
-            "household": _safe_household(facts["household"]), "address": _safe_address(listing.get("address"))}
+            "household": _safe_household(facts["household"]), "smoker": _safe_smoker(facts["smoker"]),
+            "address": _safe_address(listing.get("address"))}
 
 
 def _portal(key):
@@ -299,15 +331,17 @@ def draft(listing, today=None):
 
 
 def _draft(listing, today, readiness=False):
-    facts = profile()
     pack = None
     if readiness:
-        from . import ready
+        from . import ready, readydb
+        facts = readydb.profile(FIELDS)
         pack = ready.load(facts)
         details = _ready_details(facts, listing)
         facts = {name: None for name in FIELDS}
-        facts.update({name: details[name] for name in ("name", "job", "household")})
+        facts.update({name: details[name] for name in ("name", "job", "household", "smoker")})
         facts["movein"] = "set" if pack.movein else None
+    else:
+        facts = profile()
     missing = [FIELDS[name][0].lower() for name in ("name", "movein", "job", "household") if not facts[name]]
     address = ((details["address"] or "[property address]") if readiness else
                (listing.get("address") or "the property").split(",")[0].strip())
@@ -316,15 +350,23 @@ def _draft(listing, today, readiness=False):
     lines = ["Hello,", "",
              f"I'm interested in renting {address}, which I saw on {_portal(listing.get('key'))}. "
              "Is it still available?"]
+    available = _safe_availability(listing.get("available")) if readiness else None
+    if available:
+        lines.append(f"The last archived advert said it was {available}; could you confirm?")
     if span:
         want = ready.movein_text(span) if readiness else show_window(*span)
         if day:
             lines.append(f"I see it is available from {_day(max(day, today))}; I'm looking to move in {want}.")
+        elif available:
+            lines.append(f"I'm looking to move in {want}.")
         else:
             lines.append(f"Could you confirm the date it is available from? I'm looking to move in {want}.")
     else:
         date = "[confirm move-in date]" if readiness and pack.ambiguous_movein else "[move-in date]"
-        lines.append(f"Could you confirm the date it is available from? I'm looking to move in {date}.")
+        if available:
+            lines.append(f"I'm looking to move in {date}.")
+        else:
+            lines.append(f"Could you confirm the date it is available from? I'm looking to move in {date}.")
     about = []
     if readiness:
         about.append(f"Occupation: {facts['job'] or '[if applicable]'}")
@@ -363,8 +405,19 @@ def _draft(listing, today, readiness=False):
 
 
 def show_profile():
-    facts = profile()
+    warning = False
+    if ready_enabled():
+        from . import readydb
+        try:
+            facts = readydb.profile(FIELDS)
+        except Exception:
+            LOG.warning("Could not read shared readiness fields for the profile")
+            facts, warning = profile(), True
+    else:
+        facts = profile()
     lines = ["<b>👤 Renter profile</b> <i>(used for enquiry drafts and move-in fit)</i>"]
+    if warning:
+        lines.append("⚠️ Readiness answers are unavailable; shared fields below may be out of date.")
     for name, (label, example) in FIELDS.items():
         if name == "notes" and ready_enabled():
             example = "anything important"
