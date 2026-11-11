@@ -7,6 +7,8 @@ __pycache__/
 *.db-shm
 *.db-wal
 state/
+*.osm.pbf
+/state/place-index.sqlite3
 .venv/
 .cache/
 worker/.wrangler/

@@ -1,0 +1,2 @@
+# Build-time dependency for scripts/build_place_index.py only; not imported by the bot.
+osmium>=4.0,<5

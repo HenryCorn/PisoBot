@@ -155,6 +155,15 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
 
+## Optional: neighbourhood facts
+
+The local OSM neighbourhood tile and cached `/area <postcode or district>` overview are off unless
+`PLACE_FACTS=1`. Build the local Greater London index with `pip install -r requirements-place.txt`
+and `python scripts/build_place_index.py`; the builder stores OSM attribution in the index metadata.
+TfL and Defra refreshes run only in the foundation's supervised optional worker and are cached in
+`optional.db`; area summaries are postcode-district aggregates of sampled archived adverts, refreshed
+every 30 days. Crime comparisons use cached matched-advert scores, not London-wide population risk.
+
 ## Optional: language-model reading of rental adverts
 
 `pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a

@@ -40,7 +40,8 @@ MAX_ATTEMPTS = 3
 STUCK_SECONDS = 30            # a worker inside one feature call for longer is reported as stuck (it is never started twice)
 LINE_MAX = 160
 SNAPSHOT_MAX = 2000           # adverts with published lines, per feature
-FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms")
+FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms",
+          "lat", "lng", "crime_score")
 SCALARS = (str, int, float, bool, type(None))
 
 _registry = []                # [(flag, loader)]
@@ -55,7 +56,8 @@ _seq = [0]
 
 def register(flag, loader):
     """Declare a feature: the loader is called (on the feature's own worker thread) only when the environment variable `flag` is "1"."""
-    _registry.append((flag, loader))
+    if not any(existing == flag for existing, _ in _registry):
+        _registry.append((flag, loader))
 
 
 def reset():
@@ -252,6 +254,9 @@ def _ensure_workers():
 def start():
     """Start the workers at process start (serve). Never raises; with nothing enabled it starts nothing."""
     try:
+        if os.environ.get("PLACE_FACTS") == "1":
+            from .. import registry_loader
+            registry_loader.register()
         if _registry and enabled_any():
             _ensure_workers()
     except Exception:
