@@ -102,9 +102,105 @@ class PlaceFactsTests(unittest.TestCase):
             self.assertEqual(first, second)
             local.assert_called_once()
             tfl.assert_called_once()
-            noise.assert_called_once()
+            self.assertEqual(noise.call_count, 2)
             place.facts(51.5, -0.1, now=1000 + place.CACHE_TTL_SECONDS + 1)
             self.assertEqual(local.call_count, 2)
+
+    def test_tfl_and_noise_failures_preserve_local_osm_facts(self):
+        cache._data = {}
+        self.addCleanup(setattr, cache, "_data", {})
+        osm = {
+            "street": {"class": "residential", "distance_m": 10},
+            "main_road": None, "railway": None, "amenities": {},
+        }
+        with tempfile.NamedTemporaryFile() as index, \
+                patch.object(place, "LOCAL_INDEX_PATH", index.name), \
+                patch.object(place, "local_osm_facts", return_value=osm), \
+                patch.object(place, "_tfl", side_effect=place.requests.Timeout("TfL timeout")), \
+                patch.object(place, "_noise", side_effect=place.requests.Timeout("Defra timeout")):
+            facts = place.facts(51.5, -0.1, now=2000)
+
+        self.assertEqual(facts["street"], osm["street"])
+        self.assertNotIn("transit", facts)
+        self.assertNotIn("noise", facts)
+        self.assertEqual(place.card_line(facts), "🏘 Residential street")
+        self.assertFalse(any("Defra" in line for line in place.detail_lines(facts)))
+
+    def test_noise_answers_are_cached_per_grid_cell_indefinitely(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "noise.sqlite3")
+
+            class Response:
+                status_code = 200
+                headers = {}
+                text = "GRAY_INDEX = 42.5"
+
+                @staticmethod
+                def raise_for_status():
+                    return None
+
+            with patch.object(place, "NOISE_CACHE_PATH", path), \
+                    patch.object(place.requests, "get", return_value=Response()) as get:
+                first = place._noise_point("https://example.test/wms", "road", 51.5, -0.1)
+                second = place._noise_point("https://example.test/wms", "road",
+                                            51.5001, -0.1001)
+
+        self.assertEqual(first, 42.5)
+        self.assertEqual(second, 42.5)
+        get.assert_called_once()
+
+    def test_noise_failure_is_not_retried_for_same_cell_during_backoff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "noise.sqlite3")
+            with patch.object(place, "NOISE_CACHE_PATH", path), \
+                    patch.object(place.time, "time", return_value=1000), \
+                    patch.object(place.requests, "get",
+                                 side_effect=place.requests.Timeout("Defra timeout")) as get:
+                with self.assertRaises(place.requests.Timeout):
+                    place._noise_point("https://example.test/wms", "road", 51.5, -0.1)
+                skipped = place._noise_point("https://example.test/wms", "road",
+                                             51.5001, -0.1001)
+
+        self.assertIs(skipped, place._NOISE_UNAVAILABLE)
+        get.assert_called_once()
+
+    def test_noise_429_honors_retry_after_and_sets_long_persistent_backoff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "noise.sqlite3")
+
+            class Response:
+                status_code = 429
+                headers = {"Retry-After": "86400"}
+                text = ""
+
+                @staticmethod
+                def raise_for_status():
+                    raise AssertionError("429 is handled before raise_for_status")
+
+            with patch.object(place, "NOISE_CACHE_PATH", path), \
+                    patch.object(place, "NOISE_RATE_LIMIT_BACKOFF_SECONDS", 60), \
+                    patch.object(place.time, "time", return_value=1000), \
+                    patch.object(place.requests, "get", return_value=Response()):
+                with self.assertRaises(place.NoiseRateLimited):
+                    place._noise_point("https://example.test/wms", "road", 51.5, -0.1)
+                self.assertTrue(place.noise_backoff_active())
+
+            db = sqlite3.connect(path)
+            blocked_until = db.execute(
+                "SELECT value FROM noise_state WHERE key = 'blocked_until'"
+            ).fetchone()[0]
+            db.close()
+        self.assertGreaterEqual(blocked_until, 1000 + 86400)
+
+    def test_noise_timeout_does_not_prevent_other_layer_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(place, "NOISE_CACHE_PATH",
+                              os.path.join(directory, "noise.sqlite3")), \
+                    patch.object(place, "_noise_point",
+                                 side_effect=[place.requests.Timeout("road timeout"), 47.1]) as point:
+                noise = place._noise(51.5, -0.1)
+        self.assertEqual(noise, {"rail_lnight_db": 47.1})
+        self.assertEqual(point.call_count, 2)
 
     def test_defra_point_value_parser_ignores_zero_and_errors(self):
         self.assertEqual(place._noise_value("GRAY_INDEX = 42.5"), 42.5)
@@ -128,6 +224,25 @@ class PlaceFactsTests(unittest.TestCase):
         self.assertEqual(place.street_label(facts), "Residential street")
         facts["noise"]["road_lnight_db"] = 44
         self.assertEqual(place.street_label(facts), "Quiet residential street")
+
+    def test_street_label_mentions_road_and_rail_together_without_unknown_noise(self):
+        facts = {
+            "street": {"class": "residential", "distance_m": 20},
+            "main_road": {"class": "primary", "distance_m": 70},
+            "railway": {"distance_m": 86},
+        }
+        self.assertEqual(place.street_label(facts), "Busy road and railway nearby")
+        self.assertEqual(place.card_line(facts), "🏘 Busy road and railway nearby")
+
+    def test_partial_noise_data_does_not_claim_a_noise_band(self):
+        facts = {
+            "street": {"class": "residential", "distance_m": 20},
+            "main_road": {"class": "trunk", "distance_m": 78},
+            "railway": {"distance_m": 221},
+            "noise": {"rail_lnight_db": 40.7},
+        }
+        self.assertIsNone(place._night_noise(facts))
+        self.assertEqual(place.card_line(facts), "🏘 Busy road nearby")
 
     def test_card_adds_place_line_without_changing_cards_without_facts(self):
         listing = Listing(source="rm", id="1", url="https://example.test", address="London N7",
@@ -163,14 +278,38 @@ class PlaceFactsTests(unittest.TestCase):
             def unavailable(_lat, _lng):
                 raise TimeoutError("fixture timeout")
 
-            result = eval_place.main(
-                ["--cache", path, "--sample", "2"], out=output.append,
-                facts_for=unavailable, sleep=delays.append,
-            )
+            with patch.object(place, "noise_backoff_active", return_value=False):
+                result = eval_place.main(
+                    ["--cache", path, "--sample", "2"], out=output.append,
+                    facts_for=unavailable, sleep=delays.append,
+                )
         self.assertEqual(result, 1)
         self.assertEqual(delays, [10])
         self.assertEqual(sum("Place facts unavailable" in row for row in output), 2)
         self.assertTrue(any("TimeoutError: fixture timeout" in row for row in output))
+
+    def test_evaluation_can_select_original_coordinate_indices_and_stops_on_429(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "cache.json")
+            with open(path, "w", encoding="utf-8") as file:
+                json.dump({"rent_search": {"x": {"listings": [
+                    {"lat": 51.5 + n / 100, "lng": -0.1} for n in range(4)
+                ]}}}, file)
+            output, queried = [], []
+
+            def partial_facts(lat, _lng):
+                queried.append(lat)
+                return {"street": {"class": "residential", "distance_m": 10}}
+
+            with patch.object(place, "noise_backoff_active", return_value=True):
+                result = eval_place.main(
+                    ["--cache", path, "--indices", "2,4"], out=output.append,
+                    facts_for=partial_facts, sleep=lambda _delay: self.fail("must stop after 429"),
+                )
+        self.assertEqual(result, 0)
+        self.assertEqual(queried, [51.51])
+        self.assertTrue(any(row.startswith("02.") for row in output))
+        self.assertTrue(any("stopping the remaining" in row for row in output))
 
 
 if __name__ == "__main__":

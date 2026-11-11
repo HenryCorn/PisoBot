@@ -1,11 +1,14 @@
 """Cached, additive place facts from OpenStreetMap and TfL."""
 import math
+import logging
 import os
 import re
 import sqlite3
 import threading
 import time
 from contextlib import closing
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import requests
@@ -20,21 +23,27 @@ NOISE_SERVICES = (
      "Rail_Noise_Lnight_England_Round_4_All", "rail_lnight_db"),
 )
 CACHE_TTL_SECONDS = 90 * 24 * 60 * 60
-CACHE_NAMESPACE = "place_facts_v2"
+CACHE_NAMESPACE = "place_facts_v3"
 LOCAL_INDEX_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                 "state", "place-index.sqlite3")
+NOISE_CACHE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                "state", "place-noise.sqlite3")
 LOCAL_ROAD_RADIUS_M = 800
 LOCAL_AMENITY_RADIUS_M = 600
 MAJOR_ROAD_LABEL_M = 200
-RAILWAY_LABEL_M = 50
+RAILWAY_LABEL_M = 100
 QUIET_ROAD_CLEAR_M = 300
 QUIET_RAIL_CLEAR_M = 100
 LOW_NOISE_MAX_DB = 45
 MODERATE_NOISE_MAX_DB = 55
+NOISE_REQUEST_INTERVAL_SECONDS = 10
+NOISE_RATE_LIMIT_BACKOFF_SECONDS = 24 * 60 * 60
+NOISE_FAILURE_RETRY_SECONDS = 24 * 60 * 60
+_NOISE_UNAVAILABLE = object()
 _tfl_lock = threading.Lock()
 _tfl_next = 0.0
 _noise_lock = threading.Lock()
-_noise_next = 0.0
+_logger = logging.getLogger(__name__)
 _MAIN_ROAD_CLASSES = {"motorway", "trunk", "primary"}
 _AMENITY_CATEGORIES = ("supermarket", "park", "gym", "cafe", "pharmacy")
 _RAIL_MODES = {"tube", "overground", "elizabeth-line", "dlr", "national-rail"}
@@ -195,14 +204,101 @@ def _noise_value(text):
     return round(value, 1) if value > 0 else None
 
 
-def _noise_point(url, layer, lat, lng):
-    global _noise_next
-    with _noise_lock:
-        delay = _noise_next - time.monotonic()
-        if delay > 0:
-            time.sleep(delay)
+class NoiseRateLimited(requests.HTTPError):
+    """Defra returned 429; callers should stop noise lookups for this run."""
+
+
+def _noise_database():
+    path = Path(NOISE_CACHE_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path, timeout=60)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS noise_answers (
+            cell TEXT NOT NULL,
+            layer TEXT NOT NULL,
+            value REAL,
+            PRIMARY KEY (cell, layer)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS noise_state (
+            key TEXT PRIMARY KEY,
+            value REAL NOT NULL
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS noise_failures (
+            cell TEXT NOT NULL,
+            layer TEXT NOT NULL,
+            retry_after REAL NOT NULL,
+            PRIMARY KEY (cell, layer)
+        )
+    """)
+    return db
+
+
+def _noise_db_cell(lat, lng):
+    return _cell(lat, lng)
+
+
+def _retry_after_seconds(value, now):
+    if not value:
+        return None
+    try:
+        return max(0, float(value))
+    except ValueError:
         try:
-            delta = 0.00005
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(0, retry_at.timestamp() - now)
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+
+def _set_noise_next(db, timestamp):
+    db.execute("INSERT OR REPLACE INTO noise_state (key, value) VALUES ('next_request_at', ?)",
+               (timestamp,))
+
+
+def _noise_point(url, layer, lat, lng):
+    cell = _noise_db_cell(lat, lng)
+    with _noise_lock, closing(_noise_database()) as db:
+        db.execute("BEGIN IMMEDIATE")
+        cached = db.execute(
+            "SELECT value FROM noise_answers WHERE cell = ? AND layer = ?",
+            (cell, layer),
+        ).fetchone()
+        if cached is not None:
+            db.commit()
+            return cached[0]
+
+        now = time.time()
+        blocked = db.execute(
+            "SELECT value FROM noise_state WHERE key = 'blocked_until'"
+        ).fetchone()
+        if blocked and blocked[0] > now:
+            db.commit()
+            return _NOISE_UNAVAILABLE
+        failure = db.execute(
+            "SELECT retry_after FROM noise_failures WHERE cell = ? AND layer = ?",
+            (cell, layer),
+        ).fetchone()
+        if failure and failure[0] > now:
+            db.commit()
+            return _NOISE_UNAVAILABLE
+        if failure:
+            db.execute("DELETE FROM noise_failures WHERE cell = ? AND layer = ?",
+                       (cell, layer))
+
+        next_request = db.execute(
+            "SELECT value FROM noise_state WHERE key = 'next_request_at'"
+        ).fetchone()
+        if next_request and next_request[0] > now:
+            time.sleep(next_request[0] - now)
+
+        delta = 0.00005
+        try:
             response = requests.get(url, params={
                 "service": "WMS", "version": "1.1.1", "request": "GetFeatureInfo",
                 "layers": layer, "query_layers": layer, "srs": "EPSG:4326",
@@ -210,21 +306,78 @@ def _noise_point(url, layer, lat, lng):
                 "width": 1, "height": 1, "x": 0, "y": 0, "info_format": "text/plain",
                 "feature_count": 1,
             }, timeout=30)
+            if response.status_code == 429:
+                now = time.time()
+                retry_after = _retry_after_seconds(response.headers.get("Retry-After"), now)
+                blocked_until = now + max(NOISE_RATE_LIMIT_BACKOFF_SECONDS,
+                                          retry_after or 0)
+                db.execute(
+                    "INSERT OR REPLACE INTO noise_state (key, value) VALUES ('blocked_until', ?)",
+                    (blocked_until,),
+                )
+                _set_noise_next(db, blocked_until)
+                db.commit()
+                raise NoiseRateLimited(
+                    f"Defra returned HTTP 429; noise lookups paused until "
+                    f"{datetime.fromtimestamp(blocked_until, timezone.utc).isoformat()}"
+                )
             response.raise_for_status()
-            return _noise_value(response.text)
-        finally:
-            _noise_next = time.monotonic() + 4
+            value = _noise_value(response.text)
+            db.execute(
+                "INSERT INTO noise_answers (cell, layer, value) VALUES (?, ?, ?)",
+                (cell, layer, value),
+            )
+            _set_noise_next(db, time.time() + NOISE_REQUEST_INTERVAL_SECONDS)
+            db.commit()
+            return value
+        except NoiseRateLimited:
+            raise
+        except Exception:
+            now = time.time()
+            db.execute(
+                "INSERT OR REPLACE INTO noise_failures (cell, layer, retry_after) "
+                "VALUES (?, ?, ?)",
+                (cell, layer, now + NOISE_FAILURE_RETRY_SECONDS),
+            )
+            _set_noise_next(db, now + NOISE_REQUEST_INTERVAL_SECONDS)
+            db.commit()
+            raise
+
+
+def noise_backoff_active():
+    """Return whether a persisted Defra rate-limit pause is still in effect."""
+    with closing(_noise_database()) as db:
+        row = db.execute(
+            "SELECT value FROM noise_state WHERE key = 'blocked_until'"
+        ).fetchone()
+    return bool(row and row[0] > time.time())
 
 
 def _noise(lat, lng):
     values = {}
+    cell = _noise_db_cell(lat, lng)
+    with closing(_noise_database()) as db:
+        values = dict(db.execute(
+            "SELECT layer, value FROM noise_answers WHERE cell = ?", (cell,)
+        ))
     for url, layer, key in NOISE_SERVICES:
-        values[key] = _noise_point(url, layer, lat, lng)
+        if layer in values:
+            values[key] = values.pop(layer)
+            continue
+        try:
+            value = _noise_point(url, layer, lat, lng)
+            if value is not _NOISE_UNAVAILABLE:
+                values[key] = value
+        except NoiseRateLimited as error:
+            _logger.warning("Place facts Defra rate-limited; stopping noise lookups: %s", error)
+            break
+        except requests.RequestException as error:
+            _logger.warning("Place facts Defra lookup failed for %s: %s", key, error)
     return values
 
 
 def facts(lat, lng, now=None):
-    """Return locally indexed OSM and live TfL/Defra facts, cached for 90 days."""
+    """Return independent OSM, TfL and Defra facts for a matched advert."""
     if lat is None or lng is None:
         return None
     try:
@@ -235,15 +388,28 @@ def facts(lat, lng, now=None):
     key = f"{_cell(lat, lng)}:{index_version}"
     hit = cache.get(CACHE_NAMESPACE, key)
     if hit and now - hit.get("fetched_at", 0) < CACHE_TTL_SECONDS:
-        return hit.get("facts")
+        osm = hit["osm"]
+        transit = hit.get("transit")
+    else:
+        osm = local_osm_facts(lat, lng)
+        if osm is None:
+            return None
+        transit = None
 
-    osm = local_osm_facts(lat, lng)
-    if osm is None:
-        return None
-    transit = parse_tfl(_tfl(lat, lng))
-    noise = _noise(lat, lng)
-    result = {**osm, "transit": transit, "noise": noise}
-    cache.put(CACHE_NAMESPACE, key, {"fetched_at": now, "facts": result})
+    if transit is None:
+        try:
+            transit = parse_tfl(_tfl(lat, lng))
+        except requests.RequestException as error:
+            _logger.warning("Place facts TfL lookup failed: %s", error)
+
+    cache.put(CACHE_NAMESPACE, key, {"fetched_at": now, "osm": osm, "transit": transit})
+    result = {**osm}
+    if transit is not None:
+        result["transit"] = transit
+    try:
+        result["noise"] = _noise(lat, lng)
+    except (requests.RequestException, OSError, sqlite3.Error) as error:
+        _logger.warning("Place facts Defra cache unavailable: %s", error)
     return result
 
 
@@ -259,13 +425,15 @@ def noise_band(decibels):
 
 
 def _night_noise(facts):
-    values = [value for value in (facts.get("noise") or {}).values()
-              if isinstance(value, (int, float))]
+    noise = facts.get("noise") or {}
+    if any(key not in noise for key in ("road_lnight_db", "rail_lnight_db")):
+        return None
+    values = [value for value in noise.values() if isinstance(value, (int, float))]
     return max(values) if values else None
 
 
 def street_label(facts):
-    """Major=OSM motorway/trunk/primary within 200 m; rail within 50 m.
+    """Major=OSM motorway/trunk/primary within 200 m; rail within 100 m.
 
     "Quiet residential street" additionally requires a residential-type road, all
     available modelled Lnight values below 45 dB, major roads beyond 300 m and rail beyond 100 m.
@@ -275,13 +443,14 @@ def street_label(facts):
     main = facts.get("main_road")
     rail = facts.get("railway")
     street = facts.get("street")
-    nearby = []
-    if main and main["distance_m"] <= MAJOR_ROAD_LABEL_M:
-        nearby.append((main["distance_m"], "Busy road nearby"))
-    if rail and rail["distance_m"] <= RAILWAY_LABEL_M:
-        nearby.append((rail["distance_m"], "Railway nearby"))
-    if nearby:
-        return min(nearby)[1]
+    busy_road = main and main["distance_m"] <= MAJOR_ROAD_LABEL_M
+    nearby_rail = rail and rail["distance_m"] <= RAILWAY_LABEL_M
+    if busy_road and nearby_rail:
+        return "Busy road and railway nearby"
+    if busy_road:
+        return "Busy road nearby"
+    if nearby_rail:
+        return "Railway nearby"
     if street and street["class"] in ("residential", "living_street", "unclassified", "service"):
         noise = noise_band(_night_noise(facts))
         if (noise == "low" and (not main or main["distance_m"] > QUIET_ROAD_CLEAR_M)
@@ -345,12 +514,20 @@ def detail_lines(facts):
         distance = f"; nearest {nearest['name']} (~{nearest['distance_m']} m)" if nearest else ""
         lines.append(f"{category.title()}: {info.get('count', 0)} within "
                      f"{LOCAL_AMENITY_RADIUS_M} m{distance}")
-    transit = facts.get("transit") or {}
-    lines.append(f"TfL: {transit.get('rail_lines', 0)} distinct rail/tube lines within 800 m; "
-                 f"{transit.get('bus_routes', 0)} bus routes within 300 m")
+    transit = facts.get("transit")
+    if transit is not None:
+        lines.append(f"TfL: {transit.get('rail_lines', 0)} distinct rail/tube lines within 800 m; "
+                     f"{transit.get('bus_routes', 0)} bus routes within 300 m")
     noise = facts.get("noise") or {}
     road, railway = noise.get("road_lnight_db"), noise.get("rail_lnight_db")
-    lines.append("Defra Round 4 Lnight (2021 model year, 4 m receptor, 23:00–07:00): "
-                 f"road {f'{road:g} dB' if road is not None else 'no value'}; "
-                 f"rail {f'{railway:g} dB' if railway is not None else 'no value'}")
+    reported_noise = []
+    if "road_lnight_db" in noise:
+        reported_noise.append(f"road {f'{road:g} dB' if road is not None else 'no modelled value'}")
+    if "rail_lnight_db" in noise:
+        reported_noise.append(
+            f"rail {f'{railway:g} dB' if railway is not None else 'no modelled value'}"
+        )
+    if reported_noise:
+        lines.append("Defra Round 4 Lnight (2021 model year, 4 m receptor, 23:00–07:00): "
+                     + "; ".join(reported_noise))
     return lines

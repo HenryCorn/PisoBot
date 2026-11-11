@@ -170,7 +170,12 @@ The builder downloads the Geofabrik extract once and writes the ODbL-attributed 
 to `state/place-index.sqlite3`; neither artifact should be committed. Refresh the extract and
 atomically rebuild the index monthly with `scripts/build_place_index.py --refresh`.
 The runtime reads SQLite using Python's standard library. Place facts remain off by default;
-set `PLACE_FACTS_ENABLED=true` to add them to cards.
+set `PLACE_FACTS_ENABLED=true` to add them to cards. Enrichment runs only after a listing
+matches a person's criteria; OSM, TfL and Defra failures are independent. Defra point results
+are cached indefinitely by grid cell in `state/place-noise.sqlite3`; requests are serialized
+across processes with a 10-second minimum interval. A 429 honors `Retry-After`, pauses further
+noise requests for at least 24 hours, and stops the current evaluation run. A failed layer is
+not shown as noise and is not retried for that grid cell for 24 hours.
 
 ## Optional: language-model reading of rental adverts
 
