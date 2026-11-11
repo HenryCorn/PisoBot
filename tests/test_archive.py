@@ -11,7 +11,7 @@ from pisobot.models import Listing
 from pisobot.sources import PRIVATE_RENT, private_rent_costs
 
 SCOPE = {"miles": 10.0, "min_rent": 1000, "max_rent": 1760, "min_beds": 1, "centre": [51.5152, -0.1419]}
-T0 = "2026-11-10T09:00:00+00:00"
+T0 = os.environ.get("PISOBOT_TEST_CLOCK_T0", "2026-11-10T09:00:00+00:00")
 
 
 def advert(i=1, rent=1400, source="rm", **kw):

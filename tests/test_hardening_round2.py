@@ -63,7 +63,7 @@ class Repro(JudgingBase):
                 t.stop()
 
     def outcomes(self):
-        return {r["key"]: r["outcome"] for r in archive.verdicts_since("100", 1)}
+        return {r["key"]: r["outcome"] for r in archive.verdicts_since("100", 365, at=at(24))}
 
     def evidence(self):
         return (f"alerts={self.alerts} seen={sorted(self.seen())} verdicts={self.outcomes()} "
@@ -440,7 +440,8 @@ class RoundTwoPrinciples(Repro):
             if lat == slow.lat:
                 ticks[0] += 15
             return {"minutes": 25, "route": "Tube", "station": "S", "walk": 5}
-        with patch.object(main.enrich, "journey", journey):
+        # Keep retry timestamps on the fixture clock rather than the machine's wall clock.
+        with patch.object(main.enrich, "journey", journey), patch.object(archive, "now", return_value=at(0)):
             sweep.judge(self.owner, ["rm"], 10, clock=lambda: ticks[0])
             self.assertIsNone(sweep._meta("sweep_base:rm"))  # good has not been attempted yet
             ticks[0] = 0
