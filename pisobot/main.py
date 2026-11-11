@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from requests import RequestException
 
 from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
-               prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
+               prefs, ranking, renter, rental_text, signals, taste, telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
 
@@ -683,6 +683,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
 
     # 5. report (first run, twice-daily schedule, or --report, which /report dispatches) ...
     report_waiting = set()
+    signal_rows = []       # signals shown on cards, captured in memory after Telegram accepted them; written after the run lock
     visible = None
     first_run = not seen and not rentals
     if not watch and (first_run or report or rentals or preview_dir):
@@ -726,8 +727,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 telegram.send_text(title, silent=True)
                 print("Sent silent no-new summary; unchanged listing cards suppressed")
             else:
+                shown_cards = list(report_top) + list(report_saved)
+                signals.annotate(shown_cards)          # local reads only, bounded; a no-op unless SIGNALS=1
                 send_report(report_top, report_saved, report_rest, title, flags_of, preview_dir,
                             map_url=mapgen.url(rentals) if config.MAP_URL else None)
+                if live and signals.enabled():         # after the cards were sent: memory only
+                    for l in shown_cards:
+                        signal_rows += signals.capture(l, person_id, "report")
         reported_keys = {l.key for l in report_top}
         saved_changes = [l for l in saved_changes if l.key not in reported_keys]
         if live:
@@ -748,6 +754,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
+    if live and to_send:
+        # Opportunity labels for the cards about to go out: local reads only (read-only SQLite, short busy timeout), a hard
+        # time budget, never raises; a no-op unless SIGNALS=1.
+        signals.annotate([l for l, _ in to_send][:max(0, alert_budget.get("attempts", config.MAX_ALERTS_PER_RUN))])
     for l, reason in to_send:
         attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
         if attempts_left <= 0:
@@ -783,6 +793,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             continue
         if send_state == "sent":
             alert_budget["remaining"] -= 1
+            if reason == "new" and signals.enabled():      # memory only: no I/O between Telegram accepting the card and the receipt
+                signal_rows += signals.capture(l, person_id, "alert")
         seen[l.key] = _record(l, today, alerted=True, prev=seen.get(l.key))
         if local_rentals:
             token = archive.intent_token(person_id, l.key)
@@ -825,6 +837,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                     archive.record_verdicts(person_id, receipts, settings, acknowledged=True)
                 if bookkeeping:
                     archive.record_verdicts(person_id, bookkeeping, settings)
+    if signal_rows:
+        signals.defer(signal_rows)     # memory only; written by the watcher once the run lock is released
     result = {"matches": len(matches), "failures": failures, "enrich_failures": enrich_failures,
               "complete": not failures and (local_rentals or not enrich_failures), "fresh": fresh,
               "baseline_fresh": baseline_fresh, "degraded": enrich_failures + deferred_failures,
