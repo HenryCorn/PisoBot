@@ -10,7 +10,7 @@ import time
 from . import runner
 
 log = logging.getLogger(__name__)
-MEMORY_LIMIT_BYTES = 1_500_000_000
+MEMORY_LIMIT_BYTES = runner.GROUP_MEMORY_BYTES
 MEMORY_CHECK_SECONDS = 0.25
 
 
@@ -18,6 +18,8 @@ def open_lock(path):
     """Open the single-flight lock file WITHOUT following a link and WITHOUT truncating, and prove it is a plain, singly-linked regular
     file before anything is done with it. Raises OSError/ValueError otherwise (the caller then exits without touching anything)."""
     import stat
+    from . import store
+    store._private_directory(os.path.realpath(os.path.dirname(path)))
     fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0), 0o600)
     try:
         info = os.fstat(fd)
@@ -91,7 +93,7 @@ def main():
     try:
         lock = open_lock(store.path().with_suffix(".lock"))
     except (OSError, ValueError) as ex:
-        log.error("optional step refused: its lock file is not a plain file (%s)", type(ex).__name__)
+        log.error("optional step refused: unsafe state directory or lock file (%s)", type(ex).__name__)
         return 5
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

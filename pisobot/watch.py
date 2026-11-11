@@ -204,7 +204,7 @@ class Watcher:
             else:
                 _put_meta("watch_warned", "1")
 
-    def serve(self, stop_event, poll):
+    def serve(self, stop_event, poll, *, cleanup=True):
         poll_errors = []
         optional.start()                      # features load on their own worker threads, from process start
 
@@ -254,7 +254,8 @@ class Watcher:
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
         finally:
             stop_event.set()
-            optional.shutdown()
+            if cleanup:
+                optional.shutdown()
             listener.join(timeout=40)
         if poll_errors:
             raise RuntimeError("Telegram listener failed; service restart required")
@@ -274,13 +275,16 @@ def main():
     stop = threading.Event()
     for signum in (signal.SIGTERM, signal.SIGINT):
         signal.signal(signum, lambda *_: stop.set())
-    with pipeline.run_lock("watch"):
-        watcher = Watcher(verbose=args.verbose)
-        if args.once:
-            watcher.cycle(stop_event=stop, dry_run=args.dry_run)
-        else:
-            from . import bot
-            watcher.serve(stop, bot.poll)
+    try:
+        with pipeline.run_lock("watch"):
+            watcher = Watcher(verbose=args.verbose)
+            if args.once:
+                watcher.cycle(stop_event=stop, dry_run=args.dry_run)
+            else:
+                from . import bot
+                watcher.serve(stop, bot.poll, cleanup=False)
+    finally:
+        optional.shutdown()
 
 
 if __name__ == "__main__":

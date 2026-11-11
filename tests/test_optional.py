@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import re
+import select
 import sqlite3
 import subprocess
 import sys
@@ -700,7 +701,8 @@ class RunnerTests(OptionalBase):
         stubborn = FakeProc(stubborn=True)
         self.runner.proc = stubborn
         self.runner.started = time.monotonic() - runner.STEP_SECONDS - runner.KILL_GRACE_SECONDS - 1
-        with patch.object(runner.os, "killpg"), patch.object(optional, "enabled_any", return_value=True), \
+        with patch.object(runner.os, "killpg"), patch.object(runner, "group_alive", return_value=False), \
+                patch.object(optional, "enabled_any", return_value=True), \
                 patch.object(self.runner, "has_work", return_value=True):
             self.assertEqual(self.runner.reap(), "running")
             self.assertEqual(stubborn.waited, 0)
@@ -709,6 +711,68 @@ class RunnerTests(OptionalBase):
             self.assertEqual(self.runner.dying, [stubborn])
             stubborn.stubborn = False
             self.assertIsNone(self.runner.reap())
+
+    def test_a_leaders_descendants_are_killed_even_without_another_cycle(self):
+        code = ("import subprocess,sys; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(20)']);"
+                "print(p.pid,flush=True)")
+
+        def launch(*args, **kwargs):
+            return subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True, start_new_session=True)
+
+        with patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
+            self.assertTrue(self.runner.maybe_start(popen=launch))
+            proc = self.runner.proc
+            self.addCleanup(proc.stdout.close)
+            self.assertTrue(select.select([proc.stdout], [], [], 5)[0])
+            descendant = int(proc.stdout.readline())
+            proc.wait(timeout=5)
+            self.assertTrue(wait_for(lambda: not _alive(descendant), 5))
+            self.assertTrue(wait_for(lambda: self.runner.reap() is None, 5))
+
+    def test_a_finished_leader_does_not_release_a_live_group(self):
+        proc = FakeProc()
+        proc.killed = True
+        self.runner.proc = proc
+        with patch.object(runner, "group_alive", return_value=True), patch.object(self.runner, "_kill_group"), \
+                patch.object(optional, "enabled_any", return_value=True), patch.object(self.runner, "has_work", return_value=True):
+            self.assertEqual(self.runner.reap(), "running")
+            self.assertFalse(self.runner.maybe_start(popen=MagicMock(side_effect=AssertionError("second group"))))
+        with patch.object(runner, "group_alive", return_value=False):
+            self.assertIsNone(self.runner.reap())
+
+    def test_aggregate_group_memory_stops_children_that_are_individually_below_the_limit(self):
+        code = """
+import subprocess, sys, time
+program = "import time; data=bytearray(30000000); print('ready',flush=True); time.sleep(20)"
+children = [subprocess.Popen([sys.executable, '-c', program], stdout=subprocess.PIPE, text=True) for _ in range(2)]
+for child in children:
+    assert child.stdout.readline().strip() == 'ready'
+print(*(child.pid for child in children), flush=True)
+time.sleep(20)
+"""
+        proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True, start_new_session=True)
+
+        def cleanup():
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, 9)
+            with contextlib.suppress(Exception):
+                proc.wait(timeout=2)
+            proc.stdout.close()
+        self.addCleanup(cleanup)
+        self.assertTrue(select.select([proc.stdout], [], [], 5)[0])
+        children = [int(value) for value in proc.stdout.readline().split()]
+        self.assertEqual(len(children), 2)
+        memory, count = runner.group_usage(proc.pid)
+        limit = 65_000_000
+        self.assertGreater(memory, limit)
+        self.assertEqual(count, 3)
+        sizes = subprocess.check_output(["/bin/ps", "-p", ",".join(map(str, [proc.pid, *children])), "-o", "rss="], text=True)
+        self.assertTrue(all(int(size) * 1024 < limit for size in sizes.split()))
+        with patch.object(runner, "GROUP_MEMORY_BYTES", limit), patch.object(optional, "enabled_any", return_value=True), \
+                patch.object(self.runner, "has_work", return_value=True):
+            self.assertTrue(self.runner.maybe_start(popen=lambda *args, **kwargs: proc))
+            self.assertTrue(wait_for(lambda: proc.poll() is not None, 5))
+            self.assertTrue(wait_for(lambda: all(not _alive(pid) for pid in children), 5))
 
     def test_the_step_refuses_to_run_without_resource_limits_unless_opted_out(self):
         from pisobot.optional import step
@@ -1233,7 +1297,8 @@ class RereviewTests(OptionalBase):
     def test_shutdown_keeps_a_child_whose_death_is_not_confirmed_and_later_reaps_retry_it(self):
         stubborn, r = FakeProc(stubborn=True), runner.Runner()
         r.proc, r.started = stubborn, time.monotonic()
-        with patch.object(runner.os, "killpg"), patch.object(runner, "CONFIRM_SECONDS", 0.01):
+        with patch.object(runner.os, "killpg"), patch.object(runner, "group_alive", return_value=False), \
+                patch.object(runner, "CONFIRM_SECONDS", 0.01):
             r.stop()
             self.assertIsNone(r.proc)
             self.assertEqual(r.dying, [stubborn])                                 # still owned
@@ -1245,6 +1310,22 @@ class RereviewTests(OptionalBase):
             stubborn.code = -9
             r.reap()
         self.assertEqual(r.dying, [])
+
+    def test_the_lock_refuses_an_untrusted_state_directory_before_opening(self):
+        from pisobot.optional import step
+        lock = store.path().with_suffix(".lock")
+        os.chmod(localdb.state_dir(), 0o777)
+        self.addCleanup(os.chmod, localdb.state_dir(), 0o700)
+        with patch.dict(os.environ, {"STORAGE": "local"}), patch.object(step, "load_features") as load:
+            self.assertEqual(step.main(), 5)
+        load.assert_not_called()
+        self.assertFalse(lock.exists())
+        os.chmod(localdb.state_dir(), 0o700)
+        info = types.SimpleNamespace(st_uid=os.getuid() + 1, st_mode=0o700)
+        with patch.object(store.os, "stat", return_value=info):
+            with self.assertRaises(ValueError):
+                step.open_lock(lock)
+        self.assertFalse(lock.exists())
 
     # P2: the child runs with limits on this platform too, without the opt-out
     def test_a_real_child_runs_a_step_under_limits_without_the_opt_out_on_this_platform(self):
@@ -1427,6 +1508,114 @@ step.resident_bytes = failing_monitor"""
         worker.stop()
         worker.join(5)
         self.assertFalse(worker.is_alive())
+
+    def test_a_has_work_exception_is_logged(self):
+        class BadWork:
+            def has_work(self):
+                raise RuntimeError("private detail")
+
+            def step(self, deadline):
+                pass
+
+        worker = optional.Worker(FLAG, BadWork)
+        worker.feature = BadWork()
+        with self.assertLogs("pisobot.optional", level="WARNING") as logs:
+            worker._refresh()
+        self.assertFalse(worker.work)
+        self.assertIn("has_work failed (RuntimeError)", "\n".join(logs.output))
+        self.assertNotIn("private detail", "\n".join(logs.output))
+
+    def test_a_blocked_result_iterator_remains_in_flight_and_stuck(self):
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+
+        def returned(items):
+            def values():
+                entered.set()
+                release.wait(5)
+                yield items[0].seq
+            return values()
+
+        self.enable(Feature(after_cycle=returned))
+        optional.after_ack(home(1), OWNER, None, {"state": "sent"})
+        optional.after_cycle()
+        self.assertTrue(entered.wait(5))
+        worker = optional.workers()[0]
+        with patch.object(optional, "STUCK_SECONDS", 0.01):
+            time.sleep(0.02)
+            self.assertTrue(worker.status()["stuck"])
+            self.assertEqual(worker.status()["inflight"], 1)
+        release.set()
+        self.assertTrue(wait_for(lambda: not worker.status()["stuck"]))
+
+    def test_result_iteration_is_bounded_and_retried(self):
+        consumed = []
+
+        def endless(items):
+            while True:
+                consumed.append(1)
+                yield items[0].seq
+
+        worker = optional.Worker(FLAG, lambda: Feature())
+        worker.feature = Feature(after_cycle=endless)
+        item = optional.Item(1, time.time(), OWNER, None, "new", "sent", "head", ())
+        worker._deliver([[item, 0]])
+        self.assertEqual(len(consumed), optional.BUFFER_LIMIT + 1)
+        self.assertEqual(worker.status()["waiting"], 1)
+
+    def test_shutdown_drains_and_joins_accepted_work(self):
+        feature = self.enable(Feature(after_cycle=lambda items: time.sleep(0.1)))
+        optional.after_ack(home(1), OWNER, None, {"state": "sent"})
+        optional.after_cycle()
+        worker = optional.workers()[0]
+        optional.shutdown()
+        self.assertEqual(len(feature.batches), 1)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(optional.lost["shutdown"], 0)
+
+    def test_shutdown_deadline_counts_queued_loss_and_logs_unsettled_work(self):
+        entered, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        self.enable(Feature(after_cycle=lambda items: (entered.set(), release.wait(5), None)[2]))
+        optional.after_ack(home(1), OWNER, None, {"state": "sent"})
+        optional.after_cycle()
+        self.assertTrue(entered.wait(5))
+        optional.after_ack(home(2), OWNER, None, {"state": "sent"})
+        optional.after_cycle()
+        with patch.object(optional, "DRAIN_SECONDS", 0.05), self.assertLogs("pisobot.optional", level="WARNING") as logs:
+            start = time.monotonic()
+            optional.shutdown()
+            self.assertLess(time.monotonic() - start, 1)
+        self.assertEqual(optional.lost["shutdown"], 1)
+        self.assertIn("1 queued dropped, 1 in flight", "\n".join(logs.output))
+        release.set()
+
+    def test_once_drains_after_releasing_the_watcher_lock(self):
+        feature = self.enable(Feature(after_cycle=lambda items: time.sleep(0.1)))
+        self.baseline()
+        self.full.append(home(2, 1300))
+        events = []
+        real_shutdown = optional.shutdown
+
+        @contextlib.contextmanager
+        def lock(name="run"):
+            events.append(("enter", name))
+            try:
+                yield
+            finally:
+                events.append(("exit", name))
+
+        def shutdown():
+            events.append(("shutdown", ""))
+            real_shutdown()
+
+        with patch("sys.argv", ["watch", "--once"]), patch.object(watch.signal, "signal"), \
+                patch.object(watch, "Watcher", return_value=self.watcher), patch.object(main, "run_lock", side_effect=lock), \
+                patch.object(optional, "shutdown", side_effect=shutdown):
+            watch.main()
+        self.assertLess(events.index(("exit", "watch")), events.index(("shutdown", "")))
+        self.assertTrue(feature.batches)
+        self.assertTrue(all(not worker.is_alive() for worker in optional.workers()))
 
     # P3: publishing consumes no more than the cap, whatever it is handed
     def test_publishing_never_consumes_more_than_its_caps(self):
