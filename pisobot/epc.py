@@ -28,7 +28,7 @@ import statistics
 import threading
 import time
 
-from . import config, localdb
+from . import budget, config, localdb
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,13 @@ CREATE TABLE IF NOT EXISTS epc_cert (
     number TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, record TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS epc_usage (
     day TEXT PRIMARY KEY, requests INTEGER NOT NULL DEFAULT 0, failures INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS epc_area_facts (
+    key TEXT PRIMARY KEY, outcode TEXT NOT NULL, bedrooms INTEGER NOT NULL, rent REAL NOT NULL,
+    area REAL NOT NULL, at TEXT NOT NULL);
 """
+RETENTION_TABLES = (("epc_search", "fetched_at"), ("epc_cert", "fetched_at"), ("epc_area_facts", "at"))
+PURGE_EVERY = dt.timedelta(hours=1)
+AREA_FACT_DAYS = 14              # comparables are portal-stated adverts seen in the last two weeks
 
 _default = None
 _lock = threading.Lock()
@@ -89,7 +95,8 @@ def set_default(epc):
 
 POSTCODE_RE = re.compile(r"\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b", re.I)
 FLAT_RE = re.compile(r"\b(?:flat|apartment|apt|unit|suite)\.?\s*#?\s*([a-z]?\d+[a-z]?|[a-z])\b", re.I)
-NUMBER_RE = re.compile(r"^(\d+[a-z]?)(?:\s*-\s*\d+[a-z]?)?\s+(.+)$", re.I)
+NUMBER_RE = re.compile(r"^(\d+[a-z]?(?:\s*-\s*\d+[a-z]?)?)\s+(.+)$", re.I)     # '12-14' stays a distinct token
+FLAT_LIKE = re.compile(r"\b(?:flat|apartment|apt|maisonette|studio|penthouse)\b", re.I)
 GENERIC = {"london", "greater london", "england", "uk", "united kingdom"}
 
 
@@ -124,7 +131,7 @@ def parse_address(text, post_town=None):
     for i, seg in enumerate(segments):
         m = NUMBER_RE.match(seg)
         if m:
-            number, street = m.group(1).lower(), _clean(m.group(2))
+            number, street = re.sub(r"\s+", "", m.group(1).lower()), _clean(m.group(2))
             if i > 0 and not building:
                 building = _clean(segments[0])
             break
@@ -197,21 +204,43 @@ class Store:
                        (number, now.isoformat(), json.dumps(record, sort_keys=True)))
 
     def purge(self, now):
+        """Delete every row older than the retention window; {table: rows deleted}."""
         cutoff = (now - dt.timedelta(days=CACHE_DAYS)).isoformat()
+        deleted = {}
         with self._db() as db:
-            db.execute("DELETE FROM epc_search WHERE fetched_at < ?", (cutoff,))
-            db.execute("DELETE FROM epc_cert WHERE fetched_at < ?", (cutoff,))
+            for table, column in RETENTION_TABLES:
+                deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
+        return deleted
 
     def requests_today(self, day):
         with self._db() as db:
             row = db.execute("SELECT requests FROM epc_usage WHERE day = ?", (day,)).fetchone()
         return row["requests"] if row else 0
 
-    def count_request(self, day, failed=False):
+    def reserve(self, day, limit):
+        """Atomically count one request against `day`'s cap immediately before it is sent; False when the cap
+        is used up. The check and the increment are one UPDATE, so two callers can never both take the last one."""
         with self._db() as db:
-            db.execute("INSERT INTO epc_usage (day, requests, failures) VALUES (?, 1, ?) "
-                       "ON CONFLICT(day) DO UPDATE SET requests = requests + 1, failures = failures + ?",
-                       (day, int(failed), int(failed)))
+            db.execute("INSERT OR IGNORE INTO epc_usage (day, requests, failures) VALUES (?, 0, 0)", (day,))
+            return db.execute("UPDATE epc_usage SET requests = requests + 1 WHERE day = ? AND requests < ?",
+                              (day, limit)).rowcount == 1
+
+    def count_failure(self, day):
+        with contextlib.suppress(Exception):
+            with self._db() as db:
+                db.execute("UPDATE epc_usage SET failures = failures + 1 WHERE day = ?", (day,))
+
+    def note_area(self, key, outcode, bedrooms, rent, area, now):
+        with self._db() as db:
+            db.execute("INSERT OR REPLACE INTO epc_area_facts VALUES (?, ?, ?, ?, ?, ?)",
+                       (key, outcode, bedrooms, rent, area, now.isoformat()))
+
+    def area_peers(self, outcode, bedrooms, now, exclude_key=None):
+        since = (now - dt.timedelta(days=AREA_FACT_DAYS)).isoformat()
+        with self._db() as db:
+            rows = db.execute("SELECT key, rent, area FROM epc_area_facts WHERE outcode = ? AND bedrooms = ? "
+                              "AND at >= ? AND key != ?", (outcode, bedrooms, since, exclude_key or "")).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------- API client
@@ -277,12 +306,12 @@ class Epc:
         self.sleep = sleep
         self.blocked_until = 0.0
         self.requests_made = 0
-        self._purged = False
+        self._last_purge = None
 
     @staticmethod
     def _http(url, params, headers):
         import requests          # plain client: no scraping proxy is needed or wanted for an official API
-        r = requests.get(url, params=params, headers=headers, timeout=TIMEOUT)
+        r = requests.get(url, params=params, headers=headers, timeout=budget.timeout(TIMEOUT))
         try:
             body = r.json()
         except ValueError:
@@ -290,22 +319,24 @@ class Epc:
         return r.status_code, body
 
     def _get(self, path, params):
-        now = self._now()
-        day = now.date().isoformat()
         if time.monotonic() < self.blocked_until:
             raise Unavailable("rate limited")
-        if self.store.requests_today(day) >= self.daily_limit:
-            raise Unavailable("daily cap")
+        if budget.expired():
+            raise Unavailable("time budget")
         if self.requests_made:
-            self.sleep(PAUSE_SECONDS)
+            self.sleep(min(PAUSE_SECONDS, max(0.0, budget.time_left() or PAUSE_SECONDS)))
+        day = self._now().date().isoformat()                 # the day of the request actually sent, not of an earlier step
+        if not self.store.reserve(day, self.daily_limit):
+            raise Unavailable("daily cap")
         self.requests_made += 1
         try:
             status, body = self.http(API + path, params,
                                      {"Accept": "application/json", "Authorization": f"Bearer {token()}"})
         except Exception as ex:
-            self.store.count_request(day, failed=True)
+            self.store.count_failure(day)
             raise Unavailable(type(ex).__name__)
-        self.store.count_request(day, failed=status >= 400 and status != 404)
+        if status >= 400 and status != 404:
+            self.store.count_failure(day)
         if status == 404:
             return None
         if status == 429:
@@ -318,10 +349,7 @@ class Epc:
     def summaries(self, postcode):
         """Latest certificate per address at a postcode (cached). List of summary dicts."""
         now = self._now()
-        if not self._purged:
-            self._purged = True
-            with contextlib.suppress(Exception):
-                self.store.purge(now)
+        self.maybe_purge(now)
         cached = self.store.search_get(postcode, now)
         if cached is not None:
             return cached
@@ -345,8 +373,23 @@ class Epc:
         self.store.search_put(postcode, keep, now)
         return keep
 
+    def maybe_purge(self, now):
+        """Retention: delete rows past the window at most hourly, whatever the cache hit rate. A failed purge is
+        retried on the next call (the clock only advances on success)."""
+        if self._last_purge is not None and now - self._last_purge < PURGE_EVERY:
+            return
+        try:
+            deleted = self.store.purge(now)
+        except Exception as ex:
+            log.warning("epc: retention purge failed (%s); will retry", type(ex).__name__)
+            return
+        self._last_purge = now
+        if any(deleted.values()):
+            log.info("epc: retention purge deleted %s", deleted)
+
     def certificate(self, number):
         now = self._now()
+        self.maybe_purge(now)
         cached = self.store.cert_get(number, now)
         if cached is not None:
             return cached
@@ -373,6 +416,20 @@ def compatible_rooms(bedrooms, studio=False):
     return {1} if studio or bedrooms == 0 else {bedrooms + 1}
 
 
+def exact_compatible(listing, cert, advert_flat_like):
+    """Is the certificate of the same kind of home as the advert? Explicit mismatches (a house for a flat, a flat
+    for an advert that reads as a house, a room count far from the bedrooms) veto the exact label."""
+    if advert_flat_like and cert.get("flat") is False:
+        return False
+    if not advert_flat_like and cert.get("flat") is True:
+        return False
+    rooms = cert.get("rooms")
+    beds = max(listing.bedrooms, 1) if getattr(listing, "studio", False) or listing.bedrooms == 0 else listing.bedrooms
+    if rooms is not None and not (max(1, beds) <= rooms <= beds + 2):
+        return False
+    return True
+
+
 def match(listing, postcode, epc, today=None):
     """Result dict: {'match': 'exact'|'range'|'none', ...}. Raises Unavailable when the service cannot answer."""
     today = today or dt.date.today()
@@ -384,18 +441,23 @@ def match(listing, postcode, epc, today=None):
     parsed = [(s, parse_address(cert_address(s), s.get("postTown"))) for s in summaries]
     building = [(s, p) for s, p in parsed if akey and _building_key(p) == akey]
 
-    # 1. exact: the same flat in the same building, or the only dwelling at a house number
+    # 1. exact: the same flat in the same building, or the only dwelling at a house number. The address is not
+    # enough: the certificate's dwelling type and room count must also fit the advert (a whole house is never
+    # an exact match for a flat), and an advert that names no flat in a building is never matched to one flat.
+    advert_flat_like = bool(advert["flat"] or FLAT_LIKE.search(f"{listing.address} {listing.description[:300]}"))
     exact = None
     if building:
         if advert["flat"]:
             hits = [s for s, p in building if p["flat"] == advert["flat"]]
+        elif not advert_flat_like and len(building) == 1 and not building[0][1]["flat"]:
+            hits = [building[0][0]]
         else:
-            hits = [s for s, p in building if not p["flat"]] if len(building) == 1 else []
+            hits = []
         if len(hits) == 1:
             exact = hits[0]
     if exact:
         cert = epc.certificate(exact["certificateNumber"])
-        if cert.get("area"):
+        if cert.get("area") and exact_compatible(listing, cert, advert_flat_like):
             return {"match": "exact", "low": cert["area"], "high": cert["area"], "band": cert.get("band"),
                     "heating": cert.get("heating"), "annual_cost": cert.get("annual_cost"),
                     "date": cert.get("date"), "n": 1, "postcode": postcode}
@@ -440,9 +502,11 @@ def postcode_of(listing):
 
 def annotate(listing, epc=None):
     """Attach listing.epc and, when the advert gave no area, an area from an exact certificate. Never raises,
-    never rejects. Private rentals with a full postcode only."""
+    never rejects. Private rentals with a full postcode only. Runs only when the feature is enabled or a client
+    is passed in explicitly (an installed default client is never authority to run: switching the feature off
+    takes effect at once)."""
     try:
-        if listing.tenure != "rent" or not (enabled() or epc is not None or _default is not None):
+        if listing.tenure != "rent" or not (enabled() or epc is not None):
             return listing
         postcode = postcode_of(listing)
         if not postcode:
@@ -455,7 +519,7 @@ def annotate(listing, epc=None):
             listing.floor_area_m2 = result["low"]
             listing.area_source = "epc"
         elif advert_area:
-            listing.area_source = "advert"
+            listing.area_source = listing.area_source or "advert"
             if result["match"] == "exact":
                 result["advert_area"] = advert_area
     except Unavailable as ex:
@@ -465,18 +529,20 @@ def annotate(listing, epc=None):
     return listing
 
 
-# ---------------------------------------------------------------- value against the same scan
+# ---------------------------------------------------------------- value against recent portal-stated adverts
 
 def area_used(listing):
-    """An area we would stand behind: from the advert or an exact certificate, never a range."""
-    return listing.floor_area_m2 if getattr(listing, "area_source", None) in ("advert", "epc") or \
+    """An area we would stand behind: from the advert, an exact certificate or a floorplan, never a range."""
+    return listing.floor_area_m2 if getattr(listing, "area_source", None) in ("advert", "epc", "floorplan") or \
         (listing.floor_area_m2 and not listing.epc) else None
 
 
 def value_against(listing, scan):
-    """{'per_m2', 'percentile', 'n', 'district', 'beds'} - the share of comparable adverts (same bedroom count,
-    same postcode district, this scan) that this one is roomier than, by area per pound. None when the rent
-    or area is missing or fewer than MIN_COMPARABLES others have an area. 'Roomier' = more m2 per £ rent."""
+    """{'per_m2', 'percentile', 'n', 'district', 'beds', 'peers'} - the share of comparable adverts (same bedroom
+    count, same postcode district) that this one is roomier than, by area per pound. None when the rent or area is
+    missing or fewer than MIN_COMPARABLES others have an area. 'Roomier' = more m2 per £ rent. `scan` holds the
+    comparables; the pipeline passes recently seen adverts whose area the PORTAL stated, so no derived area
+    (certificate, floorplan) is ever used as a comparable."""
     area = area_used(listing)
     if not listing.rent or not area:
         return None
@@ -495,19 +561,77 @@ def value_against(listing, scan):
     mine = area / listing.rent
     below = sum(p < mine for p in peers) + 0.5 * sum(p == mine for p in peers)
     return {"per_m2": round(listing.rent / area, 1), "percentile": round(100 * below / len(peers)),
-            "n": len(peers), "district": district, "beds": listing.bedrooms}
+            "n": len(peers), "district": district, "beds": listing.bedrooms, "peers": "portal-stated areas"}
 
 
-def annotate_values(scan):
-    """Set .value on every private rental in the scan. Never raises."""
-    if not (enabled() or _default is not None):
-        return
+def _peer_listing(row, district, bedrooms):
+    from types import SimpleNamespace
+    return SimpleNamespace(key=row["key"], tenure="rent", rent=row["rent"], bedrooms=bedrooms, outcode=district,
+                           floor_area_m2=row["area"], area_source="advert", epc={})
+
+
+def observe(listings, store=None, now=None):
+    """Remember the area the PORTAL stated for each private rental (after its details page), so later adverts can be
+    compared with them. No network. Derived areas are never recorded. Never raises; off when disabled."""
     try:
-        for l in scan:
-            if l.tenure == "rent":
-                l.value = value_against(l, scan) or {}
+        if store is None and not enabled():
+            return
+        store = store or default().store
+        now = now or dt.datetime.now(dt.timezone.utc)
+        for l in listings:
+            if l.tenure == "rent" and l.rent and l.floor_area_m2 and l.outcode and \
+                    getattr(l, "area_source", None) in (None, "advert") and not getattr(l, "epc", None):
+                store.note_area(l.key, l.outcode, l.bedrooms, l.rent, l.floor_area_m2, now)
+    except Exception as ex:
+        log.warning("epc: observe failed (%s)", type(ex).__name__)
+
+
+def value_for(listing, store=None, now=None):
+    """listing.value from recently seen portal-stated adverts. Never raises."""
+    try:
+        if listing.tenure != "rent" or not listing.floor_area_m2:
+            return listing
+        store = store or default().store
+        now = now or dt.datetime.now(dt.timezone.utc)
+        peers = [_peer_listing(r, listing.outcode, listing.bedrooms)
+                 for r in store.area_peers(listing.outcode, listing.bedrooms, now, listing.key)]
+        listing.value = value_against(listing, peers) or {}
     except Exception as ex:
         log.warning("epc: value failed (%s)", type(ex).__name__)
+    return listing
+
+
+# ---------------------------------------------------------------- retention (independent of use)
+
+def purge_expired(now=None, path=None):
+    """Delete certificate/address rows (and comparables) older than the retention window, whether or not the feature is
+    on or any cache is being read. Touches nothing when the tables do not exist (so a never-enabled install is not
+    changed). Returns {table: rows deleted}; logs when it deleted something; never raises."""
+    try:
+        if path is None and os.environ.get("STORAGE") != "local":
+            return {}
+        now = now or dt.datetime.now(dt.timezone.utc)
+        token_ = localdb.DATABASE.set(None)
+        try:
+            path = path or localdb.database_path()
+            if not os.path.exists(path):
+                return {}
+            deleted = {}
+            with contextlib.closing(sqlite3.connect(path, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
+                have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+                cutoff = (now - dt.timedelta(days=CACHE_DAYS)).isoformat()
+                with db:
+                    for table, column in RETENTION_TABLES:
+                        if table in have:
+                            deleted[table] = db.execute(f"DELETE FROM {table} WHERE {column} < ?", (cutoff,)).rowcount
+        finally:
+            localdb.DATABASE.reset(token_)
+        if any(deleted.values()):
+            log.info("epc: retention purge deleted %s", deleted)
+        return deleted
+    except Exception as ex:
+        log.warning("epc: retention purge failed (%s); will retry", type(ex).__name__)
+        return {}
 
 
 # ---------------------------------------------------------------- card line

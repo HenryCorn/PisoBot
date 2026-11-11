@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import (archive, cache, collage, config, epc, costs, d1, enrich, extract, intelligence, mapgen, models,
+from . import (archive, cache, collage, config, costs, d1, enrich, enrichment, extract, intelligence, mapgen, models,
                prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
@@ -546,7 +546,6 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
                 continue
             if l.tenure != "rent":
                 kept.append(_record(l, "", alerted=True))
-            epc.annotate(l)          # G2: certificate facts; adds labels only, never rejects (fails open)
             matches.append(l)
             stats = source_stats(l.source)
             stats["matched"] += 1
@@ -575,7 +574,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     if baseline and not sweep and (failures or (enrich_failures and not local_rentals)):
         raise RuntimeError("Initial rental baseline incomplete; retrying without sending listing alerts")
     enrich.assign_crime_percentiles(matches)
-    epc.annotate_values(listings)    # G2: rent per m2 against the same scan
+    enrichment.observe(matches)      # G2: remember portal-stated areas as comparables (no network; off unless enabled)
 
     # 2. Saved/hidden choices (recorded instantly by the Worker) apply to these matches
     today = dt.date.today().isoformat()
@@ -724,6 +723,7 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
             report_waiting = {l.key for l, _ in to_send if l.key not in visible}
         print(f"report: {len(matches)} matches")
         if not dry_run or preview_dir:
+            enrichment.enrich(list(report_top) + list(report_saved)[:telegram.RENTALS_SHOWN])
             if compact and not changes and not preview_dir:
                 telegram.send_text(title, silent=True)
                 print("Sent silent no-new summary; unchanged listing cards suppressed")
@@ -750,6 +750,10 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
     print(f"matches to alert: {len(to_send)} (sending up to {config.MAX_ALERTS_PER_RUN})")
     delivered = set()
     delivery_errors = []
+    if live and to_send:
+        # Optional facts (certificate / floorplan area, value) for the cards about to go out, inside a hard time
+        # budget: a slow lookup costs a card its extra line, never its delivery. No-op unless a feature is enabled.
+        enrichment.enrich([l for l, _ in to_send][:max(0, alert_budget.get("attempts", config.MAX_ALERTS_PER_RUN))])
     for l, reason in to_send:
         attempts_left = alert_budget.get("attempts", alert_budget.get("remaining", config.MAX_ALERTS_PER_RUN))
         if attempts_left <= 0:

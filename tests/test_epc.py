@@ -89,7 +89,9 @@ class MatchTests(unittest.TestCase):
         self.assertEqual([c[0] for c in fake.calls], ["domestic/search", "certificate"])
 
     def test_house_is_exact_when_only_one_dwelling_at_the_number(self):
-        r = epc.match(advert("14 Hornsey Road, London N7", beds=4), "N7 6DJ", make(Fake(BUILDING, CERTS)), TODAY)
+        house = advert("14 Hornsey Road, London N7", beds=4)
+        house.description = "Four bedroom mid terrace house."
+        r = epc.match(house, "N7 6DJ", make(Fake(BUILDING, CERTS)), TODAY)
         self.assertEqual((r["match"], r["low"]), ("exact", 110))
 
     def test_no_flat_given_in_a_block_is_range_not_exact(self):
@@ -254,19 +256,6 @@ class ValueTests(unittest.TestCase):
         me.area_source, me.epc = None, {"match": "range"}
         self.assertIsNone(epc.value_against(me, [me] + [peer(i, 40) for i in range(1, 10)]))
 
-    def test_annotate_values_is_off_without_epc(self):
-        scan = [peer(0, 60)] + [peer(i, 40) for i in range(1, 10)]
-        os.environ.pop("EPC_API_TOKEN", None)
-        os.environ.pop("EPC_TOKEN", None)
-        epc.annotate_values(scan)
-        self.assertEqual(scan[0].value, {})
-        epc.set_default(make(Fake()))
-        try:
-            epc.annotate_values(scan)
-        finally:
-            epc.set_default(None)
-        self.assertEqual(scan[0].value["percentile"], 100)
-
     def test_card_line(self):
         l = epc.annotate(advert(), make(Fake(BUILDING, CERTS)))
         l.value = {"per_m2": 29.7, "percentile": 80, "n": 10, "district": "N7", "beds": 1}
@@ -288,11 +277,15 @@ class ValueTests(unittest.TestCase):
 
 
 class RightmoveTests(unittest.TestCase):
-    def test_details_capture_full_postcode(self):
-        d = rightmove._details({"address": {"outcode": "N7", "incode": "6DJ"}})
-        self.assertEqual(d["postcode"], "N7 6DJ")
-        self.assertIsNone(rightmove._details({"address": {"outcode": "N7"}})["postcode"])
-        self.assertIsNone(rightmove._details({})["postcode"])
+    def test_details_capture_full_postcode_only_when_the_feature_is_on(self):
+        on = {"EPC_API_TOKEN": "x", "STORAGE": "local"}
+        with patch.dict(os.environ, on):
+            d = rightmove._details({"address": {"outcode": "N7", "incode": "6DJ"}})
+            self.assertEqual(d["postcode"], "N7 6DJ")
+            self.assertNotIn("postcode", rightmove._details({"address": {"outcode": "N7"}}))
+            self.assertNotIn("postcode", rightmove._details({}))
+        with patch.dict(os.environ, {"STORAGE": "local"}, clear=True):
+            self.assertNotIn("postcode", rightmove._details({"address": {"outcode": "N7", "incode": "6DJ"}}))
 
 
 class ParseCertificateTests(unittest.TestCase):

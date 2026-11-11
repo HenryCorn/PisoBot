@@ -12,7 +12,7 @@ import time
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, epc, main as pipeline, net, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +109,7 @@ class Watcher:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
+            epc.purge_expired()          # retention for certificate/address rows: independent of use, no-op when never used
             # Loop/source liveness is separate from lookup health. A successful heartbeat
             # must not hide an enrichment outage, including sweep-only inventory.
             retries = sum(archive.lookup_degraded(p.chat_id or users.owner_chat() or "owner",

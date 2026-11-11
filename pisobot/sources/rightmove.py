@@ -9,7 +9,7 @@ import sys
 
 from requests import RequestException
 
-from .. import cache, config, net, rental_text
+from .. import cache, config, epc, net, rental_text
 from ..models import Listing
 from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, min_bedrooms, monthly_rent,
                phone_number, private_rent_costs, studios_wanted, text, update_kind)
@@ -186,9 +186,8 @@ def _details(p):
     addr = p.get("address") if isinstance(p.get("address"), dict) else {}
     postcode = f"{addr.get('outcode') or ''} {addr.get('incode') or ''}".strip()
     band = str(living.get("councilTaxBand") or "").strip().upper()
-    return {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
+    details = {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
                                 f"{features} {(p.get('text') or {}).get('description', '')}"),
-            "postcode": postcode if len(postcode.split()) == 2 else None,
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
             "deposit": lettings.get("deposit") or None, "available": available,
             "furnishing": rental_text.furnishing(lettings.get("furnishType") or ""),
@@ -196,6 +195,9 @@ def _details(p):
             "agent_phone": _contact_phone(p),
             "council_tax_included": living["councilTaxIncluded"]
             if isinstance(living.get("councilTaxIncluded"), bool) else None}
+    if epc.enabled() and len(postcode.split()) == 2:     # the cached details only gain this key when the feature is on
+        details["postcode"] = postcode
+    return details
 
 
 def refine(listing):
