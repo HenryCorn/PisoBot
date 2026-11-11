@@ -657,7 +657,7 @@ class RunnerTests(OptionalBase):
                 os.close(fd)
             return []
         with patch.dict(os.environ, {"STORAGE": "local", "OPTIONAL_ALLOW_NO_LIMIT": "1"}), patch.object(step, "load_features", side_effect=probe), \
-                patch("signal.alarm"), patch.object(threading.Thread, "start"):
+                patch.object(step, "limit_resources", return_value="test"), patch("signal.alarm"), patch.object(threading.Thread, "start"):
             self.assertEqual(step.main(), 0)
         self.assertEqual(held, [True])
 
@@ -954,6 +954,205 @@ class FetchFactTests(Base):
         for _ in range(50):
             optional.extend_card("x" * 500, listing, True)
         self.assertLess((time.perf_counter() - started) / 50, 0.02)                # the whole card, 20 lines offered: bounded work
+
+
+# ---------------------------------------------------------------- round 3: the re-review's findings, one regression test each
+
+CHILD = """
+import os, sys, time
+from pisobot.optional import step
+class F:
+    def has_work(self): return True
+    def step(self, deadline):
+        {body}
+step.load_features = lambda: [F()]
+{setup}
+sys.exit(step.main())
+"""
+
+
+class RereviewTests(OptionalBase):
+    def primary(self):
+        path = localdb.state_dir() / "pisobot.db"
+        with contextlib.closing(sqlite3.connect(path)) as db:
+            db.execute("CREATE TABLE IF NOT EXISTS probe (v TEXT)")
+            db.execute("INSERT INTO probe VALUES ('before')")
+            db.commit()
+        return path
+
+    def value(self, path):
+        with contextlib.closing(sqlite3.connect(path)) as db:
+            return db.execute("SELECT v FROM probe").fetchone()[0]
+
+    def child(self, body, setup="", **env):
+        code = CHILD.format(body=body, setup=setup)
+        full = {**os.environ, "STORAGE": "local", "PISOBOT_STATE_DIR": self.tmp.name, **env}
+        full.pop("OPTIONAL_ALLOW_NO_LIMIT", None)
+        return subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=full, timeout=60, capture_output=True)
+
+    # P1: the optional database path is verified AFTER the open, so a swap between the check and the open is seen
+    def test_a_link_swapped_in_between_the_check_and_the_open_is_refused_and_the_primary_is_untouched(self):
+        for link in (os.symlink, os.link):
+            primary, target, real_connect, swapped = self.primary(), store.path(), sqlite3.connect, []
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(target)
+
+            def race(path, *a, **kw):
+                if Path(path) == target and not swapped:
+                    link(primary, target)
+                    swapped.append(True)
+                return real_connect(path, *a, **kw)
+            with patch.object(store.sqlite3, "connect", side_effect=race):
+                self.assertFalse(store.write("", [("UPDATE probe SET v='after'", ())]), link.__name__)
+            self.assertTrue(swapped)
+            self.assertEqual(self.value(primary), "before", link.__name__)
+            self.assertIn("optional.db", store.last_error[0])
+            self.assertEqual(optional.health()["storage"], store.last_error[0])
+            self.assertEqual(store.read("SELECT v FROM probe"), [], link.__name__)      # the reader does not follow it either
+            os.unlink(target)
+            with contextlib.closing(real_connect(primary)) as db:
+                db.execute("DELETE FROM probe")
+                db.commit()
+        self.assertTrue(store.write("CREATE TABLE IF NOT EXISTS t (k TEXT)", [("INSERT INTO t VALUES ('x')", ())]))   # the honest path works
+        self.assertEqual(store.last_error[0], "")
+
+    def test_a_state_directory_others_can_write_is_refused_before_anything_is_created(self):
+        os.chmod(localdb.state_dir(), 0o777)
+        self.addCleanup(os.chmod, localdb.state_dir(), 0o700)
+        self.assertFalse(store.write("CREATE TABLE IF NOT EXISTS t (k TEXT)", []))
+        self.assertFalse(store.exists())
+        self.assertIn("writable", store.last_error[0])
+        os.chmod(localdb.state_dir(), 0o755)
+        self.assertTrue(store.write("CREATE TABLE IF NOT EXISTS t (k TEXT)", []))
+
+    # P1: the child's lock file is opened without following links and without truncating
+    def test_the_lock_file_never_follows_a_link_and_never_truncates(self):
+        from pisobot.optional import step
+        lock = store.path().with_suffix(".lock")
+        for link in (os.symlink, os.link):
+            victim = Path(self.tmp.name) / f"victim-{link.__name__}"
+            victim.write_text("primary bytes")
+            link(victim, lock)
+            with patch.dict(os.environ, {"STORAGE": "local"}), patch.object(step, "load_features", side_effect=AssertionError("loaded")), \
+                    patch.object(step, "limit_resources", side_effect=AssertionError("went on")):
+                self.assertEqual(step.main(), 5, link.__name__)
+            self.assertEqual(victim.read_text(), "primary bytes", link.__name__)
+            os.unlink(lock)
+        lock.write_text("left by an older version")                               # a plain file is used as it is, not emptied
+        handle = step.open_lock(lock)
+        handle.close()
+        self.assertEqual(lock.read_text(), "left by an older version")
+        os.unlink(lock)
+        os.mkfifo(lock)
+        with self.assertRaises((ValueError, OSError)):
+            step.open_lock(lock)
+
+    # P2: shutdown keeps ownership of a child it could not confirm dead
+    def test_shutdown_keeps_a_child_whose_death_is_not_confirmed_and_later_reaps_retry_it(self):
+        stubborn, r = FakeProc(stubborn=True), runner.Runner()
+        r.proc, r.started = stubborn, time.monotonic()
+        with patch.object(runner.os, "killpg"), patch.object(runner, "CONFIRM_SECONDS", 0.01):
+            r.stop()
+            self.assertIsNone(r.proc)
+            self.assertEqual(r.dying, [stubborn])                                 # still owned
+            r.stop()
+            self.assertEqual(r.dying, [stubborn])                                 # a second shutdown does not forget it either
+            r.reap()
+            self.assertEqual(r.dying, [stubborn])
+            stubborn.stubborn = False
+            stubborn.code = -9
+            r.reap()
+        self.assertEqual(r.dying, [])
+
+    # P2: the child runs with limits on this platform too, without the opt-out
+    def test_a_real_child_runs_a_step_under_limits_without_the_opt_out_on_this_platform(self):
+        marker = Path(self.tmp.name) / "ran"
+        done = self.child(f"open({str(marker)!r}, 'w').write('x')")
+        self.assertEqual(done.returncode, 0, done.stderr[-300:])
+        self.assertTrue(marker.exists())
+        self.assertIn(b"optional step limits: cpu, memory by", done.stderr)
+
+    def test_a_real_child_over_its_memory_ceiling_does_not_survive(self):
+        marker = Path(self.tmp.name) / "survived"
+        body = (f"b = bytearray(700_000_000)\n        for i in range(0, len(b), 4096): b[i] = 1\n        time.sleep(3)\n"
+                f"        open({str(marker)!r}, 'w').write('x')")
+        done = self.child(body, setup="step.MEMORY_LIMIT_BYTES = 400_000_000")
+        self.assertFalse(marker.exists(), done.stderr[-300:])
+        if sys.platform == "darwin":
+            self.assertEqual(done.returncode, 6)                                  # stopped by the resident-memory watchdog
+
+    # P3: a feature whose loader failed keeps nothing
+    def test_a_failed_loader_keeps_no_items_and_every_one_is_counted(self):
+        gate = threading.Event()
+
+        def loader():
+            gate.wait(5)
+            raise RuntimeError("cannot load")
+        self.baseline()
+        optional.register(FLAG, loader)
+        self.full.append(home(2, 1300))
+        with patch.dict(os.environ, {FLAG: "1"}):
+            self.watcher.cycle()                                                  # offered while the loader is still running
+            worker = optional.workers()[0]
+            n = worker.status()["waiting"]
+            self.assertEqual(n, len(self.sent))                                   # one per person alerted
+            self.assertGreater(n, 0)
+            gate.set()
+            self.assertTrue(wait_for(lambda: worker.failed and not worker.is_alive()))
+            self.assertEqual((worker.status()["waiting"], optional.lost["failed"]), (0, n))
+            self.full.append(home(3, 1100))
+            self.watcher.cycle()                                                  # offered to a dead worker
+            self.assertEqual((worker.status()["waiting"], optional.lost["failed"]), (0, len(self.sent)))
+            self.assertGreater(len(self.sent), n)
+            with patch.object(optional.time, "time", return_value=time.time() + 10 * 3600):
+                self.assertEqual(optional.health()["workers"][0]["waiting"], 0)   # nothing left to go stale
+
+    # P3: what a feature is working on right now is visible
+    def test_items_taken_but_not_yet_settled_are_reported_in_flight(self):
+        entered, release = threading.Event(), threading.Event()
+        feature = self.enable(Feature(after_cycle=lambda items: (entered.set(), release.wait(5), None)[2]))
+        self.addCleanup(release.set)
+        self.baseline()
+        self.full.append(home(2, 1300))
+        self.watcher.cycle()
+        self.assertTrue(entered.wait(5))
+        status = optional.health()["workers"][0]
+        self.assertEqual((status["waiting"], status["inflight"]), (0, len(self.sent)))     # one per person alerted
+        release.set()
+        self.assertTrue(wait_for(lambda: optional.health()["workers"][0]["inflight"] == 0))
+        kept = self.enable(Feature(after_cycle=lambda items: True), flag=FLAG + "_2")
+        self.full.append(home(3, 1100))
+        self.watcher.cycle()
+        self.assertTrue(wait_for(lambda: kept.batches))
+        self.assertTrue(wait_for(lambda: sum(optional.workers()[1].status()[k] for k in ("waiting", "inflight")) == len(kept.batches[0])))   # never in neither
+        self.assertTrue(feature.batches)
+
+    # P3: publishing consumes no more than the cap, whatever it is handed
+    def test_publishing_never_consumes_more_than_its_caps(self):
+        consumed = [0, 0]
+
+        class Endless(dict):
+            def items(self):
+                n = 0
+                while True:
+                    consumed[0] += 1
+                    n += 1
+                    yield f"rm:{n}", offers()
+
+        def offers():
+            while True:
+                consumed[1] += 1
+                yield (1, "line")
+        self.assertEqual(optional.publish_lines("f", Endless()), optional.SNAPSHOT_MAX)
+        self.assertEqual(consumed, [optional.SNAPSHOT_MAX, optional.SNAPSHOT_MAX * 5])
+
+        def templates():
+            while True:
+                consumed.append(1)
+                yield LISTED
+        self.assertEqual(optional.publish_templates("f", templates()), optional.TEMPLATES_PER_FEATURE)
+        self.assertEqual(len(consumed) - 2, optional.TEMPLATES_PER_FEATURE)
+        self.assertEqual(optional.publish_lines("g", {"rm:1": [(1, "x" * 10 ** 6)]}), 0)       # a huge text is refused by its length alone
 
 
 # ---------------------------------------------------------------- off is the release: ordered trace, with mutation checks

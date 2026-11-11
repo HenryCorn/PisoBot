@@ -1,9 +1,13 @@
 """The optional features' OWN SQLite file (optional.db) and a bounded, read-only window onto the primary database.
 
 What this module guarantees, and what it does not:
-  * optional.db is the ONLY file it ever opens for writing, and that is structural: the path must resolve (symlinks, relative parts) to a
-    regular, singly-linked file called optional.db directly inside the state directory, and every writer connection carries an SQLite
-    authorizer that denies ATTACH/DETACH/PRAGMA/transaction control and any schema other than main/temp. SQL cannot reach another file.
+  * optional.db is the ONLY file it opens for writing. Three checks, the last one AFTER the file is open so there is no window between
+    checking and opening: (1) the state directory must be ours and not writable by group or others; (2) the path must be a regular,
+    singly-linked file called optional.db directly inside the real state directory; (3) once SQLite has opened it, SQLite's own report of
+    the file it holds (PRAGMA database_list, which resolves links) must be exactly that path and the entry must still be a plain unlinked
+    file, verified before the first statement that could write. Every writer connection also carries an authorizer that denies
+    ATTACH/DETACH/PRAGMA/transaction control and any schema other than main/temp. SQL cannot reach another file, and a path that is or
+    becomes a link is refused. This is NOT a sandbox against code running as the same user, which can open any file itself.
   * a write is one small transaction (BEGIN IMMEDIATE ... COMMIT, at most MAX_STATEMENTS statements). A progress handler interrupts long
     computations and the connection is closed on every path. It does NOT make the transaction hard-real-time: a stalled fsync/commit cannot
     be interrupted from here. The protection of the primary database is that the optional writer lives in another file, not a time limit.
@@ -45,16 +49,45 @@ def exists():
     return os.path.lexists(path())
 
 
-def checked_path():
-    """The optional database path, after proving it cannot be a primary database. Raises ValueError otherwise."""
-    target = path()
-    state_real = Path(os.path.realpath(_state()))
-    if target.name != NAME:
-        raise ValueError("not the optional database")
+last_error = [""]             # why the last write or read was refused (shown by optional.health(); diagnosis only)
+
+
+def _private_directory(directory):
+    """The state directory must belong to this user and not be writable by anyone else, or another user could swap the file under us."""
+    info = os.stat(directory)
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise ValueError("the state directory belongs to another user")
+    if info.st_mode & 0o022:
+        raise ValueError("the state directory is writable by group or others")
+
+
+def _plain(target):
     if os.path.lexists(target):
         info = os.lstat(target)
         if os.path.islink(target) or not os.path.isfile(target) or info.st_nlink != 1:
             raise ValueError("optional.db must be a plain, unlinked file")
+
+
+def _verify_open(db, target):
+    """After the open, before any write: the file SQLite actually holds must be optional.db in the real state directory (SQLite reports
+    the resolved name, so a link swapped in between the check and the open is seen here) and the entry must still be a plain file."""
+    expected = os.path.join(os.path.realpath(_state()), NAME)
+    held = [row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"]
+    if len(held) != 1 or not held[0] or os.path.realpath(held[0]) != expected or os.path.basename(held[0]) != NAME:
+        raise ValueError("the open file is not optional.db")
+    _plain(target)
+    _plain(expected)
+
+
+def checked_path():
+    """The optional database path, after proving it cannot be a primary database. Raises ValueError otherwise."""
+    target = path()
+    state_real = Path(os.path.realpath(_state()))
+    if os.path.isdir(state_real):
+        _private_directory(state_real)
+    if target.name != NAME:
+        raise ValueError("not the optional database")
+    _plain(target)
     if Path(os.path.realpath(target)).parent != state_real:
         raise ValueError("optional.db must sit directly in the state directory")
     return target
@@ -81,6 +114,7 @@ def write(ddl, statements):
         os.makedirs(os.path.dirname(target), exist_ok=True)
         target = checked_path()
         with contextlib.closing(sqlite3.connect(target, timeout=BUSY_SECONDS, isolation_level=None)) as db:
+            _verify_open(db, target)                      # nothing has been written yet; a swapped path is refused here
             db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
             with contextlib.suppress(sqlite3.Error):
                 db.execute("PRAGMA journal_mode = WAL")
@@ -99,14 +133,19 @@ def write(ddl, statements):
                 db.set_authorizer(None)
                 with contextlib.suppress(Exception):
                     db.execute("ROLLBACK")
+                last_error[0] = "transaction failed"
                 return False
+        last_error[0] = ""
         return True
-    except Exception:
+    except Exception as ex:
+        last_error[0] = str(ex)[:120] if isinstance(ex, ValueError) else type(ex).__name__
         return False
 
 
-def _read(target, sql, params):
+def _read(target, sql, params, own=False):
     with contextlib.closing(sqlite3.connect(f"file:{quote(str(target))}?mode=ro", uri=True, timeout=BUSY_SECONDS)) as db:
+        if own:
+            _verify_open(db, target)
         db.row_factory = sqlite3.Row
         db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
         db.execute("PRAGMA query_only = 1")
@@ -127,7 +166,7 @@ def read(sql, params=()):
     try:
         if not exists():
             return []
-        return _read(checked_path(), sql, params)
+        return _read(checked_path(), sql, params, own=True)
     except Exception:
         return []
 

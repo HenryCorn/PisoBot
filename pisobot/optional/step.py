@@ -11,6 +11,43 @@ from . import runner
 
 log = logging.getLogger(__name__)
 MEMORY_LIMIT_BYTES = 1_500_000_000
+MEMORY_CHECK_SECONDS = 0.25
+
+
+def open_lock(path):
+    """Open the single-flight lock file WITHOUT following a link and WITHOUT truncating, and prove it is a plain, singly-linked regular
+    file before anything is done with it. Raises OSError/ValueError otherwise (the caller then exits without touching anything)."""
+    import stat
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0), 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise ValueError("optional.lock must be a plain, unlinked file")
+        return os.fdopen(fd, "r+")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def resident_bytes():
+    """This process's peak resident memory in bytes (ru_maxrss is bytes on macOS, kilobytes elsewhere)."""
+    import resource
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return peak if sys.platform == "darwin" else peak * 1024
+
+
+def limit_resources():
+    """CPU time is always limited. Memory: the address-space limit where the platform accepts it (Linux); where it does not (macOS
+    rejects RLIMIT_AS), the same ceiling is enforced on resident memory by the watchdog thread in main(). Returns how memory is bounded.
+    Raises when not even that can be arranged."""
+    import resource
+    resource.setrlimit(resource.RLIMIT_CPU, (runner.STEP_SECONDS + 20, runner.STEP_SECONDS + 20))
+    resident_bytes()                                                              # the fallback must work on this platform
+    try:
+        resource.setrlimit(resource.RLIMIT_AS, (MEMORY_LIMIT_BYTES, MEMORY_LIMIT_BYTES))
+        return "address-space"
+    except (ValueError, OSError):
+        return "resident-watchdog"
 
 
 def bounded(fn, seconds):
@@ -51,16 +88,18 @@ def main():
     if os.environ.get("STORAGE") != "local":
         return 0
     from . import store
-    lock = open(store.path().with_suffix(".lock"), "w")
+    try:
+        lock = open_lock(store.path().with_suffix(".lock"))
+    except (OSError, ValueError) as ex:
+        log.error("optional step refused: its lock file is not a plain file (%s)", type(ex).__name__)
+        return 5
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         log.info("an optional step is already running; exiting")
         return 0
     try:
-        import resource
-        resource.setrlimit(resource.RLIMIT_AS, (MEMORY_LIMIT_BYTES, MEMORY_LIMIT_BYTES))
-        resource.setrlimit(resource.RLIMIT_CPU, (runner.STEP_SECONDS + 20, runner.STEP_SECONDS + 20))
+        log.info("optional step limits: cpu, memory by %s", limit_resources())
     except Exception as ex:
         if os.environ.get("OPTIONAL_ALLOW_NO_LIMIT") != "1":
             log.error("optional step refused: could not set its resource limits (%s)", type(ex).__name__)
@@ -69,12 +108,17 @@ def main():
     signal.alarm(int(runner.STEP_SECONDS + runner.KILL_GRACE_SECONDS - 3))      # the child's own watchdog (default action ends it)
     parent = os.getppid()
 
-    def watch_parent():
+    def watchdog():
         while True:
-            time.sleep(2)
+            time.sleep(MEMORY_CHECK_SECONDS)
             if os.getppid() != parent:
                 os._exit(4)                                                       # the supervisor died: do not outlive it
-    threading.Thread(target=watch_parent, daemon=True).start()
+            try:
+                if resident_bytes() > MEMORY_LIMIT_BYTES:
+                    os._exit(6)                                                   # over the memory ceiling (every platform)
+            except Exception:
+                pass
+    threading.Thread(target=watchdog, daemon=True).start()
     deadline = time.monotonic() + runner.STEP_SECONDS
     for feature in load_features():
         left = deadline - time.monotonic()

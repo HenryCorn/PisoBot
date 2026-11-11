@@ -104,15 +104,18 @@ class Runner:
             timer.cancel()
 
     def stop(self):
-        """Shutdown: cancel the timer, kill the child's whole group and reap it (bounded). Never raises."""
+        """Shutdown: cancel the timer, kill the child's whole group and reap it (bounded). A child whose exit could not be confirmed stays
+        owned in `dying` (it is killed and checked again by every later reap or stop); it is never forgotten. Never raises."""
         try:
             self._drop_timer()
             proc, self.proc = self.proc, None
-            for p in [*( [proc] if proc is not None else []), *self.dying]:
-                self._kill_group(p)
-                with contextlib.suppress(Exception):
-                    p.wait(timeout=CONFIRM_SECONDS)
-            self.dying = []
+            waiting, self.dying = [*([proc] if proc is not None else []), *self.dying], []
+            for p in waiting:
+                try:
+                    if p.poll() is None:
+                        self._confirm(p)                 # appends to self.dying when the exit is not confirmed
+                except Exception:
+                    self.dying.append(p)
         except Exception:
             pass
 

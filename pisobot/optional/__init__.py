@@ -40,6 +40,7 @@ process is started, and the cycle is the release's.
 import dataclasses
 import datetime
 import html
+import itertools
 import os
 import re
 import threading
@@ -160,10 +161,13 @@ class Worker(threading.Thread):
         self.flag, self.loader = flag, loader
         self.feature, self.failed, self.work = None, False, False
         self.inbox, self.lock, self.wake, self.halt = deque(), threading.Lock(), threading.Event(), threading.Event()
-        self.busy_since = None
+        self.busy_since, self.inflight = None, 0
 
     # -- called from the watcher thread: data only, never waits, never calls feature code
     def offer(self, items):
+        if self.failed or self.halt.is_set():           # nobody will ever take them: count the loss now instead of keeping them
+            lost["failed"] += len(items)
+            return
         with self.lock:
             for item in items:
                 self.inbox.append([item, 0])
@@ -179,6 +183,7 @@ class Worker(threading.Thread):
     def status(self):
         busy = self.busy_since
         return {"flag": self.flag, "loaded": self.feature is not None, "failed": self.failed, "waiting": len(self.inbox),
+                "inflight": self.inflight,              # taken from the inbox, the feature has not settled them yet
                 "stuck": busy is not None and time.monotonic() - busy > STUCK_SECONDS}
 
     # -- the worker thread
@@ -189,6 +194,9 @@ class Worker(threading.Thread):
                 raise ValueError("no feature")
         except Exception:
             self.failed = True
+            with self.lock:                              # whatever was offered while it was loading can never be delivered
+                lost["failed"] += len(self.inbox)
+                self.inbox.clear()
             return
         self._refresh()
         while not self.halt.is_set():
@@ -211,16 +219,19 @@ class Worker(threading.Thread):
         now = time.time()
         with self.lock:
             taken, self.inbox = list(self.inbox), deque()
+            self.inflight = len(taken)                  # same step as leaving the inbox: never in neither
         fresh = []
         for entry in taken:
             if now - entry[0].at > MAX_AGE_SECONDS:
                 lost["expired"] += 1
             else:
                 fresh.append(entry)
+        self.inflight = len(fresh)
         return fresh
 
     def _deliver(self, entries):
         items = tuple(e[0] for e in entries)
+        self.inflight = len(items)
         self.busy_since = time.monotonic()
         try:
             result = self.feature.after_cycle(items)
@@ -248,12 +259,12 @@ class Worker(threading.Thread):
                 lost["failed"] += 1
             else:
                 retry.append(entry)
-        if retry:
-            with self.lock:
-                self.inbox.extendleft(reversed(retry))
-                while len(self.inbox) > BUFFER_LIMIT:
-                    self.inbox.pop()
-                    lost["evicted"] += 1
+        with self.lock:                                  # one step: an item is always counted in the inbox or in flight
+            self.inbox.extendleft(reversed(retry))
+            while len(self.inbox) > BUFFER_LIMIT:
+                self.inbox.pop()
+                lost["evicted"] += 1
+            self.inflight = 0
 
 
 def _ensure_workers():
@@ -284,7 +295,8 @@ def workers():
 def health():
     """What /status may show: loss counts and per-feature state. Reads only."""
     try:
-        return {"lost": dict(lost), "workers": [w.status() for w in workers()]}
+        from . import store
+        return {"lost": dict(lost), "workers": [w.status() for w in workers()], "storage": store.last_error[0]}
     except Exception:
         return {"lost": {}, "workers": []}
 
@@ -316,14 +328,14 @@ def publish_lines(feature, mapping):
     here; the whole mapping replaces that feature's previous one, atomically. Returns the number of adverts published."""
     global _snapshot
     clean = {}
-    for key, offers in list(mapping.items())[:SNAPSHOT_MAX]:
+    for key, offers in itertools.islice(mapping.items(), SNAPSHOT_MAX):     # never consumes more than the cap, whatever is supplied
         if not isinstance(key, str) or not 0 < len(key) <= 200:
             continue
         good = []
-        for offer in list(offers)[:5]:
+        for offer in itertools.islice(offers, 5):
             try:
                 priority, text = offer
-                if type(priority) is int and isinstance(text, str):
+                if type(priority) is int and isinstance(text, str) and len(text) <= 4 * LINE_MAX:
                     text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
                     if text and len(text) <= LINE_MAX:
                         good.append((priority, html.escape(text, quote=False)))
@@ -358,11 +370,13 @@ def publish_templates(feature, templates):
     dropped; the feature's previous set is replaced, atomically. Returns the number accepted."""
     global _templates
     good = []
-    for raw in list(templates)[:TEMPLATES_PER_FEATURE]:
+    for raw in itertools.islice(templates, TEMPLATES_PER_FEATURE):
         try:
             priority, field, kind, text = raw["priority"], raw["field"], raw["kind"], raw["text"]
             limit = raw.get("max_seconds", 0)
             if type(priority) is not int or type(field) is not str or type(text) is not str or kind not in TEMPLATE_KINDS:
+                continue
+            if len(text) > 4 * LINE_MAX or len(field) > 40:
                 continue
             if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", field):
                 continue
