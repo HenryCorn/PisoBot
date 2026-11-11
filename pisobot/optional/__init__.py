@@ -169,8 +169,7 @@ def after_ack(listing, person, reply, context):
         ctx = context if isinstance(context, dict) else {}
         _items.append(Item(
             _seq[0], time.time(), str(person), message_id(reply), str(ctx.get("reason", "")), str(ctx.get("state", "")),
-            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)
-            + (("receipt_token", _scalar(ctx.get("receipt_token"))),)))
+            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)))
     except Exception:
         try:
             lost["malformed"] += 1

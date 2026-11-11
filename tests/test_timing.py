@@ -1,9 +1,13 @@
 """G1 timing as the first client of the optional foundation (ALERT_TIMING=1), with the reviewer's findings fixed."""
 import datetime as dt
+import io
+import json
 import os
 import sqlite3
 import subprocess
 import sys
+import tarfile
+import tempfile
 import threading
 import time
 import unittest
@@ -118,15 +122,48 @@ class RecordingTests(TimingBase):
             self.assertIsNone(timing.FEATURE.after_cycle(items))
         self.assertEqual(len(self.rows()), len(items))
 
-    def test_receipt_identity_survives_process_instances(self):
-        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": "unique-receipt"})
+    def test_event_identity_is_stable_for_retries_and_distinct_between_processes(self):
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
         item = optional._items[-1]
         with patch.object(timing, "_INSTANCE", "first"):
             first = timing.row_for(item)["event_key"]
+            self.assertEqual(first, timing.row_for(item)["event_key"])
         with patch.object(timing, "_INSTANCE", "second"):
             second = timing.row_for(item)["event_key"]
-        self.assertEqual(first, second)
-        self.assertNotIn("unique-receipt", first)
+        self.assertNotEqual(first, second)
+        self.assertNotIn("rm:1", first)
+
+    def test_ack_hook_does_not_read_receipt_tokens(self):
+        class NoReceiptRead(dict):
+            def get(self, key, default=None):
+                if key == "receipt_token":
+                    raise AssertionError("extra receipt work on the alert path")
+                return super().get(key, default)
+
+        before = len(optional._items)
+        optional.after_ack(home(1), OWNER, None, NoReceiptRead(reason="new", state="sent"))
+        self.assertEqual(len(optional._items), before + 1)
+        self.assertNotIn("receipt_token", dict(optional._items[-1].data))
+
+    def test_pipeline_passes_no_extra_receipt_context_to_the_existing_hook(self):
+        contexts, real = [], optional.after_ack
+
+        def capture(listing, person, reply, context):
+            contexts.append(set(context))
+            return real(listing, person, reply, context)
+
+        self.full = [home(1, 1200), home(2, 1250)]
+        with patch.object(optional, "after_ack", side_effect=capture):
+            self.watcher.cycle()
+            self.settle()
+        self.assertTrue(contexts)
+        self.assertTrue(all(keys == {"reason", "state", "via"} for keys in contexts))
+
+    def test_separate_alerts_for_the_same_listing_are_not_deduplicated(self):
+        items = [optional.Item(i, time.time(), OWNER, None, "new", "sent", "head",
+                               (("key", "rm:1"), ("source", "rm"))) for i in (10001, 10002)]
+        timing.FEATURE.after_cycle(items)
+        self.assertEqual(len(self.rows()), 2)
 
     def test_existing_timing_rows_survive_the_idempotency_tables_being_added(self):
         legacy = ("CREATE TABLE IF NOT EXISTS alert_timing (id INTEGER PRIMARY KEY, source TEXT NOT NULL, "
@@ -134,7 +171,7 @@ class RecordingTests(TimingBase):
                   "sent_at TEXT NOT NULL, exclusive INTEGER)")
         self.assertTrue(store.write(legacy, [
             ("INSERT INTO alert_timing (source, reason, via, sent_at) VALUES ('rm', 'new', 'head', ?)", (iso(1),))]))
-        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": "new-receipt"})
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
         item = optional._items[-1]
         timing.FEATURE.after_cycle([item])
         timing.FEATURE.after_cycle([item])
@@ -142,12 +179,12 @@ class RecordingTests(TimingBase):
 
     def test_receipt_ack_recovery_is_recorded_after_the_cycle_without_another_alert(self):
         self.full = [home(1, 1200), home(2, 1250)]
-        original, failed, scans = archive.record_verdicts, [False], []
+        original, failed, scans = archive.record_verdicts, [None], []
         real_scan = timing.recover_receipts
 
         def fail_first_ack(chat, rows, *args, **kwargs):
             if chat == OWNER and kwargs.get("acknowledged") and not failed[0]:
-                failed[0] = True
+                failed[0] = rows[0][0]
                 raise RuntimeError("ack interrupted")
             return original(chat, rows, *args, **kwargs)
 
@@ -170,22 +207,26 @@ class RecordingTests(TimingBase):
         timing._SCAN.update(state=None, after=0)
         with patch.object(timing, "recover_receipts", side_effect=scan):
             self.watcher.cycle()
-            self.assertTrue(wait_for(lambda: len(store.read("SELECT * FROM alert_timing_unmeasured")) == 1, 5))
+            receipt = timing._seen_for(OWNER, OWNER)[failed[0]]["delivery_intent"]
+            key = timing.receipt_key(receipt)
+            self.assertTrue(wait_for(lambda: store.read(
+                "SELECT event_key FROM alert_timing_unmeasured WHERE event_key = ?", (key,)), 5))
             self.settle()
         self.assertEqual(self.sent, sent)
         self.assertEqual(len(self.rows()), 1)
         self.assertTrue(scans and all(count == len(sent) for count in scans))
-        self.assertIn("recorded without an available send time", "\n".join(timing.status_lines()))
+        self.assertIn("without a verifiable timing link", "\n".join(timing.status_lines()))
 
-    def test_a_later_timed_event_replaces_the_unmeasured_receipt(self):
+    def test_a_timed_event_does_not_falsely_correlate_an_unlinked_receipt(self):
         token = "unique-receipt"
         key = timing.receipt_key(token)
         self.assertTrue(store.write(timing.DDL, [
             ("INSERT INTO alert_timing_unmeasured (event_key, source, observed_at) VALUES (?, ?, ?)", (key, "rm", iso(0)))]))
-        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent", "receipt_token": token})
+        optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
         timing.FEATURE.after_cycle([optional._items[-1]])
         self.assertEqual(len(self.rows()), 1)
-        self.assertEqual(store.read("SELECT * FROM alert_timing_unmeasured"), [])
+        self.assertEqual(len(store.read("SELECT * FROM alert_timing_unmeasured WHERE event_key = ?", (key,))), 1)
+        self.assertIn("may be older or overlap timed alerts", "\n".join(timing.status_lines()))
 
     def test_receipt_recovery_pages_through_bounded_work_without_starvation(self):
         rows = [{"rid": n, "chat_id": OWNER, "key": f"rm:{n}", "intent_id": f"token-{n}", "source": "rm"}
@@ -211,6 +252,55 @@ class RecordingTests(TimingBase):
                 patch.object(timing, "_seen_for", return_value=seen):
             timing.recover_receipts(now=NOW)
         self.assertEqual(store.read("SELECT * FROM alert_timing_unmeasured"), [])
+
+    def test_a_bad_seen_file_does_not_block_other_people_and_is_retried(self):
+        rows = [{"rid": 1, "chat_id": "bad", "key": "rm:1", "intent_id": "one", "source": "rm"},
+                {"rid": 2, "chat_id": OWNER, "key": "rm:2", "intent_id": "two", "source": "rm"}]
+        seen = {"bad": {"rm:1": {"delivery_intent": "one"}}, OWNER: {"rm:2": {"delivery_intent": "two"}}}
+
+        def partial(chat, owner):
+            if chat == "bad":
+                raise ValueError("seen file too large")
+            return seen[chat]
+
+        with patch.object(store, "read_primary_checked", return_value=(rows, None)), \
+                patch.object(timing, "_seen_for", side_effect=partial), self.assertLogs("pisobot.timing", level="WARNING"):
+            timing.FEATURE.after_cycle(())
+        keys = {row["event_key"] for row in store.read("SELECT event_key FROM alert_timing_unmeasured")}
+        self.assertEqual(keys, {timing.receipt_key("two")})
+        self.assertIn("receipt recovery unavailable", "\n".join(timing.status_lines()))
+        with patch.object(store, "read_primary_checked", return_value=(rows, None)), \
+                patch.object(timing, "_seen_for", side_effect=lambda chat, owner: seen[chat]):
+            timing.FEATURE.after_cycle(())
+        keys = {row["event_key"] for row in store.read("SELECT event_key FROM alert_timing_unmeasured")}
+        self.assertEqual(keys, {timing.receipt_key("one"), timing.receipt_key("two")})
+        self.assertEqual(timing.stats["recovery_error"], "")
+
+    def test_receipt_file_failure_remains_visible_until_a_complete_clean_scan(self):
+        rows = [{"rid": 1, "chat_id": "bad", "key": "rm:1", "intent_id": "one", "source": "rm"},
+                {"rid": 2, "chat_id": OWNER, "key": "rm:2", "intent_id": "two", "source": "rm"}]
+        seen = {"bad": {"rm:1": {"delivery_intent": "one"}}, OWNER: {"rm:2": {"delivery_intent": "two"}}}
+        broken = [True]
+
+        def page(sql, params):
+            return [row for row in rows if row["rid"] > params[0]][:params[2]], None
+
+        def read_seen(chat, owner):
+            if chat == "bad" and broken[0]:
+                raise ValueError("unreadable seen")
+            return seen[chat]
+
+        with patch.object(timing, "RECOVERY_PAGE", 1), patch.object(store, "read_primary_checked", side_effect=page), \
+                patch.object(timing, "_seen_for", side_effect=read_seen), self.assertLogs("pisobot.timing", level="WARNING"):
+            timing.FEATURE.after_cycle(())
+            self.assertTrue(timing.stats["recovery_error"])
+            timing.FEATURE.after_cycle(())
+            self.assertTrue(timing.stats["recovery_error"])
+            broken[0] = False
+            timing.FEATURE.after_cycle(())
+            self.assertTrue(timing.stats["recovery_error"])
+            timing.FEATURE.after_cycle(())
+        self.assertEqual(timing.stats["recovery_error"], "")
 
     def test_receipt_recovery_failure_is_reported_and_retried(self):
         with patch.object(store, "read_primary_checked", return_value=(None, sqlite3.OperationalError("busy"))), \
@@ -278,6 +368,54 @@ assert 'pisobot.timing' not in sys.modules
 """
         child = subprocess.run([sys.executable, "-c", code], cwd=test_optional.ROOT, capture_output=True, text=True, timeout=15)
         self.assertEqual(child.returncode, 0, child.stderr)
+
+    def test_disabled_fresh_process_matches_the_release_trace_and_state(self):
+        release = "3be20c6a848171e711567f30b1cdfd580723ac93"
+        try:
+            snapshot = subprocess.check_output(["git", "archive", release, "pisobot", "worker/schema.sql"], cwd=test_optional.ROOT,
+                                               stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.skipTest("pinned release is not available locally")
+        code = """
+import importlib, json, os, sys, types
+if os.environ.get("RELEASE_FIXTURE") == "1":
+    optional = types.ModuleType("pisobot.optional")
+    optional.__path__ = []
+    optional.reset = lambda: None
+    optional.runner = types.ModuleType("pisobot.optional.runner")
+    optional.runner.RUNNER = types.SimpleNamespace(proc=None)
+    optional.store = types.ModuleType("pisobot.optional.store")
+    sys.modules["pisobot.optional"] = optional
+    sys.modules["pisobot.optional.runner"] = optional.runner
+    sys.modules["pisobot.optional.store"] = optional.store
+from pisobot import main
+assert os.path.realpath(main.__file__).startswith(os.path.realpath(os.getcwd()) + os.sep)
+from test_optional import OffIsTheReleaseTests
+case = OffIsTheReleaseTests("test_the_ordered_trace_and_every_persons_state_are_identical_to_the_releases_with_nothing_enabled")
+try:
+    case.setUp()
+    if os.environ.get("RELEASE_FIXTURE") != "1":
+        from pisobot import registry_loader
+        importlib.reload(registry_loader)
+    trace = case.scenario(False)
+finally:
+    case.doCleanups()
+print(json.dumps(trace, sort_keys=True))
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            with tarfile.open(fileobj=io.BytesIO(snapshot)) as archive_file:
+                archive_file.extractall(directory, filter="data")
+            results = []
+            for root, is_release in ((directory, True), (str(test_optional.ROOT), False)):
+                env = dict(os.environ, ALERT_TIMING="0", PYTHONDONTWRITEBYTECODE="1",
+                           RELEASE_FIXTURE="1" if is_release else "0")
+                env["PYTHONPATH"] = os.pathsep.join((root, str(test_optional.ROOT / "tests"), os.environ.get("PYTHONPATH", "")))
+                child = subprocess.run([sys.executable, "-c", code], cwd=root, env=env, capture_output=True, text=True, timeout=30)
+                self.assertEqual(child.returncode, 0, child.stderr)
+                results.append(json.loads(child.stdout))
+        self.assertTrue(any(event[0] == "telegram" for event in results[1][0]))
+        self.assertEqual(results[0], results[1])
+        self.assertNotIn("optional.db", results[1][1])
 
     def test_status_never_creates_the_file_or_the_table(self):
         self.assertEqual(timing.status_lines(), [])

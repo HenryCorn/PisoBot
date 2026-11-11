@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS alert_timing_unmeasured_observed ON alert_timing_unme
 """
 stats = {"retried": 0, "written": 0, "recovery_error": "", "recovery_more": False}
 _INSTANCE = uuid.uuid4().hex
-_SCAN = {"state": None, "after": 0}
+_SCAN = {"state": None, "after": 0, "had_error": False}
 
 
 def _now():
@@ -69,8 +69,7 @@ def row_for(item):
     if item.state != "sent":
         return None
     exclusive = item.get("exclusive")
-    token = item.get("receipt_token")
-    event_key = receipt_key(token) if type(token) is str and token else f"instance:{_INSTANCE}:{item.seq}"
+    event_key = f"instance:{_INSTANCE}:{item.seq}"
     return {"key": item.get("key"), "source": item.get("source"), "reason": item.reason or "new", "via": item.via or "head",
             "listed_at": item.get("first_listed_at"), "exclusive": None if exclusive is None else int(bool(exclusive)),
             "sent_at": dt.datetime.fromtimestamp(item.at, dt.timezone.utc).isoformat(timespec="seconds"), "seq": item.seq,
@@ -103,7 +102,6 @@ def write_rows(rows, now=None):
                                 r["exclusive"], r["event_key"])))
             statements.append(("INSERT OR IGNORE INTO alert_timing_keys (event_key, sent_at) VALUES (?, ?)",
                                (r["event_key"], r["sent_at"])))
-            statements.append(("DELETE FROM alert_timing_unmeasured WHERE event_key = ?", (r["event_key"],)))
         statements.append(("DELETE FROM alert_timing WHERE sent_at < ?", (cutoff,)))
         statements.append(("DELETE FROM alert_timing_keys WHERE sent_at < ?", (cutoff,)))
         statements.append(("DELETE FROM alert_timing_unmeasured WHERE observed_at < ?", (cutoff,)))
@@ -132,11 +130,13 @@ def _seen_for(chat, owner):
 
 
 def recover_receipts(now=None):
-    """Find settled receipt tokens not recorded by the hook, without inventing their send times."""
+    """Record settled receipt tokens with no verifiable timing link, without inventing their send times."""
     from . import localdb, users
     state = str(localdb.state_dir())
     if _SCAN["state"] != state:
-        _SCAN.update(state=state, after=0)
+        _SCAN.update(state=state, after=0, had_error=False)
+    if not _SCAN["after"]:
+        _SCAN["had_error"] = False
     owner = users.owner_chat() or "owner"
     rows, error = store.read_primary_checked(
         "SELECT w.rowid AS rid, w.chat_id, w.key, w.intent_id, a.source FROM advert_work w "
@@ -153,8 +153,16 @@ def recover_receipts(now=None):
             if len(people) >= RECOVERY_PEOPLE:
                 more = True
                 break
-            people[chat] = _seen_for(chat, owner)
+            try:
+                people[chat] = _seen_for(chat, owner)
+            except (OSError, ValueError, RecursionError) as ex:
+                people[chat] = None
+                _SCAN["had_error"] = True
+                stats["recovery_error"] = type(ex).__name__
+                log.warning("timing receipt file unavailable (%s)", type(ex).__name__)
         processed.append(row)
+        if people[chat] is None:
+            continue
         receipt = people[chat].get(row["key"])
         token = receipt.get("delivery_intent") if type(receipt) is dict else None
         if (type(token) is str and 0 < len(token) <= 128
@@ -185,6 +193,8 @@ def recover_receipts(now=None):
                 raise RuntimeError("receipt recovery write failed")
     _SCAN["after"] = processed[-1]["rid"] if more and processed else 0
     stats["recovery_more"] = more
+    if not more and not _SCAN["had_error"]:
+        stats["recovery_error"] = ""
 
 
 class Feature:
@@ -196,7 +206,6 @@ class Feature:
         left = write_rows(rows) if rows else []
         try:
             recover_receipts()
-            stats["recovery_error"] = ""
         except Exception as ex:
             stats["recovery_error"] = type(ex).__name__
             log.warning("timing receipt recovery failed (%s)", type(ex).__name__)
@@ -306,7 +315,8 @@ def status_lines(now=None):
     unmeasured, recovery_read_error = unmeasured_count(now)
     if unmeasured:
         prefix = "• " if lines else "\n<b>Alert delay</b>: "
-        lines.append(f"{prefix}{unmeasured} acknowledged receipt(s) recorded without an available send time")
+        lines.append(f"{prefix}{unmeasured} receipt(s) noticed by recovery in the last {WINDOW_DAYS} days without a verifiable "
+                     "timing link; these may be older or overlap timed alerts")
     if recovery_read_error or stats["recovery_error"]:
         prefix = "• " if lines else "\n<b>Alert delay</b>: "
         lines.append(prefix + "receipt recovery unavailable; it will retry after a cycle")
