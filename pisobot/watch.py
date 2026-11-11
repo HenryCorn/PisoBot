@@ -1,5 +1,6 @@
 """Single-process rental scheduler and Telegram long-polling service."""
 import argparse
+import contextlib
 import datetime as dt
 import json
 import logging
@@ -7,12 +8,15 @@ import os
 import queue
 import random
 import signal
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
 
 from requests import RequestException
 
-from . import archive, cache, config, d1, epc, main as pipeline, net, sweep, telegram, users
+from . import archive, cache, config, d1, facts, main as pipeline, net, sweep, telegram, users
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +44,8 @@ class Watcher:
         self.pending = queue.Queue(maxsize=1)
         self.guard = threading.Lock()
         self.running = False
+        self._facts_proc = None       # the supervised post-alert facts step (a child process), if one is running
+        self._facts_started = 0.0
 
     def request_run(self, kind, chat_id=None):
         """chat_id: who asked for a report; None is the owner. Scans always cover everyone."""
@@ -53,6 +59,7 @@ class Watcher:
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
         """Share identical portal searches, then apply each person's criteria and delivery."""
+        facts.purge_expired()        # retention for the optional features' stored data: whether or not this cycle succeeds
         people = users.everyone()
         report_chat = str(chat_id) if chat_id is not None else people[0].chat_id
         totals, errors = {"matches": 0, "complete": True, "people": {}, "degraded": 0}, []
@@ -109,7 +116,6 @@ class Watcher:
             raise RuntimeError("Rental cycle incomplete: source or enrichment failures")
         if not dry_run:
             _put_meta("watch_last_success", dt.datetime.now(dt.timezone.utc).isoformat())
-            epc.purge_expired()          # retention for certificate/address rows: independent of use, no-op when never used
             # Loop/source liveness is separate from lookup health. A successful heartbeat
             # must not hide an enrichment outage, including sweep-only inventory.
             retries = sum(archive.lookup_degraded(p.chat_id or users.owner_chat() or "owner",
@@ -126,6 +132,35 @@ class Watcher:
                 except RequestException as ex:
                     log.error("Healthcheck failed (%s)", type(ex).__name__)
         return totals
+
+    def start_facts_step(self):
+        """After a cycle's sends are complete (never inside a sweep slice): if optional facts are wanted and no step is running,
+        start the supervised child (`python -m pisobot.facts`). It takes no run lock and cannot block the next cycle."""
+        if not facts.enabled() or self.reap_facts() == "running" or not facts.pending():
+            return
+        try:
+            self._facts_proc = subprocess.Popen([sys.executable, "-m", "pisobot.facts"], stdin=subprocess.DEVNULL,
+                                                cwd=str(Path(__file__).resolve().parents[1]))
+            self._facts_started = time.monotonic()
+        except OSError as ex:
+            log.warning("facts step could not start (%s)", type(ex).__name__)
+
+    def reap_facts(self):
+        """Collect a finished facts step, or kill one that outlived its budget (a hung read). Returns "running" or None."""
+        proc = self._facts_proc
+        if proc is None:
+            return None
+        if proc.poll() is not None:
+            self._facts_proc = None
+            return None
+        if time.monotonic() - self._facts_started > facts.STEP_SECONDS + 15:
+            log.warning("facts step exceeded its budget; killed (its rows wait for the next step)")
+            with contextlib.suppress(Exception):
+                proc.kill()
+                proc.wait(timeout=5)
+            self._facts_proc = None
+            return None
+        return "running"
 
     def _person_cycle(self, kind, prefetched, stop_event, dry_run, alert_budget=None):
         person = users.current()
@@ -214,6 +249,7 @@ class Watcher:
         next_cycle = time.monotonic()
         try:
             while not stop_event.is_set():
+                self.reap_facts()
                 remaining = max(0, next_cycle - time.monotonic())
                 try:
                     kind, chat_id = self.pending.get(timeout=min(remaining, 1))
@@ -241,9 +277,13 @@ class Watcher:
                 finally:
                     with self.guard:
                         self.running = False
+                self.start_facts_step()
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
         finally:
             stop_event.set()
+            if self._facts_proc is not None:
+                with contextlib.suppress(Exception):
+                    self._facts_proc.kill()
             listener.join(timeout=40)
         if poll_errors:
             raise RuntimeError("Telegram listener failed; service restart required")

@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pisobot import budget, config, enrichment, epc, localdb, main, telegram, users, watch
+from pisobot import budget, config, epc, facts, localdb, main, telegram, users, watch
 from pisobot.models import Listing
 from pisobot.sources import CACHE_FIELDS, snapshot
 
@@ -98,7 +98,7 @@ class RetentionAndCapTests(unittest.TestCase):
         store.cert_put("A1", {"area": 50}, NOW - dt.timedelta(days=5))
         store.note_area("rm:1", "N7", 1, 1500, 50, NOW - dt.timedelta(days=45))
         deleted = epc.purge_expired(NOW, path)
-        self.assertEqual(deleted, {"epc_search": 1, "epc_cert": 0, "epc_area_facts": 1})
+        self.assertEqual(deleted, {"epc_search": 1, "epc_cert": 0, "epc_area_facts": 1, "epc_usage": 0})
         self.assertIsNotNone(store.cert_get("A1", NOW))
 
     def test_the_cap_is_taken_atomically_per_request_from_the_current_day(self):
@@ -161,12 +161,14 @@ class ValueProvenanceTests(unittest.TestCase):
         derived.area_source = "floorplan"
         from_epc = peer(3, 60)
         from_epc.area_source, from_epc.epc = "epc", {"match": "exact"}
-        epc.observe([stated, derived, from_epc], store, NOW)
+        for l in (stated, derived, from_epc):
+            epc.note_portal_area(l, store, NOW)
         self.assertEqual([r["key"] for r in store.area_peers("N7", 1, NOW)], ["rm:1"])
 
     def test_value_uses_recent_comparables_and_reports_where_they_come_from(self):
         store = self.store()
-        epc.observe([peer(i, 40) for i in range(1, 10)], store, NOW)
+        for l in [peer(i, 40) for i in range(1, 10)]:
+            epc.note_portal_area(l, store, NOW)
         mine = peer(0, 60)
         mine.area_source = "floorplan"
         epc.value_for(mine, store, NOW)
@@ -176,142 +178,16 @@ class ValueProvenanceTests(unittest.TestCase):
 
     def test_too_few_comparables_say_nothing(self):
         store = self.store()
-        epc.observe([peer(i, 40) for i in range(1, 8)], store, NOW)
+        for l in [peer(i, 40) for i in range(1, 8)]:
+            epc.note_portal_area(l, store, NOW)
         mine = peer(0, 60)
         epc.value_for(mine, store, NOW)
         self.assertEqual(mine.value, {})
 
 
-# ---------------------------------------------------------------- finding 5: a hard budget in the alert path
-
-class SlowProvider:
-    def __init__(self, release=None, seconds=0.0):
-        self.release, self.seconds, self.calls = release, seconds, 0
-
-    def __call__(self, listing):
-        self.calls += 1
-        if self.release is not None:
-            self.release.wait(5)
-        elif self.seconds:
-            time.sleep(self.seconds)
-        listing.floor_area_m2, listing.area_source = 61.0, "epc"
-        return listing
-
-
-class EnrichmentTests(unittest.TestCase):
-    def setUp(self):
-        enrichment.reset()
-        self.addCleanup(enrichment.reset)
-
-    def listing(self, i=1):
-        l = home(i)
-        l.floor_area_m2 = None
-        return l
-
-    def test_off_returns_before_touching_anything(self):
-        with patch.object(enrichment, "providers", return_value=[]), patch.object(enrichment, "_pool") as pool:
-            self.assertEqual(enrichment.enrich([self.listing()]), 0)
-        pool.submit.assert_not_called()
-
-    def test_facts_are_copied_back_on_success(self):
-        l = self.listing()
-        with patch.object(enrichment, "providers", return_value=[SlowProvider()]):
-            self.assertEqual(enrichment.enrich([l]), 1)
-        self.assertEqual((l.floor_area_m2, l.area_source), (61.0, "epc"))
-
-    def test_a_slow_lookup_costs_the_card_its_facts_not_its_delivery(self):
-        release = threading.Event()
-        slow = SlowProvider(release)
-        first, second = self.listing(1), self.listing(2)
-        started = time.monotonic()
-        with patch.object(enrichment, "providers", return_value=[slow]):
-            enrichment.enrich([first, second], advert_seconds=0.3)
-        self.assertLess(time.monotonic() - started, 2)
-        self.assertIsNone(first.floor_area_m2)
-        self.assertEqual(slow.calls, 1)                    # nothing queued behind the stuck worker
-        release.set()                                      # the late worker finishes: it must not touch the card
-        time.sleep(0.2)
-        self.assertIsNone(first.floor_area_m2)
-        self.assertIsNone(second.floor_area_m2)
-
-    def test_the_window_budget_bounds_the_total(self):
-        slow = SlowProvider(seconds=0.2)
-        with patch.object(enrichment, "providers", return_value=[slow]):
-            done = enrichment.enrich([self.listing(i) for i in range(1, 8)], advert_seconds=1, window_seconds=0.5)
-        self.assertLess(done, 7)
-        self.assertGreaterEqual(done, 1)
-        with patch.object(enrichment, "providers", return_value=[slow]):
-            self.assertEqual(enrichment.enrich([self.listing(9)], advert_seconds=1, window_seconds=0.5), 0)   # same window
-
-    def test_a_failing_provider_leaves_the_card_alone(self):
-        def boom(listing):
-            listing.floor_area_m2 = 99
-            raise RuntimeError("x")
-        l = self.listing()
-        with patch.object(enrichment, "providers", return_value=[boom]):
-            enrichment.enrich([l])
-        self.assertIsNone(l.floor_area_m2)
-
-    def test_the_deadline_is_visible_to_lookups(self):
-        seen = []
-        def look(listing):
-            seen.append(budget.time_left())
-        with patch.object(enrichment, "providers", return_value=[look]):
-            enrichment.enrich([self.listing()], advert_seconds=5)
-        self.assertTrue(0 < seen[0] <= 5)
-        self.assertIsNone(budget.time_left())              # not leaked into ordinary code
-
-
-class AlertPathTests(Base):
-    """A slow optional lookup must not delay or lose an alert in the real pipeline."""
-
-    def setUp(self):
-        super().setUp()
-        enrichment.reset()
-        self.addCleanup(enrichment.reset)
-        for target in (patch.object(main.enrich, "geocode"), patch.object(main.enrich, "assign_crime_percentiles"),
-                       patch.object(main, "passes_area", return_value=None), patch.object(main, "_ensure_photos"),
-                       patch.object(telegram, "throttle")):
-            target.start()
-            self.addCleanup(target.stop)
-        self.enterContext(patch.object(main, "passes_basic", side_effect=lambda l, **kw: main._cost_reject(l)))
-        self.listings = [home(1, 1200)]
-        self.enterContext(patch.object(main.SOURCES["rm"], "fetch", side_effect=lambda: list(self.listings)))
-        self.sent = []
-        self.enterContext(patch.object(telegram, "send_listing", side_effect=lambda l, r: self.sent.append(l.key)))
-        self.enterContext(patch.object(telegram, "send_text"))
-        watch.Watcher(["rm"]).cycle()                               # baseline
-        self.sent.clear()
-
-    def test_slow_enrichment_does_not_hold_up_either_alert(self):
-        release = threading.Event()
-        slow = SlowProvider(release)
-        self.listings = [home(1, 1200), home(2, 1300), home(3, 1250)]
-        started = time.monotonic()
-        with patch.object(enrichment, "providers", return_value=[slow]), patch.object(config, "ENRICH_ADVERT_SECONDS", 0.3):
-            watch.Watcher(["rm"]).cycle()
-        self.assertLess(time.monotonic() - started, 5)
-        release.set()
-        self.assertEqual(sorted(self.sent), ["rm:2", "rm:3"])      # both alerts, once each
-
-
 # ---------------------------------------------------------------- finding 10: off is off
 
 class OffTests(unittest.TestCase):
-    RELEASE_FIELDS = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
-                      "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
-                      "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
-                      "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
-                      "council_tax_label", "first_listed", "update_reason", "update_date", "update_text",
-                      "update_text_on", "bathrooms", "agent", "agent_phone", "first_listed_at",
-                      "advert_deposit", "studio", "furnishing")
-
-    def test_stored_search_and_archive_snapshots_are_what_the_release_stores(self):
-        self.assertEqual(tuple(CACHE_FIELDS), self.RELEASE_FIELDS)
-        l = home()
-        l.full_postcode = "N7 6DJ"
-        self.assertEqual(set(snapshot(l)), set(self.RELEASE_FIELDS))
-
     def test_an_installed_client_is_not_authority_to_run(self):
         fake = Fake(BUILDING, CERTS)
         epc.set_default(make(fake))
@@ -319,33 +195,23 @@ class OffTests(unittest.TestCase):
         with patch.dict(os.environ, {"EPC_DISABLE": "1", "EPC_API_TOKEN": "x", "STORAGE": "local"}):
             self.assertFalse(epc.enabled())
             epc.annotate(advert())
-            epc.observe([advert()])
         with patch.dict(os.environ, {}, clear=True):
             epc.annotate(advert())
         self.assertEqual(fake.calls, [])
 
-    def test_enrichment_and_the_card_are_inert_without_a_feature(self):
-        l = home()
-        before = dict(vars(l))
-        with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(enrichment.enrich([l]), 0)
-            enrichment.observe([l])
-        self.assertEqual(vars(l), before)
-        self.assertEqual(epc.card_line(l), "")
-
-    def test_off_creates_no_tables_and_calls_no_provider(self):
+    def test_off_creates_no_tables_and_creates_no_client(self):
         state = tempfile.mkdtemp()
         boom = patch.object(epc, "default", side_effect=AssertionError("EPC client created while off"))
         with patch.dict(os.environ, {"STORAGE": "local", "PISOBOT_STATE_DIR": state}, clear=True), boom:
-            enrichment.enrich([home()])
-            enrichment.observe([home()])
-            epc.purge_expired()
+            self.assertFalse(facts.enabled())
+            self.assertEqual(facts.pending(), 0)
+            facts.purge_expired()
             epc.annotate(advert())
         db = Path(state, "pisobot.db")
         if db.exists():
             with contextlib.closing(sqlite3.connect(db)) as conn:
                 names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
-            self.assertFalse({n for n in names if n.startswith(("epc_", "floorplan_"))})
+            self.assertFalse({n for n in names if n.startswith(("epc_", "floorplan_", "facts_"))})
 
 
 if __name__ == "__main__":

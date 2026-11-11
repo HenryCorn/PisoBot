@@ -38,6 +38,8 @@ DAILY_LIMIT = config._env("EPC_DAILY_LIMIT", 1500, int)         # API requests p
 MAX_CERTS_PER_POSTCODE = config._env("EPC_MAX_CERTS", 60, int)  # certificates read to compare one postcode
 PAUSE_SECONDS = config._env("EPC_PAUSE_SECONDS", 0.25)
 TIMEOUT = 20
+BUSY_SECONDS = 0.25              # every write in the optional post-alert step waits at most this long, then is skipped
+MAX_RESPONSE_BYTES = 5_000_000   # an API response larger than this is refused (read streamed, never buffered whole)
 MAX_CERT_AGE_YEARS = 12          # a certificate is valid for ten years; older ones are not trusted
 RANGE_MIN_CANDIDATES = 2
 RANGE_TOLERANCE_ABS = 5.0        # m2: spread (max - min) allowed ...
@@ -55,7 +57,7 @@ CREATE TABLE IF NOT EXISTS epc_area_facts (
     key TEXT PRIMARY KEY, outcode TEXT NOT NULL, bedrooms INTEGER NOT NULL, rent REAL NOT NULL,
     area REAL NOT NULL, at TEXT NOT NULL);
 """
-RETENTION_TABLES = (("epc_search", "fetched_at"), ("epc_cert", "fetched_at"), ("epc_area_facts", "at"))
+RETENTION_TABLES = (("epc_search", "fetched_at"), ("epc_cert", "fetched_at"), ("epc_area_facts", "at"), ("epc_usage", "day"))
 PURGE_EVERY = dt.timedelta(hours=1)
 AREA_FACT_DAYS = 14              # comparables are portal-stated adverts seen in the last two weeks
 
@@ -167,9 +169,9 @@ class Store:
         try:
             path = self.path or localdb.database_path()
             os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-            with contextlib.closing(sqlite3.connect(path, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
+            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
                 db.row_factory = sqlite3.Row
-                db.execute(f"PRAGMA busy_timeout = {localdb.BUSY_TIMEOUT_MS}")
+                db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
                 db.executescript(DDL)
                 with db:
                     yield db
@@ -311,9 +313,21 @@ class Epc:
     @staticmethod
     def _http(url, params, headers):
         import requests          # plain client: no scraping proxy is needed or wanted for an official API
-        r = requests.get(url, params=params, headers=headers, timeout=budget.timeout(TIMEOUT))
+        started = time.monotonic()
+        r = requests.get(url, params=params, headers=headers, timeout=budget.timeout(TIMEOUT), stream=True)
         try:
-            body = r.json()
+            chunks, size = [], 0
+            for chunk in r.iter_content(65536):
+                size += len(chunk)
+                if size > MAX_RESPONSE_BYTES:
+                    raise ValueError("response too large")
+                if budget.expired() or time.monotonic() - started > TIMEOUT * 2:
+                    raise TimeoutError("response too slow")
+                chunks.append(chunk)
+        finally:
+            r.close()
+        try:
+            body = json.loads(b"".join(chunks))
         except ValueError:
             body = None
         return r.status_code, body
@@ -430,6 +444,14 @@ def exact_compatible(listing, cert, advert_flat_like):
     return True
 
 
+def range_compatible(cert, advert_flat_like):
+    """The same dwelling-type evidence as the exact path (address AND description): a flat advert is compared only with
+    flats (never houses), an advert that reads as a house only with houses."""
+    if advert_flat_like:
+        return cert.get("flat") is not False
+    return cert.get("flat") is not True
+
+
 def match(listing, postcode, epc, today=None):
     """Result dict: {'match': 'exact'|'range'|'none', ...}. Raises Unavailable when the service cannot answer."""
     today = today or dt.date.today()
@@ -468,12 +490,10 @@ def match(listing, postcode, epc, today=None):
         return {"match": "none", "reason": f"{len(pool)} certificates at this postcode: too many to compare",
                 "postcode": postcode}
     rooms = compatible_rooms(listing.bedrooms, getattr(listing, "studio", False))
-    wants_flat = bool(re.search(r"\b(?:flat|apartment|maisonette|studio)\b", listing.description[:200], re.I)
-                      or advert["flat"])
     certs = []
     for s in pool:
         c = epc.certificate(s["certificateNumber"])
-        if c.get("area") and c.get("rooms") in rooms and (not wants_flat or c.get("flat") is not False):
+        if c.get("area") and c.get("rooms") in rooms and range_compatible(c, advert_flat_like):
             certs.append(c)
     if len(certs) < RANGE_MIN_CANDIDATES:
         return {"match": "none", "reason": "no unique certificate and too few of a compatible size",
@@ -570,20 +590,16 @@ def _peer_listing(row, district, bedrooms):
                            floor_area_m2=row["area"], area_source="advert", epc={})
 
 
-def observe(listings, store=None, now=None):
-    """Remember the area the PORTAL stated for each private rental (after its details page), so later adverts can be
-    compared with them. No network. Derived areas are never recorded. Never raises; off when disabled."""
+def note_portal_area(listing, store=None, now=None):
+    """Remember the area the PORTAL stated for this advert as a comparable for later ones. Called only from the post-alert step
+    (never in the alert path, never in a dry run); derived areas are never recorded. Never raises."""
     try:
-        if store is None and not enabled():
-            return
-        store = store or default().store
-        now = now or dt.datetime.now(dt.timezone.utc)
-        for l in listings:
-            if l.tenure == "rent" and l.rent and l.floor_area_m2 and l.outcode and \
-                    getattr(l, "area_source", None) in (None, "advert") and not getattr(l, "epc", None):
-                store.note_area(l.key, l.outcode, l.bedrooms, l.rent, l.floor_area_m2, now)
+        if listing.tenure == "rent" and listing.rent and listing.floor_area_m2 and listing.outcode and \
+                getattr(listing, "area_source", None) in (None, "advert") and not getattr(listing, "epc", None):
+            (store or default().store).note_area(listing.key, listing.outcode, listing.bedrooms, listing.rent,
+                                                 listing.floor_area_m2, now or dt.datetime.now(dt.timezone.utc))
     except Exception as ex:
-        log.warning("epc: observe failed (%s)", type(ex).__name__)
+        log.warning("epc: comparable not recorded (%s)", type(ex).__name__)
 
 
 def value_for(listing, store=None, now=None):
@@ -617,7 +633,7 @@ def purge_expired(now=None, path=None):
             if not os.path.exists(path):
                 return {}
             deleted = {}
-            with contextlib.closing(sqlite3.connect(path, timeout=localdb.BUSY_TIMEOUT_MS / 1000)) as db:
+            with contextlib.closing(sqlite3.connect(path, timeout=BUSY_SECONDS)) as db:
                 have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
                 cutoff = (now - dt.timedelta(days=CACHE_DAYS)).isoformat()
                 with db:

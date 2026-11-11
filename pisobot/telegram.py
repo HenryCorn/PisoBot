@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, epc, net, ranking, tgtext, users
+from . import collage, config, net, ranking, tgtext, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -219,9 +219,6 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines = [head + "<b>" + " · ".join(title) + (" " + e(flags) if flags else "") + "</b>"]
     lines += finance_lines(l)
     lines.append(facts_line(l))
-    epc_line = epc.card_line(l)      # G2: floor area / value / energy band, empty when off
-    if epc_line:
-        lines.append(e(epc_line))
     if portal_line(l):
         lines.append(portal_line(l))
     if move_in_line(l):
@@ -345,6 +342,13 @@ def send_text(text, reply_markup=None, silent=False, loud=False):
             data["disable_notification"] = "true"
         result = _call("sendMessage", **data, **({"loud": True} if loud else {}))
     return result
+
+
+def send_reply(chat_id, message_id, text):
+    """A short, silent, threaded reply to an already-sent card (optional facts about the home, facts.py). Works whether the
+    card is a photo with a caption or a text message; if the card has gone Telegram still posts it (allow_sending_without_reply)."""
+    return _call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML", disable_web_page_preview="true",
+                 disable_notification="true", reply_to_message_id=message_id, allow_sending_without_reply="true")
 
 
 def send_photo_bytes(jpeg, caption="", reply_markup=None, loud=False):
