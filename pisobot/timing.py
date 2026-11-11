@@ -1,6 +1,7 @@
 """How late are the alerts? (G1, on the optional foundation; switched on by ALERT_TIMING=1.)
 
-One row per alert Telegram accepted (VPS, STORAGE=local), in the optional features' OWN database (optional.db), never the primary one:
+Best-effort records of accepted alerts (VPS, STORAGE=local), in the optional features' OWN database (optional.db), never the primary one.
+Receipt recovery cannot prove that every accepted alert has a timing row or correlate recovered receipts with those rows.
 
   listed_at       the portal's own full listing timestamp (Rightmove firstVisibleDate), when it gives one
   first_fetch_at  when this bot first fetched the advert (the archive's first_seen, read from the primary database read-only)
@@ -77,20 +78,27 @@ def row_for(item):
 
 
 def first_seen(keys):
-    out = {}
+    out, failed = {}, set()
+    last_error = None
     for key in set(keys):
-        found = store.read_primary("SELECT first_seen FROM adverts WHERE key = ?", (key,))
-        if found:
+        found, error = store.read_primary_checked("SELECT first_seen FROM adverts WHERE key = ?", (key,))
+        if error is not None:
+            failed.add(key)
+            last_error = error
+        elif found:
             out[key] = found[0]["first_seen"]
-    return out
+    if failed:
+        log.warning("timing first-sight lookup failed for %s advert(s) (%s); retrying", len(failed), type(last_error).__name__)
+    return out, failed
 
 
 def write_rows(rows, now=None):
     """Write rows (a small batch per transaction) and apply retention in the same transaction. Returns the rows NOT written."""
     now = now or _now()
     cutoff = (now - dt.timedelta(days=RETENTION_DAYS)).isoformat(timespec="seconds")
-    seen = first_seen(r["key"] for r in rows)
-    left = []
+    seen, failed = first_seen(r["key"] for r in rows)
+    left = [r for r in rows if r["key"] in failed]
+    rows = [r for r in rows if r["key"] not in failed]
     for start in range(0, len(rows), BATCH):
         chunk = rows[start:start + BATCH]
         statements = []
@@ -297,6 +305,8 @@ def status_lines(now=None):
     if not enabled():
         return []
     from . import optional
+    if not optional.execution_available():
+        return [f"\n<b>Alert delay</b>: unavailable ({optional.ISOLATION_REFUSAL})"]
     now = now or _now()
     data = report(now=now)
     lines = []
@@ -311,7 +321,9 @@ def status_lines(now=None):
             portal = (f"{_fmt(r['portal_median'])} / {_fmt(r['portal_p90'])} from the portal's listing time ({r['portal_n']} timed)"
                       if r["portal_n"] else "portal listing time not published")
             lines.append(f"• {name}: {r['alerts']} alerts · {portal} · "
-                         f"{_fmt(r['fetch_median'])} / {_fmt(r['fetch_p90'])} from our first sight")
+                         f"{_fmt(r['fetch_median'])} / {_fmt(r['fetch_p90'])} from our first sight "
+                         f"({r['fetch_n']} timed; {r['alerts'] - r['fetch_n']} unavailable)")
+        lines.append("• coverage cannot be verified; some accepted alerts may be missing")
     unmeasured, recovery_read_error = unmeasured_count(now)
     if unmeasured:
         prefix = "• " if lines else "\n<b>Alert delay</b>: "
@@ -328,6 +340,8 @@ def status_lines(now=None):
     waiting = sum(w["waiting"] for w in mine)
     writing = sum(w.get("inflight", 0) for w in mine)       # taken by the worker, the write has not settled yet
     scanning = any(w.get("cycle_pending") for w in mine)
+    failed = any(w.get("failed") for w in mine)
+    stuck = any(w.get("stuck") for w in mine)
     pending = health.get("pending", 0)
     lost = sum(health["lost"].values())
     refused = health.get("storage") or ""
@@ -340,4 +354,8 @@ def status_lines(now=None):
         lines.append(("• not recorded yet: " if lines else "\n<b>Alert delay</b>: ") + text)
     if scanning:
         lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "receipt recovery scan pending or in progress")
+    if failed:
+        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "timing worker failed; events cannot be recorded")
+    if stuck:
+        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "timing worker stuck; events may be delayed")
     return lines

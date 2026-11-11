@@ -90,11 +90,15 @@ def status_text(now=None):
                              f"{len(st.get('queue', []))} price band(s) queued, {running['adverts_seen']:,} adverts so far")
     if os.environ.get("ALERT_TIMING") == "1":
         try:
-            timing = importlib.import_module(".timing", __package__)
-            extra = timing.status_lines(now)
-            if type(extra) not in (list, tuple) or len(extra) > 20 or any(type(line) is not str for line in extra):
-                raise ValueError("invalid optional status")
-            lines.extend(extra)
+            from . import optional
+            if not optional.execution_available():
+                lines.append(f"\n<b>Alert delay</b>: unavailable ({optional.ISOLATION_REFUSAL})")
+            else:
+                timing = importlib.import_module(".timing", __package__)
+                extra = timing.status_lines(now)
+                if type(extra) not in (list, tuple) or len(extra) > 20 or any(type(line) is not str for line in extra):
+                    raise ValueError("invalid optional status")
+                lines.extend(extra)
         except Exception as ex:
             log.warning("optional timing status unavailable (%s)", type(ex).__name__)
     counts = archive.counts()

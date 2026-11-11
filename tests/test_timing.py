@@ -13,9 +13,10 @@ import time
 import unittest
 from unittest.mock import patch
 
-from pisobot import archive, main, optional, registry_loader, status, telegram, timing, users
+from pisobot import archive, cache, main, optional, registry_loader, status, telegram, timing, users
+from pisobot.models import Listing
 from pisobot.optional import store
-from pisobot.sources import rightmove
+from pisobot.sources import PRIVATE_RENT, otm_rent, rightmove
 import test_optional
 from test_optional import OptionalBase, REAL_SEND_LISTING, REAL_SEND_TEXT, wait_for
 from test_portal_facts import rm_property
@@ -115,12 +116,71 @@ class RecordingTests(TimingBase):
                 raise RuntimeError("later transaction failed")
             return write(ddl, statements)
 
-        with patch.object(timing, "first_seen", return_value={}), patch.object(store, "write", side_effect=partial):
+        with patch.object(timing, "first_seen", return_value=({}, set())), patch.object(store, "write", side_effect=partial):
             with self.assertRaises(RuntimeError):
                 timing.FEATURE.after_cycle(items)
             self.assertEqual(len(self.rows()), timing.BATCH)
             self.assertIsNone(timing.FEATURE.after_cycle(items))
         self.assertEqual(len(self.rows()), len(items))
+
+    def test_failed_first_sight_read_retries_only_affected_events(self):
+        items = [optional.Item(i, time.time(), OWNER, None, "new", "sent", "head",
+                               (("key", f"rm:{i}"), ("source", "rm"))) for i in (1, 2)]
+
+        def first_read(sql, params):
+            if params == ("rm:1",):
+                return None, sqlite3.OperationalError("private detail")
+            return [{"first_seen": iso(30)}], None
+
+        with patch.object(timing, "recover_receipts"), patch.object(store, "read_primary_checked", side_effect=first_read), \
+                self.assertLogs("pisobot.timing", level="WARNING") as logs:
+            self.assertEqual(timing.FEATURE.after_cycle(items), [items[0].seq])
+        self.assertNotIn("private detail", "\n".join(logs.output))
+        self.assertEqual([row["first_fetch_at"] for row in self.rows()], [iso(30)])
+        self.assertEqual(timing.stats["retried"], 1)
+
+        with patch.object(timing, "recover_receipts"), \
+                patch.object(store, "read_primary_checked", return_value=([{"first_seen": iso(60)}], None)):
+            self.assertIsNone(timing.FEATURE.after_cycle([items[0]]))
+            self.assertIsNone(timing.FEATURE.after_cycle(items))
+        self.assertEqual(sorted(row["first_fetch_at"] for row in self.rows()), sorted([iso(30), iso(60)]))
+
+    def test_an_absent_first_sight_is_reported_as_unavailable(self):
+        item = optional.Item(1, time.time(), OWNER, None, "new", "sent", "head",
+                             (("key", "rm:missing"), ("source", "rm")))
+        with patch.object(timing, "recover_receipts"), patch.object(store, "read_primary_checked", return_value=([], None)):
+            self.assertIsNone(timing.FEATURE.after_cycle([item]))
+        self.assertIsNone(self.rows()[0]["first_fetch_at"])
+        self.assertIn("0 timed; 1 unavailable", "\n".join(timing.status_lines()))
+
+    def test_exclusive_is_not_captured_or_persisted_and_does_not_cause_an_extra_fetch(self):
+        def listing(number):
+            return Listing("otmr", number, f"https://example.com/{number}", "Home", 1, PRIVATE_RENT,
+                           tenure="rent", rent=1400)
+
+        for number, exclusive in (("501", True), ("502", False), ("503", None)):
+            details = {"id": number, "description": "A whole flat", "minimumAreaSqM": "50", "exclusive": exclusive}
+            with self.subTest(number=number), patch.object(otm_rent.net, "page", return_value="detail") as fetch, \
+                    patch.object(otm_rent, "_property_data", return_value=details):
+                first, cached = listing(number), listing(number)
+                self.assertTrue(otm_rent.refine(first))
+                self.assertNotIn("exclusive", vars(first))
+                self.assertNotIn("exclusive", cache.get("otmr_detail", number))
+                self.assertTrue(otm_rent.refine(cached))
+                self.assertNotIn("exclusive", vars(cached))
+                fetch.assert_called_once()
+        cache.save()
+        with open(cache.PATH, encoding="utf-8") as saved:
+            persisted = json.load(saved)["otmr_detail"]
+        self.assertTrue(all("exclusive" not in entry for entry in persisted.values()))
+
+    def test_an_existing_cached_exclusive_is_not_applied_to_a_listing(self):
+        cache.put("otmr_detail", "legacy", {"description": "A whole flat", "exclusive": True})
+        listing = Listing("otmr", "legacy", "https://example.com/legacy", "Home", 1, PRIVATE_RENT,
+                          tenure="rent", rent=1400)
+        with patch.object(otm_rent.net, "page", side_effect=AssertionError("extra detail fetch")):
+            self.assertTrue(otm_rent.refine(listing))
+        self.assertNotIn("exclusive", vars(listing))
 
     def test_event_identity_is_stable_for_retries_and_distinct_between_processes(self):
         optional.after_ack(home(1), OWNER, None, {"reason": "new", "state": "sent"})
@@ -340,6 +400,20 @@ class RecordingTests(TimingBase):
 
 
 class StatusTests(TimingBase):
+    def test_status_reports_isolation_refusal_without_loading_the_feature(self):
+        with patch.object(optional, "execution_available", test_optional.REAL_EXECUTION_AVAILABLE), \
+                patch.object(status.importlib, "import_module", side_effect=AssertionError("feature imported")):
+            self.assertIn(optional.ISOLATION_REFUSAL, status.status_text(now=NOW))
+            self.assertIn(optional.ISOLATION_REFUSAL, "\n".join(timing.status_lines(now=NOW)))
+
+    def test_failed_and_stuck_workers_are_visible_without_queued_events(self):
+        health = {"workers": [{"flag": "ALERT_TIMING", "waiting": 0, "inflight": 0, "failed": True, "stuck": True}],
+                  "lost": {}, "pending": 0, "storage": ""}
+        with patch.object(optional, "health", return_value=health):
+            text = "\n".join(timing.status_lines(now=NOW))
+        self.assertIn("timing worker failed", text)
+        self.assertIn("timing worker stuck", text)
+
     def test_status_import_is_disabled_and_optional_failures_preserve_the_baseline(self):
         with patch.dict(os.environ, {"ALERT_TIMING": "0"}), \
                 patch.object(status.importlib, "import_module", side_effect=AssertionError("imported while off")):
@@ -369,7 +443,7 @@ assert 'pisobot.timing' not in sys.modules
         child = subprocess.run([sys.executable, "-c", code], cwd=test_optional.ROOT, capture_output=True, text=True, timeout=15)
         self.assertEqual(child.returncode, 0, child.stderr)
 
-    def test_disabled_fresh_process_matches_the_release_trace_and_state(self):
+    def test_disabled_and_refused_fresh_processes_match_the_release_trace_and_state(self):
         release = "3be20c6a848171e711567f30b1cdfd580723ac93"
         try:
             snapshot = subprocess.check_output(["git", "archive", release, "pisobot", "worker/schema.sql"], cwd=test_optional.ROOT,
@@ -382,6 +456,7 @@ if os.environ.get("RELEASE_FIXTURE") == "1":
     optional = types.ModuleType("pisobot.optional")
     optional.__path__ = []
     optional.reset = lambda: None
+    optional.execution_available = lambda: False
     optional.runner = types.ModuleType("pisobot.optional.runner")
     optional.runner.RUNNER = types.SimpleNamespace(proc=None)
     optional.store = types.ModuleType("pisobot.optional.store")
@@ -405,17 +480,19 @@ print(json.dumps(trace, sort_keys=True))
         with tempfile.TemporaryDirectory() as directory:
             with tarfile.open(fileobj=io.BytesIO(snapshot)) as archive_file:
                 archive_file.extractall(directory, filter="data")
-            results = []
-            for root, is_release in ((directory, True), (str(test_optional.ROOT), False)):
-                env = dict(os.environ, ALERT_TIMING="0", PYTHONDONTWRITEBYTECODE="1",
-                           RELEASE_FIXTURE="1" if is_release else "0")
-                env["PYTHONPATH"] = os.pathsep.join((root, str(test_optional.ROOT / "tests"), os.environ.get("PYTHONPATH", "")))
-                child = subprocess.run([sys.executable, "-c", code], cwd=root, env=env, capture_output=True, text=True, timeout=30)
-                self.assertEqual(child.returncode, 0, child.stderr)
-                results.append(json.loads(child.stdout))
-        self.assertTrue(any(event[0] == "telegram" for event in results[1][0]))
-        self.assertEqual(results[0], results[1])
-        self.assertNotIn("optional.db", results[1][1])
+            for flag in ("0", "1"):
+                with self.subTest(ALERT_TIMING=flag):
+                    results = []
+                    for root, is_release in ((directory, True), (str(test_optional.ROOT), False)):
+                        env = dict(os.environ, ALERT_TIMING=flag, PYTHONDONTWRITEBYTECODE="1",
+                                   RELEASE_FIXTURE="1" if is_release else "0")
+                        env["PYTHONPATH"] = os.pathsep.join((root, str(test_optional.ROOT / "tests"), os.environ.get("PYTHONPATH", "")))
+                        child = subprocess.run([sys.executable, "-c", code], cwd=root, env=env, capture_output=True, text=True, timeout=30)
+                        self.assertEqual(child.returncode, 0, child.stderr)
+                        results.append(json.loads(child.stdout))
+                    self.assertTrue(any(event[0] == "telegram" for event in results[1][0]))
+                    self.assertEqual(results[0], results[1])
+                    self.assertNotIn("optional.db", results[1][1])
 
     def test_status_never_creates_the_file_or_the_table(self):
         self.assertEqual(timing.status_lines(), [])
@@ -457,6 +534,7 @@ print(json.dumps(trace, sort_keys=True))
         text = "\n".join(timing.status_lines())
         self.assertIn("Alert delay", text)
         self.assertIn("Rightmove: 1 alerts", text)
+        self.assertIn("coverage cannot be verified", text)
 
     def test_an_alert_whose_write_is_in_flight_is_shown_not_hidden(self):
         """Re-review P3: the batch has left the inbox and the write has not settled; /status must still say so."""
