@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -30,50 +31,13 @@ def load_listings(path):
 
 
 def _overview(area, rows, facts, areas):
-    import statistics
-    from pisobot import models, place
-    from pisobot.place_feature import _overview_text
+    from pisobot.place_feature import _area_record
 
-    sample = [(row, facts[i]) for i, row in enumerate(rows) if facts[i] is not None]
-    n = len(sample)
-    green = sum(
-        bool((data.get("amenities", {}).get("park") or {}).get("nearest")
-             and data["amenities"]["park"]["nearest"]["distance_m"] <= place.AREA_AMENITY_RADIUS_M)
-        for _, data in sample)
-    poi = {}
-    for label, categories in (
-            ("cafes", ("cafe",)), ("pubs", ("pub",)), ("restaurants", ("restaurant",)),
-            ("shops", ("supermarket", "convenience", "shop", "pharmacy"))):
-        counts = [sum((data.get("amenities", {}).get(cat) or {}).get("count", 0) for cat in categories)
-                  for _, data in sample]
-        poi[label] = round(statistics.mean(counts), 1) if counts else None
-    roads = [bool(data.get("main_road") and data["main_road"]["distance_m"] <= 200)
-             for _, data in sample]
-    rails = [bool(data.get("railway") and data["railway"]["distance_m"] <= 100)
-             for _, data in sample]
-    rents = [float(row["rent"]) for row, _ in sample
-             if row.get("bedrooms") == 1 and type(row.get("rent")) in (int, float) and row["rent"] > 0]
-    crime = [row["crime_score"] for row, _ in sample
-             if type(row.get("crime_score")) is int and row["crime_score"] >= 0]
-    crime_median = statistics.median(crime) if crime else None
-    comparison = [record["crime_median"] for record in areas.values()
-                  if record.get("crime_median") is not None]
-    record = {
-        "area": area, "area_name": models.LONDON_AREAS.get(area, area), "sample_size": n,
-        "green_space_share_pct": round(100 * green / n) if n else None,
-        "poi_density_per_location": poi,
-        "main_road_within_200m_pct": round(100 * sum(roads) / n) if n else None,
-        "surface_rail_within_100m_pct": round(100 * sum(rails) / n) if n else None,
-        "tfl_rail_lines_mean": None,
-        "one_bed_median_rent": statistics.median(rents) if rents else None,
-        "one_bed_advert_count": len(rents),
-        "market_source": "selected cached adverts",
-        "crime_median": crime_median,
-        "crime_comparison_median": statistics.median(comparison) if len(comparison) >= 3 else None,
-        "crime_comparison_area_count": len(comparison) if len(comparison) >= 3 else 0,
-    }
-    record["text"] = _overview_text(record)
-    return record
+    prepared = [{**row, "key": f"eval:{index}"} for index, row in enumerate(rows)]
+    fact_cache = {row["key"]: facts[index] for index, row in enumerate(prepared) if facts[index] is not None}
+    comparison = [record["crime_median"] for record in areas.values() if record.get("crime_median") is not None]
+    return _area_record(area, prepared, fact_cache, {}, comparison, time.time(),
+                        market_source="selected cached adverts")
 
 
 def main(argv=None, out=print):

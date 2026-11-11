@@ -41,9 +41,14 @@ NOISE_REQUEST_INTERVAL_SECONDS = 10
 NOISE_RATE_LIMIT_BACKOFF_SECONDS = 24 * 60 * 60
 NOISE_FAILURE_RETRY_SECONDS = 24 * 60 * 60
 REQUEST_LEASE_SECONDS = 120
+CACHE_VERSION = 2
+INDEX_POINT_SECONDS = 1.0
+INDEX_MAX_ROWS = 100000
 PLACE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS place_meta (key TEXT PRIMARY KEY, value REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS place_noise_answers (
-    cell TEXT NOT NULL, layer TEXT NOT NULL, value REAL, PRIMARY KEY (cell, layer)
+    cell TEXT NOT NULL, layer TEXT NOT NULL, value REAL, fetched_at REAL NOT NULL,
+    PRIMARY KEY (cell, layer)
 );
 CREATE TABLE IF NOT EXISTS place_noise_state (key TEXT PRIMARY KEY, value REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS place_noise_failures (
@@ -60,11 +65,13 @@ CREATE TABLE IF NOT EXISTS place_refresh_queue (
     cell TEXT PRIMARY KEY, lat REAL NOT NULL, lng REAL NOT NULL, queued_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS place_advert_facts (
-    key TEXT PRIMARY KEY, index_mtime REAL NOT NULL, updated_at REAL NOT NULL, value TEXT NOT NULL
+    key TEXT PRIMARY KEY, lat REAL NOT NULL, lng REAL NOT NULL,
+    index_mtime REAL NOT NULL, updated_at REAL NOT NULL, retry_after REAL NOT NULL, value TEXT
 );
 CREATE TABLE IF NOT EXISTS place_areas (
     area TEXT PRIMARY KEY, generated_at REAL NOT NULL, value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS place_card_lines (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 _NOISE_UNAVAILABLE = object()
 _tfl_lock = threading.Lock()
@@ -122,12 +129,20 @@ def _readonly_db(path):
     return db
 
 
-def local_osm_facts(lat, lng, index_path=None):
+def local_osm_facts(lat, lng, index_path=None, *, db=None, deadline=None):
     """Read nearby OSM features from the optional, standard-library SQLite index."""
-    path = Path(index_path or LOCAL_INDEX_PATH)
-    if not path.is_file():
-        return None
-    with closing(_readonly_db(path)) as db:
+    if db is None:
+        path = Path(index_path or LOCAL_INDEX_PATH)
+        if not path.is_file():
+            return None
+        with closing(_readonly_db(path)) as connection:
+            return local_osm_facts(lat, lng, db=connection, deadline=deadline)
+    end = min(deadline, time.monotonic() + INDEX_POINT_SECONDS) if deadline is not None else None
+    if end is not None and time.monotonic() >= end:
+        raise TimeoutError("Place index deadline reached")
+    db.set_progress_handler(lambda: int(end is not None and time.monotonic() >= end), 1000)
+    rows = None
+    try:
         x1, x2, y1, y2 = _index_grid_bounds(db, lat, lng, max(LOCAL_ROAD_RADIUS_M, LOCAL_AMENITY_RADIUS_M))
         rows = db.execute("""
             SELECT DISTINCT f.id, f.kind, f.class, f.name, f.osm_id,
@@ -139,7 +154,10 @@ def local_osm_facts(lat, lng, index_path=None):
         roads, main_roads, railways = [], [], []
         amenities = {category: [] for category in _AMENITY_CATEGORIES}
         seen_ids = set()
-        for feature_id, kind, feature_class, name, osm_id, lat1, lon1, lat2, lon2, point_lat, point_lon in rows:
+        for row_number, row in enumerate(rows):
+            if row_number >= INDEX_MAX_ROWS or (end is not None and time.monotonic() >= end):
+                raise TimeoutError("Place index read exceeded its budget")
+            feature_id, kind, feature_class, name, osm_id, lat1, lon1, lat2, lon2, point_lat, point_lon = row
             if feature_id in seen_ids:
                 continue
             seen_ids.add(feature_id)
@@ -151,16 +169,16 @@ def local_osm_facts(lat, lng, index_path=None):
                 if category not in amenities:
                     continue
                 item_name = name or category.title()
-                item = {"name": item_name, "distance_m": distance, "_osm_id": osm_id}
+                item = {"name": item_name, "distance_m": distance, "_osm_id": osm_id,
+                        "_name": name or "", "_lat": point_lat, "_lng": point_lon}
                 duplicate = next((old for old in amenities[category]
-                                  if ((name and old["_name"].casefold() == name.casefold()
-                                       and _distance_m(lat, lng, point_lat, point_lon) < 50)
-                                      or (not name and old["_osm_id"] == osm_id))), None)
+                                  if (old["_osm_id"] == osm_id
+                                      or (name and old["_name"].casefold() == name.casefold()
+                                          and _distance_m(old["_lat"], old["_lng"], point_lat, point_lon) < 50))), None)
                 if duplicate:
                     if distance < duplicate["distance_m"]:
                         duplicate.update(item)
                 else:
-                    item["_name"] = name
                     amenities[category].append(item)
                 continue
 
@@ -172,6 +190,10 @@ def local_osm_facts(lat, lng, index_path=None):
                     main_roads.append(item)
             elif kind == "railway" and distance <= LOCAL_ROAD_RADIUS_M:
                 railways.append({"distance_m": round(distance)})
+    finally:
+        if rows is not None:
+            rows.close()
+        db.set_progress_handler(None, 0)
 
     nearest = lambda values: min(values, key=lambda item: item["distance_m"]) if values else None
     clean_amenities = {
@@ -190,6 +212,25 @@ def local_osm_facts(lat, lng, index_path=None):
     }
 
 
+def local_osm_batch(points, deadline, index_path=None):
+    """One read-only connection for a bounded batch; failed points remain unknown."""
+    results = {}
+    if time.monotonic() >= deadline:
+        return results
+    with closing(_readonly_db(index_path or LOCAL_INDEX_PATH)) as db:
+        for key, lat, lng in points:
+            if time.monotonic() >= deadline:
+                break
+            try:
+                results[key] = local_osm_facts(lat, lng, db=db, deadline=deadline)
+            except (OSError, sqlite3.Error, ValueError, TypeError, KeyError) as error:
+                if time.monotonic() >= deadline:
+                    break
+                _logger.warning("Place index point unavailable (%s)", type(error).__name__)
+                results[key] = None
+    return results
+
+
 def _tfl_url(lat, lng):
     return (f"{TFL_URL}?lat={lat:.6f}&lon={lng:.6f}&radius=800"
             "&stopTypes=NaptanPublicBusCoachTram,NaptanMetroStation,NaptanRailStation")
@@ -197,6 +238,8 @@ def _tfl_url(lat, lng):
 
 def parse_tfl(data):
     """Count distinct rail lines and bus routes represented by nearby TfL stops."""
+    if not isinstance(data, dict) or not isinstance(data.get("stopPoints"), list):
+        raise ValueError("Invalid TfL StopPoint response")
     rail_lines, bus_routes = set(), set()
     for stop in data.get("stopPoints", []):
         distance = stop.get("distance")
@@ -219,14 +262,28 @@ def parse_tfl(data):
     return {"rail_lines": len(rail_lines), "bus_routes": len(bus_routes)}
 
 
-def _tfl(lat, lng):
+class RefreshDeferred(Exception):
+    """The supervised step has no budget for another provider operation."""
+
+
+def _request_timeout(deadline, delay=0):
+    left = 30 if deadline is None else deadline - time.monotonic() - max(0, delay)
+    if left < 1:
+        raise RefreshDeferred("Place provider deadline reached")
+    # Separate connect/read waits share the remaining budget; the child watchdog
+    # remains the hard limit for stalled sockets or an uncooperative provider.
+    return min(10.0, left / 2)
+
+
+def _tfl(lat, lng, deadline=None):
     global _tfl_next
     with _tfl_lock:
         delay = _tfl_next - time.monotonic()
+        _request_timeout(deadline, delay)
         if delay > 0:
             time.sleep(delay)
         try:
-            response = requests.get(_tfl_url(lat, lng), timeout=30)
+            response = requests.get(_tfl_url(lat, lng), timeout=_request_timeout(deadline))
             response.raise_for_status()
             return response.json()
         finally:
@@ -263,7 +320,21 @@ def _store():
 
 
 def _ensure_cache():
-    if not _store().write(PLACE_SCHEMA, []):
+    rows = _store().read("SELECT value FROM place_meta WHERE key = 'schema'")
+    if rows and rows[0].get("value") == CACHE_VERSION:
+        return
+    # Undated noise and old advert/area shapes cannot be reused. Preserve all
+    # provider backoff/lease tables so an upgrade cannot reset a rate-limit pause.
+    migration = """
+        DROP TABLE IF EXISTS place_noise_answers;
+        DROP TABLE IF EXISTS place_advert_facts;
+        DROP TABLE IF EXISTS place_areas;
+        DROP TABLE IF EXISTS place_refresh_queue;
+        DROP TABLE IF EXISTS place_card_lines;
+    """
+    if not _store().write(migration + PLACE_SCHEMA, [
+            ("INSERT INTO place_meta (key, value) VALUES ('schema', ?) "
+             "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (CACHE_VERSION,))]):
         raise OSError("Optional place cache is unavailable")
 
 
@@ -302,7 +373,7 @@ def _claim_request(key, now, delay=0, spacing=0):
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (now + delay + spacing,),
         ))
-    if not _store().write(PLACE_SCHEMA, statements):
+    if not _store().write("", statements):
         return None
     rows = _store().read("SELECT token FROM place_request_claims WHERE key = ?", (key,))
     return token if rows and rows[0].get("token") == token else None
@@ -321,8 +392,10 @@ def _release_request(key, token, cell, layer, *, value=None, failure=None, block
         ))
     elif layer is not None and failure is None:
         statements.extend((
-            ("INSERT INTO place_noise_answers (cell, layer, value) VALUES (?, ?, ?) "
-             "ON CONFLICT(cell, layer) DO UPDATE SET value=excluded.value", (cell, layer, value)),
+            ("INSERT INTO place_noise_answers (cell, layer, value, fetched_at) VALUES (?, ?, ?, ?) "
+             "ON CONFLICT(cell, layer) DO UPDATE SET value=excluded.value, fetched_at=excluded.fetched_at",
+             (cell, layer, value, time.time())),
+            ("DELETE FROM place_noise_failures WHERE cell = ? AND layer = ?", (cell, layer)),
             ("INSERT INTO place_noise_state (key, value) VALUES ('next_request_at', ?) "
              "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
              (time.time() + NOISE_REQUEST_INTERVAL_SECONDS,)),
@@ -352,33 +425,38 @@ def _release_request(key, token, cell, layer, *, value=None, failure=None, block
                 "ON CONFLICT(cell) DO UPDATE SET retry_after=excluded.retry_after",
                 (cell, time.time() + NOISE_FAILURE_RETRY_SECONDS),
             ))
-    if not _store().write(PLACE_SCHEMA, statements):
+    if not _store().write("", statements):
         _logger.warning("Place facts optional cache write failed")
 
 
-def _noise_point(url, layer, lat, lng):
+def _noise_point(url, layer, lat, lng, deadline=None):
+    _request_timeout(deadline)
+    _ensure_cache()
     cell = _noise_db_cell(lat, lng)
-    cached = _store().read(
-        "SELECT value FROM place_noise_answers WHERE cell = ? AND layer = ?", (cell, layer))
-    if cached:
-        return cached[0].get("value")
     now = time.time()
+    cached = _store().read(
+        "SELECT value, fetched_at FROM place_noise_answers WHERE cell = ? AND layer = ?", (cell, layer))
+    if (cached and fresh(cached[0].get("fetched_at"), now, CACHE_TTL_SECONDS)
+            and _valid_noise_value(cached[0].get("value"))):
+        return cached[0].get("value")
     blocked = _store().read("SELECT value FROM place_noise_state WHERE key = 'blocked_until'")
-    if blocked and blocked[0].get("value", 0) > now:
+    if blocked and number(blocked[0].get("value")) and blocked[0]["value"] > now:
         return _NOISE_UNAVAILABLE
     failed = _store().read(
         "SELECT retry_after FROM place_noise_failures WHERE cell = ? AND layer = ?", (cell, layer))
-    if failed and failed[0].get("retry_after", 0) > now:
+    if failed and number(failed[0].get("retry_after")) and failed[0]["retry_after"] > now:
         return _NOISE_UNAVAILABLE
     next_request = _store().read("SELECT value FROM place_noise_state WHERE key = 'next_request_at'")
-    delay = max(0, next_request[0]["value"] - now) if next_request else 0
+    delay = (max(0, next_request[0]["value"] - now)
+             if next_request and number(next_request[0].get("value")) else 0)
+    _request_timeout(deadline, delay)
     token = _claim_request("defra", now, delay, NOISE_REQUEST_INTERVAL_SECONDS)
     if token is None:
         return _NOISE_UNAVAILABLE
-    if delay:
-        time.sleep(delay)
     value, failure, blocked_until = None, None, None
     try:
+        if delay:
+            time.sleep(delay)
         delta = 0.00005
         response = requests.get(url, params={
             "service": "WMS", "version": "1.1.1", "request": "GetFeatureInfo",
@@ -386,7 +464,7 @@ def _noise_point(url, layer, lat, lng):
             "bbox": f"{lng - delta},{lat - delta},{lng + delta},{lat + delta}",
             "width": 1, "height": 1, "x": 0, "y": 0, "info_format": "text/plain",
             "feature_count": 1,
-        }, timeout=30)
+        }, timeout=_request_timeout(deadline))
         if response.status_code == 429:
             retry_after = _retry_after_seconds(response.headers.get("Retry-After"), time.time())
             blocked_until = time.time() + max(NOISE_RATE_LIMIT_BACKOFF_SECONDS, retry_after or 0)
@@ -396,6 +474,11 @@ def _noise_point(url, layer, lat, lng):
         else:
             response.raise_for_status()
             value = _noise_value(response.text)
+    except RefreshDeferred:
+        if not _store().write("", [
+                ("DELETE FROM place_request_claims WHERE key = ? AND token = ?", ("defra", token))]):
+            _logger.warning("Place provider lease release failed")
+        raise
     except (requests.RequestException, ValueError, TypeError) as error:
         failure = error
     _release_request("defra", token, cell, layer, value=value, failure=failure, blocked_until=blocked_until)
@@ -407,20 +490,22 @@ def _noise_point(url, layer, lat, lng):
 def noise_backoff_active():
     """Return whether a persisted Defra rate-limit pause is still in effect."""
     row = _store().read("SELECT value FROM place_noise_state WHERE key = 'blocked_until'")
-    return bool(row and row[0].get("value", 0) > time.time())
+    return bool(row and number(row[0].get("value")) and row[0]["value"] > time.time())
 
 
-def _noise(lat, lng):
+def _noise(lat, lng, deadline=None):
+    _request_timeout(deadline)
     values = {}
     cell = _noise_db_cell(lat, lng)
     values = {row["layer"]: row["value"] for row in _store().read(
-        "SELECT layer, value FROM place_noise_answers WHERE cell = ?", (cell,))}
+        "SELECT layer, value, fetched_at FROM place_noise_answers WHERE cell = ?", (cell,))
+        if fresh(row.get("fetched_at"), time.time(), CACHE_TTL_SECONDS) and _valid_noise_value(row.get("value"))}
     for url, layer, key in NOISE_SERVICES:
         if layer in values:
             values[key] = values.pop(layer)
             continue
         try:
-            value = _noise_point(url, layer, lat, lng)
+            value = _noise_point(url, layer, lat, lng, deadline=deadline)
             if value is not _NOISE_UNAVAILABLE:
                 values[key] = value
         except NoiseRateLimited as error:
@@ -448,7 +533,7 @@ def cached_facts(lat, lng, now=None):
         cell = _cell(lat, lng)
         transit = _store().read(
             "SELECT fetched_at, value FROM place_transit_answers WHERE cell = ?", (cell,))
-        if transit and 0 <= now - transit[0].get("fetched_at", 0) < CACHE_TTL_SECONDS:
+        if transit and fresh(transit[0].get("fetched_at"), now, CACHE_TTL_SECONDS):
             try:
                 value = json.loads(transit[0]["value"])
                 if _valid_transit(value):
@@ -456,7 +541,8 @@ def cached_facts(lat, lng, now=None):
             except (ValueError, TypeError, KeyError) as error:
                 _logger.warning("Place facts local TfL cache is invalid: %s", type(error).__name__)
         layers = {row["layer"]: row["value"] for row in _store().read(
-            "SELECT layer, value FROM place_noise_answers WHERE cell = ?", (cell,))}
+            "SELECT layer, value, fetched_at FROM place_noise_answers WHERE cell = ?", (cell,))
+            if fresh(row.get("fetched_at"), now, CACHE_TTL_SECONDS)}
         noise = {}
         for layer, key in ((NOISE_SERVICES[0][1], NOISE_SERVICES[0][2]),
                            (NOISE_SERVICES[1][1], NOISE_SERVICES[1][2])):
@@ -472,26 +558,34 @@ def cached_facts(lat, lng, now=None):
     return result
 
 
-def _refresh_transit(lat, lng, now=None):
+def _refresh_transit(lat, lng, now=None, deadline=None):
+    _request_timeout(deadline)
+    _ensure_cache()
     cell = _cell(lat, lng)
     now = time.time() if now is None else now
     cached = _store().read(
         "SELECT fetched_at, value FROM place_transit_answers WHERE cell = ?", (cell,))
-    if cached and 0 <= now - cached[0].get("fetched_at", 0) < CACHE_TTL_SECONDS:
+    if cached and fresh(cached[0].get("fetched_at"), now, CACHE_TTL_SECONDS):
         try:
             if _valid_transit(json.loads(cached[0]["value"])):
                 return
-        except (ValueError, TypeError, KeyError):
-            pass
+        except (ValueError, TypeError, KeyError) as error:
+            _logger.warning("Place TfL cache is invalid (%s)", type(error).__name__)
     failed = _store().read("SELECT retry_after FROM place_transit_failures WHERE cell = ?", (cell,))
-    if failed and failed[0].get("retry_after", 0) > now:
+    if failed and number(failed[0].get("retry_after")) and failed[0]["retry_after"] > now:
         return
+    _request_timeout(deadline)
     token = _claim_request(f"tfl:{cell}", now)
     if token is None:
         return
     failure, value = None, None
     try:
-        value = parse_tfl(_tfl(lat, lng))
+        value = parse_tfl(_tfl(lat, lng, deadline=deadline))
+    except RefreshDeferred:
+        if not _store().write("", [
+                ("DELETE FROM place_request_claims WHERE key = ? AND token = ?", (f"tfl:{cell}", token))]):
+            _logger.warning("Place provider lease release failed")
+        raise
     except (requests.RequestException, ValueError, TypeError, AttributeError) as error:
         failure = error
     _release_request(f"tfl:{cell}", token, cell, None, failure=failure,
@@ -500,12 +594,21 @@ def _refresh_transit(lat, lng, now=None):
         _logger.warning("Place facts TfL lookup failed: %s", failure)
 
 
-def refresh_network(lat, lng, now=None):
+def refresh_network(lat, lng, now=None, deadline=None):
     """Refresh provider caches only in the foundation's supervised optional child."""
     if lat is None or lng is None or not Path(LOCAL_INDEX_PATH).is_file():
         return
-    _refresh_transit(lat, lng, now=now)
-    _noise(lat, lng)
+    _request_timeout(deadline)
+    _refresh_transit(lat, lng, now=now, deadline=deadline)
+    _noise(lat, lng, deadline=deadline)
+
+
+def number(value):
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def fresh(timestamp, now, ttl):
+    return number(timestamp) and 0 <= now - timestamp < ttl
 
 
 def noise_band(decibels):
@@ -656,7 +759,7 @@ def amenities_line(facts):
             ("cinema", "🎬")):
         info = (facts.get("amenities") or {}).get(category) or {}
         nearest = info.get("nearest")
-        if not nearest:
+        if not nearest or nearest["distance_m"] > LOCAL_AMENITY_RADIUS_M:
             continue
         distance = nearest["distance_m"]
         minutes = max(1, math.ceil(distance * 1.3 / 80))
@@ -668,7 +771,7 @@ def amenities_line(facts):
 
 def detail_lines(facts):
     """Full facts for a future expanded card; distances are approximate within the cached cell."""
-    if not facts:
+    if not facts or not _valid_facts(facts):
         return []
     lines = []
     street = facts.get("street")

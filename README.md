@@ -160,9 +160,20 @@ Check report formatting without fetching listings or sending Telegram messages:
 The local OSM neighbourhood tile and cached `/area <postcode or district>` overview are off unless
 `PLACE_FACTS=1`. Build the local Greater London index with `pip install -r requirements-place.txt`
 and `python scripts/build_place_index.py`; the builder stores OSM attribution in the index metadata.
-TfL and Defra refreshes run only in the foundation's supervised optional worker and are cached in
-`optional.db`; area summaries are postcode-district aggregates of sampled archived adverts, refreshed
-every 30 days. Crime comparisons use cached matched-advert scores, not London-wide population risk.
+Index lookups, area rebuilding, and TfL/Defra refreshes run in bounded, incremental supervised steps;
+the worker only publishes completed rows from `optional.db`. Nothing waits for facts while sending.
+On the current G0 base, a first alert may have no tile: its data must already have been published.
+
+Area summaries expire after 30 days and refresh when their advert/provider inputs change; `/area`
+shows the cache date. Counts describe at most 20 non-random locations from the latest 4,999 active
+coordinate-bearing adverts, not the whole district. The publishing worker drops card snapshots older
+than 24 hours, allowing them to survive the normal 15-minute cycle interval.
+Sparse samples omit area percentages and rent/crime comparisons. Mapped green includes gardens and
+recreation grounds; point proximity is not public-park access, entrance distance, or land-area coverage.
+Crime comparisons require five distinct scored locations per district and three eligible districts;
+matched adverts already pass users' crime caps, so this is selection-biased, not London-wide risk.
+Provider answers expire after 90 days. Obsolete advert/district/provider rows are pruned after a
+successful archive read, and failed reads do not masquerade as an empty archive.
 
 ## Optional: language-model reading of rental adverts
 

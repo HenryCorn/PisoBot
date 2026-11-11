@@ -40,8 +40,7 @@ MAX_ATTEMPTS = 3
 STUCK_SECONDS = 30            # a worker inside one feature call for longer is reported as stuck (it is never started twice)
 LINE_MAX = 160
 SNAPSHOT_MAX = 2000           # adverts with published lines, per feature
-FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms",
-          "lat", "lng", "crime_score")
+FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms")
 SCALARS = (str, int, float, bool, type(None))
 
 _registry = []                # [(flag, loader)]
