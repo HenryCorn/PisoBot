@@ -53,6 +53,44 @@ class ExactMatchTests(unittest.TestCase):
         self.assertEqual(epc.parse_address("12 - 14 Hornsey Road")["number"], "12-14")
 
 
+class RangeAndHttpTests(unittest.TestCase):
+    def test_a_flat_is_never_compared_with_only_houses_in_a_range(self):
+        """re-review: 'Ground floor flat' with a description that says only 'property' got an 80-82 m2 range from two houses."""
+        houses = [summary("H1", "10 Test Road"), summary("H2", "14 Test Road")]
+        certs = {"H1": cert(80, rooms=2, dwelling="Mid-terrace house"), "H2": cert(82, rooms=2, dwelling="End-terrace house")}
+        listing = advert("Ground floor flat, 12 Test Road, London N7 6DJ")
+        listing.description = "One bedroom property."
+        self.assertEqual(epc.match(listing, "N7 6DJ", make(Fake(houses, certs)), TODAY)["match"], "none")
+        flats = {"H1": cert(48, rooms=2), "H2": cert(50, rooms=2)}
+        self.assertEqual(epc.match(listing, "N7 6DJ", make(Fake(houses, flats)), TODAY)["match"], "range")
+
+    def test_an_advert_that_reads_as_a_house_is_compared_only_with_houses(self):
+        flats = [summary("F1", "10 Test Road"), summary("F2", "14 Test Road")]
+        certs = {"F1": cert(48, rooms=2), "F2": cert(50, rooms=2)}
+        house = advert("12 Test Road, London N7 6DJ")
+        house.description = "One bedroom terraced house."
+        self.assertEqual(epc.match(house, "N7 6DJ", make(Fake(flats, certs)), TODAY)["match"], "none")
+
+    def test_the_api_response_is_streamed_and_an_oversized_body_is_refused(self):
+        class Response:
+            status_code = 200
+            def __init__(self, size):
+                self.size = size
+            def iter_content(self, n):
+                for _ in range(self.size // n):
+                    yield b" " * n
+            def close(self):
+                pass
+        with patch("requests.get", return_value=Response(epc.MAX_RESPONSE_BYTES + 200_000)) as get:
+            with self.assertRaises(ValueError):
+                epc.Epc._http("https://x.invalid", {}, {})
+        self.assertTrue(get.call_args.kwargs["stream"])
+        small = Response(65536)
+        small.iter_content = lambda n: iter([b'{"data": []}'])
+        with patch("requests.get", return_value=small):
+            self.assertEqual(epc.Epc._http("https://x.invalid", {}, {}), (200, {"data": []}))
+
+
 # ---------------------------------------------------------------- findings 7 and 9: retention and the cap
 
 class RetentionAndCapTests(unittest.TestCase):
