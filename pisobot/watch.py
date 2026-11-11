@@ -52,13 +52,13 @@ class Watcher:
             return True
 
     def cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
-        """One cycle; then, with the run lock already released, the optional features' turn (never raises, never in a dry run)."""
-        optional.RUNNER.reap()
+        """One cycle. The optional features' turn comes after it, with the run lock already released; everything it does is non-raising,
+        takes no feature code and no time, so the cycle's own result or exception always propagates unchanged."""
+        optional.cycle_start()
         try:
             return self._cycle(kind, stop_event, dry_run, chat_id)
         finally:
-            optional.after_cycle(dry_run)
-            optional.RUNNER.reap()
+            optional.cycle_end(dry_run)
 
     def _cycle(self, kind="rentals", stop_event=None, dry_run=False, chat_id=None):
         """Share identical portal searches, then apply each person's criteria and delivery."""
@@ -206,6 +206,7 @@ class Watcher:
 
     def serve(self, stop_event, poll):
         poll_errors = []
+        optional.start()                      # features load on their own worker threads, from process start
 
         def listen():
             try:
@@ -249,11 +250,11 @@ class Watcher:
                 finally:
                     with self.guard:
                         self.running = False
-                optional.RUNNER.maybe_start()        # after the cycle and its after_cycle; never holds the run lock
+                optional.maybe_start_step()          # after the cycle and its after_cycle; never holds the run lock
                 next_cycle = time.monotonic() + config.WATCH_INTERVAL_MIN * 60 * random.uniform(0.75, 1.25)
         finally:
             stop_event.set()
-            optional.RUNNER.stop()
+            optional.shutdown()
             listener.join(timeout=40)
         if poll_errors:
             raise RuntimeError("Telegram listener failed; service restart required")

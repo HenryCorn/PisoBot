@@ -1,43 +1,86 @@
-"""The optional features' OWN SQLite file (optional.db) and the read-only window onto the primary database.
+"""The optional features' OWN SQLite file (optional.db) and a bounded, read-only window onto the primary database.
 
-  * the file lives beside the main database and is created lazily: only an enabled feature's first write creates it;
-  * a write is ONE short transaction (a small batch of statements, nothing else can run inside it: no callbacks, so no HTTP and no sleep)
-    that SQLite itself INTERRUPTS if it runs longer than TX_SECONDS, so a lock is never held long: the short busy timeout bounds waiting,
-    this bounds holding;
-  * optional code has no write access to the primary database at all: read_primary() is read-only (`mode=ro`, `query_only`, short timeout).
+What this module guarantees, and what it does not:
+  * optional.db is the ONLY file it ever opens for writing, and that is structural: the path must resolve (symlinks, relative parts) to a
+    regular, singly-linked file called optional.db directly inside the state directory, and every writer connection carries an SQLite
+    authorizer that denies ATTACH/DETACH/PRAGMA/transaction control and any schema other than main/temp. SQL cannot reach another file.
+  * a write is one small transaction (BEGIN IMMEDIATE ... COMMIT, at most MAX_STATEMENTS statements). A progress handler interrupts long
+    computations and the connection is closed on every path. It does NOT make the transaction hard-real-time: a stalled fsync/commit cannot
+    be interrupted from here. The protection of the primary database is that the optional writer lives in another file, not a time limit.
+  * reads (optional.db and the primary database) are read-only (`mode=ro`, `query_only`), authorized for SELECT only, limited by a statement
+    deadline and a row cap, and the connection is closed before the call returns: no snapshot is held across calls.
 Importing this module does no work.
 """
 import contextlib
 import os
 import sqlite3
 import time
+from pathlib import Path
 from urllib.parse import quote
 
 NAME = "optional.db"
-BUSY_SECONDS = 0.25        # waiting for a lock
-TX_SECONDS = 0.5           # holding one: the transaction is interrupted after this
+BUSY_SECONDS = 0.25
+TX_SECONDS = 0.5
+READ_SECONDS = 0.5
 MAX_STATEMENTS = 200
+MAX_ROWS = 5000
+
+_ALLOWED_WRITE = {sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE, sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ,
+                  sqlite3.SQLITE_FUNCTION, sqlite3.SQLITE_CREATE_TABLE, sqlite3.SQLITE_CREATE_INDEX, sqlite3.SQLITE_CREATE_VIEW,
+                  sqlite3.SQLITE_DROP_TABLE, sqlite3.SQLITE_DROP_INDEX, sqlite3.SQLITE_DROP_VIEW, sqlite3.SQLITE_ALTER_TABLE,
+                  sqlite3.SQLITE_RECURSIVE}
+_ALLOWED_READ = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION, sqlite3.SQLITE_RECURSIVE}
+
+
+def _state():
+    from .. import localdb
+    return Path(os.path.abspath(localdb.state_dir()))
 
 
 def path():
-    from .. import localdb
-    return localdb.state_dir() / NAME
+    return _state() / NAME
 
 
 def exists():
-    return os.path.exists(path())
+    return os.path.lexists(path())
+
+
+def checked_path():
+    """The optional database path, after proving it cannot be a primary database. Raises ValueError otherwise."""
+    target = path()
+    state_real = Path(os.path.realpath(_state()))
+    if target.name != NAME:
+        raise ValueError("not the optional database")
+    if os.path.lexists(target):
+        info = os.lstat(target)
+        if os.path.islink(target) or not os.path.isfile(target) or info.st_nlink != 1:
+            raise ValueError("optional.db must be a plain, unlinked file")
+    if Path(os.path.realpath(target)).parent != state_real:
+        raise ValueError("optional.db must sit directly in the state directory")
+    return target
+
+
+def _guard(allowed):
+    def authorizer(action, arg1, arg2, db_name, source):
+        if action not in allowed:
+            return sqlite3.SQLITE_DENY
+        if db_name not in (None, "main", "temp"):
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+    return authorizer
 
 
 def write(ddl, statements):
     """Run `statements` ([(sql, params), ...], at most MAX_STATEMENTS) in ONE transaction on optional.db, creating the file and applying
-    `ddl` (CREATE ... IF NOT EXISTS) first. Returns True when committed; False on contention, interruption or any error (nothing is
-    left half-written, and nothing is raised). Too many statements is a programming error and raises before any I/O."""
+    `ddl` (CREATE ... IF NOT EXISTS) first. True when committed; False on contention, interruption, a denied statement or any error
+    (nothing half-written, nothing raised). Too many statements is a programming error and raises before any I/O."""
     if len(statements) > MAX_STATEMENTS:
         raise ValueError("an optional transaction must be small")
     try:
-        target = path()
-        os.makedirs(os.path.dirname(os.path.abspath(target)), exist_ok=True)
-        with contextlib.closing(sqlite3.connect(target, timeout=BUSY_SECONDS)) as db:
+        target = checked_path()
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        target = checked_path()
+        with contextlib.closing(sqlite3.connect(target, timeout=BUSY_SECONDS, isolation_level=None)) as db:
             db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
             with contextlib.suppress(sqlite3.Error):
                 db.execute("PRAGMA journal_mode = WAL")
@@ -45,13 +88,15 @@ def write(ddl, statements):
             db.set_progress_handler(lambda: 1 if time.monotonic() > deadline else 0, 1000)
             try:
                 db.execute("BEGIN IMMEDIATE")
-                if ddl:
-                    for stmt in [s for s in ddl.split(";") if s.strip()]:
-                        db.execute(stmt)
+                db.set_authorizer(_guard(_ALLOWED_WRITE))
+                for stmt in [s for s in (ddl or "").split(";") if s.strip()]:
+                    db.execute(stmt)
                 for sql, params in statements:
                     db.execute(sql, params)
+                db.set_authorizer(None)
                 db.execute("COMMIT")
             except Exception:
+                db.set_authorizer(None)
                 with contextlib.suppress(Exception):
                     db.execute("ROLLBACK")
                 return False
@@ -60,23 +105,37 @@ def write(ddl, statements):
         return False
 
 
+def _read(target, sql, params):
+    with contextlib.closing(sqlite3.connect(f"file:{quote(str(target))}?mode=ro", uri=True, timeout=BUSY_SECONDS)) as db:
+        db.row_factory = sqlite3.Row
+        db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
+        db.execute("PRAGMA query_only = 1")
+        deadline = time.monotonic() + READ_SECONDS
+        db.set_progress_handler(lambda: 1 if time.monotonic() > deadline else 0, 1000)
+        db.set_authorizer(_guard(_ALLOWED_READ))
+        cursor = db.execute(sql, params)
+        rows = [dict(r) for r in cursor.fetchmany(MAX_ROWS + 1)]
+        cursor.close()
+        if len(rows) > MAX_ROWS:
+            raise ValueError("too many rows")
+        return rows
+
+
 def read(sql, params=()):
-    """Rows (as dicts) from optional.db, read-only. [] when the file or the table does not exist (nothing is ever created) or on any error."""
+    """Rows (as dicts) from optional.db, read-only and bounded. [] when the file or table does not exist (nothing is ever created) or on
+    any error."""
     try:
         if not exists():
             return []
-        with contextlib.closing(sqlite3.connect(f"file:{quote(str(path()))}?mode=ro", uri=True, timeout=BUSY_SECONDS)) as db:
-            db.row_factory = sqlite3.Row
-            db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
-            db.execute("PRAGMA query_only = 1")
-            return [dict(r) for r in db.execute(sql, params)]
+        return _read(checked_path(), sql, params)
     except Exception:
         return []
 
 
 def read_primary(sql, params=(), person=None):
-    """Rows (as dicts) from the primary database, or from `person`'s database (a chat id), READ-ONLY with a short timeout. [] on any
-    error or a missing file. There is no write counterpart: optional code cannot write to the primary database."""
+    """Rows (as dicts) from the primary database, or from `person`'s database (a chat id): one SELECT, read-only, authorized for SELECT
+    only, at most MAX_ROWS rows, a statement deadline, and the snapshot is closed before returning. [] on any error or a missing file.
+    There is no write counterpart."""
     try:
         from .. import localdb, users
         if person is None:
@@ -86,10 +145,6 @@ def read_primary(sql, params=(), person=None):
             target = localdb.state_dir() / "pisobot.db" if owner else users.User(str(person), owner=False).directory / "pisobot.db"
         if not os.path.exists(target):
             return []
-        with contextlib.closing(sqlite3.connect(f"file:{quote(str(target))}?mode=ro", uri=True, timeout=BUSY_SECONDS)) as db:
-            db.row_factory = sqlite3.Row
-            db.execute(f"PRAGMA busy_timeout = {int(BUSY_SECONDS * 1000)}")
-            db.execute("PRAGMA query_only = 1")
-            return [dict(r) for r in db.execute(sql, params)]
+        return _read(target, sql, params)
     except Exception:
         return []

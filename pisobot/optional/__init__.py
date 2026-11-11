@@ -1,59 +1,74 @@
-"""The foundation every OPTIONAL feature is built on (G0). It contains no feature, only the seams.
+"""The foundation every OPTIONAL feature is built on (G0, round 2). It contains no feature, only the seams.
 
-Why it exists: three independent reviews of three different optional features found the same five classes of defect, each
-re-invented per feature: (a) optional code between Telegram accepting a card and the seen receipt, so an exception there lost the
-receipt and repeated the card; (b) optional writes to the primary database whose transaction delayed the main process's
-acknowledgements (a short busy timeout bounds waiting, not holding); (c) optional work that claimed to run after the cycle but ran
-under the run lock or before another person's alert; (d) an extra card line pushing a caption past Telegram's limit so one card became
-two calls; (e) "off" not being identical to the release. This package removes those classes once:
+THE RULE: nothing a feature supplies (its loader, name, repr, has_work, after_cycle, step, iterators it returns) ever executes on the
+delivery thread or on the watcher thread. Feature code runs only in
+  * one dedicated worker thread per feature (loads the feature, delivers it batches, asks it has_work), or
+  * the supervised background child (runner.py / step.py).
+The delivery and watcher threads only (a) append plain data to a bounded list, (b) hand that data to the workers' inboxes (no waiting,
+no feature call), (c) read an already PUBLISHED immutable snapshot of card lines. A feature that blocks forever therefore blocks only its
+own worker: it is never started a second time (single flight per feature), its inbox is bounded and aged, and what is lost is counted.
 
-  HOOKS (all in this module; the release's files only call them)
-    after_ack(listing, person, reply, context)   after the acknowledgement; an in-memory append; never raises; no I/O, no logging
-    after_cycle(dry_run)                         after the watcher released the run lock; hands the items to the features, each isolated,
-                                                 inside a wall-clock budget; never raises; never in a dry run
-    card_lines(lines, listing)                   lets features offer an extra card line with a priority; added only while the card stays ONE
-                                                 Telegram call (measured the way telegram.send_card and tgtext measure); a provider that is
-                                                 slower than its deadline yields no line
-  STORAGE (store.py)   the features' own SQLite file (optional.db), created lazily by the first enabled feature that writes; every write is one
-                       short transaction that is INTERRUPTED if it runs too long (so a lock is never held long); a read-only accessor for the
-                       primary database; optional code has no write access to the primary database at all
-  RUNNER (runner.py)   one supervised background child for work that needs the network: single-flight by an exclusive lock file, its own budget,
-                       killed if overdue at the start and end of every cycle and by its own timer, never holding the run lock, never started
-                       without queued work
-  REGISTRY             features register (flag, loader); a feature whose environment flag is not "1" is never imported. With nothing enabled:
-                       nothing is imported that does work, no file or table is created, no process is started, and the cycle is the release's.
+  after_ack(listing, person, reply, context)  after the acknowledgement; builds an immutable Item of plain scalars; never raises
+  after_cycle(dry_run)                        after the run lock was released; moves items to the workers' inboxes; instant; never raises
+  extend_card(text, listing, has_photo)       called by telegram.send_listing with the FINAL card text and the real media outcome; adds a
+                                              published line only if the Telegram call plan (kind and number of calls, exactly as
+                                              send_card/send_text decide it) is unchanged
+  publish_lines(feature, {advert key: [(priority, text)]})   how a feature publishes card lines (validated, escaped, bounded, atomic)
 
-Importing this package does no work.
+Delivery semantics of after_cycle: at least once. A batch is a tuple of Items (each has a unique `seq`); the feature returns None (all
+settled), True (keep all) or the Items/seqs to keep. A kept or failed item is offered again (at most MAX_ATTEMPTS times, at most
+MAX_AGE_SECONDS old); every loss is counted in `lost` by category. Features must be idempotent per `seq`. The `at` of an Item is taken at
+the hook, a few milliseconds after Telegram accepted the card.
+
+Termination: "never raises" means ordinary exceptions. KeyboardInterrupt/SystemExit are never swallowed here (the receipts are already
+durable and swallowing termination would stop the service from stopping).
+
+Importing this package does no work. With nothing enabled nothing is imported that does work, no file or table exists, no thread or
+process is started, and the cycle is the release's.
 """
+import dataclasses
+import html
 import os
+import re
 import threading
 import time
+from collections import deque
 
-BUFFER_LIMIT = 500             # items waiting in memory for after_cycle (bounded; the overflow is counted, never silently grown)
-CYCLE_BUDGET_SECONDS = 2.0     # all features' after_cycle together
-CARD_BUDGET_SECONDS = 0.05     # all features' card_line providers together, per card
-SLOW_PENALTY_SECONDS = 60      # a provider that missed its deadline is skipped for this long
-CAPTION_UNITS = 1024           # as telegram.send_card: a photo caption, measured on the raw HTML text
-_registry = []                 # [(flag, loader)]
-_loaded = {}                   # flag -> feature or None (failed to load)
-_items = []                    # after_ack items for the next after_cycle
-_pending = {}                  # feature name -> items it did not finish
-_slow_until = {}
+BUFFER_LIMIT = 500            # items waiting in the main process, and in each feature's inbox
+MAX_AGE_SECONDS = 6 * 3600    # an item older than this is dropped (counted) rather than retried
+MAX_ATTEMPTS = 3
+STUCK_SECONDS = 30            # a worker inside one feature call for longer is reported as stuck (it is never started twice)
+LINE_MAX = 160
+SNAPSHOT_MAX = 2000           # adverts with published lines, per feature
+FIELDS = ("key", "source", "tenure", "rent", "address", "url", "first_listed_at", "exclusive", "bedrooms")
+SCALARS = (str, int, float, bool, type(None))
+
+_registry = []                # [(flag, loader)]
+_workers = {}                 # flag -> Worker
+_items = []                   # after_ack items awaiting after_cycle
 _lock = threading.Lock()
-dropped = 0                    # items refused because the buffer was full (a feature may report it)
+_lines = {}                   # feature name -> {key: ((priority, text), ...)}
+_snapshot = {}                # key -> ((priority, text), ...)  published, replaced atomically, never mutated
+lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0}   # every loss, by category
+_seq = [0]
 
 
 def register(flag, loader):
-    """Declare a feature: it is loaded (the loader called, its module imported) only when the environment variable `flag` is "1"."""
+    """Declare a feature: the loader is called (on the feature's own worker thread) only when the environment variable `flag` is "1"."""
     _registry.append((flag, loader))
 
 
 def reset():
-    """Forget everything (tests)."""
-    global dropped
+    """Forget everything and stop the workers (tests)."""
+    global _snapshot
     with _lock:
-        _registry.clear(), _loaded.clear(), _items.clear(), _pending.clear(), _slow_until.clear()
-        dropped = 0
+        workers = list(_workers.values())
+        _registry.clear(), _workers.clear(), _items.clear(), _lines.clear()
+        _snapshot = {}
+        for key in lost:
+            lost[key] = 0
+    for worker in workers:
+        worker.stop()
 
 
 def enabled_any():
@@ -61,24 +76,27 @@ def enabled_any():
     return any(os.environ.get(flag) == "1" for flag, _ in _registry)
 
 
-def features():
-    """The enabled features, loaded once. A feature that fails to load is skipped (it never takes the process down)."""
-    out = []
-    for flag, loader in list(_registry):
-        if os.environ.get(flag) != "1":
-            continue
-        if flag not in _loaded:
-            try:
-                _loaded[flag] = loader()
-            except Exception:
-                _loaded[flag] = None
-        if _loaded[flag] is not None:
-            out.append(_loaded[flag])
-    return out
+@dataclasses.dataclass(frozen=True)
+class Item:
+    """One accepted alert, as plain immutable data (what a feature receives; never the live listing)."""
+    seq: int
+    at: float
+    person: str
+    message_id: object
+    reason: str
+    state: str
+    via: str
+    data: tuple
+
+    def get(self, name, default=None):
+        for key, value in self.data:
+            if key == name:
+                return value
+        return default
 
 
 def message_id(reply):
-    """The Telegram message id inside a send's reply (what tracker.record_shown reads), or None. Never raises."""
+    """The Telegram message id inside a send's reply, or None. Never raises."""
     try:
         value = reply["result"]["message_id"]
         return value if type(value) is int else None
@@ -86,130 +104,282 @@ def message_id(reply):
         return None
 
 
+def _scalar(value):
+    return value if isinstance(value, SCALARS) and (not isinstance(value, str) or len(value) <= 500) else None
+
+
 # ---------------------------------------------------------------- the hook after the acknowledgement
 
 def after_ack(listing, person, reply, context):
-    """Called by `_run` once per alert, AFTER its receipt and acknowledgement. An append to a bounded in-memory list and nothing else:
-    no I/O, no logging, no import, no lock; it can never raise (a failure here is swallowed, because it must not cost a receipt)."""
-    global dropped
+    """Called by `_run` once per alert, AFTER its receipt and acknowledgement. Copies a few scalars into an immutable Item and appends it
+    to a bounded in-memory list: no I/O, no logging, no import, no lock, no feature code. Failures are swallowed and counted."""
     try:
         if not _registry or not enabled_any():
             return
         if len(_items) >= BUFFER_LIMIT:
-            dropped += 1
+            lost["overflow"] += 1
             return
-        _items.append({"listing": listing, "person": person, "reply": reply, "context": context, "at": time.time()})
+        _seq[0] += 1
+        ctx = context if isinstance(context, dict) else {}
+        _items.append(Item(
+            _seq[0], time.time(), str(person), message_id(reply), str(ctx.get("reason", "")), str(ctx.get("state", "")),
+            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)))
+    except Exception:
+        try:
+            lost["malformed"] += 1
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------- the workers (feature code runs here and nowhere on the pipeline)
+
+class Worker(threading.Thread):
+    """Everything about one feature: loads it, delivers batches one at a time, refreshes its has_work flag. Single flight by construction."""
+
+    def __init__(self, flag, loader):
+        super().__init__(name=f"optional-{flag}", daemon=True)
+        self.flag, self.loader = flag, loader
+        self.feature, self.failed, self.work = None, False, False
+        self.inbox, self.lock, self.wake, self.halt = deque(), threading.Lock(), threading.Event(), threading.Event()
+        self.busy_since = None
+
+    # -- called from the watcher thread: data only, never waits, never calls feature code
+    def offer(self, items):
+        with self.lock:
+            for item in items:
+                self.inbox.append([item, 0])
+            while len(self.inbox) > BUFFER_LIMIT:
+                self.inbox.popleft()
+                lost["evicted"] += 1
+        self.wake.set()
+
+    def stop(self):
+        self.halt.set()
+        self.wake.set()
+
+    def status(self):
+        busy = self.busy_since
+        return {"flag": self.flag, "loaded": self.feature is not None, "failed": self.failed, "waiting": len(self.inbox),
+                "stuck": busy is not None and time.monotonic() - busy > STUCK_SECONDS}
+
+    # -- the worker thread
+    def run(self):
+        try:
+            self.feature = self.loader()
+            if self.feature is None:
+                raise ValueError("no feature")
+        except Exception:
+            self.failed = True
+            return
+        self._refresh()
+        while not self.halt.is_set():
+            self.wake.wait(5.0)
+            self.wake.clear()
+            if self.halt.is_set():
+                break
+            batch = self._take()
+            if batch:
+                self._deliver(batch)
+            self._refresh()
+
+    def _refresh(self):
+        try:
+            self.work = bool(self.feature.has_work()) if hasattr(self.feature, "step") else False
+        except Exception:
+            self.work = False
+
+    def _take(self):
+        now = time.time()
+        with self.lock:
+            taken, self.inbox = list(self.inbox), deque()
+        fresh = []
+        for entry in taken:
+            if now - entry[0].at > MAX_AGE_SECONDS:
+                lost["expired"] += 1
+            else:
+                fresh.append(entry)
+        return fresh
+
+    def _deliver(self, entries):
+        items = tuple(e[0] for e in entries)
+        self.busy_since = time.monotonic()
+        try:
+            result = self.feature.after_cycle(items)
+            ok = True
+        except Exception:
+            result, ok = None, False
+        finally:
+            self.busy_since = None
+        try:
+            if ok and result is True:
+                keep = {e[0].seq for e in entries}
+            elif ok and result is not None:
+                keep = {getattr(x, "seq", x) for x in result}
+            else:
+                keep = None
+        except Exception:
+            keep, ok = None, False
+        retry = []
+        for entry in entries:
+            wanted = (keep is not None and entry[0].seq in keep) or (keep is None and not ok)
+            if not wanted:
+                continue
+            entry[1] += 1
+            if entry[1] >= MAX_ATTEMPTS:
+                lost["failed"] += 1
+            else:
+                retry.append(entry)
+        if retry:
+            with self.lock:
+                self.inbox.extendleft(reversed(retry))
+                while len(self.inbox) > BUFFER_LIMIT:
+                    self.inbox.pop()
+                    lost["evicted"] += 1
+
+
+def _ensure_workers():
+    """Create and start one worker per enabled registration (no feature code runs on the calling thread). Idempotent."""
+    for flag, loader in list(_registry):
+        if os.environ.get(flag) == "1" and flag not in _workers:
+            with _lock:
+                if flag in _workers:
+                    continue
+                worker = Worker(flag, loader)
+                _workers[flag] = worker
+            worker.start()
+
+
+def start():
+    """Start the workers at process start (serve). Never raises; with nothing enabled it starts nothing."""
+    try:
+        if _registry and enabled_any():
+            _ensure_workers()
     except Exception:
         pass
 
 
+def workers():
+    return list(_workers.values())
+
+
+def health():
+    """What /status may show: loss counts and per-feature state. Reads only."""
+    try:
+        return {"lost": dict(lost), "workers": [w.status() for w in workers()]}
+    except Exception:
+        return {"lost": {}, "workers": []}
+
+
 # ---------------------------------------------------------------- the hook after the cycle
 
-def bounded(fn, seconds):
-    """Run fn() in a daemon thread and wait at most `seconds`: (finished, result). On a timeout the thread is abandoned (it cannot hold
-    anything the cycle needs) and the caller moves on; an exception inside fn counts as not finished."""
-    box = {}
-
-    def work():
-        try:
-            box["result"] = fn()
-            box["done"] = True
-        except Exception:
-            box["done"] = False
-
-    thread = threading.Thread(target=work, name="optional", daemon=True)
-    thread.start()
-    thread.join(max(0.0, seconds))
-    return bool(box.get("done")), box.get("result")
-
-
-def after_cycle(dry_run=False, budget=None, clock=time.monotonic):
-    """Called by the watcher AFTER it has released the run lock and after every person's sends. Hands the collected items to each enabled
-    feature (`feature.after_cycle(items, deadline)`: local, bounded work on the feature's own storage) inside one wall-clock budget; every
-    feature is isolated; what a feature does not finish waits for the next cycle (bounded). Never raises; does nothing in a dry run."""
+def after_cycle(dry_run=False):
+    """Called after the run lock was released. Moves the collected items to each enabled feature's inbox and wakes its worker: instant,
+    no feature call, no waiting. Nothing in a dry run. Never raises."""
     try:
-        if dry_run:
-            with _lock:
-                _items.clear()
-            return 0
         with _lock:
-            fresh, _items[:] = list(_items), []
-        active = features() if _registry and enabled_any() else []
-        if not active or not (fresh or any(_pending.values())):
+            fresh = list(_items)
+            _items.clear()
+        if dry_run or not _registry or not enabled_any():
             return 0
-        deadline = clock() + (CYCLE_BUDGET_SECONDS if budget is None else budget)
-        handled = 0
-        for feature in active:
-            name = getattr(feature, "name", repr(feature))
-            batch = _pending.pop(name, []) + fresh
-            left = deadline - clock()
-            if left <= 0:
-                _pending[name] = batch[-BUFFER_LIMIT:]
-                continue
-            finished, result = bounded(lambda f=feature, b=batch, d=deadline: f.after_cycle(b, d), left)
-            if finished and not result:
-                handled += len(batch)
-            else:                                   # not finished (or the feature asks to keep them): try again next cycle
-                keep = batch if not finished or result is True else list(result or [])
-                _pending[name] = keep[-BUFFER_LIMIT:]
-        return handled
+        _ensure_workers()
+        for worker in workers():
+            if os.environ.get(worker.flag) == "1":
+                worker.offer(fresh)
+        return len(fresh)
     except Exception:
         return 0
 
 
-# ---------------------------------------------------------------- card lines
+# ---------------------------------------------------------------- card lines (published snapshot; no feature code on the delivery thread)
 
-def _units(text):
-    return len(text.encode("utf-16-le")) // 2
+def publish_lines(feature, mapping):
+    """Called by a feature (from its own thread) to publish its card lines: {advert key: [(priority, text), ...]}. Validated and escaped
+    here; the whole mapping replaces that feature's previous one, atomically. Returns the number of adverts published."""
+    global _snapshot
+    clean = {}
+    for key, offers in list(mapping.items())[:SNAPSHOT_MAX]:
+        if not isinstance(key, str) or not 0 < len(key) <= 200:
+            continue
+        good = []
+        for offer in list(offers)[:5]:
+            try:
+                priority, text = offer
+                if type(priority) is int and isinstance(text, str):
+                    text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
+                    if text and len(text) <= LINE_MAX:
+                        good.append((priority, html.escape(text, quote=False)))
+            except Exception:
+                continue
+        if good:
+            clean[key] = tuple(sorted(good, key=lambda o: -o[0]))
+    with _lock:
+        _lines[str(feature)[:40]] = clean
+        merged = {}
+        for per_feature in _lines.values():
+            for key, offers in per_feature.items():
+                merged[key] = merged.get(key, ()) + offers
+        _snapshot = {k: tuple(sorted(v, key=lambda o: -o[0])) for k, v in merged.items()}
+    return len(clean)
 
 
-def card_lines(lines, listing):
-    """Offer enabled features the chance to add ONE extra line each to a card. `lines` is the card's list of lines (returned unchanged
-    when no feature is enabled, or none offers anything). Providers (`feature.card_line(listing)` -> (priority, text) or None) must be
-    pure in-memory or a bounded local read: they run with a hard deadline, and one that exceeds it yields no line. Lines are added by
-    priority (highest first) only while the card stays ONE Telegram call, measured as the release measures it: a card whose text fits a
-    photo caption (raw UTF-16 units <= 1024) must still fit; a card that already goes out as photo + text message must keep its text
-    within one message (tgtext.visible <= 4096). The lowest priorities are the ones dropped."""
+def plan(has_photo, text):
+    """The Telegram call plan of a card, decided exactly as telegram.send_card / send_text decide it: (kind, number of calls)."""
+    from .. import tgtext
+    if has_photo and len(text.encode("utf-16-le")) // 2 <= tgtext.CAPTION:
+        return ("photo-caption", 1)
+    pieces = len(tgtext.split_html(text))
+    return ("photo-then-text", 1 + pieces) if has_photo else ("text", pieces)
+
+
+def extend_card(text, listing, has_photo):
+    """Add published lines to the FINAL card text (media outcome known), highest priority first, each only while the call plan stays
+    exactly what it was without it. Reads the published snapshot only; calls no feature code; returns `text` unchanged on any problem."""
     try:
-        if not _registry or not enabled_any():
-            return lines
-        now = time.monotonic()
-        active = [f for f in features() if hasattr(f, "card_line") and _slow_until.get(getattr(f, "name", ""), 0) <= now]
-        if not active:
-            return lines
-        offers = []
-
-        def collect():
-            for f in active:
-                try:
-                    offer = f.card_line(listing)
-                except Exception:
-                    continue
-                if offer:
-                    offers.append((offer[0], getattr(f, "name", ""), offer[1]))
-
-        thread = threading.Thread(target=collect, name="optional-card", daemon=True)
-        thread.start()
-        thread.join(CARD_BUDGET_SECONDS)
-        if thread.is_alive():                                             # too slow: whatever finished is used, the rest are skipped for a while
-            for f in active:
-                _slow_until[getattr(f, "name", "")] = time.monotonic() + SLOW_PENALTY_SECONDS
-        offers = sorted((o for o in list(offers) if isinstance(o[2], str) and o[2].strip()), key=lambda o: -o[0])
+        offers = _snapshot.get(getattr(listing, "key", None))
         if not offers:
-            return lines
-        from .. import tgtext
-        base = "\n".join(lines)
-        within = (lambda text: _units(text) <= CAPTION_UNITS) if _units(base) <= CAPTION_UNITS else \
-            (lambda text: tgtext.visible(text) <= tgtext.MESSAGE)
-        if not within(base):
-            return lines                                                   # already beyond one message: add nothing
-        chosen = []
-        for _, _, text in offers:
-            if within("\n".join([*lines, *chosen, text])):
-                chosen.append(text)
-        return [*lines, *chosen] if chosen else lines
+            return text
+        base = plan(has_photo, text)
+        for _, line in offers:
+            candidate = text + "\n" + line
+            if plan(has_photo, candidate) == base:
+                text = candidate
+        return text
     except Exception:
-        return lines
+        return text
+
+
+# ---------------------------------------------------------------- supervisor entry points used by the watcher
+
+def cycle_start():
+    try:
+        RUNNER.reap()
+    except Exception:
+        pass
+
+
+def cycle_end(dry_run=False):
+    try:
+        after_cycle(dry_run)
+        RUNNER.reap()
+    except Exception:
+        pass
+
+
+def maybe_start_step():
+    try:
+        RUNNER.maybe_start()
+    except Exception:
+        pass
+
+
+def shutdown():
+    """Bounded and non-raising: stop the workers' loops and terminate and reap the child and its process group."""
+    try:
+        for worker in workers():
+            worker.stop()
+        RUNNER.stop()
+    except Exception:
+        pass
 
 
 from .runner import RUNNER  # noqa: E402,F401  (the class is defined; nothing runs until a feature has queued work)

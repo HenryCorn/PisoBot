@@ -242,7 +242,6 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines.append(" · ".join(tags))
     if l.estimated:
         lines.append("<i>est. " + e(", ".join(l.estimated)) + "</i>")
-    lines = optional.card_lines(lines, l)
     return "\n".join(lines)
 
 
@@ -301,6 +300,7 @@ def send_listing(l, reason="new"):
     jpeg = collage.build(l, sources=shown)
     if not jpeg:
         text += "\n📷 Header unavailable · use Open listing to view the media"
+    text = optional.extend_card(text, l, bool(jpeg))      # a published line, only if the Telegram call plan is unchanged
     result = send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]), loud=_loud(l))
     remember_photos(l.key, result, shown if jpeg else [])
     return result
