@@ -1,6 +1,7 @@
 """G0 (round 2): the optional-features foundation. No feature here: only the seams, the fault-injection probes the reviews asked for, and
 a proof (by ordered trace, with mutation checks) that with nothing enabled the bot is the release."""
 import contextlib
+import errno
 import fcntl
 import json
 import os
@@ -355,7 +356,7 @@ class AfterAckTests(OptionalBase):
                              side_effect=lambda *a, **kw: (events.append(("ack" if kw.get("acknowledged") else "books",)),
                                                            real_verdicts(*a, **kw))[1]), \
                 patch.object(optional, "after_ack",
-                             side_effect=lambda l, p, reply, ctx: events.append(("hook", l.key, optional.message_id(reply)))):
+                             side_effect=lambda l, p, reply, **kw: events.append(("hook", l.key, optional.message_id(reply)))):
             self.watcher.cycle()
         sequence = [e[0] for e in events if e[0] in ("send", "seen", "ack", "hook")]
         for i in range(len(sequence) - 3):
@@ -364,6 +365,14 @@ class AfterAckTests(OptionalBase):
         hooks = [e for e in events if e[0] == "hook"]
         self.assertGreaterEqual(len(hooks), 2)
         self.assertTrue(all(e[2] == 7 for e in hooks))
+
+    def test_an_exception_calling_the_hook_does_not_interrupt_remaining_alerts(self):
+        self.baseline()
+        self.full = [home(1, 1200), home(2, 1250), home(3, 1300)]
+        with patch.object(optional, "after_ack", side_effect=MemoryError("hook unavailable")):
+            self.watcher.cycle()
+        self.assertTrue({"rm:2", "rm:3"} <= {key for _, key, _ in self.sent})
+        self.assertGreaterEqual(optional.lost["malformed"], len(self.sent))
 
     def test_a_hook_that_fails_in_every_way_costs_no_receipt(self):
         """Fault injection: the buffer, the clock and the item construction all explode. Alerts are recorded and acknowledged once."""
@@ -645,6 +654,42 @@ class StorageTests(OptionalBase):
         before = sorted(p.name for p in localdb.state_dir().iterdir())
         self.assertEqual(store.read_primary("SELECT 1", person="999"), [])
         self.assertEqual(sorted(p.name for p in localdb.state_dir().iterdir()), before)
+
+    def test_primary_stat_errors_are_reported_instead_of_appearing_missing(self):
+        self.assertEqual(store.read_primary("SELECT 1", person="999"), [])
+        self.assertEqual(store.last_primary_error[0], "")
+        primary = self.primary()
+        real_stat = os.stat
+        for error in (PermissionError(errno.EACCES, "denied"), OSError(errno.EIO, "I/O error")):
+            def failing_stat(target, *args, **kwargs):
+                if isinstance(target, (str, bytes, os.PathLike)) and os.fsdecode(target) == str(primary):
+                    raise error
+                return real_stat(target, *args, **kwargs)
+
+            with self.subTest(errno=error.errno), patch.object(os, "stat", side_effect=failing_stat):
+                self.assertEqual(store.read_primary("SELECT v FROM probe"), [])
+                self.assertEqual(store.last_primary_error[0], type(error).__name__)
+        self.assertEqual(store.read_primary("SELECT v FROM probe"), [{"v": "kept"}])
+        self.assertEqual(store.last_primary_error[0], "")
+
+    def test_optional_presence_only_treats_a_missing_path_as_absent(self):
+        target = store.path()
+        self.assertFalse(store.exists())
+        os.symlink(self.state / "missing", target)
+        self.assertTrue(store.exists())
+        self.assertEqual(store.read("SELECT 1"), [])
+        target.unlink()
+        self.assertTrue(store.write(self.DDL, []))
+        real_lstat = os.lstat
+        for error in (PermissionError(errno.EACCES, "denied"), OSError(errno.EIO, "I/O error")):
+            def failing_lstat(path, *args, **kwargs):
+                if isinstance(path, (str, bytes, os.PathLike)) and os.fsdecode(path) == str(target):
+                    raise error
+                return real_lstat(path, *args, **kwargs)
+
+            with self.subTest(errno=error.errno), patch.object(os, "lstat", side_effect=failing_lstat):
+                with self.assertRaises(type(error)):
+                    store.exists()
 
 
 # ---------------------------------------------------------------- the supervised step

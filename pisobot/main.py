@@ -794,7 +794,13 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         if local_rentals:
             archive.record_verdicts(person_id, [_verdict_row(l, None)], settings, acknowledged=True)
         delivered.add(l.key)
-        optional.after_ack(l, person_id, sent_card, {"reason": reason, "state": send_state})
+        try:
+            optional.after_ack(l, person_id, sent_card, reason=reason, state=send_state)
+        except Exception:
+            try:
+                optional.lost["malformed"] += 1
+            except Exception:
+                pass
         if send_state == "sent":
             telegram.throttle()
     if live:
