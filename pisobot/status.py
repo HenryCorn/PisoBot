@@ -4,7 +4,7 @@ import datetime as dt
 import html
 import json
 
-from . import archive, config, users
+from . import archive, config, timing, users
 
 WHATIF_DAYS = 7
 NAMES = {"rm": "Rightmove", "otmr": "OnTheMarket"}
@@ -84,6 +84,7 @@ def status_text(now=None):
                 st = running["state"]
                 lines.append(f"• {name}: running, {running['requests']}/{config.DEEP_SWEEP_MAX_REQUESTS} requests, "
                              f"{len(st.get('queue', []))} price band(s) queued, {running['adverts_seen']:,} adverts so far")
+    lines.extend(timing.status_lines(now))
     counts = archive.counts()
     lines.append(f"\n<b>Archive</b>: {counts.get('active', 0):,} active adverts · {counts.get('unseen', 0):,} unseen")
     return "\n".join(lines)
