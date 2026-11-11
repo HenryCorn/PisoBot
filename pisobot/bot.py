@@ -564,6 +564,10 @@ class Handler:
         command = words[0].split("@")[0].lower() if words else ""
         if words:
             words[0] = command
+        if command == "/area" and os.environ.get("PLACE_FACTS") == "1":
+            from .place_feature import area_reply
+            self.reply(area_reply(" ".join(words[1:])))
+            return
         if command in ("/settings", "/search", "/set"):
             self.settings(words if command == "/set" else words[:1])
             return
@@ -637,7 +641,8 @@ class Handler:
             if command == "/start" and self._new_person():
                 self.onboard(words)
             else:
-                self.reply(HELP)
+                self.reply(HELP + ("\n/area &lt;postcode or district&gt; – cached local overview"
+                                   if os.environ.get("PLACE_FACTS") == "1" else ""))
 
     def callback(self, query, message):
         data, query_id = query.get("data"), query.get("id")
