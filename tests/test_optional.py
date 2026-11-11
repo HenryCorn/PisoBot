@@ -828,14 +828,26 @@ class RunnerTests(OptionalBase):
 
     def test_a_failed_group_inspection_keeps_the_leader_owned_until_rechecked(self):
         proc, group = self.launch("import time; time.sleep(60)")
-        with patch.object(runner, "group_usage", side_effect=OSError("inspection failed")) as inspect, \
-                self.assertLogs("pisobot.optional.runner", level="WARNING"):
+        with self.assertLogs("pisobot.optional.runner", level="WARNING"), \
+                patch.object(runner, "group_usage", side_effect=OSError("inspection failed")) as inspect:
             group.request_stop()
             self.assertTrue(wait_for(lambda: inspect.called))
             self.assertTrue(wait_for(lambda: os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None))
             self.assertFalse(group.done.is_set())
             self.assertIsNone(proc.returncode)
             self.assertEqual(self.runner.reap(), "running")
+        group.wake.set()
+        self.assertTrue(group.done.wait(5))
+
+    def test_an_empty_group_inspection_does_not_reap_an_unverified_leader(self):
+        proc, group = self.launch("import time; time.sleep(60)")
+        with self.assertLogs("pisobot.optional.runner", level="WARNING"), \
+                patch.object(runner, "group_usage", return_value=(0, 0, 0)) as inspect:
+            group.request_stop()
+            self.assertTrue(wait_for(lambda: inspect.called))
+            self.assertTrue(wait_for(lambda: os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None))
+            self.assertFalse(group.done.is_set())
+            self.assertIsNone(proc.returncode)
         group.wake.set()
         self.assertTrue(group.done.wait(5))
 
