@@ -14,6 +14,17 @@ own worker: it is never started a second time (single flight per feature), its i
                                               published line only if the Telegram call plan (kind and number of calls, exactly as
                                               send_card/send_text decide it) is unchanged
   publish_lines(feature, {advert key: [(priority, text)]})   how a feature publishes card lines (validated, escaped, bounded, atomic)
+  publish_templates(feature, [template])      the seam between fetch and send: a feature DECLARES a line about a fact the listing already
+                                              carries from the fetch (e.g. the portal's timestamp); the foundation renders it at send
+                                              with pure code. See "Fetch-time facts" below.
+
+Fetch-time facts. A fact known only when the advert is fetched ("Listed 40 min ago") cannot be published per advert before its first
+card: the feature never sees the advert in time, and waiting for it would delay the alert. So nothing is handed to the feature and
+nothing is waited for. The hand-over at fetch is the listing's own plain scalar fields, filled in by the portal parser. A feature
+publishes, once, a declarative Template (field name, kind, text with one "{}", bounds, priority): plain validated data. When the card is
+built, extend_card reads that one scalar straight from the listing's instance dictionary (no property, no descriptor, exact builtin
+types only), renders it with the pure functions below and offers the result exactly like a published line (same call-plan rule).
+No feature callback, no I/O, no lock, no wait; any problem yields no line.
 
 Delivery semantics of after_cycle: at least once. A batch is a tuple of Items (each has a unique `seq`); the feature returns None (all
 settled), True (keep all) or the Items/seqs to keep. A kept or failed item is offered again (at most MAX_ATTEMPTS times, at most
@@ -27,6 +38,7 @@ Importing this package does no work. With nothing enabled nothing is imported th
 process is started, and the cycle is the release's.
 """
 import dataclasses
+import datetime
 import html
 import os
 import re
@@ -49,6 +61,13 @@ _items = []                   # after_ack items awaiting after_cycle
 _lock = threading.Lock()
 _lines = {}                   # feature name -> {key: ((priority, text), ...)}
 _snapshot = {}                # key -> ((priority, text), ...)  published, replaced atomically, never mutated
+_template_sets = {}           # feature name -> (Template, ...)
+_templates = ()               # every published Template; replaced atomically, never mutated
+TEMPLATES_PER_FEATURE = 5
+TEMPLATES_MAX = 20
+TEMPLATE_KINDS = ("age", "value")
+MAX_AGE_TEMPLATE_SECONDS = 7 * 86400
+CLOCK_SKEW_SECONDS = 60       # a portal clock slightly ahead of ours still reads as "under 1 min"
 lost = {"overflow": 0, "evicted": 0, "expired": 0, "failed": 0, "malformed": 0}   # every loss, by category
 _seq = [0]
 
@@ -60,11 +79,11 @@ def register(flag, loader):
 
 def reset():
     """Forget everything and stop the workers (tests)."""
-    global _snapshot
+    global _snapshot, _templates
     with _lock:
         workers = list(_workers.values())
-        _registry.clear(), _workers.clear(), _items.clear(), _lines.clear()
-        _snapshot = {}
+        _registry.clear(), _workers.clear(), _items.clear(), _lines.clear(), _template_sets.clear()
+        _snapshot, _templates = {}, ()
         for key in lost:
             lost[key] = 0
     for worker in workers:
@@ -321,6 +340,98 @@ def publish_lines(feature, mapping):
         _snapshot = {k: tuple(sorted(v, key=lambda o: -o[0])) for k, v in merged.items()}
     return len(clean)
 
+# ---------------------------------------------------------------- fetch-time facts: declared by a feature, rendered here at send
+
+@dataclasses.dataclass(frozen=True)
+class Template:
+    """A declared card line about one scalar field of the listing. Plain data; `text` is already HTML-escaped and has exactly one "{}"."""
+    priority: int
+    field: str
+    kind: str            # "age": the field is a timestamp, "{}" becomes "40 min" / "2 h 5 min"; "value": "{}" becomes the scalar itself
+    text: str
+    max_seconds: int     # "age" only: no line once the fact is older than this
+
+
+def publish_templates(feature, templates):
+    """Called by a feature (from its own thread, normally once when it loads) to declare lines the foundation renders at send from facts
+    the listing carries from the fetch. Each template is a dict: {"field", "kind", "text", "priority", "max_seconds"}. Invalid ones are
+    dropped; the feature's previous set is replaced, atomically. Returns the number accepted."""
+    global _templates
+    good = []
+    for raw in list(templates)[:TEMPLATES_PER_FEATURE]:
+        try:
+            priority, field, kind, text = raw["priority"], raw["field"], raw["kind"], raw["text"]
+            limit = raw.get("max_seconds", 0)
+            if type(priority) is not int or type(field) is not str or type(text) is not str or kind not in TEMPLATE_KINDS:
+                continue
+            if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", field):
+                continue
+            text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
+            if text.count("{}") != 1 or "{" in text.replace("{}", "") or "}" in text.replace("{}", "") or len(text) > LINE_MAX:
+                continue
+            if kind == "age" and (type(limit) is not int or not 0 < limit <= MAX_AGE_TEMPLATE_SECONDS):
+                continue
+            good.append(Template(priority, field, kind, html.escape(text, quote=False), limit if kind == "age" else 0))
+        except Exception:
+            continue
+    with _lock:
+        _template_sets[str(feature)[:40]] = tuple(good)
+        _templates = tuple(t for group in _template_sets.values() for t in group)[:TEMPLATES_MAX]
+    return len(good)
+
+
+def epoch(value):
+    """Seconds since 1970 for an ISO timestamp WITH an offset, or None. Pure, bounded, never raises."""
+    try:
+        if type(value) is not str or not 10 < len(value) <= 40:
+            return None
+        when = datetime.datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+        return when.timestamp() if when.tzinfo is not None else None
+    except Exception:
+        return None
+
+
+def age_words(seconds):
+    """'under 1 min', '40 min', '2 h', '2 h 5 min', '3 days'. Pure."""
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return "under 1 min"
+    if minutes < 60:
+        return f"{minutes} min"
+    if minutes < 48 * 60:
+        hours, rest = divmod(minutes, 60)
+        return f"{hours} h" + (f" {rest} min" if rest else "")
+    return f"{minutes // 1440} days"
+
+
+def render(template, listing, now):
+    """The escaped line for this listing, or None. Reads ONE scalar from the listing's instance dictionary (never a property, never a
+    feature object), accepts exact builtin types only, and computes with pure code. Never raises."""
+    try:
+        value = vars(listing).get(template.field)
+        if template.kind == "age":
+            then = epoch(value)
+            if then is None:
+                return None
+            age = now - then
+            if not -CLOCK_SKEW_SECONDS <= age < template.max_seconds:
+                return None
+            shown = age_words(max(age, 0))
+        else:
+            if type(value) is str:
+                shown = re.sub(r"[\x00-\x1f\x7f]", " ", value).strip()
+            elif type(value) is int or (type(value) is float and value == value and abs(value) < 1e15):
+                shown = f"{value:g}" if type(value) is float else str(value)
+            else:
+                return None
+            if not shown or len(shown) > 60:
+                return None
+            shown = html.escape(shown, quote=False)
+        line = template.text.replace("{}", shown)
+        return line if len(line) <= LINE_MAX else None
+    except Exception:
+        return None
+
 
 def plan(has_photo, text):
     """The Telegram call plan of a card, decided exactly as telegram.send_card / send_text decide it: (kind, number of calls)."""
@@ -332,20 +443,31 @@ def plan(has_photo, text):
 
 
 def extend_card(text, listing, has_photo):
-    """Add published lines to the FINAL card text (media outcome known), highest priority first, each only while the call plan stays
-    exactly what it was without it. Reads the published snapshot only; calls no feature code; returns `text` unchanged on any problem."""
+    """Add published lines, and lines rendered from published templates, to the FINAL card text (media outcome known), highest priority
+    first, each only while the call plan stays exactly what it was without it. Reads published immutable data and one scalar of the
+    listing; calls no feature code; returns `text` unchanged on any problem."""
+    original = text
     try:
-        offers = _snapshot.get(getattr(listing, "key", None))
+        offers = _snapshot.get(getattr(listing, "key", None)) or ()
+        templates = _templates
+        if templates:
+            now = time.time()
+            rendered = [(t.priority, line) for t in templates for line in (render(t, listing, now),) if line]
+            if rendered:
+                offers = sorted(list(offers) + rendered, key=lambda o: -o[0])
         if not offers:
             return text
-        base = plan(has_photo, text)
+        base, used = plan(has_photo, text), set()
         for _, line in offers:
+            if line in used:
+                continue
             candidate = text + "\n" + line
             if plan(has_photo, candidate) == base:
                 text = candidate
-        return text
+                used.add(line)
+        return text if plan(has_photo, text) == base else original
     except Exception:
-        return text
+        return original
 
 
 # ---------------------------------------------------------------- supervisor entry points used by the watcher

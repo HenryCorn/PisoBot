@@ -787,6 +787,175 @@ class CardTests(Base):
         self.assertEqual(optional.extend_card("t", l, True), "t")
 
 
+# ---------------------------------------------------------------- fetch-time facts: declared templates, rendered by the foundation at send
+
+LISTED = {"field": "first_listed_at", "kind": "age", "text": "🕒 Listed {} ago", "priority": 5, "max_seconds": 3 * 3600}
+
+
+def stamp(seconds_ago):
+    import datetime as dt
+    return (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=seconds_ago)).isoformat()
+
+
+def fresh(i=1, seconds_ago=40 * 60 + 20, rent=1200):
+    listing = home(i, rent)
+    listing.first_listed_at = stamp(seconds_ago)
+    return listing
+
+
+class FetchFactTests(Base):
+    def setUp(self):
+        super().setUp()
+        optional.reset()
+        self.addCleanup(optional.reset)
+
+    def real_send(self, listing, photo):
+        calls = []
+        with patch.object(telegram, "listing_keyboard", return_value={}), patch.object(telegram, "remember_photos"), \
+                patch.object(telegram.collage, "build", return_value=b"jpeg" if photo else None), patch.object(telegram, "throttle"), \
+                patch.object(telegram, "_call", side_effect=lambda m, **kw: (calls.append((m, kw)), {})[1]):
+            REAL_SEND_LISTING(listing)
+        return calls
+
+    def test_the_first_alert_carries_the_line_and_the_telegram_calls_are_the_same(self):
+        for photo in (True, False):
+            optional.reset()
+            before = self.real_send(fresh(), photo)
+            self.assertEqual(optional.publish_templates("timing", [LISTED]), 1)
+            after = self.real_send(fresh(), photo)
+            self.assertEqual([m for m, _ in before], [m for m, _ in after])
+            text = lambda calls: calls[0][1].get("caption") or calls[0][1].get("text")
+            self.assertEqual(text(after), text(before) + "\n🕒 Listed 40 min ago")
+
+    def test_the_age_is_read_at_send_and_only_inside_the_declared_window(self):
+        optional.publish_templates("timing", [LISTED])
+        for seconds, expect in ((5, "under 1 min"), (61, "1 min"), (59 * 60, "59 min"), (3600, "1 h"), (2 * 3600 + 5 * 60 + 3, "2 h 5 min"),
+                                (3 * 3600 - 2, "2 h 59 min"), (3 * 3600 + 1, None), (86400, None), (-30, "under 1 min"), (-600, None)):
+            out = optional.extend_card("card", fresh(1, seconds), True)
+            self.assertEqual(out, "card" if expect is None else f"card\n🕒 Listed {expect} ago", seconds)
+        self.assertEqual(optional.age_words(49 * 3600), "2 days")
+
+    def test_a_missing_naive_or_junk_fact_gives_no_line_and_never_raises(self):
+        optional.publish_templates("timing", [LISTED])
+
+        class Str(str):
+            def endswith(self, *a):
+                raise AssertionError("code supplied with the data ran on the delivery thread")
+            __len__ = endswith
+
+        for value in (None, "", "2026-11-11", "2026-11-11T10:00:00", "junk" * 5, "9" * 500, 5, 1.5, True, b"2026", ["x"], {"a": 1},
+                      Str(stamp(60)), "\ud800" * 12, float("nan")):
+            listing = home(1)
+            listing.first_listed_at = value
+            self.assertEqual(optional.extend_card("card", listing, True), "card", repr(value)[:30])
+        self.assertEqual(optional.extend_card("card", object(), True), "card")
+        self.assertEqual(optional.extend_card("card", None, False), "card")
+        self.assertEqual(optional.epoch("2026-11-09T14:03:12Z"), optional.epoch("2026-11-09T14:03:12+00:00"))
+
+    def test_only_the_instance_dictionary_is_read_never_a_property_or_a_feature_object(self):
+        optional.publish_templates("f", [dict(LISTED, field="trap"), dict(LISTED, field="key", kind="value", text="k {}")])
+
+        class Trapped(type(home())):
+            @property
+            def trap(self):
+                raise AssertionError("a property ran on the delivery thread")
+
+            def __getattr__(self, name):
+                raise AssertionError("attribute lookup ran on the delivery thread")
+        listing = Trapped("rm", "1", "u", "Home", 1, "Private rent")
+        self.assertEqual(optional.extend_card("card", listing, True), "card")       # `key` is a property: not read either
+
+    def test_templates_are_validated_and_are_plain_immutable_data(self):
+        bad = [dict(LISTED, text="no placeholder"), dict(LISTED, text="{} and {}"), dict(LISTED, text="{0.__class__} {}"),
+               dict(LISTED, text="{} }"), dict(LISTED, kind="eval"), dict(LISTED, field="__dict__"), dict(LISTED, field="a.b"),
+               dict(LISTED, priority="5"), dict(LISTED, max_seconds=0), dict(LISTED, max_seconds=10 ** 9), dict(LISTED, text="x{}" * 1 + "y" * 200),
+               {"field": "rent"}, None, 7]
+        self.assertEqual(optional.publish_templates("f", bad), 0)
+        self.assertEqual(optional._templates, ())
+        self.assertEqual(optional.publish_templates("f", [dict(LISTED, text="<b>{}</b> & \x00co")] + [LISTED] * 9), optional.TEMPLATES_PER_FEATURE)
+        first = optional._templates[0]
+        self.assertEqual(first.text, "&lt;b&gt;{}&lt;/b&gt; &amp;  co")
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            first.text = "changed"
+        before = optional._templates
+        optional.publish_templates("f", [LISTED])                                 # a feature replaces its own set; the old tuple is untouched
+        self.assertEqual((len(before), len(optional._templates)), (optional.TEMPLATES_PER_FEATURE, 1))
+        for n in range(10):
+            optional.publish_templates(f"g{n}", [LISTED] * 5)
+        self.assertEqual(len(optional._templates), optional.TEMPLATES_MAX)
+
+    def test_a_value_template_escapes_the_fact_and_refuses_anything_that_is_not_a_short_scalar(self):
+        optional.publish_templates("f", [{"field": "agent", "kind": "value", "text": "Agent: {}", "priority": 1}])
+        for value, expect in (("A <b>& B", "Agent: A &lt;b&gt;&amp; B"), (12, "Agent: 12"), (62.5, "Agent: 62.5"), ("x" * 61, None),
+                              ("", None), (None, None), (True, None), (float("inf"), None), ("a\nb", "Agent: a b")):
+            listing = home(1)
+            listing.agent = value
+            self.assertEqual(optional.extend_card("card", listing, False), "card" if expect is None else "card\n" + expect, repr(value))
+
+    def test_a_rendered_line_never_changes_the_call_plan_at_any_boundary(self):
+        """Defect class (d): the same planning as published lines, against the final text and the real media outcome, through the real sender."""
+        optional.publish_templates("timing", [LISTED])
+        extra = tgtext.visible("\n🕒 Listed 40 min ago")
+        for photo in (True, False):
+            listing = fresh()
+            listing.station = "S"
+            optional.reset()
+            base = self.real_send(listing, photo)
+            sent = base[0][1].get("caption") or base[0][1].get("text")
+            size = len(sent.encode("utf-16-le")) // 2 if photo else tgtext.visible(sent)   # each limit as the release measures it
+            limit = tgtext.CAPTION if photo else tgtext.MESSAGE
+            for room in range(extra + 3, -3, -1):                                  # from "fits easily" to "the release text is already over"
+                target = limit - room
+                if target < size:
+                    continue
+                listing = fresh()
+                listing.station = "S" + "s" * (target - size)
+                optional.reset()
+                without = [m for m, _ in self.real_send(listing, photo)]
+                optional.publish_templates("timing", [LISTED])
+                with_line = self.real_send(listing, photo)
+                self.assertEqual(without, [m for m, _ in with_line], (photo, room))
+                joined = "".join(str(kw.get("caption") or kw.get("text") or "") for _, kw in with_line)
+                self.assertEqual("Listed 40 min ago" in joined, room >= extra or room < 0, (photo, room))     # already two calls: stays two
+
+    def test_rendering_does_no_io_takes_no_lock_and_calls_nothing_a_feature_supplied(self):
+        class Tripwire:
+            def __getattr__(self, name):
+                raise AssertionError("feature code on the delivery thread")
+        optional.register(FLAG, lambda: Tripwire())
+        optional.publish_templates("timing", [LISTED])
+        with patch.dict(os.environ, {FLAG: "1"}), patch("builtins.open", side_effect=AssertionError("file")), \
+                patch.object(sqlite3, "connect", side_effect=AssertionError("db")), \
+                patch.object(subprocess, "Popen", side_effect=AssertionError("process")), optional._lock:      # the lock is HELD: not needed
+            self.assertIn("Listed 40 min ago", optional.extend_card("card", fresh(), True))
+        self.assertEqual(optional.workers(), [])                                   # rendering started nothing
+
+    def test_a_broken_renderer_or_planner_leaves_the_release_card(self):
+        optional.publish_templates("timing", [LISTED])
+        optional.publish_lines("f", {"rm:1": [(9, "published")]})
+        for target in ("render", "plan", "age_words", "epoch"):
+            with patch.object(optional, target, side_effect=RuntimeError("boom")):
+                out = optional.extend_card("card", fresh(), True)
+            self.assertIn(out, ("card", "card\npublished"), target)
+        with patch.object(optional.time, "time", side_effect=MemoryError()):
+            self.assertEqual(optional.extend_card("card", fresh(), True), "card")
+
+    def test_published_lines_and_rendered_lines_share_one_priority_order_and_duplicates_collapse(self):
+        optional.publish_templates("timing", [LISTED, LISTED])
+        optional.publish_lines("f", {"rm:1": [(9, "high"), (1, "low")]})
+        self.assertEqual(optional.extend_card("card", fresh(), False), "card\nhigh\n🕒 Listed 40 min ago\nlow")
+        tight = "x" * (tgtext.CAPTION - 6)                                          # room for "high" only: the rest is left out, not split
+        self.assertEqual(optional.extend_card(tight, fresh(), True), tight + "\nhigh")
+
+    def test_twenty_templates_on_a_card_cost_well_under_a_millisecond_each(self):
+        for n in range(4):
+            optional.publish_templates(f"f{n}", [dict(LISTED, text=f"{n}{k} {{}}") for k in range(5)])
+        listing, started = fresh(), time.perf_counter()
+        for _ in range(50):
+            optional.extend_card("x" * 500, listing, True)
+        self.assertLess((time.perf_counter() - started) / 50, 0.02)                # the whole card, 20 lines offered: bounded work
+
+
 # ---------------------------------------------------------------- off is the release: ordered trace, with mutation checks
 
 def release_module(name, relative):
@@ -854,9 +1023,14 @@ class OffIsTheReleaseTests(RealSendBase):
                           "files" in data, bool(data.get("reply_markup"))))
             return {"result": {"message_id": counter[0]}}
 
+        listed_at = stamp(40 * 60 + 20)                 # every advert carries a fresh portal timestamp: a template WOULD render
+
         def fetch():
             trace.append(("fetch", "rm"))
-            return [home(i, r) for i, r in listings]
+            found = [home(i, r) for i, r in listings]
+            for listing in found:
+                listing.first_listed_at = listed_at
+            return found
 
         def band(low, high, page):
             trace.append(("band", low, high, page))
@@ -930,6 +1104,7 @@ class OffIsTheReleaseTests(RealSendBase):
         self.assertEqual(theirs[2], ours[2])                                  # every person's database and json state
         self.assertNotIn("optional.db", " ".join(ours[1]))
         self.assertIsNone(runner.RUNNER.proc)
+        self.assertNotIn("Listed", str(ours[0]))                              # the fetch-time seam renders nothing while nothing is published
 
     # --- the comparison is only worth something if it fails when the bot changes: three mutants of this branch
     def mutant(self, mutate):
@@ -962,6 +1137,18 @@ class OffIsTheReleaseTests(RealSendBase):
         theirs, mutated = self.mutant(lambda stack: stack.enter_context(
             patch.object(main, "fetch_sources", lambda *a, **kw: (real(*a, **kw), real(*a, **kw))[1])))
         self.assertNotEqual(theirs, mutated)
+
+    def test_mutation_a_template_left_published_changes_the_trace_and_only_by_its_line(self):
+        """The scenario really exercises the fetch-to-send seam: a published template shows up in the trace. And it changes NOTHING else:
+        with the line removed from the card texts the ordered trace (calls, requests, file writes, SQL) is the release's again."""
+        optional.reset()
+        self.addCleanup(optional.reset)
+        theirs, mutated = self.mutant(lambda stack: optional.publish_templates("timing", [LISTED]))
+        self.assertNotEqual(theirs, mutated)
+        line = "\n🕒 Listed 40 min ago"
+        self.assertTrue(any(line in t[3] for t in mutated if t[0] == "telegram"))
+        stripped = [(t[:3] + (t[3].replace(line, ""),) + t[4:]) if t[0] == "telegram" else t for t in mutated]
+        self.assertEqual(theirs, stripped)
 
 
 if __name__ == "__main__":
