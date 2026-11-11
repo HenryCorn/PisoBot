@@ -1,6 +1,7 @@
 """onthemarket.com lettings - same __NEXT_DATA__ layout as the shared-ownership search
 (onthemarket.py), 30 per page. Search cards carry rent, beds, location and photos; details
 pages are read only for listings that pass the cheap filters, to catch rooms and short lets."""
+import os
 import datetime as dt
 import json
 import re
@@ -170,5 +171,7 @@ def refine(listing):
                                  f"{p.get('description', '')}"),
              "deposit": money(deposit[1]) if deposit else None,
              "floor_area_m2": round(area, 2) if area else None, "floorplan": plans[0] if plans else None}
+        if os.environ.get("ALERT_TIMING") == "1" and isinstance(p.get("exclusive"), bool):
+            d["exclusive"] = p["exclusive"]                 # off: the cached detail is exactly the release's
         cache.put("otmr_detail", listing.id, d)
     return apply_rent_details(listing, d)
