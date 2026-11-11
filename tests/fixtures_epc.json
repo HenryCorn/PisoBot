@@ -1,0 +1,181 @@
+{
+ "certificates": {
+  "0000-0000-0000-0000-0001": {
+   "data": {
+    "address_line_1": "Flat 1",
+    "address_line_2": "10 Example Road",
+    "assessment_type": "RdSAP",
+    "built_form": 3,
+    "current_energy_efficiency_band": "C",
+    "dwelling_type": "Ground-floor flat",
+    "habitable_room_count": 3,
+    "heated_room_count": 3,
+    "heating_cost_current": {
+     "currency": "GBP",
+     "value": 524
+    },
+    "hot_water_cost_current": {
+     "currency": "GBP",
+     "value": 166
+    },
+    "inspection_date": "2026-08-17",
+    "lighting_cost_current": {
+     "currency": "GBP",
+     "value": 40
+    },
+    "main_heating": [
+     {
+      "description": "Boiler and radiators, mains gas",
+      "energy_efficiency_rating": 4,
+      "environmental_efficiency_rating": 4
+     }
+    ],
+    "postcode": "AA1 1AA",
+    "property_type": 2,
+    "registration_date": "2026-10-26",
+    "schema_type": "RdSAP-Schema-21.0.1",
+    "tenure": 1,
+    "total_floor_area": 54,
+    "transaction_type": 2,
+    "uprn": 100000000000
+   }
+  },
+  "0000-0000-0000-0000-0002": {
+   "data": {
+    "address_line_1": "Flat 2",
+    "address_line_2": "10 Example Road",
+    "assessment_type": "RdSAP",
+    "built_form": 3,
+    "current_energy_efficiency_band": "C",
+    "dwelling_type": "Ground-floor flat",
+    "habitable_room_count": 3,
+    "heated_room_count": 3,
+    "heating_cost_current": {
+     "currency": "GBP",
+     "value": 652
+    },
+    "hot_water_cost_current": {
+     "currency": "GBP",
+     "value": 193
+    },
+    "inspection_date": "2026-08-17",
+    "lighting_cost_current": {
+     "currency": "GBP",
+     "value": 44
+    },
+    "main_heating": [
+     {
+      "description": "Boiler and radiators, mains gas",
+      "energy_efficiency_rating": 4,
+      "environmental_efficiency_rating": 4
+     }
+    ],
+    "postcode": "AA1 1AA",
+    "property_type": 2,
+    "registration_date": "2026-08-19",
+    "schema_type": "RdSAP-Schema-21.0.1",
+    "tenure": 1,
+    "total_floor_area": 55,
+    "transaction_type": 2,
+    "uprn": 100000000001
+   }
+  },
+  "0000-0000-0000-0000-0003": {
+   "data": {
+    "address_line_1": "Flat 3",
+    "address_line_2": "10 Example Road",
+    "assessment_type": "RdSAP",
+    "built_form": 4,
+    "current_energy_efficiency_band": "C",
+    "dwelling_type": "Top-floor maisonette",
+    "habitable_room_count": 5,
+    "heated_room_count": 5,
+    "heating_cost_current": {
+     "currency": "GBP",
+     "value": 721
+    },
+    "hot_water_cost_current": {
+     "currency": "GBP",
+     "value": 150
+    },
+    "inspection_date": "2025-04-03",
+    "lighting_cost_current": {
+     "currency": "GBP",
+     "value": 125
+    },
+    "main_heating": [
+     {
+      "description": "Boiler and radiators, mains gas",
+      "energy_efficiency_rating": 4,
+      "environmental_efficiency_rating": 4
+     }
+    ],
+    "postcode": "AA1 1AA",
+    "property_type": 3,
+    "registration_date": "2025-04-07",
+    "schema_type": "RdSAP-Schema-20.0.0",
+    "tenure": 3,
+    "total_floor_area": 101,
+    "transaction_type": 8,
+    "uprn": 100000000002
+   }
+  }
+ },
+ "search": {
+  "data": [
+   {
+    "addressLine1": "Flat 1",
+    "addressLine2": "10 Example Road",
+    "addressLine3": null,
+    "addressLine4": null,
+    "certificateNumber": "0000-0000-0000-0000-0001",
+    "constituency": "Example North",
+    "council": "Example",
+    "currentEnergyEfficiencyBand": "C",
+    "postTown": "LONDON",
+    "postcode": "AA1 1AA",
+    "registrationDate": "2026-10-26",
+    "schemaType": "RdSAP-Schema-21.0.1",
+    "uprn": 100000000000
+   },
+   {
+    "addressLine1": "Flat 2",
+    "addressLine2": "10 Example Road",
+    "addressLine3": null,
+    "addressLine4": null,
+    "certificateNumber": "0000-0000-0000-0000-0002",
+    "constituency": "Example North",
+    "council": "Example",
+    "currentEnergyEfficiencyBand": "C",
+    "postTown": "LONDON",
+    "postcode": "AA1 1AA",
+    "registrationDate": "2026-08-19",
+    "schemaType": "RdSAP-Schema-21.0.1",
+    "uprn": 100000000001
+   },
+   {
+    "addressLine1": "Flat 3",
+    "addressLine2": "10 Example Road",
+    "addressLine3": null,
+    "addressLine4": null,
+    "certificateNumber": "0000-0000-0000-0000-0003",
+    "constituency": "Example North",
+    "council": "Example",
+    "currentEnergyEfficiencyBand": "C",
+    "postTown": "LONDON",
+    "postcode": "AA1 1AA",
+    "registrationDate": "2025-04-07",
+    "schemaType": "RdSAP-Schema-20.0.0",
+    "uprn": 100000000002
+   }
+  ],
+  "pagination": {
+   "currentPage": 1,
+   "nextPage": 2,
+   "pageSize": 3,
+   "prevPage": null,
+   "totalPages": 13,
+   "totalRecords": 38
+  }
+ }
+}

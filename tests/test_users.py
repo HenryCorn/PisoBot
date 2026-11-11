@@ -36,6 +36,7 @@ class Base(unittest.TestCase):
             patch.object(main, "SEEN_PATH", str(self.state / "seen.json")),
             patch.object(cache, "PATH", str(self.state / "cache.json")),
             patch.object(cache, "_data", {}),
+            patch.object(config, "DEEP_SWEEP_HOURS", 0),     # these tests never sweep (it would fetch)
             patch("sys.stdout"),
             patch("sys.stderr"),
         ):
@@ -349,12 +350,13 @@ class SharedWatchTests(Base):
         self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 2)
         self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
 
-    def test_legacy_owner_baseline_is_kept_on_upgrade(self):
+    def test_legacy_owner_history_is_kept_during_silent_policy_upgrade(self):
         watch.Watcher(["rm"]).cycle()
         d1.query("DELETE FROM meta WHERE name = 'watch_settings'")
         watch.Watcher(["rm"]).cycle()
-        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 1)
+        self.assertEqual(len([text for chat, text in self.texts if chat == OWNER]), 2)
         self.assertEqual(self.sent, [])
+        self.assertEqual(set(main.load_seen()), {"rm:1", "rm:2"})
 
     def test_queued_report_keeps_its_recipient_when_another_request_arrives(self):
         watcher = watch.Watcher(["rm"])
@@ -428,7 +430,10 @@ class SharedBotTests(Base):
         self.handler.handle(message("/start", FRIEND, "thebeatifulest"))
         self.assertIn("Welcome", self.texts(FRIEND)[0])
         self.assertIn("joined", self.texts(OWNER)[0])
-        self.assertEqual(self.texts(FRIEND)[-1], bot.HELP)
+        # WP3: a brand-new person's /start opens onboarding (one question at a time) after the welcome
+        self.assertIn("1/11", self.texts(FRIEND)[-1])
+        self.handler.handle(message("/start", FRIEND, "thebeatifulest"))
+        self.assertIn("1/11", self.texts(FRIEND)[-1])      # a repeated /start resumes, never re-admits
         self.handler.handle(message("/report", FRIEND, "renamed"))
         self.trigger.assert_called_with("report", FRIEND)
 

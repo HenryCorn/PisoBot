@@ -156,9 +156,11 @@ def update_kind(reason):
 def apply_rent_details(listing, details):
     """Merge a lettings details page (see the sources' refine); False drops rooms and bedsits."""
     listing.description = f"{listing.description} {details['description']}"
-    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing"):
+    for key in ("floor_area_m2", "floorplan", "available", "council_tax_band", "furnishing", "agent_phone"):
         if details.get(key):
             setattr(listing, key, details[key])
+    if details.get("postcode") and not listing.full_postcode:
+        listing.full_postcode = details["postcode"]
     if details.get("council_tax_included") is not None:
         listing.council_tax_included = details["council_tax_included"]
     private_rent_costs(listing)
@@ -198,6 +200,39 @@ def rental_in_scope(listing):
     return distance <= config.RENT_SEARCH_MILES * 1.609344
 
 
+CACHE_FIELDS = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
+            "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
+            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
+            "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
+            "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
+            "bathrooms", "agent", "agent_phone", "first_listed_at",
+            "advert_deposit", "studio", "furnishing")
+
+
+def snapshot(listing, max_images=6):
+    """The stored facts of a rental listing (search cache and market archive), JSON-safe. The search
+    cache keeps 6 photos; the archive keeps more so "More photos" has something to send."""
+    data = {k: v for k, v in asdict(listing).items() if k in CACHE_FIELDS}
+    return {**data, "images": data.get("images", [])[:max_images],
+            "description": (data.get("description") or "")[:1500]}
+
+
+def phone_number(value):
+    """A published UK phone number as plain text ('020 7123 4567'), else None. Defensive: portals'
+    contact fields are not verified against stored pages, so anything unusual is dropped."""
+    value = " ".join(str(value or "").split())
+    digits = re.sub(r"\D", "", value)
+    if not re.fullmatch(r"\+?[\d ()\-]{9,24}", value) or not 10 <= len(digits) <= 13:
+        return None
+    return value
+
+
+def restore(data):
+    """A Listing from a snapshot, ignoring fields this version no longer has."""
+    names = {f.name for f in fields(Listing)}
+    return Listing(**{k: v for k, v in data.items() if k in names})
+
+
 def cached_search(name, search, minutes=None):
     """Run a portal search at most every RENT_REFRESH_MINUTES; in between,
     the last results are rebuilt from the repo cache so hourly runs cost no proxy requests."""
@@ -209,19 +244,10 @@ def cached_search(name, search, minutes=None):
     if minutes is None:
         minutes = getattr(config, "RENT_REFRESH_MINUTES", config.RENT_REFRESH_HOURS * 60)
     if age is not None and age < dt.timedelta(minutes=minutes):
-        names = {f.name for f in fields(Listing)}
-        return [Listing(**{k: v for k, v in d.items() if k in names}) for d in hit["listings"]]
+        return [restore(d) for d in hit["listings"]]
     listings = search()
-    keep = ("source", "id", "url", "address", "bedrooms", "scheme", "tenure", "rent", "service_charge",
-            "bills", "available", "min_deposit", "lat", "lng", "image", "images", "floorplan",
-            "floor_area_m2", "description", "estimated", "council_tax", "floor", "lease_years",
-            "council_tax_band", "council_tax_included", "council_tax_monthly", "utilities_monthly",
-            "council_tax_label", "first_listed", "update_reason", "update_date", "update_text", "update_text_on",
-            "bathrooms", "agent",
-            "advert_deposit", "studio", "furnishing")
     cache.put("rent_search", name, {
         "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "listings": [{**{k: v for k, v in asdict(l).items() if k in keep},
-                      "images": l.images[:6], "description": l.description[:1500]} for l in listings],
+        "listings": [snapshot(l) for l in listings],
     })
     return listings

@@ -9,10 +9,10 @@ import sys
 
 from requests import RequestException
 
-from .. import cache, config, net, rental_text
+from .. import cache, config, epc, net, rental_text
 from ..models import Listing
 from . import (PRIVATE_RENT, apply_rent_details, cached_search, iso_date, min_bedrooms, monthly_rent,
-               private_rent_costs, studios_wanted, text, update_kind)
+               phone_number, private_rent_costs, studios_wanted, text, update_kind)
 
 BASE = "https://www.rightmove.co.uk"
 LOCATION = "STATION^6953"          # Oxford Circus Station
@@ -46,6 +46,7 @@ def _listing(x):
     )
     l.studio = studio
     l.first_listed = iso_date(x.get("firstVisibleDate"))
+    l.first_listed_at = _timestamp(x.get("firstVisibleDate"))
     update = x.get("listingUpdate") or {}
     l.update_reason = update_kind(update.get("listingUpdateReason") or update.get("reason"))
     l.update_date = iso_date(update.get("listingUpdateDate") or update.get("date")) if l.update_reason else None
@@ -55,23 +56,62 @@ def _listing(x):
     return private_rent_costs(l)
 
 
+def _timestamp(value):
+    """'2026-11-09T14:03:12Z' -> '2026-11-09T14:03:12+00:00' (UTC); a bare date or junk -> None."""
+    value = str(value or "")
+    if "T" not in value:
+        return None
+    try:
+        when = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        return None
+    return when.astimezone(dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def _contact_phone(p):
+    """The branch number from propertyData.contactInfo.telephoneNumbers, when published. The shape
+    comes from the spec, not a stored page, so every level is checked and anything odd is dropped."""
+    contact = p.get("contactInfo")
+    numbers = contact.get("telephoneNumbers") if isinstance(contact, dict) else None
+    if not isinstance(numbers, dict):
+        return None
+    for name in ("localNumber", "internationalNumber"):
+        number = phone_number(numbers.get(name))
+        if number:
+            return number
+    return None
+
+
+def _params(index, **extra):
+    return {"locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
+            "minBedrooms": min_bedrooms(), "maxPrice": int(config.MAX_RENT),
+            "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
+            "sortType": 6, "index": index, **extra}
+
+
+def _results(html):
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    return json.loads(m.group(1))["props"]["pageProps"]["searchResults"] if m else None
+
+
+def _total(results):
+    return int(str(results.get("resultCount", "0")).replace(",", "") or 0)
+
+
 def search():
     out, seen = [], set()
     for page in range(config.RENT_MAX_PAGES):
-        html = net.page(f"{BASE}/property-to-rent/find.html", params={
-            "locationIdentifier": LOCATION, "radius": float(config.RENT_SEARCH_MILES),
-            "minBedrooms": min_bedrooms(), "maxPrice": int(config.MAX_RENT),
-            "dontShow": "houseShare,student,retirement",   # 319 -> 114 results: fewer proxied pages
-            "sortType": 6, "index": page * PAGE_SIZE})
-        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
-        if not m:
+        html = net.page(f"{BASE}/property-to-rent/find.html", params=_params(page * PAGE_SIZE))
+        results = _results(html)
+        if results is None:
             if page * PAGE_SIZE >= MAX_INDEX:
                 # Past the last reachable page Rightmove serves a 200 "couldn't find the place" page
                 print(f"Rightmove: no results page at index {page * PAGE_SIZE}; end of the reachable results",
                       file=sys.stderr)
                 break
             raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
-        results = json.loads(m.group(1))["props"]["pageProps"]["searchResults"]
         for x in results.get("properties") or []:
             if x.get("id") in seen:
                 continue
@@ -79,9 +119,31 @@ def search():
             l = _listing(x)
             if l:
                 out.append(l)
-        if (page + 1) * PAGE_SIZE >= int(results.get("resultCount", "0").replace(",", "") or 0):
+        if (page + 1) * PAGE_SIZE >= _total(results):
             break
     return out
+
+
+REACHABLE = MAX_INDEX     # results one query can page through
+MAX_PAGES = MAX_INDEX // PAGE_SIZE   # 42 pages
+
+
+def band_page(low, high, page):
+    """One page of a deep-sweep price band (minPrice..maxPrice inclusive, whole pounds):
+    {"listings", "raw" (items on the page before filtering), "total" (all results in the band),
+    "more" (another reachable page follows)}."""
+    index = page * PAGE_SIZE
+    results = _results(net.page(f"{BASE}/property-to-rent/find.html",
+                                params=_params(index, minPrice=int(low), maxPrice=int(high))))
+    if results is None:
+        if index >= MAX_INDEX:
+            return {"listings": [], "raw": 0, "total": None, "more": False}
+        raise ValueError("Rightmove page has no __NEXT_DATA__ (blocked or layout changed)")
+    total = _total(results)
+    properties = results.get("properties") or []
+    listings = [l for x in properties if (l := _listing(x))]
+    return {"listings": listings, "raw": len(properties), "total": total,
+            "more": (page + 1) * PAGE_SIZE < min(total, MAX_INDEX)}
 
 
 def fetch():
@@ -121,27 +183,37 @@ def _details(p):
     features = " ".join(f for f in p.get("keyFeatures") or [] if isinstance(f, str))
     plans = [f.get("url") for f in p.get("floorplans") or [] if isinstance(f, dict) and f.get("url")]
     living = p.get("livingCosts") or {}
+    addr = p.get("address") if isinstance(p.get("address"), dict) else {}
+    postcode = f"{addr.get('outcode') or ''} {addr.get('incode') or ''}".strip()
     band = str(living.get("councilTaxBand") or "").strip().upper()
-    return {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
+    details = {"description": text(f"{lettings.get('letType') or ''} let. {lettings.get('furnishType') or ''}. "
                                 f"{features} {(p.get('text') or {}).get('description', '')}"),
             "floor_area_m2": sqm or None, "floorplan": plans[0] if plans else None,
             "deposit": lettings.get("deposit") or None, "available": available,
             "furnishing": rental_text.furnishing(lettings.get("furnishType") or ""),
             "council_tax_band": band if band in "ABCDEFGH" and len(band) == 1 else None,
+            "agent_phone": _contact_phone(p),
             "council_tax_included": living["councilTaxIncluded"]
             if isinstance(living.get("councilTaxIncluded"), bool) else None}
+    if epc.enabled() and len(postcode.split()) == 2:     # the cached details only gain this key when the feature is on
+        details["postcode"] = postcode
+    return details
 
 
 def refine(listing):
+    listing.detail_unavailable = False  # ephemeral retry signal, never a market fact
     d = cache.get("rm_detail", listing.id)
     if d is None or "council_tax_band" not in d:   # entries cached before the band was captured
         try:
             p = _property_data(net.page(listing.url))
         except (RequestException, ValueError) as ex:
             print(f"Rightmove detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
+            response = getattr(ex, "response", None)
+            listing.detail_unavailable = response is None or response.status_code not in (404, 410)
             return False
         if str(p.get("id")) != listing.id:
             print(f"Rightmove detail has no matching property ID: {listing.id}", file=sys.stderr)
+            listing.detail_unavailable = True
             return False
         d = _details(p)
         cache.put("rm_detail", listing.id, d)

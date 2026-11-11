@@ -105,20 +105,61 @@ def search():
     return out
 
 
+PAGE_SIZE = 30
+# Observed (2026-11-10, radius 10, max-price 1600, sort-field update_date): totalResults is on normal
+# pages (1655 for the whole query); page 34 returns 30 items with paginationControls.next false even
+# though more results exist; pages 50 and 56 return an empty list, totalResults None and no pagination
+# keys. So one query serves 34 pages (about 1,000 results) and then just says there is no next page.
+MAX_PAGES = 34
+REACHABLE = 1000        # a band reporting more than this is split before it is read
+
+
+def _total(results):
+    """The result count, from totalResults or a total-count key of paginationControls; None if absent."""
+    candidates = [results.get("totalResults")]
+    candidates += [v for k, v in (results.get("paginationControls") or {}).items() if "total" in str(k).lower()]
+    for value in candidates:
+        if value is not None and str(value).replace(",", "").isdigit():
+            return int(str(value).replace(",", ""))
+    return None
+
+
+def band_page(low, high, page):
+    """One page of a deep-sweep price band: {"listings", "raw" (items on the page before filtering),
+    "total" (None if the page does not say), "more" (the portal links a next page)}. A missing
+    next link is NOT proof the band is finished: see MAX_PAGES."""
+    params = {"radius": float(config.RENT_SEARCH_MILES), "min-bedrooms": config.MIN_BEDROOMS,
+              "min-price": int(low), "max-price": int(high), "sort-field": "update_date"}
+    if page > 0:
+        params["page"] = page + 1
+    html = net.page(f"{BASE}/to-rent/flats-apartments/oxford-circus-station/", params=params)
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    if not m:
+        raise ValueError("OnTheMarket page has no __NEXT_DATA__ (blocked or layout changed)")
+    results = json.loads(m.group(1))["props"]["pageProps"]["initialReduxState"]["results"]
+    rows = results.get("list") or []
+    return {"listings": [l for x in rows if (l := _listing(x))], "raw": len(rows), "total": _total(results),
+            "more": bool((results.get("paginationControls") or {}).get("next"))}
+
+
 def fetch():
     return cached_search("otmr", search)
 
 
 def refine(listing):
+    listing.detail_unavailable = False  # ephemeral retry signal, never a market fact
     d = cache.get("otmr_detail", listing.id)
     if d is None:
         try:
             p = _property_data(net.page(listing.url))
         except (RequestException, ValueError) as ex:
             print(f"OnTheMarket rental detail unavailable for {listing.id}: {type(ex).__name__}", file=sys.stderr)
+            response = getattr(ex, "response", None)
+            listing.detail_unavailable = response is None or response.status_code not in (404, 410)
             return False
         if str(p.get("id")) != listing.id:
             print(f"OnTheMarket rental detail has no matching property ID: {listing.id}", file=sys.stderr)
+            listing.detail_unavailable = True
             return False
         lets = " ".join((p.get("lettingDetails") or {}).get("items") or [])
         feats = " ".join(f.get("feature", "") if isinstance(f, dict) else str(f) for f in p.get("features") or [])

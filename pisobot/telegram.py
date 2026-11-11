@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import collage, config, net, ranking, users
+from . import collage, config, net, ranking, tgtext, users
 from .sources import PRIVATE_RENT
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -28,11 +28,13 @@ def quiet_now():
     return h >= start or h < end
 
 
-def _call(method, files=None, **data):
+def _call(method, files=None, loud=False, **data):
+    """loud=True (a top match while the person has /set urgent on) keeps the notification sound
+    during quiet hours; every other message is silent then."""
     url = API.format(token=_env("TELEGRAM_BOT_TOKEN"), method=method)
     if method.startswith("send"):
         data.setdefault("chat_id", users.current_chat() or _env("TELEGRAM_CHAT_ID"))
-        if quiet_now():
+        if quiet_now() and not loud:
             data["disable_notification"] = "true"
     if isinstance(data.get("reply_markup"), dict):
         data["reply_markup"] = json.dumps(data["reply_markup"])
@@ -46,7 +48,10 @@ def _call(method, files=None, **data):
         res = {}
     if not res.get("ok"):
         # Telegram's description says what's wrong (e.g. "chat not found", "Unauthorized")
-        raise RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
+        error = RuntimeError(f"Telegram {method} failed ({r.status_code}): {res.get('description')}")
+        # 400/403: Telegram rejected this request for good (too long, chat blocked...); retrying is futile
+        error.permanent = (res.get("error_code") or r.status_code) in (400, 403)
+        raise error from None
     return res
 
 
@@ -150,10 +155,24 @@ def age_text(l, today=None):
 
 
 def portal_line(l, today=None):
-    """Age and letting agent, when the portal published them."""
+    """Age, letting agent and the agent's published number (plain text, never a call button)."""
     age = age_text(l, today)
-    parts = [f"🕒 {e(age)}" if age else "", f"🏢 {e(l.agent[:60])}" if l.agent else ""]
+    parts = [f"🕒 {e(age)}" if age else "", f"🏢 {e(l.agent[:60])}" if l.agent else "",
+             f"☎️ {e(l.agent_phone[:24])}" if l.agent_phone else ""]
     return " · ".join(p for p in parts if p)
+
+
+def move_in_line(l):
+    """WP3 move-in fit against the person's /profile movein window (VPS only; "" otherwise)."""
+    if l.tenure != "rent":
+        return ""
+    try:
+        if not users.enabled():
+            return ""
+    except Exception:
+        return ""
+    from . import renter
+    return renter.fit_line(l.available)
 
 
 def facts_line(l):
@@ -191,6 +210,8 @@ def crime_label(l):
 
 def format_listing(l, reason="new", rank=None, flags=""):
     head = {"drop": "📉 <b>Price drop</b>\n", "saved": "❤️ <b>Saved listing changed</b>\n"}.get(reason, "")
+    if getattr(l, "urgency", None) == "top":
+        head = "⚡ <b>Top match</b> · act fast\n" + head
     title = [f"#{rank}"] if rank else []
     if l.area_name or l.outcode:
         title.append(e(f"{l.area_name} ({l.outcode})" if l.area_name else l.outcode))
@@ -200,6 +221,8 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines.append(facts_line(l))
     if portal_line(l):
         lines.append(portal_line(l))
+    if move_in_line(l):
+        lines.append(move_in_line(l))
     lines.append(commute_line(l))
     if getattr(l, "ai_summary", None):
         lines.append(f"ℹ️ <i>{e(l.ai_summary)}</i>")
@@ -224,46 +247,114 @@ def format_listing(l, reason="new", rank=None, flags=""):
 
 def listing_keyboard(l, saved=False):
     sid = l.short_id
-    return {"inline_keyboard": [
+    rows = [
         [{"text": "🩶 Saved" if saved else "❤️ Save", "callback_data": f"s:{sid}"},
          {"text": "👎 Hide", "callback_data": f"h:{sid}"},
          {"text": "🔕 Hide building", "callback_data": f"d:{sid}"}],
-        [{"text": "🔗 Open listing", "url": l.url}],
-    ]}
+    ]
+    if l.tenure == "rent":
+        try:
+            if users.enabled():
+                rows += action_rows(l.key, sid)
+        except Exception:
+            pass
+    rows.append([{"text": "🔗 Open listing", "url": l.url}])
+    return {"inline_keyboard": rows}
+
+
+def action_rows(key, sid):
+    """WP3 rows on a rental card (VPS only): the pipeline stage row, then enquiry draft and photos."""
+    from . import tracker
+    try:
+        stage = tracker.stage_of(key)
+    except Exception:
+        stage = "new"
+    first = (tracker.card_row(stage, sid) if stage in tracker.STAGES
+             else [{"text": "✉️ Enquired", "callback_data": f"e:{sid}"}])
+    return [first, [{"text": "✍️ Enquiry text", "callback_data": f"q:{sid}"},
+                    {"text": "📷 More photos", "callback_data": f"m:{sid}"}]]
 
 
 # ---------- senders ----------
 
+def _loud(l):
+    """A top match is loud during quiet hours only when its person turned /set urgent on."""
+    if getattr(l, "urgency", None) != "top":
+        return False
+    try:
+        if not users.enabled():
+            return False
+    except Exception:
+        return False
+    from . import renter
+    try:
+        return renter.urgent_on()
+    except Exception:
+        return False
+
+
 def send_listing(l, reason="new"):
     text = format_listing(l, reason)
     kb = listing_keyboard(l, saved=reason == "saved")
-    jpeg = collage.build(l)
+    shown = []
+    jpeg = collage.build(l, sources=shown)
     if not jpeg:
         text += "\n📷 Header unavailable · use Open listing to view the media"
-    return send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]))
+    result = send_card(jpeg, text, kb, "🏠 " + e(l.address[:90]), loud=_loud(l))
+    remember_photos(l.key, result, shown if jpeg else [])
+    return result
 
 
-def send_card(jpeg, text, keyboard, short_caption):
+def remember_photos(key, result, urls):
+    """Record which listing photos the card just sent (``result``: its sendMessage/sendPhoto reply)
+    showed, so its 📷 More photos button sends exactly the others. Best effort: a card is never
+    held back by this."""
+    if not users.enabled():
+        return
+    try:
+        message_id = result["result"]["message_id"]
+        if type(message_id) is int:
+            from . import tracker
+            tracker.record_shown(key, message_id, urls)
+    except Exception:
+        pass
+
+
+def send_card(jpeg, text, keyboard, short_caption, loud=False):
+    extra = {"loud": True} if loud else {}
     if jpeg and len(text.encode("utf-16-le")) // 2 <= 1024:
-        return send_photo_bytes(jpeg, text, keyboard)
+        return send_photo_bytes(jpeg, text, keyboard, **extra)
     if jpeg:
-        send_photo_bytes(jpeg, short_caption)
+        send_photo_bytes(jpeg, short_caption, **extra)
         throttle()
-    return send_text(text, keyboard)
+    return send_text(text, keyboard, **extra)
 
 
-def send_text(text, reply_markup=None, silent=False):
-    data = {"text": text, "parse_mode": "HTML", "disable_web_page_preview": "true"}
-    if reply_markup:
-        data["reply_markup"] = reply_markup
-    if silent:
-        data["disable_notification"] = "true"
-    return _call("sendMessage", **data)
+def send_text(text, reply_markup=None, silent=False, loud=False):
+    """One message, or several when the text is over Telegram's 4,096 visible UTF-16 units (cut at
+    line breaks, tags kept balanced; the buttons go on the last). Returns the last reply."""
+    pieces = tgtext.split_html(text)
+    for i, piece in enumerate(pieces):
+        data = {"text": piece, "parse_mode": "HTML", "disable_web_page_preview": "true"}
+        if reply_markup and i == len(pieces) - 1:
+            data["reply_markup"] = reply_markup
+        if silent:
+            data["disable_notification"] = "true"
+        result = _call("sendMessage", **data, **({"loud": True} if loud else {}))
+    return result
 
 
-def send_photo_bytes(jpeg, caption="", reply_markup=None):
+def send_reply(chat_id, message_id, text):
+    """A short, silent, threaded reply to an already-sent card (optional facts about the home, facts.py). Works whether the
+    card is a photo with a caption or a text message; if the card has gone Telegram still posts it (allow_sending_without_reply)."""
+    return _call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML", disable_web_page_preview="true",
+                 disable_notification="true", reply_to_message_id=message_id, allow_sending_without_reply="true")
+
+
+def send_photo_bytes(jpeg, caption="", reply_markup=None, loud=False):
+    extra = {"loud": True} if loud else {}
     return _call("sendPhoto", files={"photo": ("top.jpg", jpeg, "image/jpeg")},
-                 caption=caption, parse_mode="HTML", reply_markup=reply_markup)
+                 caption=caption, parse_mode="HTML", reply_markup=reply_markup, **extra)
 
 
 # ---------- report ----------
@@ -293,9 +384,10 @@ def _group_line(group, flags_of, map_url=None):
 
 
 def _chunk(blocks, limit=3800):
+    # UTF-16 units of the raw HTML: never less than what Telegram counts, so a chunk always fits
     chunks, cur = [], ""
     for b in blocks:
-        if cur and len(cur) + len(b) + 1 > limit:
+        if cur and tgtext.units(cur) + tgtext.units(b) + 1 > limit:
             chunks.append(cur)
             cur = ""
         cur += b + "\n"

@@ -164,7 +164,10 @@ def _map(listing):
     return image
 
 
-def build(listing):
+def build(listing, sources=None):
+    """The card header JPEG (map, floorplan or hero photo, and up to three gallery photos), or None.
+    sources: a list that receives the listing photo URLs the header actually shows (the hero photo
+    and the gallery thumbnails that loaded, never the floorplan), so 📷 More photos can send the rest."""
     urls = list(dict.fromkeys(url for url in [listing.image, *listing.images] if url))
     plan = listing.floorplan or next((url for url in urls if _is_floorplan(url)), None)
     photo = _thumb(plan, floorplan=True) if plan else None
@@ -194,11 +197,12 @@ def build(listing):
         1: [(0, WIDTH)],
     }
     target_w = 398 if len(gallery_candidates) >= 3 else (598 if len(gallery_candidates) == 2 else WIDTH)
-    gallery_thumbs = []
+    gallery_thumbs, gallery_urls = [], []
     for u in gallery_candidates:
         gt = _gallery_thumb(u, (target_w, GALLERY_H))
         if gt is not None:
             gallery_thumbs.append(gt)
+            gallery_urls.append(u)
             if len(gallery_thumbs) == 3:
                 break
 
@@ -251,4 +255,6 @@ def build(listing):
 
     out = io.BytesIO()
     sheet.save(out, "JPEG", quality=85, optimize=True)
+    if sources is not None:
+        sources.extend(([used_top_url] if kind == "hero photo" else []) + gallery_urls)
     return out.getvalue()

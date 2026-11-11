@@ -30,6 +30,7 @@ class WatchTests(unittest.TestCase):
             patch.object(main, "SEEN_PATH", str(self.state / "seen.json")),
             patch.object(cache, "PATH", str(self.state / "cache.json")),
             patch.object(cache, "_data", {}),
+            patch.object(config, "DEEP_SWEEP_HOURS", 0),     # these tests never sweep (it would fetch)
             patch.object(main.enrich, "geocode"),
             patch.object(main.enrich, "assign_crime_percentiles"),
             patch.object(main, "passes_basic", return_value=None),
@@ -103,8 +104,8 @@ class WatchTests(unittest.TestCase):
         funnel = json.loads(rows[0]["stats"])
         self.assertTrue(funnel["filtering_finished"])
         self.assertEqual(funnel["sources"]["rm"], {
-            "fetched": 4, "matched": 1, "hidden": 1,
-            "rejected": {"keywords": 1, "cost": 1, "duplicate_id": 1}})
+            "fetched": 4, "matched": 0, "hidden": 1,
+            "rejected": {"hidden": 1, "keywords": 1, "cost": 1, "duplicate_id": 1}})
         self.assertEqual(funnel["sources"]["lqr"]["fetched"], 1)
         self.assertEqual(funnel["sources"]["lqr"]["matched"], 1)
         self.assertNotIn("lq", funnel["sources"])
@@ -121,14 +122,14 @@ class WatchTests(unittest.TestCase):
         self.assertFalse(funnel["filtering_finished"])
         self.assertIsNone(watch._meta("watch_initialized"))
 
-    def test_failed_initial_enrichment_does_not_initialize_or_send(self):
+    def test_failed_initial_advert_is_silent_without_blocking_the_head_baseline(self):
         with patch.object(main, "passes_area", side_effect=RuntimeError("unavailable")):
-            with self.assertRaisesRegex(RuntimeError, "baseline incomplete"):
-                self.watcher.cycle()
-        self.assertIsNone(watch._meta("watch_initialized"))
-        self.assertFalse((self.state / "seen.json").exists())
+            result = self.watcher.cycle()
+        self.assertEqual(result["degraded"], 1)
+        self.assertEqual(watch._meta("watch_initialized"), "1")
+        self.assertEqual(main.load_seen(), {})
         self.send.assert_not_called()
-        self.text.assert_not_called()
+        self.text.assert_called_once()
         funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])
         self.assertEqual(funnel["sources"]["rm"]["rejected"], {"enrichment": 1})
         self.watcher.cycle()
@@ -159,7 +160,8 @@ class WatchTests(unittest.TestCase):
 
     def test_funnel_retains_partial_counts_when_filtering_is_interrupted(self):
         self.fetch.return_value = [home(), home(2)]
-        with patch.object(main, "passes_basic", side_effect=[None, InterruptedError("stopping")]):
+        # the first home passes both the cheap and the details gate, the second is interrupted
+        with patch.object(main, "passes_basic", side_effect=[None, None, InterruptedError("stopping")]):
             with self.assertRaises(InterruptedError):
                 self.watcher.cycle()
         funnel = json.loads(d1.query("SELECT stats FROM rental_funnel")[0]["stats"])
