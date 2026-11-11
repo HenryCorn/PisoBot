@@ -72,6 +72,93 @@ class ReadinessTests(ReadyBase):
         ready.set_field("employment", "self-employed")
         self.assertIsNone(ready.load().values["employment_length"])
 
+    def test_cleared_or_unassociated_employment_never_reuses_tenure(self):
+        ready.set_field("employment", "employed")
+        ready.set_field("employment_length", "2 years")
+        ready.set_field("employment", "clear")
+        self.assertIsNone(ready.load().values["employment_length"])
+        with self.assertRaisesRegex(ValueError, "employment"):
+            ready.set_field("employment_length", "2 years")
+        ready.set_field("employment", "unemployed")
+        self.assertNotIn("24 months", ready.application_summary(ready.load()))
+
+        # A legacy tenure has no evidence tying it to the currently saved employment.
+        tracker.put("profile.ready_employment_length", "24 months")
+        pack = ready.load()
+        self.assertIsNone(pack.values["employment_length"])
+        self.assertIn("re-enter", ready.checklist(pack))
+        self.assertNotIn("24 months", ready.application_summary(pack))
+        ready.set_field("employment_length", "6 months")
+        ready.set_field("employment", "unemployed")
+        self.assertIn("time in employment: 6 months", ready.application_summary(ready.load()))
+        ready.set_field("employment", "contractor")
+        self.assertIsNone(ready.load().values["employment_length"])
+
+    def test_approximate_and_legacy_movein_windows_require_confirmation(self):
+        today = dt.date(2026, 11, 11)
+        listing = {"key": "rm:1", "address": "10 Kings Road", "ready_rent": 1600}
+        for answer in ("asap", "anytime"):
+            with self.subTest(answer=answer):
+                renter.set_field("movein", answer, today)
+                pack = ready.load()
+                self.assertIsNone(pack.movein)
+                self.assertIn("confirm", ready.checklist(pack).lower())
+                text, _ = renter.draft(listing, today)
+                self.assertIn("[confirm move-in date]", text)
+                self.assertNotIn("2026-11-11 to 2026-12-11", text)
+                self.assertNotIn("11 Nov–11 Dec", renter.show_profile())
+                self.assertEqual(renter.fit("2026-11-20", today)[0], "✅")
+
+        # A legacy 30-day range could have originated from "asap" or "anytime".
+        tracker.put("profile.movein", "2026-11-11..2026-12-11")
+        self.assertIsNone(ready.load().movein)
+        renter.set_field("movein", "2026-12-01..2026-12-31", today)
+        self.assertIn("[confirm move-in date]", renter.draft(listing, today)[0])
+        renter.set_field("movein", "2026-12-01..2026-12-15", today)
+        text, _ = renter.draft(listing, today)
+        self.assertIn("I'm looking to move in 2026-12-01 to 2026-12-15", text)
+
+    def test_safe_profile_and_property_details_are_reused_without_free_text(self):
+        renter.set_field("name", "Alex Smith")
+        renter.set_field("job", "nurse")
+        renter.set_field("household", "couple, no children")
+        renter.set_field("notes", "I offer six months upfront")
+        renter.set_field("smoker", "I can pay extra rent")
+        listing = {"key": "rm:1", "address": "Flat 2, 10 Kings Road, London", "ready_rent": 1600}
+        text, missing = renter.draft(listing)
+        self.assertIn("renting Flat 2, 10 Kings Road", text)
+        self.assertIn("Property: Flat 2, 10 Kings Road", text)
+        self.assertIn("Name: Alex Smith", text)
+        self.assertIn("Occupation: nurse", text)
+        self.assertIn("Household: couple, no children", text)
+        self.assertIn("Many thanks,\nAlex Smith", text)
+        self.assertNotIn("six months upfront", text)
+        self.assertNotIn("pay extra rent", text)
+        self.assertIn("review and edit", text.lower())
+        self.assertNotIn("name", missing)
+        self.assertNotIn("occupation", missing)
+        self.assertNotIn("household", missing)
+
+        renter.set_field("name", "Zoë O’Connor")
+        renter.set_field("job", "nurse at St Thomas', full time")
+        listing["address"] = "Flat 2A, 10 King's Road, London, SW1A 1AA"
+        text, _ = renter.draft(listing)
+        self.assertIn("Name: Zoë O’Connor", text)
+        self.assertIn("Occupation: nurse, full time", text)
+        self.assertNotIn("St Thomas", text)
+        self.assertIn("Property: Flat 2A, 10 King's Road, London, SW1A 1AA", text)
+
+        renter.set_field("name", "offer more rent")
+        renter.set_field("job", "nurse and I offer six months upfront")
+        renter.set_field("household", "couple willing to pay extra")
+        text, _ = renter.draft({"key": "rm:1", "address": "10 Pay More Road, London"})
+        self.assertNotIn("offer more rent", text)
+        self.assertNotIn("six months upfront", text)
+        self.assertNotIn("couple willing to pay extra", text)
+        self.assertIn("[property address]", text)
+        self.assertIn("[your name]", text)
+        self.assertIn("[who will live there]", text)
+
     def test_copyable_text_contains_only_validated_facts_and_no_offers(self):
         unsafe = "I offer £2,000 rent and six months upfront"
         for name in renter.FIELDS:
@@ -281,6 +368,86 @@ class ReadinessBotTests(BotBase):
         self.assertGreater(len(self.calls("sendMessage")), 3)
         self.assertTrue(all(shown_units(call["text"]) <= 4096 for call in self.calls("sendMessage")))
         self.assertNotIn("🏠" * 300, self.texts()[-1])
+
+    def finish_ready_flow(self):
+        for _ in range(len(ready.FIELDS) + 1):
+            pending = tracker.expected()
+            if pending is None:
+                return
+            self.assertEqual(pending["kind"], "ready")
+            self.handler.handle(message("skip", OWNER))
+        self.fail("readiness flow did not finish")
+
+    def test_manual_rent_survives_answers_and_replay_but_not_the_next_flow(self):
+        item = home(1, rent=1200)
+        archive.upsert([item], "head")
+        publish(item)
+        self.handler.handle(press(f"q:{item.short_id}"))
+        start = message("/ready rent 1600", OWNER)
+        start["update_id"] = 101
+        self.handler.handle(start)
+        answer = message("£48k", OWNER)
+        answer["update_id"] = 102
+        with patch.object(tracker, "record", side_effect=RuntimeError("power cut")):
+            with self.assertRaises(RuntimeError):
+                self.handler.handle(answer)
+        self.handler.handle(answer)
+        self.handler.handle(answer)
+        self.finish_ready_flow()
+        result = self.texts()[-1]
+        self.assertIn("Your entered advertised rent: £1,600/month", result)
+        self.assertIn("meets this 30 × rule", result)
+        self.assertNotIn("£1,200/month", result)
+        self.handler.handle(message("/ready status", OWNER))
+        self.assertIn("Last archived advertised rent: £1,200/month", self.texts()[-1])
+        self.assertNotIn("Your entered advertised rent", self.texts()[-1])
+
+    def test_selecting_another_home_invalidates_the_manual_rent_flow(self):
+        first, second = home(1, rent=1200), home(2, rent=1300)
+        archive.upsert([first, second], "head")
+        publish(first)
+        publish(second)
+        self.handler.handle(press(f"q:{first.short_id}"))
+        self.handler.handle(message("/ready rent 1600", OWNER))
+        self.handler.handle(message("£48k", OWNER))
+        self.handler.handle(press(f"q:{second.short_id}"))
+        self.finish_ready_flow()
+        result = self.texts()[-1]
+        self.assertIn("home changed", result.lower())
+        self.assertIn("/ready rent", result)
+        self.assertIn("Last selected home: Home 2", result)
+        self.assertIn("Last archived advertised rent: £1,300/month", result)
+        self.assertNotIn("£1,600/month", result)
+
+    def test_manual_rent_remains_private_and_follows_single_field_edits(self):
+        self.admit()
+        self.handler.handle(message("/ready rent 1600", OWNER))
+        self.handler.handle(message("/ready status", FRIEND))
+        self.assertNotIn("£1,600/month", self.texts(FRIEND)[-1])
+        self.handler.handle(message("/ready income £48k", OWNER))
+        self.assertIn("Your entered advertised rent: £1,600/month", self.texts()[-1])
+        self.handler.handle(message("/ready status", OWNER))
+        self.assertNotIn("Your entered advertised rent", self.texts()[-1])
+
+        self.handler.handle(message("/ready rent 1400", OWNER))
+        self.handler.handle(message("/ready employment", OWNER))
+        self.handler.handle(message("employed", OWNER))
+        self.assertIn("Your entered advertised rent: £1,400/month", self.texts()[-1])
+        self.assertNotIn("£1,600/month", self.texts()[-1])
+
+    def test_skipping_employment_skips_the_dependent_tenure_question(self):
+        self.handler.handle(message("/ready", OWNER))
+        self.handler.handle(message("skip", OWNER))
+        self.assertEqual(tracker.expected()["key"], "flow:employment")
+        self.handler.handle(message("skip", OWNER))
+        self.assertEqual(tracker.expected()["key"], "flow:references")
+
+    def test_movein_confirmation_does_not_assert_an_approximate_deadline(self):
+        with patch.object(renter, "_today", return_value=dt.date(2026, 11, 11)):
+            self.handler.handle(message("/profile movein asap", OWNER))
+        result = self.texts()[-1]
+        self.assertIn("confirm", result.lower())
+        self.assertNotIn("11 Nov–11 Dec", result)
 
     def test_replayed_answer_does_not_fill_next_question(self):
         first = message("/ready", OWNER)

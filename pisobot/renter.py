@@ -134,6 +134,11 @@ def window(today=None):
     return start, end
 
 
+def movein_needs_confirmation(span):
+    """A stored 30-day span may be the approximation used for an ASAP answer."""
+    return bool(span and (span[1] - span[0]).days == 30)
+
+
 def _available(text, today):
     text = str(text or "").strip().lower()
     if text in ("now", "immediately", "available now"):
@@ -185,6 +190,92 @@ def fit_line(available):
 
 # ---------- enquiry draft ----------
 
+_NAME_WORD = r"[^\W\d_]+(?:[-'’][^\W\d_]+)*['’]?"
+_UNSAFE_DRAFT_WORDS = re.compile(
+    r"\b(?:offer(?:ed|ing|s)?|bid(?:ding|s)?|pay(?:ment|ments|ing|s)?|paid|"
+    r"advance(?:d)?|upfront|rent(?:al|s|ing)?|month(?:s|ly)?|pound(?:s)?|"
+    r"above|over|extra|additional|more|higher|double|exceed(?:s|ed|ing)?|"
+    r"advertised|asking|cost|price|cash|deposit|i|we|my|our|will|would|can|could|shall)\b", re.I)
+_OCCUPATIONS = {
+    "accountant", "administrator", "analyst", "architect", "artist", "chef", "civil servant",
+    "consultant", "designer", "doctor", "driver", "engineer", "journalist", "lawyer", "manager",
+    "nurse", "pharmacist", "researcher", "scientist", "social worker", "software developer",
+    "software engineer", "student", "teacher",
+}
+_HOUSEHOLDS = {
+    "one person", "one adult", "single adult", "two people", "two adults", "three adults",
+    "couple", "a couple", "couple, no children", "couple with no children",
+    "two adults, no children", "couple, one child", "couple, two children", "family",
+    "me and my partner",
+}
+_STREET_TYPES = (
+    "street|st|road|rd|avenue|ave|lane|ln|drive|dr|court|close|place|square|gardens|"
+    "way|terrace|row|mews|crescent|grove|park|walk|hill"
+)
+
+
+def _safe_name(raw):
+    if not isinstance(raw, str):
+        return None
+    value = " ".join(raw.split())
+    if (len(value) > 80 or _UNSAFE_DRAFT_WORDS.search(value) or
+            not re.fullmatch(rf"{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,3}}", value)):
+        return None
+    return value
+
+
+def _safe_occupation(raw):
+    if not isinstance(raw, str):
+        return None
+    value = " ".join(raw.split())
+    if len(value) > 120 or _UNSAFE_DRAFT_WORDS.search(value):
+        return None
+    role, comma, hours = value.partition(",")
+    hours = hours.strip()
+    if comma and hours.lower() not in ("full time", "full-time", "part time", "part-time"):
+        return None
+    parts = re.split(r"\s+at\s+", role.strip(), maxsplit=1, flags=re.I)
+    if (len(parts) == 2 and
+            not re.fullmatch(rf"{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,3}}", parts[1])):
+        return None
+    if parts[0].lower() not in _OCCUPATIONS:
+        return None
+    # The employer is free text; copy only the recognised role and hours.
+    return parts[0] + (f", {hours}" if hours else "")
+
+
+def _safe_household(raw):
+    if not isinstance(raw, str):
+        return None
+    value = " ".join(raw.split())
+    return value if value.lower() in _HOUSEHOLDS else None
+
+
+def _safe_address(raw):
+    if not isinstance(raw, str) or len(raw) > 200:
+        return None
+    parts = [" ".join(part.split()) for part in raw.split(",")]
+    unit = bool(re.fullmatch(r"(?:flat|apartment|unit|studio)\s+[a-z0-9-]{1,6}", parts[0], re.I))
+    index = 1 if unit else 0
+    if len(parts) <= index:
+        return None
+    street = parts[index]
+    pattern = (rf"(?:\d{{1,4}}[a-z]?(?:-\d{{1,4}}[a-z]?)?\s+)?"
+               rf"{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,4}}\s+(?:{_STREET_TYPES})\.?")
+    if _UNSAFE_DRAFT_WORDS.search(street) or not re.fullmatch(pattern, street, re.I):
+        return None
+    address = parts[:index + 1]
+    for part in parts[index + 1:]:
+        if part.lower() == "london" or re.fullmatch(r"[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}", part, re.I):
+            address.append(part)
+    return ", ".join(address)
+
+
+def _ready_details(facts, listing):
+    return {"name": _safe_name(facts["name"]), "job": _safe_occupation(facts["job"]),
+            "household": _safe_household(facts["household"]), "address": _safe_address(listing.get("address"))}
+
+
 def _portal(key):
     return PORTALS.get(str(key).split(":", 1)[0], "your website")
 
@@ -213,12 +304,12 @@ def _draft(listing, today, readiness=False):
     if readiness:
         from . import ready
         pack = ready.load(facts)
-        # Free-form profile text can contain rental bids or extra rent in advance. Only the
-        # validated readiness facts and parsed dates are safe to put into a copyable draft.
+        details = _ready_details(facts, listing)
         facts = {name: None for name in FIELDS}
+        facts.update({name: details[name] for name in ("name", "job", "household")})
         facts["movein"] = "set" if pack.movein else None
     missing = [FIELDS[name][0].lower() for name in ("name", "movein", "job", "household") if not facts[name]]
-    address = ("[property address]" if readiness else
+    address = ((details["address"] or "[property address]") if readiness else
                (listing.get("address") or "the property").split(",")[0].strip())
     span = pack.movein if readiness else window(today)
     day = None if readiness else _available(listing.get("available"), today)
@@ -232,10 +323,11 @@ def _draft(listing, today, readiness=False):
         else:
             lines.append(f"Could you confirm the date it is available from? I'm looking to move in {want}.")
     else:
-        lines.append("Could you confirm the date it is available from? I'm looking to move in [move-in date].")
+        date = "[confirm move-in date]" if readiness and pack.ambiguous_movein else "[move-in date]"
+        lines.append(f"Could you confirm the date it is available from? I'm looking to move in {date}.")
     about = []
     if readiness:
-        about.append("Occupation: [if applicable]")
+        about.append(f"Occupation: {facts['job'] or '[if applicable]'}")
     elif facts["job"]:
         about.append(f"I work as {facts['job']}" if not facts["job"].lower().startswith(("i ", "a ", "an "))
                      else facts["job"])
@@ -257,13 +349,14 @@ def _draft(listing, today, readiness=False):
                    "Could you let me know your earliest available viewing slots? I'm flexible and can view at "
                    "short notice."), "", "Many thanks,", facts["name"] or "[your name]"]
     text = "\n".join(lines)
-    title = "selected property" if readiness else html.escape(address[:60])
+    title = "selected property" if readiness and not details["address"] else html.escape(address[:60])
     out = (f"✍️ <b>Enquiry draft</b> · {title}\n<pre>{html.escape(text, quote=False)}</pre>\n"
            "<i>Copy it into the portal's contact form or your email; PisoBot never contacts agents.</i>")
     if readiness:
-        out += ("\n<i>Free-text profile details are omitted for safety; fill placeholders yourself. "
+        out += ("\n<i>Only recognised profile details are included; review and edit all details and "
+                "placeholders before sending. "
                 "Do not bid above the advertised rent or offer more than one month's rent in advance.</i>"
-                + ready.extras(pack, listing.get("ready_rent")))
+                + ready.extras(pack, listing.get("ready_rent"), details))
     elif missing:
         out += f"\nAdd {', '.join(missing)} with /profile to fill the gaps."
     return out, missing
@@ -278,13 +371,16 @@ def show_profile():
         current = facts[name]
         if name == "movein" and current:
             span = window()
-            current = show_window(*span) if span else current
+            if ready_enabled() and movein_needs_confirmation(span):
+                current = "needs confirmation; a 30-day window may be an estimate"
+            else:
+                current = show_window(*span) if span else current
         shown = html.escape(current) if current else f"<i>not set</i> (e.g. {html.escape(example)})"
         lines.append(f"{label}: {shown}  <code>/profile {name}</code>")
     lines.append("\nSet one with <code>/profile name Alex Smith</code>; <code>/profile pets clear</code> removes it.")
     if ready_enabled():
-        lines.append("Use /ready for application details and affordability. The readiness draft omits "
-                     "free-text profile details; fill its placeholders yourself.")
+        lines.append("Use /ready for application details and affordability. Only recognised profile "
+                     "details are included in the draft; review and edit it before sending.")
     return "\n".join(lines)
 
 

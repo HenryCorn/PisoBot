@@ -120,20 +120,27 @@ another field shown in the checklist) to change one answer, and `clear` to remov
 Tapping **Enquiry text** on a rental card selects that home for `/ready`. The
 check uses its last archived advertised rent, not the all-in cost; confirm that
 the current advert has not changed. Alternatively, `/ready rent 1600` checks a
-manually entered advertised monthly rent. The illustrative rule is annual gross
-household income of at least 30 times monthly rent (2.5 times monthly gross);
-some agents use 3 times, and their guarantor requirements vary. A band crossing
-the threshold is inconclusive rather than assumed to pass or fail.
+manually entered advertised monthly rent for that checklist flow only. If another
+home is selected during the flow, enter its rent again to check it. The
+illustrative rule is annual gross household income of at least 30 times monthly
+rent (2.5 times monthly gross); some agents use 3 times, and their guarantor
+requirements vary. A band crossing the threshold is inconclusive rather than
+assumed to pass or fail.
+
+Employment length must be re-entered when employment changes; older lengths
+without a confirmed association also need reconfirmation. A stored 30-day
+move-in window may be an approximation of an ASAP answer, so confirm the intended
+date or range in the draft instead of assuming its end date.
 
 The pack uses the existing per-person profile database, stored as plaintext
 like the other profile fields; protect and back up that state accordingly.
 Each person's facts are separate, and the pack and its drafts are available
 only in private chats. Enquiry drafts, the call script and portal fields are
 for the person to copy: PisoBot does not contact agents or fetch an advert for
-this feature. To avoid inserting unsafe rent or advance offers, free-text profile
-details and property addresses are omitted from the copyable draft; fill the
-marked placeholders and check the text yourself. The pack does not change
-alerts or the search.
+this feature. Only strictly checked names, occupations, households and selected
+addresses are copied; ambiguous details and free-text notes remain placeholders.
+Review and edit the details before sending. The pack does not change alerts or
+the search.
 
 ## Rental filtering and diagnostics
 

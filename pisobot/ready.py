@@ -77,6 +77,7 @@ DISPLAY = {
 }
 MONEY = r"£?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?\s*[kK]?"
 MAX_AMOUNT = Decimal("1000000000")
+EMPLOYMENT_LENGTH_FOR = "profile.ready_employment_length_for"
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ class Pack:
     invalid: set
     movein: tuple | None
     invalid_movein: bool
+    ambiguous_movein: bool
 
 
 def _money(raw):
@@ -197,10 +199,22 @@ def set_field(name, raw):
     if text.lower() == "clear":
         if name == "guarantor":
             renter.set_field(_key("guarantor_income"), "clear")
+        elif name == "employment":
+            renter.set_field(_key("employment_length"), "clear")
+            tracker.drop(EMPLOYMENT_LENGTH_FOR)
         renter.set_field(_key(name), "clear")
+        if name == "employment_length":
+            tracker.drop(EMPLOYMENT_LENGTH_FOR)
         return None
     if name == "guarantor_income" and tracker.value("profile.ready_guarantor") != "yes":
         raise ValueError("Set guarantor to yes before entering their income")
+    employment = None
+    if name == "employment_length":
+        previous = tracker.value(f"profile.{_key('employment')}")
+        try:
+            employment = _parse("employment", previous or "")
+        except ValueError:
+            raise ValueError("Set employment before entering its length") from None
     value = _parse(name, text)
     stored = value.text if isinstance(value, Band) else (
         f"{value} months" if name in ("employment_length", "tenancy") and value != "n/a"
@@ -213,14 +227,16 @@ def set_field(name, raw):
         renter.set_field(_key("guarantor_income"), "clear")
     if name == "employment":
         previous = tracker.value(f"profile.{_key(name)}")
-        if previous:
-            try:
-                changed = _parse(name, previous) != value
-            except ValueError:
-                changed = True
-            if changed:
-                renter.set_field(_key("employment_length"), "clear")
+        try:
+            changed = not previous or _parse(name, previous) != value
+        except ValueError:
+            changed = True
+        if changed:
+            renter.set_field(_key("employment_length"), "clear")
+            tracker.drop(EMPLOYMENT_LENGTH_FOR)
     renter.set_field(_key(name), stored)
+    if name == "employment_length":
+        tracker.put(EMPLOYMENT_LENGTH_FOR, employment)
     return value
 
 
@@ -237,10 +253,18 @@ def load(facts=None):
         except ValueError:
             values[name] = None
             invalid.add(name)
+    # Legacy durations have no evidence tying them to the currently saved employment.
+    if (values["employment_length"] is not None and
+            (values["employment"] is None or
+             tracker.value(EMPLOYMENT_LENGTH_FOR) != values["employment"])):
+        values["employment_length"] = None
+        invalid.add("employment_length")
     span = renter.window() if facts.get("movein") else None
     if span and span[1] < span[0]:
         span = None
-    return Pack(values, invalid, span, bool(facts.get("movein") and not span))
+    invalid_movein = bool(facts.get("movein") and not span)
+    ambiguous_movein = renter.movein_needs_confirmation(span)
+    return Pack(values, invalid, None if ambiguous_movein else span, invalid_movein, ambiguous_movein)
 
 
 def missing(pack, after=None):
@@ -248,6 +272,7 @@ def missing(pack, after=None):
     start = names.index(after) + 1 if after in names else 0
     return [name for name in names[start:]
             if pack.values[name] is None
+            and (name != "employment_length" or pack.values["employment"] is not None)
             and (name != "guarantor_income" or pack.values["guarantor"] == "yes")]
 
 
@@ -303,14 +328,19 @@ def checklist(pack, rent=None, archived=False, selected=None):
         lines.append("Last selected home: " + html.escape(selected[:100]))
     for name, (label, _, _) in FIELDS.items():
         value = pack.values[name]
-        if name == "guarantor_income" and pack.values["guarantor"] != "yes":
+        if name == "employment_length" and pack.values["employment"] is None:
+            shown = "answer employment first"
+        elif name == "guarantor_income" and pack.values["guarantor"] != "yes":
             shown = "not applicable" if pack.values["guarantor"] == "no" else "answer guarantor first"
         elif value is not None:
             shown = value_text(name, value)
+        elif name == "employment_length" and name in pack.invalid:
+            shown = "unconfirmed for this employment; re-enter"
         else:
             shown = "unrecognised; re-enter" if name in pack.invalid else "missing"
         lines.append(f"{label}: {html.escape(shown)}  <code>/ready {name}</code>")
     movein = (movein_text(pack.movein) if pack.movein else
+              "needs confirmation; a 30-day window may be an estimate" if pack.ambiguous_movein else
               "unrecognised; update /profile movein" if pack.invalid_movein else "not set; /profile movein")
     lines.append(f"Move-in date from /profile: {html.escape(movein)}")
     lines.append("\n" + affordability(pack, rent, archived=archived))
@@ -343,16 +373,20 @@ def application_summary(pack):
     facts = _known(pack)
     if pack.movein:
         facts.append(("move-in window", movein_text(pack.movein)))
+    elif pack.ambiguous_movein:
+        facts.append(("move-in window", "[confirm move-in date]"))
     if not facts:
         return "Application summary: [add the details you wish to share]."
     return "Application summary: " + "; ".join(f"{label}: {value}" for label, value in facts) + "."
 
 
-def extras(pack, rent):
+def extras(pack, rent, details):
     script = ("Hello, I'm calling about your advertised property. Is it still available? "
               "When can I view it, and what documents and affordability checks do you require? Thank you.")
-    fields = ["Property: [selected property]", "Name: [your name]", "Email: [your email]",
-              "Phone: [your phone number]", "Household: [who will live there]"]
+    fields = [f"Property: {details['address'] or '[selected property]'}",
+              f"Name: {details['name'] or '[your name]'}", "Email: [your email]",
+              "Phone: [your phone number]", f"Household: {details['household'] or '[who will live there]'}",
+              f"Occupation: {details['job'] or '[if applicable]'}"]
     known = dict(_known(pack))
     for label in ("gross annual household income", "employment", "time in employment", "references",
                   "guarantor available", "guarantor gross annual income",
@@ -361,7 +395,9 @@ def extras(pack, rent):
         if label == "guarantor gross annual income" and pack.values["guarantor"] != "yes":
             continue
         fields.append(f"{label.capitalize()}: {known.get(label, '[not supplied]')}")
-    fields.append("Move-in window: " + (movein_text(pack.movein) if pack.movein else "[not supplied]"))
+    movein = (movein_text(pack.movein) if pack.movein else
+              "[confirm move-in date]" if pack.ambiguous_movein else "[not supplied]")
+    fields.append("Move-in window: " + movein)
     return ("\n\n<b>Call-first script</b>\n<pre>" + html.escape(script, quote=False)
             + "</pre>\n\n<b>Portal form fields</b>\n<pre>" + html.escape("\n".join(fields), quote=False)
             + "</pre>\n\n<b>Affordability for this home</b>\n" + affordability(pack, rent, archived=True))

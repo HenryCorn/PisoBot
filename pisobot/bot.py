@@ -825,8 +825,13 @@ class Handler:
         if stored is None:
             self.reply(f"🧹 {label} cleared.")
         elif name == "movein":
-            self.reply(f"📅 Move-in set to {renter.show_window(*renter.window())}. Cards now show how each "
-                       "home's available date fits.")
+            span = renter.window()
+            if renter.ready_enabled() and renter.movein_needs_confirmation(span):
+                self.reply("📅 Move-in saved. The 30-day window used for card fit may be an estimate; "
+                           "confirm your dates in the enquiry.")
+            else:
+                self.reply(f"📅 Move-in set to {renter.show_window(*span)}. Cards now show how each "
+                           "home's available date fits.")
         else:
             self.reply(f"✅ {label} saved.")
         return True
@@ -836,18 +841,25 @@ class Handler:
         name = words[1].lower() if len(words) > 1 else ""
         if name in ready.FIELDS:
             raw = " ".join(words[2:]).strip()
+            pending = tracker.expected()
+            previous = pending.get("key") if pending and pending.get("kind") == "ready" else None
+            parts = previous.split(":", 2) if isinstance(previous, str) else []
+            context = parts[2] if len(parts) == 3 and parts[0] in ("flow", "single") else None
             if raw:
-                self._ready_answer(f"single:{name}", raw, direct=True)
+                key = f"single:{name}" + (f":{context}" if context is not None else "")
+                self._ready_answer(key, raw, direct=True)
             else:
-                self._ready_ask(name, flow=False)
+                self._ready_ask(name, flow=False, context=context)
             return
         rent = None
+        context = None
         if name == "rent":
             try:
                 rent = ready.rent_amount(" ".join(words[2:]))
             except ValueError as error:
                 self.reply(f"⚠️ {html.escape(str(error))}. Use <code>/ready rent 1600</code>.")
                 return
+            context = f"{rent}:{tracker.value('profile.ready_listing') or ''}"
         elif name not in ("", "status"):
             self.reply("Use /ready to fill the checklist, <code>/ready status</code> to view it, or "
                        "<code>/ready rent 1600</code> to check a flat's advertised monthly rent.")
@@ -856,7 +868,7 @@ class Handler:
         self.reply(self._ready_checklist(pack, rent, manual=name == "rent"))
         todo = ready.missing(pack)
         if name != "status" and todo:
-            self._ready_ask(todo[0], flow=True)
+            self._ready_ask(todo[0], flow=True, context=context)
 
     def _ready_checklist(self, pack, rent=None, manual=False):
         from . import ready
@@ -872,19 +884,35 @@ class Handler:
         rent = data.get("rent") if data.get("tenure") == "rent" else None
         return ready.checklist(pack, rent, archived=True, selected=address)
 
-    def _ready_ask(self, name, flow):
+    def _ready_ask(self, name, flow, context=None):
         from . import ready
         _, question, example = ready.FIELDS[name]
-        self.ask("ready", f"{'flow' if flow else 'single'}:{name}",
+        key = f"{'flow' if flow else 'single'}:{name}"
+        if context is not None:
+            # The one-off rent and selected home travel only with this pending prompt.
+            key += f":{context}"
+        self.ask("ready", key,
                  question + "\nReply <code>skip</code> to leave this answer as it is.", example)
 
     def _ready_answer(self, key, raw, direct=False):
         from . import ready
-        mode, _, name = key.partition(":")
-        if mode not in ("flow", "single") or name not in ready.FIELDS:
+        parts = key.split(":", 3) if isinstance(key, str) else []
+        if (len(parts) not in (2, 4) or parts[0] not in ("flow", "single")
+                or parts[1] not in ready.FIELDS):
             self._done()
             self.reply("⚠️ That readiness question is no longer available; use /ready.")
             return
+        mode, name = parts[:2]
+        context = None
+        rent = None
+        if len(parts) == 4:
+            try:
+                rent = ready.rent_amount(parts[2])
+            except ValueError:
+                self._done()
+                self.reply("⚠️ The one-off rent could not be recovered; use /ready rent 1600 again.")
+                return
+            context = f"{parts[2]}:{parts[3]}"
         skipped = raw.strip().lower() == "skip"
         if not skipped:
             try:
@@ -898,10 +926,17 @@ class Handler:
         todo = ready.missing(pack, after=name) if mode == "flow" else []
         if todo:
             self.reply("⏭ Skipped." if skipped else f"✅ {ready.FIELDS[name][0]} saved.")
-            self._ready_ask(todo[0], flow=True)
+            self._ready_ask(todo[0], flow=True, context=context)
             return
         self._done()
-        self.reply(("⏭ Skipped.\n" if skipped else "✅ Readiness updated.\n") + self._ready_checklist(pack))
+        prefix = "⏭ Skipped.\n" if skipped else "✅ Readiness updated.\n"
+        if context is not None and (tracker.value("profile.ready_listing") or "") != parts[3]:
+            prefix += ("⚠️ The selected home changed; the one-off rent was discarded. "
+                       "Use <code>/ready rent &lt;amount&gt;</code> to check it again.\n")
+            checklist = self._ready_checklist(pack)
+        else:
+            checklist = self._ready_checklist(pack, rent, manual=context is not None)
+        self.reply(prefix + checklist)
 
     def text_reply(self, text):
         pending = tracker.expected()
@@ -1205,7 +1240,12 @@ class Handler:
                 stored = renter.set_field(name, raw)
                 if name == "movein" and stored:
                     # Say how the answer was read, so a misread window is caught now, not on a card
-                    self.reply(f"📅 Move-in: {renter.show_window(*renter.window())}")
+                    span = renter.window()
+                    if renter.ready_enabled() and renter.movein_needs_confirmation(span):
+                        self.reply("📅 Move-in saved. The 30-day window used for card fit may be an estimate; "
+                                   "confirm your dates in the enquiry.")
+                    else:
+                        self.reply(f"📅 Move-in: {renter.show_window(*span)}")
         except ValueError as error:
             self.reply(f"⚠️ {error}. Try again, tap Skip, or /cancel.")
             return
