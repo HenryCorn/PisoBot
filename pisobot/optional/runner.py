@@ -146,11 +146,11 @@ class ChildGroup:
                     if terminating:
                         self.signal()
                     memory, count, live = group_usage(self.proc.pid)
+                    if not count:
+                        raise ProcessLookupError("process group inspection returned no members")
                     if terminating and exited and not live:
                         self.finish()
                     elif not terminating:
-                        if not count:
-                            raise ProcessLookupError("process group not found")
                         if memory > GROUP_MEMORY_BYTES or count > GROUP_PROCESS_LIMIT:
                             log.warning("optional step exceeded its process-group resource limit")
                             terminating = True
