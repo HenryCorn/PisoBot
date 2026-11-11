@@ -92,7 +92,7 @@ def status_text(now=None):
         try:
             from . import optional
             if not optional.execution_available():
-                lines.append(f"\n<b>Alert delay</b>: unavailable ({optional.ISOLATION_REFUSAL})")
+                lines.append(f"\n<b>Alert acknowledgement delay</b>: unavailable ({optional.ISOLATION_REFUSAL})")
             else:
                 timing = importlib.import_module(".timing", __package__)
                 extra = timing.status_lines(now)

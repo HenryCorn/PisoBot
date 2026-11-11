@@ -1,5 +1,6 @@
 """G1 timing as the first client of the optional foundation (ALERT_TIMING=1), with the reviewer's findings fixed."""
 import datetime as dt
+import errno
 import io
 import json
 import os
@@ -208,16 +209,17 @@ class RecordingTests(TimingBase):
     def test_pipeline_passes_no_extra_receipt_context_to_the_existing_hook(self):
         contexts, real = [], optional.after_ack
 
-        def capture(listing, person, reply, context):
-            contexts.append(set(context))
-            return real(listing, person, reply, context)
+        def capture(listing, person, reply, context=None, **kwargs):
+            contexts.append((context, set(kwargs)))
+            return real(listing, person, reply, context, **kwargs)
 
         self.full = [home(1, 1200), home(2, 1250)]
         with patch.object(optional, "after_ack", side_effect=capture):
             self.watcher.cycle()
             self.settle()
         self.assertTrue(contexts)
-        self.assertTrue(all(keys == {"reason", "state", "via"} for keys in contexts))
+        self.assertTrue(all(context is None and keys == {"reason", "state", "sweep", "sweep_keys"}
+                            for context, keys in contexts))
 
     def test_separate_alerts_for_the_same_listing_are_not_deduplicated(self):
         items = [optional.Item(i, time.time(), OWNER, None, "new", "sent", "head",
@@ -389,6 +391,72 @@ class RecordingTests(TimingBase):
         optional.after_ack(home(2), OWNER, None, {"reason": "new", "state": "told"})
         self.assertIsNone(timing.row_for(optional._items[-1]))
 
+    def test_provenance_is_not_evaluated_when_off_or_refused_and_failures_are_contained(self):
+        class BadListing:
+            @property
+            def key(self):
+                raise AssertionError("disabled provenance accessed the listing")
+
+        class BadKeys:
+            def __contains__(self, key):
+                raise MemoryError("provenance unavailable")
+
+        before = optional.lost["malformed"]
+        with patch.dict(os.environ, {"ALERT_TIMING": "0"}):
+            optional.after_ack(BadListing(), OWNER, None, reason="new", state="sent", sweep_keys=BadKeys())
+        with patch.object(optional, "execution_available", test_optional.REAL_EXECUTION_AVAILABLE):
+            optional.after_ack(BadListing(), OWNER, None, reason="new", state="sent", sweep_keys=BadKeys())
+        self.assertEqual(optional.lost["malformed"], before)
+        self.assertEqual(optional._items, [])
+
+        optional.after_ack(home(1), OWNER, None, reason="new", state="sent", sweep_keys=BadKeys())
+        self.assertEqual(optional.lost["malformed"], before + 1)
+        optional.after_ack(home(1), OWNER, None, reason="new", state="sent", sweep=True, sweep_keys=BadKeys())
+        optional.after_ack(home(2), OWNER, None, reason="new", state="sent", sweep_keys={"rm:2"})
+        optional.after_ack(home(3), OWNER, None, reason="new", state="sent", sweep_keys={"rm:2"})
+        self.assertEqual([item.via for item in optional._items], ["sweep", "sweep", "head"])
+
+    def test_no_provenance_key_is_read_after_ack_when_off_or_refused(self):
+        real_ack, real_hook, real_key = archive.record_verdicts, optional.after_ack, Listing.key.fget
+        window, completed = {"chat": None, "key": None, "reads": 0}, set()
+
+        def acknowledge(chat, rows, *args, **kwargs):
+            result = real_ack(chat, rows, *args, **kwargs)
+            if kwargs.get("acknowledged") and len(rows) == 1:
+                identity = (str(chat), rows[0][0])
+                sent = {(str(person), key) for person, key, _ in self.sent}
+                if identity in sent and identity not in completed:
+                    window.update(chat=identity[0], key=identity[1], reads=0)
+            return result
+
+        def key(listing):
+            value = real_key(listing)
+            if (value == window["key"] and users.current_chat() == window["chat"]
+                    and sys._getframe(1).f_code is main._run.__code__):
+                window["reads"] += 1
+                if window["reads"] > 1:
+                    raise MemoryError("optional provenance recomputed the key")
+            return value
+
+        def hook(listing, person, reply, **kwargs):
+            identity = (str(person), real_key(listing))
+            if (window["chat"], window["key"]) == identity:
+                self.assertEqual(window["reads"], 1)
+            window["key"] = None
+            completed.add(identity)
+            return real_hook(listing, person, reply, **kwargs)
+
+        with patch.object(Listing, "key", property(key)), patch.object(archive, "record_verdicts", side_effect=acknowledge), \
+                patch.object(optional, "after_ack", side_effect=hook):
+            for flag, available, last in (("0", True, 3), ("1", False, 5)):
+                with self.subTest(flag=flag, available=available), patch.dict(os.environ, {"ALERT_TIMING": flag}), \
+                        patch.object(optional, "execution_available", return_value=available):
+                    self.sent.clear()
+                    self.full = [home(n, 1200) for n in range(1, last + 1)]
+                    self.watcher.cycle()
+                    self.assertTrue({f"rm:{last - 1}", f"rm:{last}"} <= {key for _, key, _ in self.sent})
+                    self.assertTrue({(str(person), key) for person, key, _ in self.sent} <= completed)
+
     def test_the_feature_runs_on_its_own_thread_never_the_pipeline(self):
         threads = set()
         real = timing.Feature.after_cycle
@@ -399,12 +467,87 @@ class RecordingTests(TimingBase):
         self.assertNotIn(threading.current_thread(), threads)
 
 
+class CheckedReadTests(TimingBase):
+    def test_primary_stat_failures_retry_first_sight_until_a_real_read_succeeds(self):
+        self.assertEqual(store.read_primary_checked("SELECT 1", person="999"), ([], None))
+        primary = self.state / "pisobot.db"
+        real_stat = os.stat
+        item = optional.Item(123, time.time(), OWNER, None, "new", "sent", "head",
+                             (("key", "rm:1"), ("source", "rm")))
+        for error in (PermissionError(errno.EACCES, "denied"), OSError(errno.EIO, "I/O error")):
+            def failing_stat(target, *args, **kwargs):
+                if isinstance(target, (str, bytes, os.PathLike)) and os.fsdecode(target) == str(primary):
+                    raise error
+                return real_stat(target, *args, **kwargs)
+
+            with self.subTest(errno=error.errno), patch.object(os, "stat", side_effect=failing_stat), \
+                    patch.object(timing, "recover_receipts"), self.assertLogs("pisobot.timing", level="WARNING"):
+                rows, actual = store.read_primary_checked("SELECT first_seen FROM adverts WHERE key = ?", ("rm:1",))
+                self.assertIsNone(rows)
+                self.assertIs(actual, error)
+                self.assertEqual(timing.FEATURE.after_cycle([item]), [item.seq])
+        self.assertEqual(self.rows(), [])
+        self.assertEqual(timing.stats["retried"], 2)
+        with patch.object(timing, "recover_receipts"):
+            self.assertIsNone(timing.FEATURE.after_cycle([item]))
+        self.assertIsNotNone(self.rows()[0]["first_fetch_at"])
+
+    def test_optional_stat_failures_are_reported_by_the_real_checked_wrapper_and_status(self):
+        self.assertEqual(store.read_checked("SELECT 1"), ([], None))
+        target = store.path()
+        os.symlink(self.state / "missing", target)
+        rows, error = store.read_checked("SELECT 1")
+        self.assertIsNone(rows)
+        self.assertIsInstance(error, ValueError)
+        target.unlink()
+        self.assertTrue(store.write(timing.DDL, []))
+        real_lstat = os.lstat
+        for error in (PermissionError(errno.EACCES, "denied"), OSError(errno.EIO, "I/O error")):
+            def failing_lstat(path, *args, **kwargs):
+                if isinstance(path, (str, bytes, os.PathLike)) and os.fsdecode(path) == str(target):
+                    raise error
+                return real_lstat(path, *args, **kwargs)
+
+            with self.subTest(errno=error.errno), patch.object(os, "lstat", side_effect=failing_lstat), \
+                    self.assertLogs("pisobot.timing", level="WARNING"):
+                rows, actual = store.read_checked("SELECT COUNT(*) AS n FROM alert_timing")
+                self.assertIsNone(rows)
+                self.assertIs(actual, error)
+                self.assertIn("timing database read failed", "\n".join(timing.status_lines(now=NOW)))
+        self.assertEqual(store.read_checked("SELECT COUNT(*) AS n FROM alert_timing"), ([{"n": 0}], None))
+
+    def test_checked_reads_report_sqlite_open_errors(self):
+        self.assertTrue(store.write(timing.DDL, []))
+        failure = sqlite3.OperationalError("unable to open database file")
+        with patch.object(sqlite3, "connect", side_effect=failure):
+            for read in (store.read_primary_checked, store.read_checked):
+                with self.subTest(read=read.__name__):
+                    rows, error = read("SELECT 1")
+                    self.assertIsNone(rows)
+                    self.assertIs(error, failure)
+
+    def test_primary_stat_failure_reports_receipt_recovery_and_a_later_scan_recovers(self):
+        primary, real_stat = self.state / "pisobot.db", os.stat
+
+        def failing_stat(target, *args, **kwargs):
+            if isinstance(target, (str, bytes, os.PathLike)) and os.fsdecode(target) == str(primary):
+                raise PermissionError(errno.EACCES, "denied")
+            return real_stat(target, *args, **kwargs)
+
+        with patch.object(os, "stat", side_effect=failing_stat), self.assertLogs("pisobot.timing", level="WARNING"):
+            timing.FEATURE.after_cycle(())
+        self.assertIn("receipt recovery unavailable", "\n".join(timing.status_lines(now=NOW)))
+        timing.FEATURE.after_cycle(())
+        self.assertEqual(timing.stats["recovery_error"], "")
+
+
 class StatusTests(TimingBase):
     def test_status_reports_isolation_refusal_without_loading_the_feature(self):
         with patch.object(optional, "execution_available", test_optional.REAL_EXECUTION_AVAILABLE), \
                 patch.object(status.importlib, "import_module", side_effect=AssertionError("feature imported")):
-            self.assertIn(optional.ISOLATION_REFUSAL, status.status_text(now=NOW))
-            self.assertIn(optional.ISOLATION_REFUSAL, "\n".join(timing.status_lines(now=NOW)))
+            for text in (status.status_text(now=NOW), "\n".join(timing.status_lines(now=NOW))):
+                self.assertIn(optional.ISOLATION_REFUSAL, text)
+                self.assertIn("Alert acknowledgement delay", text)
 
     def test_failed_and_stuck_workers_are_visible_without_queued_events(self):
         health = {"workers": [{"flag": "ALERT_TIMING", "waiting": 0, "inflight": 0, "failed": True, "stuck": True}],
@@ -532,9 +675,25 @@ print(json.dumps(trace, sort_keys=True))
         optional.after_cycle()
         self.settle(1)
         text = "\n".join(timing.status_lines())
-        self.assertIn("Alert delay", text)
+        self.assertIn("Alert acknowledgement delay", text)
+        self.assertIn("not Telegram send time; receipt and DB work can add delay", text)
         self.assertIn("Rightmove: 1 alerts", text)
         self.assertIn("coverage cannot be verified", text)
+
+    def test_the_legacy_sent_at_column_measures_the_acknowledgement_hook(self):
+        listing = home(1)
+        listing.first_listed_at = iso(60)
+        with patch.object(optional.time, "time", return_value=NOW.timestamp()):
+            optional.after_ack(listing, OWNER, None, reason="new", state="sent")
+        row = timing.row_for(optional._items[-1])
+        self.assertEqual(row["sent_at"], NOW.isoformat(timespec="seconds"))
+        with patch.object(store, "read_primary_checked", return_value=([{"first_seen": iso(30)}], None)):
+            self.assertEqual(timing.write_rows([row], now=NOW), [])
+        self.assertEqual(timing.report(now=NOW)["rm"]["portal_median"], 60)
+        self.assertEqual(timing.report(now=NOW)["rm"]["fetch_median"], 30)
+        text = "\n".join(timing.status_lines(now=NOW))
+        self.assertIn("Alert acknowledgement delay", text)
+        self.assertIn("not Telegram send time", text)
 
     def test_an_alert_whose_write_is_in_flight_is_shown_not_hidden(self):
         """Re-review P3: the batch has left the inbox and the write has not settled; /status must still say so."""
@@ -550,7 +709,7 @@ print(json.dumps(trace, sort_keys=True))
             optional.after_cycle()
             self.assertTrue(entered.wait(5))
             text = status.status_text()
-            self.assertIn("Alert delay", text)
+            self.assertIn("Alert acknowledgement delay", text)
             self.assertIn("1 being written now", text)
             release.set()
             self.settle(1)

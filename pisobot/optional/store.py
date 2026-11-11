@@ -49,8 +49,17 @@ def path():
     return _state() / NAME
 
 
+def _exists(target, *, follow_symlinks=True):
+    """Treat only a missing path as absent; propagate other filesystem errors."""
+    try:
+        (os.stat if follow_symlinks else os.lstat)(target)
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def exists():
-    return os.path.lexists(path())
+    return _exists(path(), follow_symlinks=False)
 
 
 last_error = [""]             # why the last write or read was refused (shown by optional.health(); diagnosis only)
@@ -228,7 +237,7 @@ def read_primary_checked(sql, params=(), person=None):
         else:
             owner = str(person) == os.environ.get("TELEGRAM_CHAT_ID", "").strip()
             target = localdb.state_dir() / "pisobot.db" if owner else users.User(str(person), owner=False).directory / "pisobot.db"
-        if not os.path.exists(target):
+        if not _exists(target):
             return [], None
         return _read(target, sql, params), None
     except Exception as ex:

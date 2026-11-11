@@ -1,11 +1,11 @@
-"""How late are the alerts? (G1, on the optional foundation; switched on by ALERT_TIMING=1.)
+"""Time from listing or first sight to alert acknowledgement (G1; switched on by ALERT_TIMING=1).
 
 Best-effort records of accepted alerts (VPS, STORAGE=local), in the optional features' OWN database (optional.db), never the primary one.
 Receipt recovery cannot prove that every accepted alert has a timing row or correlate recovered receipts with those rows.
 
   listed_at       the portal's own full listing timestamp (Rightmove firstVisibleDate), when it gives one
   first_fetch_at  when this bot first fetched the advert (the archive's first_seen, read from the primary database read-only)
-  sent_at         when the alert was acknowledged (taken at the after_ack hook, in memory)
+  sent_at         legacy column name: when the post-acknowledgement hook ran, not Telegram send time
   via             "head" (full cycle) or "sweep" (deep-sweep judging)
 
 The foundation guarantees the order (Telegram -> seen receipt -> acknowledgement -> this feature) and that this code runs on its own worker
@@ -37,6 +37,7 @@ RECOVERY_PAGE = 100
 RECOVERY_PEOPLE = 4
 SEEN_BYTES = 4_000_000
 NAMES = {"rm": "Rightmove", "otmr": "OnTheMarket"}
+STATUS_TITLE = "<b>Alert acknowledgement delay</b>"
 DDL = """
 CREATE TABLE IF NOT EXISTS alert_timing (
     id INTEGER PRIMARY KEY, source TEXT NOT NULL, reason TEXT NOT NULL, via TEXT NOT NULL, listed_at TEXT,
@@ -257,8 +258,8 @@ class Report(dict):
 
 
 def report(days=WINDOW_DAYS, now=None):
-    """{source: {...}} over the last `days`, new-advert alerts only; delays in minutes. READ-ONLY: {} when optional.db or the table does
-    not exist (nothing is created). A delay below zero is left out of the figures."""
+    """{source: {...}} over the last `days`, new-advert alerts only; delays to acknowledgement in minutes. READ-ONLY: {} when optional.db
+    or the table does not exist (nothing is created). A delay below zero is left out of the figures."""
     now = now or _now()
     since = (now - dt.timedelta(days=days)).isoformat(timespec="seconds")
     rows, error = store.read_checked(
@@ -306,14 +307,15 @@ def status_lines(now=None):
         return []
     from . import optional
     if not optional.execution_available():
-        return [f"\n<b>Alert delay</b>: unavailable ({optional.ISOLATION_REFUSAL})"]
+        return [f"\n{STATUS_TITLE}: unavailable ({optional.ISOLATION_REFUSAL})"]
     now = now or _now()
     data = report(now=now)
     lines = []
     if data.error:
-        lines.append("\n<b>Alert delay</b>: unavailable (timing database read failed)")
+        lines.append(f"\n{STATUS_TITLE}: unavailable (timing database read failed)")
     if data:
-        lines.append(f"\n<b>Alert delay</b> (last {WINDOW_DAYS} days, median / 90th percentile; 90th shown from {MIN_FOR_P90} alerts)")
+        lines.append(f"\n{STATUS_TITLE} (last {WINDOW_DAYS} days, median / 90th percentile; 90th shown from {MIN_FOR_P90} alerts)"
+                     " — measured at the post-acknowledgement hook, not Telegram send time; receipt and DB work can add delay")
         if data.capped:
             lines.append(f"• showing only the latest {REPORT_ROWS:,} alerts; results are capped")
         for source, r in data.items():
@@ -326,14 +328,14 @@ def status_lines(now=None):
         lines.append("• coverage cannot be verified; some accepted alerts may be missing")
     unmeasured, recovery_read_error = unmeasured_count(now)
     if unmeasured:
-        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        prefix = "• " if lines else f"\n{STATUS_TITLE}: "
         lines.append(f"{prefix}{unmeasured} receipt(s) noticed by recovery in the last {WINDOW_DAYS} days without a verifiable "
                      "timing link; these may be older or overlap timed alerts")
     if recovery_read_error or stats["recovery_error"]:
-        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        prefix = "• " if lines else f"\n{STATUS_TITLE}: "
         lines.append(prefix + "receipt recovery unavailable; it will retry after a cycle")
     elif stats["recovery_more"]:
-        prefix = "• " if lines else "\n<b>Alert delay</b>: "
+        prefix = "• " if lines else f"\n{STATUS_TITLE}: "
         lines.append(prefix + "receipt recovery scan continues in later cycles")
     health = optional.health()
     mine = [w for w in health["workers"] if w["flag"] == "ALERT_TIMING"]
@@ -351,11 +353,11 @@ def status_lines(now=None):
                 f"({', '.join(f'{k} {v}' for k, v in health['lost'].items() if v) or 'none'})")
         if refused:
             text += f" · storage refused: {html.escape(refused)}"
-        lines.append(("• not recorded yet: " if lines else "\n<b>Alert delay</b>: ") + text)
+        lines.append(("• not recorded yet: " if lines else f"\n{STATUS_TITLE}: ") + text)
     if scanning:
-        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "receipt recovery scan pending or in progress")
+        lines.append(("• " if lines else f"\n{STATUS_TITLE}: ") + "receipt recovery scan pending or in progress")
     if failed:
-        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "timing worker failed; events cannot be recorded")
+        lines.append(("• " if lines else f"\n{STATUS_TITLE}: ") + "timing worker failed; events cannot be recorded")
     if stuck:
-        lines.append(("• " if lines else "\n<b>Alert delay</b>: ") + "timing worker stuck; events may be delayed")
+        lines.append(("• " if lines else f"\n{STATUS_TITLE}: ") + "timing worker stuck; events may be delayed")
     return lines

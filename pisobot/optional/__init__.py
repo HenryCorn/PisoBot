@@ -8,7 +8,7 @@ The delivery and watcher threads only (a) append plain data to a bounded list, (
 no feature call), (c) read an already PUBLISHED immutable snapshot of card lines. A feature that blocks forever therefore blocks only its
 own worker: it is never started a second time (single flight per feature), its inbox is bounded and aged, and what is lost is counted.
 
-  after_ack(listing, person, reply, context)  after the acknowledgement; builds an immutable Item of plain scalars; never raises
+  after_ack(listing, person, reply, ...)     after the acknowledgement; builds an immutable Item of plain scalars; never raises
   after_cycle(dry_run)                        after the run lock was released; moves items to the workers' inboxes; instant; never raises
   extend_card(text, listing, has_photo)       called by telegram.send_listing with the FINAL card text and the real media outcome; adds a
                                               published line only if the Telegram call plan (kind and number of calls, exactly as
@@ -30,7 +30,7 @@ no line.
 Delivery semantics of after_cycle: at least once. A batch is a tuple of Items (each has a unique `seq`); the feature returns None (all
 settled), True (keep all) or the Items/seqs to keep. A kept or failed item is offered again (at most MAX_ATTEMPTS times, at most
 MAX_AGE_SECONDS old); every loss is counted in `lost` by category. Features must be idempotent per `seq`. The `at` of an Item is taken at
-the hook, a few milliseconds after Telegram accepted the card.
+the hook after receipt and any database acknowledgement, not at Telegram send time.
 
 Termination: "never raises" means ordinary exceptions. KeyboardInterrupt/SystemExit are never swallowed here (the receipts are already
 durable and swallowing termination would stop the service from stopping).
@@ -168,9 +168,10 @@ def _scalar(value):
 
 # ---------------------------------------------------------------- the hook after the acknowledgement
 
-def after_ack(listing, person, reply, context):
+def after_ack(listing, person, reply, context=None, *, reason="", state="", sweep=False, sweep_keys=None):
     """Called by `_run` once per alert, AFTER its receipt and acknowledgement. Copies a few scalars into an immutable Item and appends it
-    to a bounded in-memory list: no I/O, no logging, no import, no lock, no feature code. Failures are swallowed and counted."""
+    to a bounded in-memory list: no I/O, no logging, no import, no lock, no feature code. Provenance is evaluated only after the enabled
+    gate and inside the same fail-open boundary. Failures are swallowed and counted."""
     try:
         if not _registry or not enabled_any():
             return
@@ -179,9 +180,13 @@ def after_ack(listing, person, reply, context):
             return
         _seq[0] += 1
         ctx = context if isinstance(context, dict) else {}
+        if sweep_keys is None:
+            via = ctx.get("via", "head")
+        else:
+            via = "sweep" if sweep or listing.key in sweep_keys else "head"
         _items.append(Item(
-            _seq[0], time.time(), str(person), message_id(reply), str(ctx.get("reason", "")), str(ctx.get("state", "")),
-            str(ctx.get("via", "head")), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)))
+            _seq[0], time.time(), str(person), message_id(reply), str(ctx.get("reason", reason)), str(ctx.get("state", state)),
+            str(via), tuple((name, _scalar(getattr(listing, name, None))) for name in FIELDS)))
     except Exception:
         try:
             lost["malformed"] += 1
