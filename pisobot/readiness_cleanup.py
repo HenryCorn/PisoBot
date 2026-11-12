@@ -61,15 +61,16 @@ def _inventory():
     if resolved_root is None:
         return [], []
     people = _person_directories(root, resolved_root)
-    alerts = [root / "pisobot.db", *(person / "pisobot.db" for person in people)]
-    sidecars = [root / "readiness.db", *(person / "readiness.db" for person in people)]
+    alert_candidates = [root / "pisobot.db", *(person / "pisobot.db" for person in people)]
+    sidecar_candidates = [root / "readiness.db", *(person / "readiness.db" for person in people)]
     # Preflight the complete inventory before opening or modifying any database.
-    alerts = [path for path in alerts if _checked(path, resolved_root)]
-    sidecars = [path for path in sidecars if _checked(path, resolved_root)]
-    for path in sidecars:
+    alerts = [(path, _checked(path, resolved_root)) for path in alert_candidates]
+    sidecars = [(path, _checked(path, resolved_root)) for path in sidecar_candidates]
+    for path, _ in (*alerts, *sidecars):
         for suffix in ("-wal", "-shm", "-journal"):
             _checked(path.with_name(path.name + suffix), resolved_root)
-    return alerts, sidecars
+    return ([path for path, info in alerts if info],
+            [path for path, info in sidecars if info])
 
 
 def _table(db, name):
@@ -139,7 +140,7 @@ def main(argv=None, out=sys.stdout):
             for path in sidecars:
                 print(f"{path}: readiness sidecar will be removed", file=out)
         if args.dry_run:
-                return 2 if any(pending for _, _, _, pending in reports) else 0
+            return 2 if any(pending for _, _, _, pending in reports) else 0
         for path, keys, prompt, _ in reports:
             with contextlib.closing(sqlite3.connect(path, timeout=0, isolation_level=None)) as db:
                 db.execute("PRAGMA secure_delete = ON")

@@ -789,6 +789,30 @@ class ReadinessBotTests(BotBase):
             self.assertEqual(db.execute("SELECT value FROM renter").fetchone()[0], "private")
         outside.unlink()
 
+    def test_cleanup_preflights_sqlite_companion_symlinks_before_opening_databases(self):
+        for database_name in ("pisobot.db", "readiness.db"):
+            for suffix in ("-wal", "-shm", "-journal"):
+                for database_exists in (True, False):
+                    with self.subTest(database=database_name, companion=suffix, exists=database_exists):
+                        root = self.state / f"preflight-{database_name}-{suffix[1:]}-{database_exists}"
+                        root.mkdir()
+                        database = root / database_name
+                        if database_exists:
+                            with sqlite3.connect(database) as db:
+                                db.execute("CREATE TABLE probe (value TEXT)")
+                        outside = self.state / f"outside-{database_name}-{suffix[1:]}-{database_exists}"
+                        outside.write_text("external fixture", encoding="utf-8")
+                        (root / f"{database_name}{suffix}").symlink_to(outside)
+
+                        with patch.object(localdb, "state_dir", return_value=root), \
+                                patch.object(readiness_cleanup.sqlite3, "connect",
+                                             side_effect=AssertionError("SQLite opened before path preflight")) as connect:
+                            out = io.StringIO()
+                            self.assertEqual(readiness_cleanup.main(["--purge-sidecars"], out=out), 1)
+                            self.assertIn("Refusing non-regular, linked, or symlinked database", out.getvalue())
+                            connect.assert_not_called()
+                        self.assertEqual(outside.read_text(encoding="utf-8"), "external fixture")
+
     def test_cleanup_can_purge_feature_sidecars_for_owner_and_user(self):
         friend = self.admit()
         readydb.put("profile.ready_income", "private owner fact")

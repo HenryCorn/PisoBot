@@ -117,6 +117,12 @@ configuration. The alert-path, replay and privacy contract has not been
 accepted. The remaining feature description below is retained for cleanup and
 design context; `/ready` is not available in this release.
 
+This gate prevents new readiness generation only. Normal core recovery through
+`tracker.handled()` can still replay existing primary-database outboxes that
+may contain readiness replies. Their provenance cannot be safely distinguished
+from release replies; this change does not suppress or alter core outbox replay.
+The branch is therefore not safe to integrate while that ambiguity remains.
+
 **Not ready to enable:** cross-mode enquiry duplication, send/checkpoint crash
 ambiguity, stale sidecar replay, and alert-path/journal failure handling remain
 unresolved. The code gate intentionally prevents `READY_PACK` from enabling
