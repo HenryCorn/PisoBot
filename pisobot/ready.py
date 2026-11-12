@@ -199,33 +199,29 @@ def _employment_context(employment, job):
     return json.dumps([employment, fingerprint], separators=(",", ":"))
 
 
-def _store(name, text, warnings=None):
-    if text is None and warnings is not None and readydb.primary_value(f"profile.{_key(name)}") is not None:
-        warning = ("An older value remains in the original database. This did not fully delete it, "
-                   "and it may reappear if the pack is disabled or its storage is recreated.")
-        if warning not in warnings:
-            warnings.append(warning)
-    if name in SHARED_FIELDS:
-        readydb.put_shared(name, text)
-    elif text is None:
+def _store(name, text):
+    if text is None:
         readydb.drop(f"profile.{_key(name)}")
     else:
         readydb.put(f"profile.{_key(name)}", text)
 
 
-def set_field(name, raw, *, warnings=None):
+def set_field(name, raw):
     """Validate and atomically save readiness facts outside the alert database."""
     if name not in FIELDS:
         raise ValueError("Unknown readiness field")
+    if name in SHARED_FIELDS:
+        # One value in every mode: the renter profile, which only /profile changes.
+        raise ValueError(f"{FIELDS[name][0]} comes from your renter profile; use /profile {name}")
     text = " ".join(raw.split())
     with readydb.transaction():
         if text.lower() == "clear":
             if name == "guarantor":
-                _store("guarantor_income", None, warnings)
+                _store("guarantor_income", None)
             elif name == "employment":
-                _store("employment_length", None, warnings)
+                _store("employment_length", None)
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
-            _store(name, None, warnings)
+            _store(name, None)
             if name == "employment_length":
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
             return None
@@ -244,10 +240,8 @@ def set_field(name, raw, *, warnings=None):
             else str(value))
         if name == "cash":
             stored = money_text(value)
-        elif name == "references":
-            stored = value_text(name, value)
         if name == "guarantor" and value == "no":
-            _store("guarantor_income", None, warnings)
+            _store("guarantor_income", None)
         if name == "employment":
             previous = readydb.value(f"profile.{_key(name)}")
             try:
@@ -255,7 +249,7 @@ def set_field(name, raw, *, warnings=None):
             except ValueError:
                 changed = True
             if changed:
-                _store("employment_length", None, warnings)
+                _store("employment_length", None)
                 readydb.drop(EMPLOYMENT_LENGTH_FOR)
         _store(name, stored)
         if name == "employment_length":
@@ -308,7 +302,7 @@ def missing(pack, after=None):
     names = list(FIELDS)
     start = names.index(after) + 1 if after in names else 0
     return [name for name in names[start:]
-            if pack.values[name] is None
+            if pack.values[name] is None and name not in SHARED_FIELDS
             and (name != "employment_length" or pack.values["employment"] is not None)
             and (name != "guarantor_income" or pack.values["guarantor"] == "yes")]
 
@@ -375,9 +369,12 @@ def checklist(pack, rent=None, archived=False, selected=None):
             shown = value_text(name, value)
         elif name == "employment_length" and name in pack.invalid:
             shown = "unconfirmed for this job or status; re-enter"
+        elif name in SHARED_FIELDS:
+            shown = "unrecognised; update it in /profile" if name in pack.invalid else "not set; use /profile"
         else:
             shown = "unrecognised; re-enter" if name in pack.invalid else "missing"
-        lines.append(f"{label}: {html.escape(shown)}  <code>/ready {name}</code>")
+        command = "profile" if name in SHARED_FIELDS else "ready"
+        lines.append(f"{label}: {html.escape(shown)}  <code>/{command} {name}</code>")
     movein = (movein_text(pack.movein) if pack.movein else
               "needs confirmation; a 30-day window may be an estimate" if pack.ambiguous_movein else
               "unrecognised; update /profile movein" if pack.invalid_movein else "not set; /profile movein")

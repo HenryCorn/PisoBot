@@ -2,7 +2,6 @@
 import contextlib
 import contextvars
 import datetime as dt
-import hashlib
 import json
 import os
 import sqlite3
@@ -11,21 +10,20 @@ import stat
 from . import localdb, tracker, users
 
 _ACTIVE = contextvars.ContextVar("pisobot_ready_database", default=None)
-_MIGRATED = "_legacy_migrated"
-_LEGACY_PROMPT = "_legacy_prompt"
-_SHARED = ("pets", "references")
-# Old completion markers do not identify their feature; only distinctive replies are safe to migrate.
-_LEGACY_READY_ERRORS = (
-    "⚠️ That readiness question is no longer available; use /ready.",
-    "⚠️ The one-off rent could not be recovered; use /ready rent 1600 again.",
-    "⚠️ Application readiness is unavailable. Check /ready and try again.",
-    "⚠️ Could not finish that readiness answer. Check /ready before retrying.",
-)
+# Pre-sidecar draft builds (1201e1a, 81a2320) were never deployed. Their primary-database rows are
+# not imported or replayed: readiness refuses to run until an operator removes them while stopped.
+_LEGACY_TITLE = "%Application readiness</b>%"
 EMPLOYMENT_LENGTH_FOR = "profile.ready_employment_length_for"
+_TENURE_STALE = "readiness-tenure-stale"
 _DDL = """
 CREATE TABLE IF NOT EXISTS renter (name TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS handled (update_id INTEGER PRIMARY KEY, outbox TEXT NOT NULL, at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS origin (update_id INTEGER PRIMARY KEY, kind TEXT NOT NULL);
 """
+
+
+class LegacyData(RuntimeError):
+    """Unsupported pre-sidecar readiness data remains in the alert database."""
 
 
 def path():
@@ -81,6 +79,14 @@ def primary_value(name):
     return _primary_renter("SELECT name, value FROM renter WHERE name = ?", name).get(name)
 
 
+def legacy_present():
+    """Read-only: private answers or results written by a pre-sidecar draft build."""
+    primary = localdb.database_path()
+    if _read(primary, "renter", "SELECT 1 FROM renter WHERE name GLOB 'profile.ready_*' LIMIT 1"):
+        return True
+    return bool(_read(primary, "handled", "SELECT 1 FROM handled WHERE outbox LIKE ? LIMIT 1", _LEGACY_TITLE))
+
+
 def _decode(raw):
     try:
         pending = json.loads(raw)
@@ -103,56 +109,27 @@ def primary_pending():
     return _pending(primary_value("_await"))
 
 
-def primary_legacy_prompt():
-    pending = _decode(primary_value("_await"))
-    return pending if pending and pending.get("kind") == "ready" else None
-
-
 def primary_expected():
     pending = primary_pending()
     return pending if pending and pending.get("kind") != "done" else None
 
 
-def primary_completed(update_id):
-    return bool(_read(localdb.database_path(), "handled",
-                      "SELECT update_id FROM handled WHERE update_id = ? AND outbox = '[]'", update_id))
-
-
 def primary_outbox(update_id):
+    """Read-only: what the alert database's journal still has to send for an update, if any."""
     rows = _read(localdb.database_path(), "handled",
                  "SELECT outbox FROM handled WHERE update_id = ?", update_id)
     if not rows:
         return None
     outbox = json.loads(rows[0]["outbox"])
     if not isinstance(outbox, list):
-        raise ValueError("Invalid legacy outbox")
+        raise ValueError("Invalid primary outbox")
     return outbox
 
 
-def primary_ready_outbox(update_id):
-    outbox = primary_outbox(update_id)
-    if outbox is None:
-        return None
-    if any(isinstance(item, dict) and item.get("method") == "sendMessage"
-           and isinstance(item.get("body"), dict)
-           and isinstance(item["body"].get("text"), str)
-           and ("<b>📋 Application readiness</b>" in item["body"]["text"]
-                or item["body"]["text"] in _LEGACY_READY_ERRORS)
-           for item in outbox):
-        return outbox
-    return None
-
-
-def primary_unjournaled_completion(update_id, pending):
-    if update_id is None:
-        return False
-    return bool(pending and pending.get("kind") == "done" and pending.get("update") == update_id
-                and primary_outbox(update_id) is None)
-
-
-def _prompt_token(pending):
-    text = json.dumps(pending, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def primary_consumed(update_id):
+    """Read-only: a disabled run took this update as the answer to a core prompt."""
+    pending = _decode(primary_value("_await"))
+    return bool(pending and pending.get("kind") == "done" and pending.get("update") == update_id)
 
 
 def _peek(sql, *params):
@@ -177,44 +154,6 @@ def peek_handled(update_id):
     return json.loads(rows[0]["outbox"]) if rows else None
 
 
-def legacy_prompt_retired(primary):
-    rows = _peek("SELECT name, value FROM renter WHERE name IN (?, ?, '_await')", _MIGRATED, _LEGACY_PROMPT)
-    values = {row["name"]: row["value"] for row in rows}
-    if values.get(_LEGACY_PROMPT) == _prompt_token(primary):
-        return True
-    pending = _decode(values.get("_await"))
-    return bool(values.get(_MIGRATED) and pending and pending.get("kind") == "done"
-                and type(pending.get("update")) is int and type(primary.get("update")) is int
-                and pending["update"] > primary["update"])
-
-
-def _migrate(db):
-    if db.execute("SELECT 1 FROM renter WHERE name = ?", (_MIGRATED,)).fetchone():
-        if not db.execute("SELECT 1 FROM renter WHERE name = ?", (_LEGACY_PROMPT,)).fetchone():
-            primary = primary_pending()
-            row = db.execute("SELECT value FROM renter WHERE name = '_await'").fetchone()
-            if primary and primary.get("kind") == "ready" and row and _pending(row["value"]) == primary:
-                db.execute("INSERT INTO renter (name, value) VALUES (?, ?)",
-                           (_LEGACY_PROMPT, _prompt_token(primary)))
-        return
-    legacy = _primary_renter("SELECT name, value FROM renter "
-                             "WHERE name GLOB 'profile.ready_*' OR name = '_await'")
-    rows = [(name, value) for name, value in legacy.items() if name.startswith("profile.ready_")]
-    pending = _pending(legacy.get("_await"))
-    if pending and pending.get("kind") == "ready":
-        rows.append(("_await", legacy["_await"]))
-        rows.append((_LEGACY_PROMPT, _prompt_token(pending)))
-        update = pending.get("update")
-        if type(update) is int:
-            handled = _read(localdb.database_path(), "handled",
-                            "SELECT update_id, outbox, at FROM handled WHERE update_id = ?", update)
-            for row in handled:
-                db.execute("INSERT OR IGNORE INTO handled VALUES (?, ?, ?)",
-                           (row["update_id"], row["outbox"], row["at"]))
-    db.executemany("INSERT OR IGNORE INTO renter (name, value) VALUES (?, ?)", rows)
-    db.execute("INSERT INTO renter (name, value) VALUES (?, '1')", (_MIGRATED,))
-
-
 @contextlib.contextmanager
 def transaction():
     pathname = path()
@@ -231,6 +170,8 @@ def transaction():
         else:
             db.execute("RELEASE readiness_nested")
         return
+    if legacy_present():
+        raise LegacyData("Remove pre-sidecar readiness data before enabling the pack")
     pathname.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(pathname, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -239,13 +180,18 @@ def transaction():
     else:
         os.close(fd)
     _check_isolation(pathname)
+    stale = _tenure_marker(pathname)
     with contextlib.closing(sqlite3.connect(pathname, timeout=0, isolation_level=None)) as db:
         db.row_factory = sqlite3.Row
+        # Cleared answers must not survive in free pages of the sidecar file.
+        db.execute("PRAGMA secure_delete = ON")
         db.executescript(_DDL)
         db.execute("BEGIN IMMEDIATE")
         token = _ACTIVE.set((pathname, db))
         try:
-            _migrate(db)
+            invalidated = stale.exists()
+            if invalidated:
+                db.execute("DELETE FROM renter WHERE name = ?", (EMPLOYMENT_LENGTH_FOR,))
             yield db
             db.execute("COMMIT")
         except BaseException:
@@ -253,6 +199,12 @@ def transaction():
             raise
         finally:
             _ACTIVE.reset(token)
+    if invalidated:
+        try:
+            stale.unlink()
+        except OSError:
+            # Left in place, it only asks for tenure to be confirmed again.
+            pass
 
 
 def query(sql, *params):
@@ -275,38 +227,29 @@ def drop(name):
 
 
 def profile(names):
+    """Read-only renter profile facts; pets and references are only ever edited with /profile."""
     keys = [f"profile.{name}" for name in names]
-    legacy = _primary_renter(
+    facts = _primary_renter(
         "SELECT name, value FROM renter WHERE name IN (" + ", ".join("?" for _ in keys) + ")", *keys)
-    facts = {name: legacy.get(f"profile.{name}") for name in names}
-    if exists():
-        for name in _SHARED:
-            raw = value(f"profile.{name}")
-            if raw is None:
-                continue
-            saved = json.loads(raw)
-            if not isinstance(saved, dict) or set(saved) != {"base", "value"}:
-                raise ValueError("Invalid shared readiness field")
-            if saved["base"] == facts[name]:
-                facts[name] = saved["value"]
-            else:
-                drop(f"profile.{name}")
-    return facts
+    return {name: facts.get(f"profile.{name}") for name in names}
 
 
-def put_shared(name, text):
-    base = primary_value(f"profile.{name}")
-    put(f"profile.{name}", json.dumps({"base": base, "value": text}))
-
-
-def clear_shared(name):
-    if exists() and name in _SHARED:
-        drop(f"profile.{name}")
+def _tenure_marker(pathname):
+    return pathname.with_name(_TENURE_STALE)
 
 
 def invalidate_tenure():
-    if exists():
-        drop(EMPLOYMENT_LENGTH_FOR)
+    """Forget which job a tenure answer was confirmed for. If the sidecar cannot be written, a
+    marker file makes its next transaction forget it instead; raises only if both fail."""
+    try:
+        if exists():
+            drop(EMPLOYMENT_LENGTH_FOR)
+        return
+    except Exception:
+        pathname = path()
+    pathname.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(_tenure_marker(pathname), os.O_CREAT | os.O_WRONLY, 0o600)
+    os.close(fd)
 
 
 def advert(key):
@@ -370,9 +313,25 @@ def handled(update_id):
     return json.loads(found[0]["outbox"]) if found else None
 
 
-def record(update_id, outbox, at=None):
+def record(update_id, outbox, at=None, kind=None):
     at = at or tracker.now()
     with transaction() as db:
         tracker._record(db, update_id, outbox, tracker._iso(at))
-        db.execute("DELETE FROM handled WHERE at < ?",
-                   (tracker._iso(at - dt.timedelta(days=tracker.HANDLED_DAYS)),))
+        if kind is not None:
+            db.execute("INSERT OR IGNORE INTO origin (update_id, kind) VALUES (?, ?)", (int(update_id), kind))
+        cutoff = tracker._iso(at - dt.timedelta(days=tracker.HANDLED_DAYS))
+        db.execute("DELETE FROM origin WHERE update_id IN (SELECT update_id FROM handled WHERE at < ?)", (cutoff,))
+        db.execute("DELETE FROM handled WHERE at < ?", (cutoff,))
+
+
+def stranded(before):
+    """Read-only: unsent outboxes of updates the poller has already acknowledged."""
+    pathname = path()
+    if not _is_database(pathname):
+        return []
+    _check_isolation(pathname)
+    rows = _read(pathname, "handled", "SELECT update_id, outbox FROM handled "
+                 "WHERE update_id < ? AND outbox != '[]' ORDER BY update_id", int(before))
+    kinds = {row["update_id"]: row["kind"] for row in
+             _read(pathname, "origin", "SELECT update_id, kind FROM origin WHERE update_id < ?", int(before))}
+    return [(row["update_id"], json.loads(row["outbox"]), kinds.get(row["update_id"])) for row in rows]

@@ -67,19 +67,10 @@ def set_field(name, raw, today=None, *, warnings=None):
                 warnings.append("readiness tenure could not be invalidated; re-enter it before relying on it")
     if raw.lower() == "clear" or not raw:
         tracker.drop(f"profile.{name}")
-        raw = None
-    else:
-        if name == "movein":
-            raw = "..".join(d.isoformat() for d in parse_window(raw, today))
-        tracker.put(f"profile.{name}", raw)
-    if ready_enabled() and name in ("pets", "references"):
-        from . import readydb
-        try:
-            readydb.clear_shared(name)
-        except Exception:
-            LOG.warning("Could not reconcile a shared readiness field with the profile")
-            if warnings is not None:
-                warnings.append("readiness could not reconcile this field and may show an older value")
+        return None
+    if name == "movein":
+        raw = "..".join(d.isoformat() for d in parse_window(raw, today))
+    tracker.put(f"profile.{name}", raw)
     return raw
 
 
@@ -409,19 +400,8 @@ def _draft(listing, today, readiness=False):
 
 
 def show_profile():
-    warning = False
-    if ready_enabled():
-        from . import readydb
-        try:
-            facts = readydb.profile(FIELDS)
-        except Exception:
-            LOG.warning("Could not read shared readiness fields for the profile")
-            facts, warning = profile(), True
-    else:
-        facts = profile()
+    facts = profile()
     lines = ["<b>👤 Renter profile</b> <i>(used for enquiry drafts and move-in fit)</i>"]
-    if warning:
-        lines.append("⚠️ Readiness answers are unavailable; shared fields below may be out of date.")
     for name, (label, example) in FIELDS.items():
         if name == "notes" and ready_enabled():
             example = "anything important"

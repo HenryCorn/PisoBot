@@ -32,7 +32,6 @@ POLL_TIMEOUT = 25
 RETRY_SECONDS = 3
 TICK_SECONDS = 60      # viewing reminders and pipeline change notices are checked this often
 NOTICES_PER_TICK = 10  # pipeline change notices per person per tick (reminders are never capped)
-_RETIRED_READINESS_PROMPT = object()
 WP3_PREFIXES = ("e", "p", "P", "v", "q", "m", "o")
 DEFAULT_LABELS = {"s": "❤️ Save", "h": "👎 Hide", "d": "🔕 Hide building"}
 ACTIVE_LABELS = {"s": "🩶 Saved", "h": "🩶 Hidden", "d": "🔕 Building hidden"}
@@ -323,6 +322,9 @@ class Handler:
         self._reply_to = None              # the message a typed answer replied to
         self._private_chat = False
         self._state = tracker              # readiness updates use their separate database
+        self._unsaved = {}                 # (chat, update) -> [person, readiness outbox not yet checkpointed]
+        self._unbound = {}                 # chat -> (nonce, message_id) of a readiness prompt not yet bound
+        self.acknowledged = None           # the poller's update offset; earlier updates are never replayed
 
     @property
     def chat(self):
@@ -354,7 +356,16 @@ class Handler:
                 return None
             raise
         if item.get("nonce") and isinstance(result, dict) and type(result.get("message_id")) is int:
-            self._state.bind(item["nonce"], result["message_id"])
+            if self._state is tracker:
+                self._state.bind(item["nonce"], result["message_id"])
+            else:
+                try:
+                    self._state.bind(item["nonce"], result["message_id"])
+                except Exception as error:
+                    # Accepted by Telegram: never resend it. The binding is retried with the next
+                    # readiness update; until then a reply to some message is not taken as its answer.
+                    LOG.warning("Could not bind a readiness prompt (%s)", type(error).__name__)
+                    self._unbound[self.chat] = (item["nonce"], result["message_id"])
         return result
 
     def _flush(self, update_id, outbox):
@@ -373,7 +384,7 @@ class Handler:
         finally:
             self._flushing = False
 
-    def _apply(self, update_id, work, readiness=False, draft_fallback=False):
+    def _apply(self, update_id, work, readiness=False, draft_fallback=False, kind=None):
         if not users.enabled():
             work()
             return
@@ -381,84 +392,7 @@ class Handler:
             from . import readydb
             self._state = readydb
             try:
-                for attempt in range(2):
-                    try:
-                        if update_id is not None and readydb.primary_completed(update_id):
-                            return
-                        # The answer, next prompt or completion marker, and outbox commit together.
-                        with readydb.transaction():
-                            left = readydb.handled(update_id) if update_id is not None else None
-                            if left is not None:
-                                outbox = left
-                            else:
-                                legacy = (readydb.primary_ready_outbox(update_id)
-                                          if update_id is not None else None)
-                                pending = readydb.applied(update_id) if legacy is None else None
-                                if legacy is not None:
-                                    outbox = legacy
-                                elif pending is not None:
-                                    ask = pending.get("ask") if pending.get("kind") != "done" else None
-                                    if isinstance(ask, dict):
-                                        outbox = [{"method": "sendMessage", "body": ask,
-                                                   "nonce": pending.get("nonce")}]
-                                    else:
-                                        outbox = [{"method": "sendMessage", "body": {
-                                            "chat_id": self.chat,
-                                            "text": "⚠️ The previous readiness result could not be recovered; "
-                                                    "use /ready again.",
-                                            "parse_mode": "HTML", "disable_web_page_preview": True}}]
-                                elif readydb.primary_unjournaled_completion(update_id, readydb.primary_pending()):
-                                    outbox = [{"method": "sendMessage", "body": {
-                                        "chat_id": self.chat,
-                                        "text": "⚠️ The previous result could not be recovered; "
-                                                "retry your request.",
-                                        "parse_mode": "HTML", "disable_web_page_preview": True}}]
-                                else:
-                                    self._outbox, self._update = [], update_id
-                                    try:
-                                        work()
-                                        outbox = self._outbox
-                                    finally:
-                                        self._outbox, self._update = None, None
-                                if update_id is not None:
-                                    readydb.record(update_id, outbox)
-                        break
-                    except TelegramError:
-                        raise
-                    except Exception as error:
-                        LOG.warning("Application readiness storage failed (%s)", type(error).__name__)
-                        if attempt == 0:
-                            continue
-                        self.reply("⚠️ Application readiness is unavailable; retry your request "
-                                   "when storage is available.")
-                        if draft_fallback:
-                            try:
-                                work()
-                            except TelegramError:
-                                raise
-                            except Exception:
-                                LOG.warning("Could not provide the fallback enquiry")
-                        return
-                try:
-                    self._flush(update_id, outbox)
-                except TelegramError:
-                    raise
-                except Exception as error:
-                    LOG.warning("Application readiness delivery state failed (%s)", type(error).__name__)
-                    if draft_fallback and update_id is not None:
-                        # Draft outboxes have no prompt bindings; delivered items were already removed.
-                        try:
-                            readydb.record(update_id, outbox)
-                            self._flush(update_id, outbox)
-                        except TelegramError:
-                            raise
-                        except Exception as retry_error:
-                            LOG.warning("Application readiness delivery retry failed (%s)",
-                                        type(retry_error).__name__)
-                        else:
-                            return
-                    self.reply("⚠️ Application readiness delivery could not be saved; check /ready and retry "
-                               "if the result is incomplete.")
+                self._apply_ready(update_id, work, draft_fallback, kind)
             finally:
                 self._state = tracker
             return
@@ -485,6 +419,178 @@ class Handler:
             tracker.record(update_id, outbox)
         self._flush(update_id, outbox)
 
+    def _apply_ready(self, update_id, work, draft_fallback, kind):
+        from . import readydb
+        key = (self.chat, update_id)
+        if update_id is not None and key in self._unsaved:
+            # Its checkpoint could not be saved: finish from memory rather than send anything twice.
+            self._ready_flush(update_id, self._unsaved[key][1])
+            return
+        if update_id is not None and self._finished_while_disabled(update_id, kind):
+            return
+        self._rebind()
+        outbox = None
+        for attempt in range(2):
+            try:
+                outbox = self._ready_outbox(update_id, work, kind)
+                break
+            except TelegramError:
+                raise
+            except Exception as error:
+                LOG.warning("Application readiness storage failed (%s)", type(error).__name__)
+                if attempt == 0 and not isinstance(error, readydb.LegacyData):
+                    continue
+                legacy = isinstance(error, readydb.LegacyData)
+                warning = ("⚠️ Application readiness is unavailable: older readiness data from a test build "
+                           "must first be removed by the operator." if legacy else
+                           "⚠️ Application readiness is unavailable; retry your request when storage is available.")
+                fallback = []
+                if draft_fallback:
+                    self._outbox, self._update = [], update_id
+                    try:
+                        work()
+                        fallback = self._outbox
+                    except TelegramError:
+                        raise
+                    except Exception:
+                        LOG.warning("Could not provide the fallback enquiry")
+                    finally:
+                        self._outbox, self._update = None, None
+                body = {"chat_id": self.chat, "text": warning, "parse_mode": "HTML",
+                        "disable_web_page_preview": True}
+                outbox = [{"method": "sendMessage", "body": body}, *fallback]
+                if update_id is not None:
+                    # Unjournalled: tracked in memory so a retry of this update sends nothing twice.
+                    self._unsaved[key] = [self.user, outbox]
+                self._ready_flush(update_id, outbox, persist=False)
+                return
+        self._ready_flush(update_id, outbox)
+
+    def _ready_outbox(self, update_id, work, kind):
+        """Apply a readiness update, committing its answer, next prompt or completion marker and
+        outbox together in the sidecar, or recover what a crashed attempt left to send."""
+        from . import readydb
+        with readydb.transaction():
+            left = readydb.handled(update_id) if update_id is not None else None
+            if left is not None:
+                return left
+            pending = readydb.applied(update_id) if update_id is not None else None
+            if pending is not None:
+                ask = pending.get("ask") if pending.get("kind") != "done" else None
+                if isinstance(ask, dict):
+                    outbox = [{"method": "sendMessage", "body": ask, "nonce": pending.get("nonce")}]
+                else:
+                    outbox = [{"method": "sendMessage", "body": {
+                        "chat_id": self.chat,
+                        "text": "⚠️ The previous readiness result could not be recovered; use /ready again.",
+                        "parse_mode": "HTML", "disable_web_page_preview": True}}]
+            else:
+                self._outbox, self._update = [], update_id
+                try:
+                    work()
+                    outbox = self._outbox
+                finally:
+                    self._outbox, self._update = None, None
+            if update_id is not None:
+                readydb.record(update_id, outbox, kind=kind)
+            return outbox
+
+    def _finished_while_disabled(self, update_id, kind):
+        """Read-only: a run with the pack disabled already handled this update in the alert database's
+        journal. Its button press got the release enquiry and its command a reply; a plain message
+        counts only if it answered a core prompt there (otherwise that run ignored it)."""
+        from . import readydb
+        try:
+            if readydb.primary_outbox(update_id) != []:
+                return False
+            if kind == "callback":
+                return True
+            if kind == "text":
+                return readydb.primary_consumed(update_id)
+            return readydb.peek_handled(update_id) is None
+        except Exception:
+            LOG.warning("Could not check the alert database's journal for a readiness update")
+            return False
+
+    def _rebind(self):
+        from . import readydb
+        bound = self._unbound.get(self.chat)
+        if bound is None:
+            return
+        try:
+            readydb.bind(*bound)
+        except Exception:
+            LOG.warning("Could not bind a readiness prompt yet")
+        else:
+            self._unbound.pop(self.chat, None)
+
+    def _ready_flush(self, update_id, outbox, persist=True):
+        self._flushing = True
+        try:
+            while outbox:
+                try:
+                    self._deliver(outbox[0])
+                except TelegramError:
+                    if persist:
+                        self._ready_checkpoint(update_id, outbox)
+                    raise
+                outbox.pop(0)
+                if persist:
+                    self._ready_checkpoint(update_id, outbox)
+        finally:
+            self._flushing = False
+
+    def _ready_checkpoint(self, update_id, outbox):
+        from . import readydb
+        if update_id is None:
+            return
+        key = (self.chat, update_id)
+        try:
+            readydb.record(update_id, outbox)
+        except Exception as error:
+            # Keep sending from memory; the checkpoint is retried by the update's replay or a tick.
+            LOG.warning("Application readiness delivery state failed (%s)", type(error).__name__)
+            self._unsaved[key] = [self.user, outbox]
+        else:
+            self._unsaved.pop(key, None)
+
+    def recover_readiness(self):
+        """Finish readiness outboxes of acknowledged updates whose checkpoint failed or which a
+        crash or a disabled run left unsent. Beside polling, after reminders; never raises."""
+        if not renter.ready_enabled() or not users.enabled() or self.acknowledged is None:
+            return
+        from . import readydb
+        for (chat, update_id), (person, outbox) in list(self._unsaved.items()):
+            if update_id >= self.acknowledged:
+                continue      # the poller replays it
+            try:
+                with users.use(person):
+                    self.user, self._state = person, readydb
+                    if outbox:
+                        self._ready_flush(update_id, outbox)
+                    else:
+                        self._ready_checkpoint(update_id, outbox)
+            except Exception:
+                LOG.warning("Readiness output recovery failed for one person; retrying next tick")
+            finally:
+                self.user, self._state = None, tracker
+        for person in users.everyone():
+            try:
+                with users.use(person):
+                    self.user, self._state = person, readydb
+                    for update_id, outbox, kind in readydb.stranded(self.acknowledged):
+                        if (self.chat, update_id) in self._unsaved:
+                            continue
+                        if kind == "callback" and readydb.primary_outbox(update_id) is not None:
+                            # A disabled run already sent its own enquiry for this button press.
+                            readydb.record(update_id, [])
+                            continue
+                        self._ready_flush(update_id, outbox)
+            except Exception:
+                LOG.warning("Readiness output recovery failed for one person; retrying next tick")
+            finally:
+                self.user, self._state = None, tracker
+
     def _ready_message(self, text, update_id):
         if not renter.ready_enabled() or not users.enabled():
             return False
@@ -499,23 +605,12 @@ class Handler:
             primary = readydb.primary_pending()
             if primary and primary.get("kind") not in ("ready", "done"):
                 return False
-            if update_id is not None and (readydb.primary_completed(update_id)
-                                          or readydb.primary_ready_outbox(update_id) is not None):
+            if not readydb.exists():
+                return False
+            if update_id is not None and readydb.peek_handled(update_id) is not None:
                 return True
-            if readydb.primary_unjournaled_completion(update_id, primary):
-                return True
-            if readydb.exists():
-                if update_id is not None and readydb.peek_handled(update_id) is not None:
-                    return True
-                pending = readydb.peek_pending()
-            else:
-                pending = primary
+            pending = readydb.peek_pending()
             if not pending or pending.get("kind") != "ready":
-                legacy = primary if primary and primary.get("kind") == "ready" else None
-                if primary is None:
-                    legacy = readydb.primary_legacy_prompt()
-                if legacy and (primary is None or readydb.legacy_prompt_retired(legacy)):
-                    return True if command == "/cancel" else _RETIRED_READINESS_PROMPT
                 return False
             if (primary and primary.get("kind") == "done"
                     and type(primary.get("update")) is int and type(pending.get("update")) is int
@@ -584,7 +679,7 @@ class Handler:
                     data = query.get("data")
                     readiness = (renter.ready_enabled() and isinstance(data, str) and data.startswith("q:"))
                     self._apply(update_id, lambda: self.callback(query, message), readiness=readiness,
-                                draft_fallback=readiness)
+                                draft_fallback=readiness, kind="callback")
                 finally:
                     self.user = None
             return
@@ -601,12 +696,12 @@ class Handler:
                 self._private_chat = isinstance(chat, dict) and chat.get("type") == "private"
                 try:
                     readiness = self._ready_message(message["text"], update_id)
-                    if readiness is _RETIRED_READINESS_PROMPT:
-                        return
                     if readiness is None:
                         self.reply("⚠️ Application readiness is unavailable; try /ready again.")
                     else:
-                        self._apply(update_id, lambda: self.command(message["text"]), readiness=readiness)
+                        kind = "command" if message["text"].lstrip().startswith("/") else "text"
+                        self._apply(update_id, lambda: self.command(message["text"]), readiness=readiness,
+                                    kind=kind)
                 finally:
                     self.user, self._reply_to = None, None
                     self._private_chat = False
@@ -994,6 +1089,10 @@ class Handler:
     def ready(self, words):
         from . import ready
         name = words[1].lower() if len(words) > 1 else ""
+        if name in ready.SHARED_FIELDS:
+            self.reply(f"{ready.FIELDS[name][0]} come from your renter profile, so every mode shows the same "
+                       f"value: use <code>/profile {name}</code>.")
+            return
         if name in ready.FIELDS:
             raw = " ".join(words[2:]).strip()
             pending = self._state.expected()
@@ -1067,6 +1166,10 @@ class Handler:
             self.reply("⚠️ That readiness question is no longer available; use /ready.")
             return
         mode, name = parts[:2]
+        if name in ready.SHARED_FIELDS:
+            self._done()
+            self.reply(f"{ready.FIELDS[name][0]} come from your renter profile: use <code>/profile {name}</code>.")
+            return
         context = None
         rent = None
         if len(parts) == 4:
@@ -1079,17 +1182,14 @@ class Handler:
             context = f"{parts[2]}:{parts[3]}"
         skipped = raw.strip().lower() == "skip"
         cleared = raw.strip().lower() == "clear"
-        warnings = []
         if not skipped:
             try:
-                ready.set_field(name, raw, warnings=warnings)
+                ready.set_field(name, raw)
             except ValueError as error:
                 retry = (f"Use <code>/ready {name}</code> to answer." if direct else
                          "Try again, or /cancel.")
                 self.reply(f"⚠️ {html.escape(str(error))}. {retry}")
                 return
-        for warning in warnings:
-            self.reply("⚠️ " + warning)
         pack = ready.load()
         todo = ready.missing(pack, after=name) if mode == "flow" else []
         if todo:
@@ -1115,6 +1215,13 @@ class Handler:
         if pending is None:
             return
         bound = pending.get("message_id")
+        if (self._reply_to is not None and bound is None and self._state is not tracker
+                and pending.get("kind") == "ready" and pending.get("nonce")):
+            # The question was sent but its message could not be linked: a reply to any message might
+            # answer an earlier question, so never guess which one.
+            self.reply("⚠️ I could not confirm which readiness question that replies to, so nothing was saved. "
+                       "Send <code>/ready field answer</code>, or use /ready to ask again.")
+            return
         if self._reply_to is not None and bound is not None and self._reply_to != bound:
             # A reply to an older question (or another message): never let it answer the latest one
             self.reply("⚠️ That replies to an earlier message, not my latest question. Reply to the "
@@ -1488,6 +1595,10 @@ class Handler:
             except Exception:
                 # Never log details: HTTP errors can disclose the bot token.
                 LOG.warning("Pipeline reminders failed for one person; retrying next tick")
+        try:
+            self.recover_readiness()
+        except Exception:
+            LOG.warning("Readiness output recovery failed; retrying next tick")
 
     def _tick_person(self, chat_id, at):
         quiet = _quiet(at)
@@ -1528,6 +1639,7 @@ def poll(request_run, stop_event):
         client.clear_webhook()
         offset = _offset()
         handler = Handler(chat_id, request_run, client)
+        handler.acknowledged = offset
         next_tick = 0.0
         while not stop_event.is_set():
             if time.monotonic() >= next_tick:
@@ -1566,6 +1678,7 @@ def poll(request_run, stop_event):
                              "ON CONFLICT(name) DO UPDATE SET value = excluded.value",
                              OFFSET_KEY, str(next_offset))
                     offset = next_offset
+                    handler.acknowledged = offset
             except Exception:
                 # Do not log exceptions/tracebacks: HTTP errors can disclose bot tokens.
                 LOG.warning("Telegram polling/handling failed; retrying unacknowledged updates")

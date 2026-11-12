@@ -63,31 +63,30 @@ class ReadinessTests(ReadyBase):
         readydb.put("profile.ready_income", "corrupt")
         self.assertIn("unrecognised; re-enter", ready.checklist(ready.load()))
 
-    def test_existing_references_are_honest_and_a_new_job_clears_old_tenure(self):
+    def test_pets_and_references_have_one_value_in_every_mode(self):
         renter.set_field("references", "employer and previous landlord")
         self.assertIn("employer and previous landlord", ready.application_summary(ready.load()))
-        ready.set_field("references", "both")
-        self.assertIn("employer and landlord", ready.application_summary(ready.load()))
-        self.assertNotIn("previous landlord", ready.application_summary(ready.load()))
+        for name in ready.SHARED_FIELDS:
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "/profile"):
+                ready.set_field(name, "dog")
+        renter.set_field("pets", "cat")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("pets", "dog")
+            disabled = renter.show_profile()
+        self.assertEqual(ready.load().values["pets"], "dog")
+        self.assertIn("Pets: dog", disabled)
+        self.assertIn("Pets: dog", renter.show_profile())
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("pets", "clear")
+        self.assertIsNone(ready.load().values["pets"])
+        self.assertIn("Pets: <i>not set</i>", renter.show_profile())
+        self.assertFalse(readydb.query("SELECT 1 FROM renter WHERE name LIKE '%pets%' OR name LIKE '%references%'"))
+
+    def test_a_new_job_clears_old_tenure(self):
         ready.set_field("employment", "employed")
         ready.set_field("employment_length", "2 years")
         ready.set_field("employment", "self-employed")
         self.assertIsNone(ready.load().values["employment_length"])
-
-    def test_shared_fields_follow_later_profile_edits_and_clears(self):
-        renter.set_field("pets", "cat")
-        ready.set_field("pets", "dog")
-        self.assertIn("Pets: dog", renter.show_profile())
-        renter.set_field("pets", "cat")
-        self.assertEqual(ready.load().values["pets"], "cat")
-        ready.set_field("pets", "clear")
-        self.assertIsNone(ready.load().values["pets"])
-        with patch.dict(os.environ, {"READY_PACK": "0"}):
-            renter.set_field("pets", "dog")
-        self.assertEqual(ready.load().values["pets"], "dog")
-        with patch.dict(os.environ, {"READY_PACK": "0"}):
-            renter.set_field("pets", "cat")
-        self.assertEqual(ready.load().values["pets"], "cat")
 
     def test_cleared_or_unassociated_employment_never_reuses_tenure(self):
         ready.set_field("employment", "employed")
@@ -340,13 +339,11 @@ class ReadinessBotTests(BotBase):
             answers = (
                 ("under £75k", "flow:employment"),
                 ("employed", "flow:employment_length"),
-                ("2 years", "flow:references"),
-                ("both", "flow:guarantor"),
+                ("2 years", "flow:guarantor"),
                 ("yes", "flow:guarantor_income"),
                 ("£50k-£60k", "flow:cash"),
                 ("£3,000", "flow:flexibility"),
-                ("somewhat", "flow:pets"),
-                ("cat", "flow:tenancy"),
+                ("somewhat", "flow:tenancy"),
                 ("12 months", "flow:documents"),
             )
             for answer, pending in answers:
@@ -355,8 +352,7 @@ class ReadinessBotTests(BotBase):
             self.handler.handle(message("partial", OWNER))
             self.assertIsNone(readydb.expected())
             self.assertEqual(ready.missing(ready.load()), [])
-            self.assertEqual(readydb.profile(renter.FIELDS)["pets"], "cat")
-            self.assertEqual(readydb.profile(renter.FIELDS)["references"], "employer and landlord")
+            self.assertIn("<code>/profile pets</code>", self.texts()[-1])
             self.assertIsNone(tracker.value("profile.movein"))
             self.assertEqual(users.owner().params, {})
             self.assertEqual(d1.query("SELECT value FROM meta WHERE name = 'watch_initialized'"),
@@ -532,7 +528,7 @@ class ReadinessBotTests(BotBase):
         self.handler.handle(message("skip", OWNER))
         self.assertEqual(readydb.expected()["key"], "flow:employment")
         self.handler.handle(message("skip", OWNER))
-        self.assertEqual(readydb.expected()["key"], "flow:references")
+        self.assertEqual(readydb.expected()["key"], "flow:guarantor")
 
     def test_movein_confirmation_does_not_assert_an_approximate_deadline(self):
         with patch.object(renter, "_today", return_value=dt.date(2026, 11, 11)):
@@ -669,130 +665,207 @@ class ReadinessBotTests(BotBase):
         self.assertIn("private chat", self.answers()[-1].lower())
         self.assertFalse(any("enquiry draft" in text.lower() for text in self.texts()))
 
-    def test_existing_readiness_answers_and_pending_prompt_migrate_privately(self):
-        tracker.put("profile.ready_income", "£48,000")
-        tracker.put("profile.ready_employment", "employed")
-        tracker.put("profile.ready_employment_length", "24 months")
-        tracker.put("profile.ready_employment_length_for", "employed")
-        tracker.expect("ready", "single:cash")
-        self.handler.handle(message("£3,000", OWNER))
-        pack = ready.load()
-        self.assertEqual(pack.values["income"].text, "£48,000")
-        self.assertEqual(ready.value_text("cash", pack.values["cash"]), "£3,000")
-        self.assertIsNone(pack.values["employment_length"])
-        self.assertIn("re-enter", ready.checklist(pack))
-        self.assertEqual(readydb.path().stat().st_mode & 0o777, 0o600)
-
-    def test_clearing_warns_when_an_original_database_copy_remains(self):
-        tracker.put("profile.ready_income", "£48,000")
-        tracker.put("profile.pets", "cat")
-        for field in ("income", "pets"):
-            with self.subTest(field=field):
+    def test_draft_build_readiness_rows_are_refused_not_imported_or_replayed(self):
+        item = home(1)
+        publish(item)
+        rows = (("renter", lambda: tracker.put("profile.ready_income", "£48,000")),
+                ("handled", lambda: tracker.record(1201, [{"method": "sendMessage", "body": {
+                    "chat_id": OWNER, "text": "<b>📋 Application readiness</b>\nold result"}}])))
+        for offset, (table, add) in enumerate(rows):
+            with self.subTest(table=table):
+                add()
+                primary = sorted(map(str, tracker.query("SELECT * FROM renter") + tracker.query(
+                    "SELECT update_id, outbox FROM handled")))
                 before = len(self.texts())
-                with patch.object(tracker, "drop", side_effect=AssertionError("primary deletion")):
-                    self.handler.handle(message(f"/ready {field} clear", OWNER))
-                self.assertTrue(any("original database" in text.lower() and "not fully delete" in text.lower()
-                                    for text in self.texts()[before:]))
-        self.assertIsNone(ready.load().values["income"])
-        self.assertIsNone(ready.load().values["pets"])
+                with patch.object(tracker, "_connect", side_effect=AssertionError("primary write")):
+                    self.handler.handle({**message("/ready income £50k", OWNER), "update_id": 1210 + 2 * offset})
+                    self.handler.handle({**press(f"q:{item.short_id}"), "update_id": 1211 + 2 * offset})
+                replies = self.texts()[before:]
+                self.assertIn("removed by the operator", replies[0])
+                self.assertTrue(any("Enquiry draft" in text for text in replies))
+                self.assertFalse(any("48,000" in text or "old result" in text for text in replies))
+                self.assertEqual(sorted(map(str, tracker.query("SELECT * FROM renter") + tracker.query(
+                    "SELECT update_id, outbox FROM handled"))), primary)
+                self.assertFalse(readydb.exists())
+                tracker.drop("profile.ready_income")
+                tracker.query("DELETE FROM handled")
+        self.handler.handle({**message("/ready income £50k", OWNER), "update_id": 1214})
+        self.assertEqual(ready.load().values["income"].text, "£50,000")
 
-        ready.set_field("cash", "£500")
-        before = len(self.texts())
+    def test_generic_cancel_row_from_a_draft_build_replays_exactly_like_release(self):
+        texts = []
+        for flag in ("0", "1"):
+            with self.subTest(flag=flag), patch.dict(os.environ, {"READY_PACK": flag}):
+                self.client.reset_mock()
+                tracker.done(update=1220)
+                tracker.record(1220, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "OK, cancelled."}}])
+                answer = {**message("/cancel", OWNER), "update_id": 1220}
+                self.handler.handle(answer)
+                self.handler.handle(answer)
+                texts.append(self.texts())
+        self.assertEqual(texts[0], texts[1])
+        self.assertEqual(texts[1], ["OK, cancelled."])
+
+    def test_clearing_an_answer_leaves_no_copy_to_reimport(self):
+        ready.set_field("income", "£48,123")
+        ready.set_field("cash", "£3,456")
+        self.handler.handle(message("/ready income clear", OWNER))
         self.handler.handle(message("/ready cash clear", OWNER))
-        self.assertFalse(any("original database" in text.lower() for text in self.texts()[before:]))
+        self.assertIsNone(ready.load().values["income"])
+        raw = readydb.path().read_bytes()
+        self.assertNotIn(b"48,123", raw)
+        self.assertNotIn(b"48123", raw)
+        self.assertNotIn(b"3,456", raw)
+        self.assertEqual(tracker.query("SELECT name FROM renter WHERE name LIKE 'profile.ready_%'"), [])
 
-    def test_implicitly_cleared_legacy_dependents_also_warn(self):
-        tracker.put("profile.ready_guarantor_income", "£50,000")
-        tracker.put("profile.ready_employment_length", "24 months")
-        for command in ("/ready guarantor no", "/ready employment unemployed"):
-            with self.subTest(command=command):
-                before = len(self.texts())
-                self.handler.handle(message(command, OWNER))
-                self.assertTrue(any("original database" in text.lower() and "not fully delete" in text.lower()
-                                    for text in self.texts()[before:]))
+    def test_shared_fields_are_edited_only_in_the_renter_profile(self):
+        self.handler.handle(message("/profile pets cat", OWNER))
+        self.handler.handle(message("/ready pets dog", OWNER))
+        self.assertIn("/profile pets", self.texts()[-1])
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            self.handler.handle(message("/profile pets dog", OWNER))
+        self.handler.handle(message("/ready status", OWNER))
+        self.assertIn("dog", self.texts()[-1])
+        self.handler.handle(message("/profile", OWNER))
+        self.assertIn("Pets: dog", self.texts()[-1])
 
-    def test_legacy_final_outbox_replays_without_writing_the_alert_database(self):
-        tracker.done(update=1201)
-        tracker.record(1201, [{"method": "sendMessage", "body": {
-            "chat_id": OWNER, "text": "<b>📋 Application readiness</b>\n"
-                                      "Your entered advertised rent: £1,600/month"}}])
-        answer = {**message("skip", OWNER), "update_id": 1201}
-        with patch.object(tracker, "record", side_effect=AssertionError("primary journal")), \
-                patch.object(tracker, "done", side_effect=AssertionError("primary marker")):
+    def test_unbound_prompt_is_rebound_and_never_guessed(self):
+        self.client.call.return_value = {"message_id": 100}
+        bind = readydb.bind
+        with patch.object(readydb, "bind", side_effect=sqlite3.OperationalError("fixture")):
+            self.handler.handle({**message("/ready income", OWNER), "update_id": 1260})
+        self.assertIsNone(readydb.expected()["message_id"])
+        stale = {**message("£48k", OWNER), "update_id": 1261}
+        stale["message"]["reply_to_message"] = {"message_id": 7}
+        with patch.object(readydb, "bind", side_effect=sqlite3.OperationalError("fixture")):
+            self.handler.handle(stale)
+        self.assertIn("could not confirm which readiness question", self.texts()[-1])
+        self.assertIsNone(ready.load().values["income"])
+        with patch.object(readydb, "bind", side_effect=bind) as rebind:
+            self.handler.handle({**stale, "update_id": 1262})
+        rebind.assert_called_once()
+        self.assertIsNone(ready.load().values["income"])
+        self.assertEqual(readydb.expected()["message_id"], 100)
+        reply = {**message("£48k", OWNER), "update_id": 1263}
+        reply["message"]["reply_to_message"] = {"message_id": 100}
+        self.handler.handle(reply)
+        self.assertEqual(ready.load().values["income"].text, "£48,000")
+
+    def test_tenure_is_forgotten_even_if_the_sidecar_cannot_be_written(self):
+        renter.set_field("job", "nurse")
+        ready.set_field("employment", "employed")
+        ready.set_field("employment_length", "2 years")
+        marker = readydb.path().with_name("readiness-tenure-stale")
+        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")):
+            renter.set_field("job", "teacher")
+        self.assertTrue(marker.exists())
+        self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            renter.set_field("job", "nurse")
+        self.assertIsNone(ready.load().values["employment_length"])
+        self.assertFalse(marker.exists())
+
+        ready.set_field("employment_length", "2 years")
+        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")):
+            self.handler.handle(message("/profile job teacher", OWNER))
+        self.assertFalse(any("could not" in text.lower() for text in self.texts()))
+        self.assertIsNone(ready.load().values["employment_length"])
+        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")), \
+                patch.object(readydb.os, "open", side_effect=OSError("fixture")):
+            self.handler.handle(message("/profile job nurse", OWNER))
+        self.assertTrue(any("tenure" in text.lower() and "could not" in text.lower() for text in self.texts()))
+        self.assertEqual(renter.profile()["job"], "nurse")
+
+    def test_plain_answer_ignored_while_disabled_is_applied_on_enabled_replay(self):
+        self.handler.handle({**message("/ready rent 1600", OWNER), "update_id": 1270})
+        self.handler.handle({**message("/ready income", OWNER), "update_id": 1271})
+        answer = {**message("£48k", OWNER), "update_id": 1272}
+        before = len(self.texts())
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
             self.handler.handle(answer)
-            self.handler.handle(answer)
-        self.assertEqual(len(self.texts()), 1)
-        self.assertIn("Your entered advertised rent: £1,600/month", self.texts()[0])
+        self.assertEqual(len(self.texts()), before)
+        self.assertEqual(tracker.handled(1272), [])
+        self.handler.handle(answer)
+        self.handler.handle(answer)
+        self.assertEqual(ready.load().values["income"].text, "£48,000")
+        self.assertEqual(len(self.texts()), before + 1)
+        self.assertIn("Your entered advertised rent: £1,600/month", self.texts()[-1])
 
-    def test_unjournaled_legacy_completion_does_not_write_the_alert_database(self):
-        tracker.done(update=1202)
-        answer = {**message("skip", OWNER), "update_id": 1202}
-        with patch.object(tracker, "record", side_effect=AssertionError("primary journal")), \
-                patch.object(tracker, "done", side_effect=AssertionError("primary marker")):
-            self.handler.handle(answer)
-            self.handler.handle(answer)
-        self.assertEqual(len(self.texts()), 1)
-        self.assertIn("previous result could not be recovered", self.texts()[0].lower())
-
-    def test_completed_primary_replay_needs_no_tracker_or_sidecar_write(self):
-        tracker.done(update=1207)
-        tracker.record(1207, [])
-        answer = {**message("skip", OWNER), "update_id": 1207}
-        with patch.object(tracker, "_connect", side_effect=AssertionError("primary tracker")), \
-                patch.object(readydb, "transaction", side_effect=AssertionError("sidecar transaction")):
-            self.handler.handle(answer)
-        self.assertEqual(self.texts(), [])
-
-    def test_legacy_readiness_error_outboxes_replay_without_primary_writes(self):
-        errors = ("⚠️ That readiness question is no longer available; use /ready.",
-                  "⚠️ The one-off rent could not be recovered; use /ready rent 1600 again.",
-                  "⚠️ Application readiness is unavailable. Check /ready and try again.",
-                  "⚠️ Could not finish that readiness answer. Check /ready before retrying.")
-        for update_id, text in enumerate(errors, 1203):
-            with self.subTest(text=text):
-                tracker.done(update=update_id)
-                tracker.record(update_id, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": text}}])
-                answer = {**message("skip", OWNER), "update_id": update_id}
-                before = len(self.texts())
-                with patch.object(tracker, "record", side_effect=AssertionError("primary journal")):
-                    self.handler.handle(answer)
-                    self.handler.handle(answer)
-                self.assertEqual(self.texts()[before:], [text])
-
-    def test_answered_migrated_prompt_does_not_warn_on_later_chatter(self):
-        tracker.expect("ready", "single:cash", update=1210, nonce="legacy")
-        self.handler.handle({**message("£3,000", OWNER), "update_id": 1211})
-        before = self.texts()
-        with patch.object(tracker, "record", side_effect=AssertionError("primary journal")):
-            self.handler.handle({**message("hello", OWNER), "update_id": 1212})
+    def test_disabled_run_answers_are_not_repeated_on_enabled_replay(self):
+        item = home(1)
+        publish(item)
+        self.handler.handle({**message("/ready cash", OWNER), "update_id": 1280})
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            self.handler.handle({**message("/profile pets", OWNER), "update_id": 1281})
+            core = {**message("cat", OWNER), "update_id": 1282}
+            self.handler.handle(core)
+            command = {**message("/ready", OWNER), "update_id": 1283}
+            self.handler.handle(command)
+        before = list(self.texts())
+        with patch.object(readydb, "transaction", side_effect=AssertionError("replayed")):
+            self.handler.handle(core)
+            self.handler.handle(command)
         self.assertEqual(self.texts(), before)
-        self.assertEqual(ready.value_text("cash", ready.load().values["cash"]), "£3,000")
-        with patch.object(tracker, "record", side_effect=AssertionError("primary journal")):
-            self.handler.handle({**message("/cancel", OWNER), "update_id": 1216})
-        self.assertEqual(self.texts()[-1], "Nothing to cancel.")
+        self.assertEqual(renter.profile()["pets"], "cat")
+        self.assertIsNone(ready.load().values["cash"])
 
-    def test_expired_migrated_prompt_does_not_trigger_primary_cleanup(self):
-        now = tracker.now()
-        with patch.object(tracker, "now", return_value=now):
-            tracker.expect("ready", "single:cash", update=1217, nonce="legacy")
-            self.handler.handle({**message("£3,000", OWNER), "update_id": 1218})
-        before = self.texts()
-        later = now + dt.timedelta(minutes=tracker.AWAIT_MINUTES + 1)
-        with patch.object(tracker, "now", return_value=later), \
-                patch.object(tracker, "record", side_effect=AssertionError("primary journal")), \
-                patch.object(tracker, "drop", side_effect=AssertionError("primary cleanup")):
-            self.handler.handle({**message("hello", OWNER), "update_id": 1219})
-            self.handler.handle({**message("/cancel", OWNER), "update_id": 1223})
-        self.assertEqual(self.texts()[:-1], before)
-        self.assertEqual(self.texts()[-1], "Nothing to cancel.")
+    def test_stranded_output_is_recovered_once_beside_polling(self):
+        item = home(1)
+        publish(item)
+        result = [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "stranded readiness result"}}]
+        readydb.record(1290, list(result), kind="command")
+        readydb.record(1291, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "stranded draft"}}],
+                       kind="callback")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            self.handler.handle({**press(f"q:{item.short_id}"), "update_id": 1291})
+        readydb.record(1295, list(result), kind="command")
+        before = len(self.texts())
+        self.handler.recover_readiness()
+        self.assertEqual(len(self.texts()), before)
+        self.handler.acknowledged = 1295
+        self.handler.recover_readiness()
+        self.handler.recover_readiness()
+        self.assertEqual(self.texts()[before:], ["stranded readiness result"])
+        self.assertEqual(readydb.handled(1290), [])
+        self.assertEqual(readydb.handled(1291), [])
+        self.assertEqual(readydb.handled(1295), result)
 
-    def test_prompt_answered_before_upgrade_is_logically_retired(self):
-        tracker.expect("ready", "single:cash", update=1213, nonce="legacy")
-        readydb.done(update=1214)
-        readydb.drop("_legacy_prompt")
-        with patch.object(tracker, "record", side_effect=AssertionError("primary journal")):
-            self.handler.handle({**message("hello", OWNER), "update_id": 1215})
-        self.assertEqual(self.texts(), [])
+    def test_failed_checkpoints_keep_sending_from_memory_without_duplicates(self):
+        item = home(1)
+        publish(item)
+        self.handler.handle(message("/ready rent 1600", OWNER))
+        record = readydb.record
+
+        def fail_checkpoint(update_id, outbox, at=None, kind=None):
+            if kind is None:
+                raise sqlite3.OperationalError("fixture")
+            return record(update_id, outbox, at, kind)
+
+        updates = ({**message("/ready income £48k", OWNER), "update_id": 1300},
+                   {**press(f"q:{item.short_id}"), "update_id": 1301})
+        before = len(self.texts())
+        with patch.object(readydb, "record", side_effect=fail_checkpoint):
+            for update in updates:
+                self.handler.handle(update)
+                self.handler.handle(update)
+        replies = self.texts()[before:]
+        self.assertEqual(sum("Your entered advertised rent" in text for text in replies), 1)
+        self.assertEqual(sum("Enquiry draft" in text for text in replies), 1)
+        self.assertNotEqual(readydb.handled(1300), [])
+        self.handler.acknowledged = 1302
+        self.handler.recover_readiness()
+        self.assertEqual(readydb.handled(1300), [])
+        self.assertEqual(readydb.handled(1301), [])
+        self.assertEqual(self.texts()[before:], replies)
+
+    def test_unjournalled_draft_fallback_is_not_sent_twice(self):
+        item = home(1)
+        publish(item)
+        enquiry = {**press(f"q:{item.short_id}"), "update_id": 1310}
+        with patch.object(readydb, "transaction", side_effect=sqlite3.OperationalError("busy")):
+            self.handler.handle(enquiry)
+            self.handler.handle(enquiry)
+        self.assertEqual(sum("Enquiry draft" in text for text in self.texts()), 1)
 
     def test_transient_final_outbox_failure_retries_without_losing_rent(self):
         self.handler.handle(message("/ready rent 1600", OWNER))
@@ -800,11 +873,11 @@ class ReadinessBotTests(BotBase):
         record = readydb.record
         failures = []
 
-        def fail_once(update_id, outbox, at=None):
+        def fail_once(update_id, outbox, at=None, kind=None):
             if not failures:
                 failures.append(True)
                 raise sqlite3.OperationalError("fixture")
-            return record(update_id, outbox, at)
+            return record(update_id, outbox, at, kind)
 
         before = len(self.texts())
         with patch.object(readydb, "record", side_effect=fail_once):
@@ -881,79 +954,20 @@ class ReadinessBotTests(BotBase):
         self.handler.handle({**message("/ready income £48k", OWNER), "update_id": 1232})
         self.assertIn("Your entered advertised rent: £1,600/month", self.texts()[-1])
 
-    def test_failed_outbox_checkpoint_after_sending_is_visible(self):
-        self.handler.handle(message("/ready rent 1600", OWNER))
-        answer = {**message("/ready income £48k", OWNER), "update_id": 1240}
-        record = readydb.record
-
-        def fail_checkpoint(update_id, outbox, at=None):
-            if not outbox:
-                raise sqlite3.OperationalError("fixture")
-            return record(update_id, outbox, at)
-
-        before = len(self.texts())
-        with patch.object(readydb, "record", side_effect=fail_checkpoint):
-            self.handler.handle(answer)
-        replies = self.texts()[before:]
-        self.assertEqual(sum("Your entered advertised rent" in text for text in replies), 1)
-        self.assertTrue(any("readiness" in text.lower() and "retry" in text.lower() for text in replies))
-
-    def test_enquiry_checkpoint_retry_never_sends_an_untracked_draft(self):
-        item = home(1)
-        publish(item)
-        record = readydb.record
-
-        cases = ((1244, "callback", False, 1), (1245, "draft", False, 1),
-                 (1246, "callback", True, 0), (1247, "draft", True, 1))
-        for update_id, fail_after, persistent, expected_drafts in cases:
-            with self.subTest(fail_after=fail_after, persistent=persistent):
-                enquiry = {**press(f"q:{item.short_id}"), "update_id": update_id}
-                failures = []
-
-                def fail_checkpoint(current_id, outbox, at=None):
-                    if ((fail_after == "callback" and len(outbox) == 1
-                         and outbox[0]["method"] == "sendMessage")
-                            or (fail_after == "draft" and not outbox)) and (persistent or not failures):
-                        failures.append(True)
-                        raise sqlite3.OperationalError("fixture")
-                    return record(current_id, outbox, at)
-
-                before = len(self.texts())
-                with patch.object(readydb, "record", side_effect=fail_checkpoint):
-                    self.handler.handle(enquiry)
-                replies = self.texts()[before:]
-                self.assertEqual(sum("Enquiry draft" in text for text in replies), expected_drafts)
-                self.assertEqual(any("delivery could not be saved" in text.lower() for text in replies),
-                                 persistent)
-
-    def test_profile_save_warns_when_readiness_reconciliation_fails(self):
-        renter.set_field("pets", "cat")
-        ready.set_field("pets", "dog")
-        with patch.object(readydb, "clear_shared", side_effect=sqlite3.OperationalError("fixture")):
-            self.handler.handle(message("/profile pets cat", OWNER))
-        self.assertEqual(renter.profile()["pets"], "cat")
-        self.assertTrue(any("readiness" in text.lower() and "could not" in text.lower()
-                            for text in self.texts()))
-
+    def test_profile_save_warns_only_when_tenure_cannot_be_forgotten(self):
         with patch.object(readydb, "invalidate_tenure", side_effect=sqlite3.OperationalError("fixture")):
             self.handler.handle(message("/profile job teacher", OWNER))
         self.assertEqual(renter.profile()["job"], "teacher")
         self.assertTrue(any("tenure" in text.lower() and "could not" in text.lower()
                             for text in self.texts()))
-
-    def test_onboarding_warns_if_readiness_reconciliation_fails(self):
-        for field, helper, value, warning in (
-                ("job", "invalidate_tenure", "teacher", "tenure"),
-                ("pets", "clear_shared", "cat", "reconcile")):
-            with self.subTest(field=field):
-                step = next(index for index, item in enumerate(bot.ONBOARDING) if item[0] == field)
-                tracker.expect("onboard", str(step), update=1241 + step)
-                before = len(self.texts())
-                with patch.object(readydb, helper, side_effect=sqlite3.OperationalError("fixture")):
-                    self.handler.handle({**message(value, OWNER), "update_id": 1250 + step})
-                self.assertEqual(renter.profile()[field], value)
-                self.assertTrue(any(warning in text.lower() and "could not" in text.lower()
-                                    for text in self.texts()[before:]))
+        step = next(index for index, item in enumerate(bot.ONBOARDING) if item[0] == "job")
+        tracker.expect("onboard", str(step), update=1241 + step)
+        before = len(self.texts())
+        with patch.object(readydb, "invalidate_tenure", side_effect=sqlite3.OperationalError("fixture")):
+            self.handler.handle({**message("nurse", OWNER), "update_id": 1250 + step})
+        self.assertEqual(renter.profile()["job"], "nurse")
+        self.assertTrue(any("tenure" in text.lower() and "could not" in text.lower()
+                            for text in self.texts()[before:]))
 
     def test_locked_sidecar_does_not_delay_unrelated_profile_answers(self):
         ready.set_field("income", "£48k")
@@ -1107,36 +1121,33 @@ class ReadinessIsolationTests(ReadyBase):
         target_key = "rm:4"
         events.clear()
         fetch.return_value = [home(1), home(2, 1500), home(3, 1300), home(4, 1250)]
-        tracker.done(update=1301)
-        tracker.record(1301, [{"method": "sendMessage", "body": {
-            "chat_id": OWNER, "text": "<b>📋 Application readiness</b>\nlegacy result"}}])
         handler = bot.Handler(OWNER, Mock(return_value=True), Mock())
         entered, release = threading.Event(), threading.Event()
         record = readydb.record
 
-        def stall_legacy_record(update_id, outbox, at=None):
+        def stall_record(update_id, outbox, at=None, kind=None):
             if update_id == 1301 and outbox:
                 entered.set()
                 if not release.wait(5):
-                    raise TimeoutError("legacy replay test did not release its transaction")
-            return record(update_id, outbox, at)
+                    raise TimeoutError("readiness update test did not release its transaction")
+            return record(update_id, outbox, at, kind)
 
-        def replay_legacy():
+        def readiness_update():
             try:
-                handler.handle({**message("skip", OWNER), "update_id": 1301})
+                handler.handle({**message("/ready rent 1600", OWNER), "update_id": 1301})
             except BaseException as error:
                 errors.append(error)
 
-        worker = threading.Thread(target=replay_legacy)
+        worker = threading.Thread(target=readiness_update)
         with patch.object(localdb, "BUSY_TIMEOUT_MS", 150), \
                 patch.object(main, "save_seen", side_effect=capture_seen), \
                 patch.object(archive, "record_verdicts", side_effect=capture_ack), \
-                patch.object(readydb, "record", side_effect=stall_legacy_record):
+                patch.object(readydb, "record", side_effect=stall_record):
             worker.start()
             try:
-                self.assertTrue(entered.wait(2), "legacy replay did not reach its sidecar write")
+                self.assertTrue(entered.wait(2), "readiness update did not reach its sidecar write")
                 result = watcher.cycle()
-                self.assertTrue(worker.is_alive(), "legacy replay was not held during delivery")
+                self.assertTrue(worker.is_alive(), "readiness update was not held during delivery")
             finally:
                 release.set()
                 worker.join(3)

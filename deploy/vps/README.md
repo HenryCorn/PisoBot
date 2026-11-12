@@ -116,25 +116,34 @@ default. In a private bot chat, `/ready` shows the checklist and asks for missin
 answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to stop.
 Use `/ready status` to view it without starting questions, `/ready income` (or
 another field shown in the checklist) to change one answer, and `clear` to clear
-its current readiness value, subject to the legacy-copy warning below.
+its current readiness value. Clearing deletes it from `readiness.db` (with
+SQLite secure deletion), and nothing is copied back from another database.
 
-**Not ready to enable:** clearing a migrated answer leaves its old plaintext in
-the alert database, and recreating `readiness.db` can import it again. The bot
-warns when it finds such a copy, but the warning does not delete it. Pets and
-references can differ between enabled and disabled modes. Profile changes made
-while the pack is off and then restored can leave stale employment length, pets
-or references; failed tenure invalidation can also leave stale tenure despite a
-warning. Some pre-sidecar cancellation replays cannot be distinguished from
-core cancellations and still write the alert database. Replaying an enquiry
-after disabling the pack can send a duplicate draft. Disabling before a final
-answer is replayed can suppress its result, even though its pending rent remains
-until the prompt expires.
+**Not ready to enable:** while the pack is off, saving `/profile job` to another
+job and back leaves an earlier employment length looking current, because the
+off mode keeps release behaviour and records no job change. An enquiry draft
+sent by the pack, then replayed by a run with the pack off (a crash before the
+update was acknowledged), is sent again as the release enquiry. A crash between
+sending a readiness reply and saving that it was sent can send it again.
 
-Applying a readiness update is attempted at most twice and a persistent storage
-failure is reported; when Telegram accepts that warning, later updates can
-proceed. Retry the request after storage recovers. A failed post-send checkpoint
-is also reported; a crash or replay may duplicate a reply or leave later replies
-unsent.
+**Draft-build data:** pre-sidecar test builds (`1201e1a`, `81a2320`) were never
+deployed and their readiness data is not imported. While any alert database
+still holds it, the pack reports that it is unavailable and sends only the
+generic enquiry. With the service stopped, back up and then run, for
+`pisobot.db` in the state directory and in each `users/<chat_id>/` directory:
+
+```sh
+sqlite3 pisobot.db "PRAGMA secure_delete=ON; DELETE FROM renter WHERE name GLOB 'profile.ready_*'; DELETE FROM handled WHERE outbox LIKE '%Application readiness</b>%'; VACUUM;"
+```
+
+Applying a readiness update is attempted at most twice; a persistent storage
+failure is reported (with the generic enquiry for an **Enquiry text** tap) and
+later updates proceed. Retry the request after storage recovers. If saving that a
+reply was sent fails, later replies are still sent and the record is retried on
+the next update or every minute beside polling. Pets and references come only
+from `/profile`, so both modes show the same value; `/ready pets` points there.
+If a readiness question's message cannot be linked, a reply to an older message
+is rejected rather than guessed; answer with `/ready field answer`.
 
 Tapping **Enquiry text** on a rental card selects that home for `/ready`. The
 check uses its last archived advertised rent, not the all-in cost; confirm that
@@ -147,20 +156,19 @@ requirements vary. A band crossing the threshold is inconclusive rather than
 assumed to pass or fail.
 
 Employment length must be re-entered when the employment type changes or
-`/profile job` is saved while the pack is enabled; older lengths without a
-confirmed association also need reconfirmation.
+`/profile job` is saved while the pack is enabled (if `readiness.db` cannot be
+written then, a `readiness-tenure-stale` file beside it makes the next readiness
+access forget the length); older lengths without a confirmed association also
+need reconfirmation.
 A stored 30-day move-in window may be an approximation of an ASAP answer, so
 confirm the intended date or range in the draft instead of assuming its end date.
 
 The pack stores its answers and prompt/replay state separately from the alert
 database: `readiness.db` in the owner's state directory and in each person's
-`users/<chat_id>/` directory. Existing readiness answers are copied on first use;
-legacy employment lengths must be reconfirmed. These databases contain plaintext
-personal information like the existing profiles; protect and back up both.
-Readiness edits to pets and references appear in `/profile` while the pack is
-enabled. To retain those answers in the original profile when the pack is off,
-set them through `/profile`. Successful profile edits take precedence while
-enabled; failed reconciliation is reported and may leave an older value visible.
+`users/<chat_id>/` directory. These databases contain plaintext personal
+information like the existing profiles; protect and back up both. The pack never
+writes the alert database: it only reads profile facts, prompts and the update
+journal there.
 Each person's facts are separate, and the pack and its drafts are available
 only in private chats. Enquiry drafts, the call script and portal fields are
 for the person to copy: PisoBot does not contact agents or fetch an advert for
