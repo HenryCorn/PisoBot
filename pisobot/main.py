@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from requests import RequestException
 
-from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models,
+from . import (archive, cache, collage, config, costs, d1, enrich, extract, intelligence, mapgen, models, places,
                prefs, ranking, renter, rental_text, taste, telegram, tracker, users)
 from .sources import lq, nhg, onthemarket, openrent, otm_rent, rightmove, sharetobuy, spareroom, zoopla
 from .sources import detail_fields, private_rent_costs
@@ -596,6 +596,8 @@ def _run(selected, dry_run, verbose, report=False, preview_dir=None, scheduled=F
         l.red_flags = intelligence.detect_red_flags(l.description)
         l.vibes = intelligence.detect_vibes(l.description)
         l.livability_tags = intelligence.nearby_green_spaces(l.lat, l.lng)
+        if places.enabled():           # optional (PLACE_TILES=1): in-memory lookup, never raises
+            l.place_line = places.line(l.lat, l.lng)
         l.rent_savings = intelligence.opportunity_cost_savings(l)
         l.deal_tag = intelligence.deal_hunter_signals(l, seen.get(l.key))
         l.match_score, l.match_reasons = taste_engine.match(l)
