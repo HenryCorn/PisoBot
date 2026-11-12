@@ -11,7 +11,9 @@ from pisobot.models import Listing
 from pisobot.sources import PRIVATE_RENT, private_rent_costs
 
 SCOPE = {"miles": 10.0, "min_rent": 1000, "max_rent": 1760, "min_beds": 1, "centre": [51.5152, -0.1419]}
-T0 = os.environ.get("PISOBOT_TEST_CLOCK_T0", "2026-11-10T09:00:00+00:00")
+# Fixture clock follows the wall clock (fixed at import) so retry/verdict windows never drift out of range.
+T0 = os.environ.get("PISOBOT_TEST_CLOCK_T0") or dt.datetime.now(dt.timezone.utc).replace(
+    minute=0, second=0, microsecond=0).isoformat(timespec="seconds")
 
 
 def advert(i=1, rent=1400, source="rm", **kw):
