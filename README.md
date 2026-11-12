@@ -154,6 +154,7 @@ Set `INSECURE_SSL=1` only on networks that intercept TLS.
 
 Check report formatting without fetching listings or sending Telegram messages:
 `python -m unittest discover -s tests`
+(the `Tests` workflow runs this on every pull request, without secrets).
 
 ## Optional: language-model reading of rental adverts
 
