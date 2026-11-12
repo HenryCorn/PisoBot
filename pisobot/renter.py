@@ -15,6 +15,9 @@ import re
 from . import archive, config, ranking, tracker
 
 LOG = logging.getLogger(__name__)
+# Round seven keeps the incomplete feature unavailable regardless of deployment configuration.
+# Re-enable only after the alert-path, replay and privacy contract has been independently accepted.
+READY_PACK_APPROVED = False
 FIELDS = {   # name: (label, example)
     "name": ("Name", "Alex Smith"),
     "movein": ("Move-in", "1 Dec, 1/12-15/12, December, late December or asap"),
@@ -41,7 +44,7 @@ PART = {"early": (1, 10), "beginning of": (1, 10), "start of": (1, 10), "mid": (
 
 
 def ready_enabled():
-    return os.environ.get("READY_PACK") == "1"
+    return READY_PACK_APPROVED and os.environ.get("READY_PACK") == "1"
 
 
 def field_name(word):

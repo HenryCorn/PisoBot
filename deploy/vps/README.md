@@ -111,19 +111,16 @@ valid `MAP_URL`, rental digests omit the old GitHub Pages map link.
 
 ## Optional application readiness
 
-Set `READY_PACK=1` in the service environment to enable the pack; it is off by
-default. In a private bot chat, `/ready` shows the checklist and asks for missing
-answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to stop.
-Use `/ready status` to view it without starting questions, `/ready income` (or
-another field shown in the checklist) to change one answer, and `clear` to clear
-its current readiness value. Clearing deletes it from `readiness.db` (with
-SQLite secure deletion) together with any readiness replies not yet sent, and
-nothing is copied back from another database.
+**Disabled in this release.** Round seven hard-disables the readiness pack,
+including when `READY_PACK=1` is set. Do not enable it by editing deployment
+configuration. The alert-path, replay and privacy contract has not been
+accepted. The remaining feature description below is retained for cleanup and
+design context; `/ready` is not available in this release.
 
-**Not ready to enable:** an enquiry draft sent by the pack, then replayed by a
-run with the pack off (a crash before the update was acknowledged), is sent
-again as the release enquiry. A crash between sending a readiness reply and
-saving that it was sent can send it again.
+**Not ready to enable:** cross-mode enquiry duplication, send/checkpoint crash
+ambiguity, stale sidecar replay, and alert-path/journal failure handling remain
+unresolved. The code gate intentionally prevents `READY_PACK` from enabling
+the feature.
 
 **Draft-build data:** pre-sidecar test builds (`1201e1a`, `81a2320`) were never
 deployed and their readiness data is not imported. While any alert database
@@ -136,15 +133,20 @@ environment (so `PISOBOT_STATE_DIR` matches):
 ```sh
 python -m pisobot.readiness_cleanup --dry-run
 python -m pisobot.readiness_cleanup
+python -m pisobot.readiness_cleanup --dry-run --purge-sidecars
+python -m pisobot.readiness_cleanup --purge-sidecars
 ```
 
-It covers `pisobot.db` in the state directory and in each `users/<chat_id>/`
-directory, removes exactly those rows, and drops the unsent replies of updates
-the poller has already acknowledged (they are never sent again; the update rows
-stay so nothing is applied twice), with secure deletion and `VACUUM`. Unsent
-replies of unacknowledged updates may be release replies still due, so it lists
-their update ids, leaves them and exits with status 2; rerun with
-`--blank-unacknowledged` only if they need not be sent.
+It only opens regular, non-symlink, singly linked database files under the
+state directory. It removes exact `profile.ready_*` answers and a readiness
+`_await` prompt from each `pisobot.db`, enables SQLite secure deletion and
+vacuums the in-scope alert databases, but never changes their handled/outbox
+rows: legacy and release replies cannot be distinguished safely. A pending
+reply is reported and the command exits with status 2. `--purge-sidecars`
+explicitly deletes each in-scope `readiness.db` and its SQLite `-wal`, `-shm`,
+and `-journal` files after a secure-delete/checkpoint/vacuum pass. Review the
+dry run first. This provides logical SQLite cleanup, not a guarantee of
+physical erasure from SSDs, filesystem snapshots, backups, or other copies.
 
 Applying a readiness update is attempted at most twice; a persistent storage
 failure is reported (with the generic enquiry for an **Enquiry text** tap) and
@@ -173,12 +175,10 @@ need reconfirmation.
 A stored 30-day move-in window may be an approximation of an ASAP answer, so
 confirm the intended date or range in the draft instead of assuming its end date.
 
-The pack stores its answers and prompt/replay state separately from the alert
-database: `readiness.db` in the owner's state directory and in each person's
-`users/<chat_id>/` directory. These databases contain plaintext personal
-information like the existing profiles; protect and back up both. The pack never
-writes the alert database: it only reads profile facts, prompts and the update
-journal there.
+The inactive pack's old answers and prompt/replay state may exist separately
+from the alert database: `readiness.db` in the owner's state directory and in
+each person's `users/<chat_id>/` directory. These databases contain plaintext
+personal information like the existing profiles; protect and back up both.
 Each person's facts are separate, and the pack and its drafts are available
 only in private chats. Enquiry drafts, the call script and portal fields are
 for the person to copy: PisoBot does not contact agents or fetch an advert for

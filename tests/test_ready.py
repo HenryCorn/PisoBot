@@ -17,6 +17,7 @@ from test_wp3 import BotBase, press, publish, shown_units
 class ReadyBase(Base):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(renter, "READY_PACK_APPROVED", True))
         self.enterContext(patch.dict(os.environ, {"READY_PACK": "1"}))
 
 
@@ -333,6 +334,7 @@ class ReadinessTests(ReadyBase):
 class ReadinessBotTests(BotBase):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(renter, "READY_PACK_APPROVED", True))
         self.enterContext(patch.dict(os.environ, {"READY_PACK": "1"}))
 
     def test_walkthrough_short_replies_invalid_input_and_editing(self):
@@ -735,7 +737,11 @@ class ReadinessBotTests(BotBase):
             self.handler.handle({**message("£48k", OWNER), "update_id": 1410})
             self.assertEqual(self.texts(), [])     # the release keeps ignoring an unknown question
 
-    def test_cleanup_removes_only_test_build_data_and_asks_about_replayable_replies(self):
+    def test_readiness_pack_cannot_be_enabled_by_deployment_environment(self):
+        with patch.object(renter, "READY_PACK_APPROVED", False), patch.dict(os.environ, {"READY_PACK": "1"}):
+            self.assertFalse(renter.ready_enabled())
+
+    def test_cleanup_removes_only_known_legacy_rows_and_preserves_ambiguous_journal(self):
         friend = self.admit()
         d1.query("INSERT INTO meta (name, value) VALUES (?, '12')", bot.OFFSET_KEY)
         tracker.put("profile.ready_income", "£48,000")
@@ -752,21 +758,64 @@ class ReadinessBotTests(BotBase):
         rows = lambda: sorted((r["update_id"], r["outbox"]) for r in tracker.query("SELECT * FROM handled"))
 
         out = io.StringIO()
-        self.assertEqual(readiness_cleanup.main(["--dry-run"], out=out), 2)
+        self.assertEqual(readiness_cleanup.main(["--dry-run"], out=out), 2, out.getvalue())
         self.assertTrue(readydb.legacy_present())
         self.assertEqual(readiness_cleanup.main([], out=out), 2)
-        self.assertIn("[20]", out.getvalue())
+        self.assertIn("3 journal update(s) with pending replies", out.getvalue())
         self.assertFalse(readydb.legacy_present())
         self.assertIsNone(tracker.value("_await"))
         self.assertEqual(tracker.value("profile.job"), "nurse")
-        self.assertEqual(rows(), [(10, "[]"), (11, "[]"), (20, json.dumps(private))])
+        self.assertEqual(rows(), [(10, json.dumps(private)), (11, json.dumps(status)), (20, json.dumps(private))])
         with users.use(friend):
             self.assertFalse(readydb.legacy_present())
             self.assertEqual(tracker.expected()["kind"], "profile")
-        self.assertEqual(readiness_cleanup.main(["--blank-unacknowledged"], out=out), 0)
-        self.assertEqual(rows(), [(10, "[]"), (11, "[]"), (20, "[]")])
-        for path in readiness_cleanup.databases():
-            self.assertNotIn(b"48,000", path.read_bytes())
+        self.assertEqual(readiness_cleanup.main([], out=out), 2)
+        self.assertEqual(rows(), [(10, json.dumps(private)), (11, json.dumps(status)), (20, json.dumps(private))])
+
+    def test_cleanup_refuses_symlinked_alert_database_before_touching_external_file(self):
+        outside = self.state.parent / f"{self.state.name}-external.sqlite"
+        self.addCleanup(outside.unlink, missing_ok=True)
+        with sqlite3.connect(outside) as db:
+            db.execute("CREATE TABLE renter (name TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            db.execute("INSERT INTO renter VALUES ('profile.ready_income', 'private')")
+        users_dir = self.state / "users"
+        users_dir.mkdir()
+        (users_dir / "200").mkdir()
+        (users_dir / "200" / "pisobot.db").symlink_to(outside)
+        out = io.StringIO()
+        self.assertEqual(readiness_cleanup.main([], out=out), 1)
+        self.assertIn("Refusing non-regular, linked, or symlinked database", out.getvalue())
+        with sqlite3.connect(outside) as db:
+            self.assertEqual(db.execute("SELECT value FROM renter").fetchone()[0], "private")
+        outside.unlink()
+
+    def test_cleanup_can_purge_feature_sidecars_for_owner_and_user(self):
+        friend = self.admit()
+        readydb.put("profile.ready_income", "private owner fact")
+        owner_sidecar = readydb.path()
+        with users.use(friend):
+            readydb.put("profile.ready_income", "private friend fact")
+            friend_sidecar = readydb.path()
+        out = io.StringIO()
+        self.assertEqual(readiness_cleanup.main(["--dry-run", "--purge-sidecars"], out=out), 0)
+        self.assertTrue(owner_sidecar.exists())
+        self.assertTrue(friend_sidecar.exists())
+        self.assertEqual(readiness_cleanup.main(["--purge-sidecars"], out=out), 0, out.getvalue())
+        self.assertFalse(owner_sidecar.exists())
+        self.assertFalse(friend_sidecar.exists())
+
+    def test_cleanup_vacuums_private_bytes_even_after_the_legacy_row_was_deleted(self):
+        private = "PRIVATE-ROUND7-CLEARED-" + "x" * 5000
+        database = self.state / "pisobot.db"
+        with sqlite3.connect(database) as db:
+            db.execute("PRAGMA secure_delete = OFF")
+            db.execute("CREATE TABLE renter (name TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            db.execute("INSERT INTO renter VALUES ('profile.ready_income', ?)", (private,))
+            db.execute("DELETE FROM renter WHERE name = 'profile.ready_income'")
+        marker = private[:24].encode()
+        self.assertIn(marker, database.read_bytes())
+        self.assertEqual(readiness_cleanup.main([], out=io.StringIO()), 0)
+        self.assertNotIn(marker, database.read_bytes())
 
     def test_generic_cancel_row_from_a_draft_build_replays_exactly_like_release(self):
         texts = []
