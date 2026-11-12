@@ -324,6 +324,7 @@ class Handler:
         self._state = tracker              # readiness updates use their separate database
         self._unsaved = {}                 # (chat, update) -> [person, readiness outbox not yet checkpointed]
         self._unbound = {}                 # chat -> (nonce, message_id) of a readiness prompt not yet bound
+        self._legacy_told = set()          # chats already warned this run that test-build data blocks readiness
         self.acknowledged = None           # the poller's update offset; earlier updates are never replayed
 
     @property
@@ -426,10 +427,26 @@ class Handler:
             # Its checkpoint could not be saved: finish from memory rather than send anything twice.
             self._ready_flush(update_id, self._unsaved[key][1])
             return
-        if update_id is not None and self._finished_while_disabled(update_id, kind):
-            return
+        if update_id is not None:
+            try:
+                answered = self._disabled_answered(update_id, kind)
+            except Exception:
+                LOG.warning("Could not check the alert database's journal for a readiness update")
+                # Neither the draft nor an enquiry: a run with the pack off may already have replied.
+                outbox = [{"method": "sendMessage", "body": {
+                    "chat_id": self.chat, "parse_mode": "HTML", "disable_web_page_preview": True,
+                    "text": "⚠️ Couldn't check whether this was already answered; retry it if you got no reply."}}]
+                self._unsaved[key] = [self.user, outbox]
+                self._ready_flush(update_id, outbox, persist=False)
+                return
+            if answered:
+                return
         self._rebind()
         outbox = None
+        try:
+            cleared = readydb.clears()
+        except Exception:
+            cleared = None
         for attempt in range(2):
             try:
                 outbox = self._ready_outbox(update_id, work, kind)
@@ -459,11 +476,23 @@ class Handler:
                 body = {"chat_id": self.chat, "text": warning, "parse_mode": "HTML",
                         "disable_web_page_preview": True}
                 outbox = [{"method": "sendMessage", "body": body}, *fallback]
+                if legacy and kind == "text":
+                    # Say it once per chat and run, not after every message while the data remains.
+                    if self.chat in self._legacy_told:
+                        outbox = fallback
+                    self._legacy_told.add(self.chat)
                 if update_id is not None:
                     # Unjournalled: tracked in memory so a retry of this update sends nothing twice.
                     self._unsaved[key] = [self.user, outbox]
                 self._ready_flush(update_id, outbox, persist=False)
                 return
+        try:
+            if cleared is not None and readydb.clears() != cleared:
+                # An answer was cleared: replies still held in memory may contain it.
+                for other in [k for k in self._unsaved if k[0] == self.chat and k != key]:
+                    del self._unsaved[other]
+        except Exception:
+            LOG.warning("Could not check for cleared readiness answers")
         self._ready_flush(update_id, outbox)
 
     def _ready_outbox(self, update_id, work, kind):
@@ -495,22 +524,24 @@ class Handler:
                 readydb.record(update_id, outbox, kind=kind)
             return outbox
 
-    def _finished_while_disabled(self, update_id, kind):
-        """Read-only: a run with the pack disabled already handled this update in the alert database's
-        journal. Its button press got the release enquiry and its command a reply; a plain message
-        counts only if it answered a core prompt there (otherwise that run ignored it)."""
+    @staticmethod
+    def _disabled_answered(update_id, kind, recovering=False):
+        """Read-only: a run with the pack off already answered this update in the alert database's
+        journal (raises if that journal cannot be read). It ignores /ready silently, answers /cancel
+        and button presses itself, and takes plain text only as the answer to a core prompt.
+        A reply it left unsent is replaced by readiness on replay; once acknowledged, the update
+        cannot tell which reply came first, so readiness then stays silent."""
         from . import readydb
-        try:
-            if readydb.primary_outbox(update_id) != []:
-                return False
-            if kind == "callback":
-                return True
-            if kind == "text":
-                return readydb.primary_consumed(update_id)
-            return readydb.peek_handled(update_id) is None
-        except Exception:
-            LOG.warning("Could not check the alert database's journal for a readiness update")
+        if kind == "ready":
             return False
+        primary = readydb.primary_outbox(update_id)
+        if primary is None:
+            return False
+        if primary:
+            return recovering
+        if kind == "text":
+            return readydb.primary_consumed(update_id)
+        return True
 
     def _rebind(self):
         from . import readydb
@@ -581,8 +612,13 @@ class Handler:
                     for update_id, outbox, kind in readydb.stranded(self.acknowledged):
                         if (self.chat, update_id) in self._unsaved:
                             continue
-                        if kind == "callback" and readydb.primary_outbox(update_id) is not None:
-                            # A disabled run already sent its own enquiry for this button press.
+                        try:
+                            answered = self._disabled_answered(update_id, kind, recovering=True)
+                        except Exception:
+                            LOG.warning("Could not check the alert database's journal; retrying next tick")
+                            continue
+                        if answered:
+                            # A run with the pack off already replied; this reply would be stale.
                             readydb.record(update_id, [])
                             continue
                         self._ready_flush(update_id, outbox)
@@ -602,6 +638,9 @@ class Handler:
         if command.startswith("/") and command != "/cancel":
             return False
         try:
+            if readydb.legacy_prompt():
+                # A test build's question: answer here, never by touching the alert database.
+                return True
             primary = readydb.primary_pending()
             if primary and primary.get("kind") not in ("ready", "done"):
                 return False
@@ -699,7 +738,10 @@ class Handler:
                     if readiness is None:
                         self.reply("⚠️ Application readiness is unavailable; try /ready again.")
                     else:
-                        kind = "command" if message["text"].lstrip().startswith("/") else "text"
+                        words = message["text"].split()
+                        command = words[0].split("@")[0].lower() if words else ""
+                        kind = {"/ready": "ready", "/cancel": "cancel"}.get(
+                            command, "command" if command.startswith("/") else "text")
                         self._apply(update_id, lambda: self.command(message["text"]), readiness=readiness,
                                     kind=kind)
                 finally:

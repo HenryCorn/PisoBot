@@ -117,24 +117,34 @@ answers one at a time. Reply `skip` to leave a fact unknown, or `/cancel` to sto
 Use `/ready status` to view it without starting questions, `/ready income` (or
 another field shown in the checklist) to change one answer, and `clear` to clear
 its current readiness value. Clearing deletes it from `readiness.db` (with
-SQLite secure deletion), and nothing is copied back from another database.
+SQLite secure deletion) together with any readiness replies not yet sent, and
+nothing is copied back from another database.
 
-**Not ready to enable:** while the pack is off, saving `/profile job` to another
-job and back leaves an earlier employment length looking current, because the
-off mode keeps release behaviour and records no job change. An enquiry draft
-sent by the pack, then replayed by a run with the pack off (a crash before the
-update was acknowledged), is sent again as the release enquiry. A crash between
-sending a readiness reply and saving that it was sent can send it again.
+**Not ready to enable:** an enquiry draft sent by the pack, then replayed by a
+run with the pack off (a crash before the update was acknowledged), is sent
+again as the release enquiry. A crash between sending a readiness reply and
+saving that it was sent can send it again.
 
 **Draft-build data:** pre-sidecar test builds (`1201e1a`, `81a2320`) were never
 deployed and their readiness data is not imported. While any alert database
-still holds it, the pack reports that it is unavailable and sends only the
-generic enquiry. With the service stopped, back up and then run, for
-`pisobot.db` in the state directory and in each `users/<chat_id>/` directory:
+still holds their answers (`profile.ready_*`) or a readiness question, the pack
+reports once that it is unavailable, keeps later chatter to itself and sends only
+the generic enquiry; it never answers that question through the alert database.
+With the service stopped, back up the state directory and run, in the service's
+environment (so `PISOBOT_STATE_DIR` matches):
 
 ```sh
-sqlite3 pisobot.db "PRAGMA secure_delete=ON; DELETE FROM renter WHERE name GLOB 'profile.ready_*'; DELETE FROM handled WHERE outbox LIKE '%Application readiness</b>%'; VACUUM;"
+python -m pisobot.readiness_cleanup --dry-run
+python -m pisobot.readiness_cleanup
 ```
+
+It covers `pisobot.db` in the state directory and in each `users/<chat_id>/`
+directory, removes exactly those rows, and drops the unsent replies of updates
+the poller has already acknowledged (they are never sent again; the update rows
+stay so nothing is applied twice), with secure deletion and `VACUUM`. Unsent
+replies of unacknowledged updates may be release replies still due, so it lists
+their update ids, leaves them and exits with status 2; rerun with
+`--blank-unacknowledged` only if they need not be sent.
 
 Applying a readiness update is attempted at most twice; a persistent storage
 failure is reported (with the generic enquiry for an **Enquiry text** tap) and
@@ -155,10 +165,10 @@ rent (2.5 times monthly gross); some agents use 3 times, and their guarantor
 requirements vary. A band crossing the threshold is inconclusive rather than
 assumed to pass or fail.
 
-Employment length must be re-entered when the employment type changes or
-`/profile job` is saved while the pack is enabled (if `readiness.db` cannot be
-written then, a `readiness-tenure-stale` file beside it makes the next readiness
-access forget the length); older lengths without a confirmed association also
+Employment length must be re-entered when the employment type changes, when
+`/profile job` is saved, and after every restart: a run with the pack off may
+have changed the job without telling readiness, so a confirmation counts only in
+the process that took it. Older lengths without a confirmed association also
 need reconfirmation.
 A stored 30-day move-in window may be an approximation of an ASAP answer, so
 confirm the intended date or range in the draft instead of assuming its end date.

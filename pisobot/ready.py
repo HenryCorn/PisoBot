@@ -195,13 +195,16 @@ def value_text(name, value):
 
 
 def _employment_context(employment, job):
+    # Tied to this process: a later run may have changed the job with the pack off, unseen.
     fingerprint = hashlib.sha256(job.encode("utf-8")).hexdigest() if job else None
-    return json.dumps([employment, fingerprint], separators=(",", ":"))
+    return json.dumps([employment, fingerprint, readydb.tenure_session()], separators=(",", ":"))
 
 
 def _store(name, text):
     if text is None:
-        readydb.drop(f"profile.{_key(name)}")
+        if readydb.value(f"profile.{_key(name)}") is not None:
+            readydb.drop(f"profile.{_key(name)}")
+            readydb.discard_outboxes()
     else:
         readydb.put(f"profile.{_key(name)}", text)
 
@@ -276,7 +279,7 @@ def _load(facts):
         except ValueError:
             values[name] = None
             invalid.add(name)
-    # Legacy durations have no evidence tying them to both the employment and the job.
+    # A duration counts only if confirmed in this process for this employment and job.
     if (values["employment_length"] is not None and
             (values["employment"] is None or
              readydb.value(EMPLOYMENT_LENGTH_FOR) !=

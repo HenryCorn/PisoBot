@@ -1,12 +1,15 @@
 """Offline tests for the optional application readiness pack."""
 import datetime as dt
+import io
+import json
 import os
 import sqlite3
 import threading
 import unittest
 from unittest.mock import Mock, patch
 
-from pisobot import archive, bot, d1, localdb, main, ready, readydb, renter, telegram, tracker, users, watch
+from pisobot import (archive, bot, d1, localdb, main, readiness_cleanup, ready, readydb, renter, telegram, tracker,
+                     users, watch)
 from test_users import FRIEND, OWNER, Base, home, message
 from test_wp3 import BotBase, press, publish, shown_units
 
@@ -143,12 +146,18 @@ class ReadinessTests(ReadyBase):
         renter.set_field("job", "nurse")
         ready.set_field("employment", "employed")
         ready.set_field("employment_length", "2 years")
-        with patch.dict(os.environ, {"READY_PACK": "0"}):
+        self.assertIsNotNone(ready.load().values["employment_length"])
+        # The flag changes only with a restart: a run with the pack off is another process.
+        with patch.object(readydb, "_BOOT", "pack-off-run"), patch.dict(os.environ, {"READY_PACK": "0"}):
             renter.set_field("job", "teacher")
-        self.assertIsNone(ready.load().values["employment_length"])
-        with patch.dict(os.environ, {"READY_PACK": "0"}):
             renter.set_field("job", "nurse")
-        self.assertIsNone(ready.load().values["employment_length"])
+        with patch.object(readydb, "_BOOT", "next-enabled-run"):
+            pack = ready.load()
+            self.assertIsNone(pack.values["employment_length"])
+            self.assertIn("re-enter", ready.checklist(pack))
+            self.assertNotIn("24 months", ready.application_summary(pack))
+            ready.set_field("employment_length", "2 years")
+            self.assertIsNotNone(ready.load().values["employment_length"])
 
     def test_tenure_is_invalidated_before_a_job_save_can_crash(self):
         renter.set_field("job", "nurse")
@@ -669,8 +678,7 @@ class ReadinessBotTests(BotBase):
         item = home(1)
         publish(item)
         rows = (("renter", lambda: tracker.put("profile.ready_income", "£48,000")),
-                ("handled", lambda: tracker.record(1201, [{"method": "sendMessage", "body": {
-                    "chat_id": OWNER, "text": "<b>📋 Application readiness</b>\nold result"}}])))
+                ("question", lambda: tracker.expect("ready", "flow:income")))
         for offset, (table, add) in enumerate(rows):
             with self.subTest(table=table):
                 add()
@@ -688,9 +696,77 @@ class ReadinessBotTests(BotBase):
                     "SELECT update_id, outbox FROM handled"))), primary)
                 self.assertFalse(readydb.exists())
                 tracker.drop("profile.ready_income")
+                tracker.drop("_await")
                 tracker.query("DELETE FROM handled")
         self.handler.handle({**message("/ready income £50k", OWNER), "update_id": 1214})
         self.assertEqual(ready.load().values["income"].text, "£50,000")
+
+    def test_draft_build_question_is_answered_without_touching_the_alert_database(self):
+        for expired in (False, True):
+            with self.subTest(expired=expired):
+                self.client.reset_mock()
+                handler = bot.Handler(OWNER, self.handler.request_run, self.client)
+                at = tracker.now() - dt.timedelta(days=1) if expired else None
+                tracker.expect("ready", "flow:income", at=at)
+                primary = sorted(map(str, tracker.query("SELECT * FROM renter") + tracker.query(
+                    "SELECT update_id, outbox FROM handled")))
+                read = localdb.query
+
+                def read_only(sql, *params):
+                    if not sql.lstrip().upper().startswith("SELECT"):
+                        raise AssertionError("primary write")
+                    return read(sql, *params)
+
+                with patch.object(tracker, "_connect", side_effect=AssertionError("primary write")), \
+                        patch.object(localdb, "query", side_effect=read_only):
+                    for update_id, text in enumerate(("£48k", "hello", "/cancel", "more"), 1400):
+                        handler.handle({**message(text, OWNER), "update_id": update_id})
+                replies = self.texts()
+                self.assertEqual(len(replies), 2, replies)
+                self.assertTrue(all("removed by the operator" in text for text in replies))
+                self.assertFalse(any("older readiness question" in text for text in replies))
+                self.assertEqual(sorted(map(str, tracker.query("SELECT * FROM renter") + tracker.query(
+                    "SELECT update_id, outbox FROM handled"))), primary)
+                self.assertFalse(readydb.exists())
+                tracker.drop("_await")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            tracker.expect("ready", "flow:income")
+            self.client.reset_mock()
+            self.handler.handle({**message("£48k", OWNER), "update_id": 1410})
+            self.assertEqual(self.texts(), [])     # the release keeps ignoring an unknown question
+
+    def test_cleanup_removes_only_test_build_data_and_asks_about_replayable_replies(self):
+        friend = self.admit()
+        d1.query("INSERT INTO meta (name, value) VALUES (?, '12')", bot.OFFSET_KEY)
+        tracker.put("profile.ready_income", "£48,000")
+        tracker.put("profile.job", "nurse")
+        tracker.expect("ready", "flow:cash")
+        private = [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "Income: £48,000"}}]
+        status = [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "<b>📋 Application readiness</b>"}}]
+        tracker.record(10, private)
+        tracker.record(11, status)
+        tracker.record(20, private)
+        with users.use(friend):
+            tracker.put("profile.ready_cash", "£3,000")
+            tracker.expect("profile", "job")
+        rows = lambda: sorted((r["update_id"], r["outbox"]) for r in tracker.query("SELECT * FROM handled"))
+
+        out = io.StringIO()
+        self.assertEqual(readiness_cleanup.main(["--dry-run"], out=out), 2)
+        self.assertTrue(readydb.legacy_present())
+        self.assertEqual(readiness_cleanup.main([], out=out), 2)
+        self.assertIn("[20]", out.getvalue())
+        self.assertFalse(readydb.legacy_present())
+        self.assertIsNone(tracker.value("_await"))
+        self.assertEqual(tracker.value("profile.job"), "nurse")
+        self.assertEqual(rows(), [(10, "[]"), (11, "[]"), (20, json.dumps(private))])
+        with users.use(friend):
+            self.assertFalse(readydb.legacy_present())
+            self.assertEqual(tracker.expected()["kind"], "profile")
+        self.assertEqual(readiness_cleanup.main(["--blank-unacknowledged"], out=out), 0)
+        self.assertEqual(rows(), [(10, "[]"), (11, "[]"), (20, "[]")])
+        for path in readiness_cleanup.databases():
+            self.assertNotIn(b"48,000", path.read_bytes())
 
     def test_generic_cancel_row_from_a_draft_build_replays_exactly_like_release(self):
         texts = []
@@ -751,30 +827,17 @@ class ReadinessBotTests(BotBase):
         self.handler.handle(reply)
         self.assertEqual(ready.load().values["income"].text, "£48,000")
 
-    def test_tenure_is_forgotten_even_if_the_sidecar_cannot_be_written(self):
+    def test_tenure_is_forgotten_without_writing_anything(self):
         renter.set_field("job", "nurse")
         ready.set_field("employment", "employed")
         ready.set_field("employment_length", "2 years")
-        marker = readydb.path().with_name("readiness-tenure-stale")
-        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")):
-            renter.set_field("job", "teacher")
-        self.assertTrue(marker.exists())
-        self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
-        with patch.dict(os.environ, {"READY_PACK": "0"}):
-            renter.set_field("job", "nurse")
-        self.assertIsNone(ready.load().values["employment_length"])
-        self.assertFalse(marker.exists())
-
-        ready.set_field("employment_length", "2 years")
-        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")):
-            self.handler.handle(message("/profile job teacher", OWNER))
-        self.assertFalse(any("could not" in text.lower() for text in self.texts()))
-        self.assertIsNone(ready.load().values["employment_length"])
-        with patch.object(readydb, "drop", side_effect=sqlite3.OperationalError("fixture")), \
+        with patch.object(readydb, "transaction", side_effect=sqlite3.OperationalError("fixture")), \
                 patch.object(readydb.os, "open", side_effect=OSError("fixture")):
+            self.handler.handle(message("/profile job teacher", OWNER))
             self.handler.handle(message("/profile job nurse", OWNER))
-        self.assertTrue(any("tenure" in text.lower() and "could not" in text.lower() for text in self.texts()))
+        self.assertFalse(any("could not" in text.lower() for text in self.texts()))
         self.assertEqual(renter.profile()["job"], "nurse")
+        self.assertIsNone(ready.load().values["employment_length"])
 
     def test_plain_answer_ignored_while_disabled_is_applied_on_enabled_replay(self):
         self.handler.handle({**message("/ready rent 1600", OWNER), "update_id": 1270})
@@ -801,13 +864,69 @@ class ReadinessBotTests(BotBase):
             self.handler.handle(core)
             command = {**message("/ready", OWNER), "update_id": 1283}
             self.handler.handle(command)
+        self.assertEqual(tracker.handled(1283), [])
         before = list(self.texts())
         with patch.object(readydb, "transaction", side_effect=AssertionError("replayed")):
             self.handler.handle(core)
-            self.handler.handle(command)
         self.assertEqual(self.texts(), before)
+        # The release ignores /ready without a reply, so the enabled replay must answer it, once.
+        self.handler.handle(command)
+        answered = list(self.texts())
+        self.handler.handle(command)
+        self.assertEqual(self.texts(), answered)
+        self.assertTrue(any("Application readiness" in text for text in answered[len(before):]))
         self.assertEqual(renter.profile()["pets"], "cat")
         self.assertIsNone(ready.load().values["cash"])
+
+    def test_unreadable_alert_journal_never_doubles_a_reply(self):
+        item = home(1)
+        publish(item)
+        before = len(self.texts())
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            enquiry = {**press(f"q:{item.short_id}"), "update_id": 1286}
+            self.handler.handle(enquiry)
+        drafts = sum("Enquiry draft" in text for text in self.texts())
+        with patch.object(readydb, "primary_outbox", side_effect=sqlite3.DatabaseError("fixture")):
+            self.handler.handle(enquiry)
+            self.handler.handle(enquiry)
+        self.assertEqual(sum("Enquiry draft" in text for text in self.texts()), drafts)
+        self.assertEqual(sum("couldn't check" in text.lower() for text in self.texts()[before:]), 1)
+        self.assertFalse(readydb.exists() and readydb.handled(1286) is not None)
+
+    def test_recovery_does_not_resend_what_a_disabled_run_answered(self):
+        readydb.record(1287, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "OK, cancelled."}}],
+                       kind="cancel")
+        readydb.record(1288, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "checklist"}}],
+                       kind="ready")
+        with patch.dict(os.environ, {"READY_PACK": "0"}):
+            self.handler.handle({**message("/cancel", OWNER), "update_id": 1287})
+            self.handler.handle({**message("/ready", OWNER), "update_id": 1288})
+        self.assertEqual(self.texts()[-1], "Nothing to cancel.")
+        before = len(self.texts())
+        self.handler.acknowledged = 1289
+        with patch.object(readydb, "primary_outbox", side_effect=sqlite3.DatabaseError("fixture")):
+            self.handler.recover_readiness()
+        # /ready never needs the journal (the release ignores it); /cancel waits until it is readable.
+        self.assertEqual(self.texts()[before:], ["checklist"])
+        self.assertEqual(readydb.handled(1287)[0]["body"]["text"], "OK, cancelled.")
+        self.handler.recover_readiness()
+        self.handler.recover_readiness()
+        self.assertEqual(self.texts()[before:], ["checklist"])
+        self.assertEqual(readydb.handled(1287), [])
+
+    def test_clearing_an_answer_drops_replies_that_still_contain_it(self):
+        self.handler.handle({**message("/ready income £48k", OWNER), "update_id": 1320})
+        readydb.record(1320, [{"method": "sendMessage", "body": {"chat_id": OWNER, "text": "income £48,000"}}])
+        self.handler._unsaved[(OWNER, 1321)] = [users.owner(), [
+            {"method": "sendMessage", "body": {"chat_id": OWNER, "text": "memory £48,000"}}]]
+        before = len(self.texts())
+        self.handler.handle({**message("/ready income clear", OWNER), "update_id": 1322})
+        self.assertEqual(readydb.handled(1320), [])
+        self.assertNotIn((OWNER, 1321), self.handler._unsaved)
+        self.handler.acknowledged = 1323
+        self.handler.recover_readiness()
+        self.assertFalse(any("48,000" in text for text in self.texts()[before:]))
+        self.assertIsNone(ready.load().values["income"])
 
     def test_stranded_output_is_recovered_once_beside_polling(self):
         item = home(1)

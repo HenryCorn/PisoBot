@@ -4,17 +4,24 @@ import contextvars
 import datetime as dt
 import json
 import os
+import secrets
 import sqlite3
 import stat
+import threading
 
 from . import localdb, tracker, users
 
 _ACTIVE = contextvars.ContextVar("pisobot_ready_database", default=None)
-# Pre-sidecar draft builds (1201e1a, 81a2320) were never deployed. Their primary-database rows are
-# not imported or replayed: readiness refuses to run until an operator removes them while stopped.
-_LEGACY_TITLE = "%Application readiness</b>%"
+# Pre-sidecar draft builds (1201e1a, 81a2320) were never deployed. Their primary-database answers
+# and prompts are not imported or replayed: readiness refuses to run until an operator removes them
+# with `python -m pisobot.readiness_cleanup` while the service is stopped.
 EMPLOYMENT_LENGTH_FOR = "profile.ready_employment_length_for"
-_TENURE_STALE = "readiness-tenure-stale"
+# A tenure confirmation holds only for the process that took it, until the job is next saved: a run
+# with the pack off (always another process) can change the job without telling readiness.
+_BOOT = secrets.token_hex(8)
+_TENURE_EPOCH = {}
+_CLEARED = {}
+_LOCK = threading.Lock()
 _DDL = """
 CREATE TABLE IF NOT EXISTS renter (name TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS handled (update_id INTEGER PRIMARY KEY, outbox TEXT NOT NULL, at TEXT NOT NULL);
@@ -79,12 +86,20 @@ def primary_value(name):
     return _primary_renter("SELECT name, value FROM renter WHERE name = ?", name).get(name)
 
 
+def legacy_prompt():
+    """Read-only: the alert database holds a readiness question (kind 'ready'), expired or not.
+    Only a pre-sidecar draft build ever wrote one; the release never uses that kind."""
+    pending = _decode(primary_value("_await"))
+    return bool(pending and pending.get("kind") == "ready")
+
+
 def legacy_present():
-    """Read-only: private answers or results written by a pre-sidecar draft build."""
+    """Read-only: private answers or a question written by a pre-sidecar draft build. Matched by
+    their exact keys and prompt kind, which the release never writes."""
     primary = localdb.database_path()
     if _read(primary, "renter", "SELECT 1 FROM renter WHERE name GLOB 'profile.ready_*' LIMIT 1"):
         return True
-    return bool(_read(primary, "handled", "SELECT 1 FROM handled WHERE outbox LIKE ? LIMIT 1", _LEGACY_TITLE))
+    return legacy_prompt()
 
 
 def _decode(raw):
@@ -180,7 +195,6 @@ def transaction():
     else:
         os.close(fd)
     _check_isolation(pathname)
-    stale = _tenure_marker(pathname)
     with contextlib.closing(sqlite3.connect(pathname, timeout=0, isolation_level=None)) as db:
         db.row_factory = sqlite3.Row
         # Cleared answers must not survive in free pages of the sidecar file.
@@ -189,9 +203,6 @@ def transaction():
         db.execute("BEGIN IMMEDIATE")
         token = _ACTIVE.set((pathname, db))
         try:
-            invalidated = stale.exists()
-            if invalidated:
-                db.execute("DELETE FROM renter WHERE name = ?", (EMPLOYMENT_LENGTH_FOR,))
             yield db
             db.execute("COMMIT")
         except BaseException:
@@ -199,12 +210,6 @@ def transaction():
             raise
         finally:
             _ACTIVE.reset(token)
-    if invalidated:
-        try:
-            stale.unlink()
-        except OSError:
-            # Left in place, it only asks for tenure to be confirmed again.
-            pass
 
 
 def query(sql, *params):
@@ -234,22 +239,35 @@ def profile(names):
     return {name: facts.get(f"profile.{name}") for name in names}
 
 
-def _tenure_marker(pathname):
-    return pathname.with_name(_TENURE_STALE)
+def tenure_session():
+    """Identifies this process and the number of job saves it has seen for the current person."""
+    pathname = str(path())
+    with _LOCK:
+        return f"{_BOOT}:{_TENURE_EPOCH.get(pathname, 0)}"
 
 
 def invalidate_tenure():
-    """Forget which job a tenure answer was confirmed for. If the sidecar cannot be written, a
-    marker file makes its next transaction forget it instead; raises only if both fail."""
-    try:
-        if exists():
-            drop(EMPLOYMENT_LENGTH_FOR)
-        return
-    except Exception:
-        pathname = path()
-    pathname.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(_tenure_marker(pathname), os.O_CREAT | os.O_WRONLY, 0o600)
-    os.close(fd)
+    """Forget any tenure confirmation for the current person. Memory only, so it cannot fail; a
+    later process never accepts an earlier process's confirmation."""
+    pathname = str(path())
+    with _LOCK:
+        _TENURE_EPOCH[pathname] = _TENURE_EPOCH.get(pathname, 0) + 1
+
+
+def discard_outboxes():
+    """A cleared answer must not be sent later: drop every reply this person's readiness journal
+    still had to send (the current update records its own outbox afterwards)."""
+    query("UPDATE handled SET outbox = '[]' WHERE outbox != '[]'")
+    pathname = str(path())
+    with _LOCK:
+        _CLEARED[pathname] = _CLEARED.get(pathname, 0) + 1
+
+
+def clears():
+    """How many times this process has discarded the current person's pending readiness replies."""
+    pathname = str(path())
+    with _LOCK:
+        return _CLEARED.get(pathname, 0)
 
 
 def advert(key):
