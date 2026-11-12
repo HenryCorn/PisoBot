@@ -168,6 +168,16 @@ load. The page lists photo hosts and warns that those hosts, unpkg.com, OpenStre
 tile servers also see the map area.
 The local SVG map and listing facts work without opting in.
 
+## Optional: nearby places on rental cards
+
+Set `PLACE_TILES=1` to add one line to each rental card: the nearest supermarket, convenience shop,
+gym and cinema with an approximate walking time (straight line x 1.3 at 80 m/min, not a route;
+nothing further than 2 km is shown). It reads `pisobot/data/place_tiles.json`, a small file built
+offline by `scripts/build_place_tiles.py` from OpenStreetMap (c) OpenStreetMap contributors, ODbL 1.0.
+No network, database or background process is involved. The line is skipped whenever it would push a
+card past the one-message limit, and any error simply omits it. With the flag unset behaviour is
+unchanged.
+
 ## Optional: language-model reading of rental adverts
 
 `pisobot/extract.py` can ask a small Claude model (`EXTRACT_MODEL`, default `claude-haiku-5-5`) whether a

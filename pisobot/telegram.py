@@ -208,6 +208,9 @@ def crime_label(l):
     return f"{band} ({l.crime_score})"
 
 
+PLACE_HEADROOM = 120
+
+
 def format_listing(l, reason="new", rank=None, flags=""):
     head = {"drop": "📉 <b>Price drop</b>\n", "saved": "❤️ <b>Saved listing changed</b>\n"}.get(reason, "")
     if getattr(l, "urgency", None) == "top":
@@ -242,7 +245,13 @@ def format_listing(l, reason="new", rank=None, flags=""):
     lines.append(" · ".join(tags))
     if l.estimated:
         lines.append("<i>est. " + e(", ".join(l.estimated)) + "</i>")
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    place = getattr(l, "place_line", "")
+    # Optional nearby-places line: only when the card stays one message with room to spare (send_card
+    # splits above 1,024 UTF-16 units of raw HTML; the header-unavailable note adds up to ~70 more).
+    if place and tgtext.units(text + "\n" + place) + PLACE_HEADROOM <= tgtext.CAPTION:
+        text += "\n" + place
+    return text
 
 
 def listing_keyboard(l, saved=False):
